@@ -1,0 +1,92 @@
+/* ============================================
+   STEPPER / PROGRESS INDICATOR
+   Neo-brutal: thick connector, bordered steps
+   ============================================ */
+
+.ds-stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-xs);
+}
+
+/* ---- Step ---- */
+
+.ds-step {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-sm);
+}
+
+/* Connector line between steps */
+.ds-step + .ds-step::before {
+  content: '';
+  display: block;
+  width: 24px;
+  height: var(--ds-border-width);
+  background: var(--ds-color-border);
+  margin-right: var(--ds-space-xs);
+  transition: background-color 0.2s ease;
+}
+
+.ds-step--done + .ds-step::before,
+.ds-step--active + .ds-step::before {
+  background: var(--ds-color-accent);
+  opacity: 0.4;
+}
+
+/* ---- Step Number Circle ---- */
+
+.ds-step__number {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: var(--ds-radius-sm);
+  border: var(--ds-border-width) solid var(--ds-color-border);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-bold);
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-tertiary);
+}
+
+.ds-step--active .ds-step__number {
+  background: var(--ds-color-accent);
+  color: var(--ds-color-text-inverse);
+  border-color: var(--ds-color-border);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.ds-step--done .ds-step__number {
+  background: var(--ds-color-accent-light);
+  color: var(--ds-color-accent);
+  border-color: var(--ds-color-accent);
+}
+
+/* ---- Step Label ---- */
+
+.ds-step__label {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-tertiary);
+  transition: color 0.2s ease;
+  white-space: nowrap;
+}
+
+.ds-step--active .ds-step__label {
+  color: var(--ds-color-text-primary);
+}
+
+.ds-step--done .ds-step__label {
+  color: var(--ds-color-accent);
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 480px) {
+  .ds-step__label {
+    display: none;
+  }
+}

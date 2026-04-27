@@ -1,0 +1,126 @@
+/* ============================================
+   RESET & BASE STYLES
+   Neo-brutal: bold headings, strong focus states
+   ============================================ */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  line-height: 1.5;
+  tab-size: 4;
+  background-color: var(--ds-color-bg);
+}
+
+body {
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-base);
+  color: var(--ds-color-text-primary);
+  background-color: var(--ds-color-bg);
+  line-height: var(--ds-leading-normal);
+  min-height: 100vh;
+}
+
+/* ---- Typography ---- */
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: var(--ds-font-heading);
+  line-height: var(--ds-leading-tight);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-color-text-primary);
+}
+
+h1 { font-size: var(--ds-text-3xl); }
+h2 { font-size: var(--ds-text-2xl); }
+h3 { font-size: var(--ds-text-xl); }
+h4 { font-size: var(--ds-text-lg); }
+
+p {
+  line-height: var(--ds-leading-normal);
+  color: var(--ds-color-text-secondary);
+}
+
+small {
+  font-size: var(--ds-text-xs);
+}
+
+strong {
+  font-weight: var(--ds-weight-semibold);
+}
+
+/* ---- Links ---- */
+
+a {
+  color: var(--ds-color-accent);
+  text-decoration: none;
+  transition: color 0.15s ease;
+}
+
+a:hover {
+  color: var(--ds-color-accent-hover);
+}
+
+/* ---- Lists ---- */
+
+ul, ol {
+  list-style: none;
+}
+
+/* ---- Media ---- */
+
+img, svg, video, canvas {
+  display: block;
+  max-width: 100%;
+}
+
+/* ---- Form elements ---- */
+
+button, input, textarea, select {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: none;
+}
+
+/* ---- Tables ---- */
+
+table {
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+/* ---- Misc ---- */
+
+::selection {
+  background-color: var(--ds-color-accent-light);
+  color: var(--ds-color-text-primary);
+}
+
+:focus-visible {
+  outline: 3px solid var(--ds-color-accent);
+  outline-offset: 2px;
+}
+
+/* ---- Reduced Motion ---- */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

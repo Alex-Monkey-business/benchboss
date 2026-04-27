@@ -1,0 +1,157 @@
+/* ============================================
+   BUTTONS
+   Neo-brutal: thick borders, offset shadows, hover lift
+   ============================================ */
+
+.ds-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--ds-space-sm);
+  padding: 0.625rem var(--ds-space-lg);
+  border: var(--ds-border-width) solid var(--ds-color-border);
+  border-radius: var(--ds-radius-sm);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
+  line-height: 1;
+  text-decoration: none;
+  white-space: nowrap;
+  cursor: pointer;
+  transition: all 0.15s cubic-bezier(0.2, 0, 0.2, 1);
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+.ds-btn:disabled,
+.ds-btn[aria-disabled="true"] {
+  opacity: 0.5;
+  cursor: not-allowed;
+  pointer-events: none;
+}
+
+/* ---- Primary ---- */
+
+.ds-btn--primary {
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+  border-color: var(--ds-color-border);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.ds-btn--primary:hover {
+  background: var(--ds-color-accent-hover);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--ds-shadow-md);
+}
+
+.ds-btn--primary:active {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+
+/* ---- Secondary ---- */
+
+.ds-btn--secondary {
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-primary);
+  border-color: var(--ds-color-border);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.ds-btn--secondary:hover {
+  background: var(--ds-color-bg-subtle);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--ds-shadow-md);
+}
+
+.ds-btn--secondary:active {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+
+/* ---- Ghost ---- */
+
+.ds-btn--ghost {
+  background: transparent;
+  color: var(--ds-color-text-secondary);
+  border-color: transparent;
+  padding: var(--ds-space-sm) var(--ds-space-md);
+}
+
+.ds-btn--ghost:hover {
+  color: var(--ds-color-text-primary);
+  background: var(--ds-color-bg-subtle);
+  border-color: var(--ds-color-border-light);
+}
+
+/* ---- Confirm / Success ---- */
+
+.ds-btn--confirm {
+  background: var(--ds-color-success);
+  color: var(--ds-color-text-inverse);
+  border-color: var(--ds-color-border);
+  padding: var(--ds-space-lg) var(--ds-space-2xl);
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-bold);
+  border-radius: var(--ds-radius-md);
+  box-shadow: var(--ds-shadow-md);
+  width: 100%;
+  max-width: 400px;
+}
+
+.ds-btn--confirm:hover {
+  background: var(--ds-color-success-hover);
+  transform: translate(-2px, -2px);
+  box-shadow: var(--ds-shadow-lg);
+}
+
+.ds-btn--confirm:active {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+
+/* ---- Danger ---- */
+
+.ds-btn--danger {
+  background: var(--ds-color-error);
+  color: var(--ds-color-text-inverse);
+  border-color: var(--ds-color-border);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.ds-btn--danger:hover {
+  background: #B91C1C;
+  transform: translate(-2px, -2px);
+  box-shadow: var(--ds-shadow-md);
+}
+
+.ds-btn--danger:active {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+
+/* ---- Size Modifiers ---- */
+
+.ds-btn--sm {
+  padding: var(--ds-space-xs) var(--ds-space-md);
+  font-size: var(--ds-text-xs);
+}
+
+.ds-btn--lg {
+  padding: var(--ds-space-md) var(--ds-space-2xl);
+  font-size: var(--ds-text-base);
+  border-radius: var(--ds-radius-md);
+}
+
+/* ---- Icon-only Button ---- */
+
+.ds-btn--icon {
+  padding: var(--ds-space-sm);
+  border-radius: var(--ds-radius-sm);
+}
+
+.ds-btn--icon svg {
+  width: 18px;
+  height: 18px;
+}

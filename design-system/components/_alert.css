@@ -1,0 +1,50 @@
+/* ============================================
+   ALERT / NOTICE BOXES
+   Neo-brutal: thick borders, bold left accent
+   ============================================ */
+
+.ds-alert {
+  padding: var(--ds-space-md) var(--ds-space-lg);
+  border-radius: var(--ds-radius-sm);
+  font-size: var(--ds-text-sm);
+  line-height: var(--ds-leading-normal);
+  border: var(--ds-border-width) solid var(--ds-color-border);
+  border-left-width: 6px;
+}
+
+.ds-alert--info {
+  background: var(--ds-color-info-light);
+  color: var(--ds-color-info);
+  border-left-color: var(--ds-color-info);
+}
+
+.ds-alert--success {
+  background: var(--ds-color-success-light);
+  color: var(--ds-color-success);
+  border-left-color: var(--ds-color-success);
+}
+
+.ds-alert--warning {
+  background: var(--ds-color-warning-light);
+  color: var(--ds-color-warning-text);
+  border-left-color: var(--ds-color-warning);
+}
+
+.ds-alert--error {
+  background: var(--ds-color-error-light);
+  color: var(--ds-color-error);
+  border-left-color: var(--ds-color-error);
+}
+
+/* Subtle variant (lighter border) */
+.ds-alert--subtle {
+  border-color: var(--ds-color-border-light);
+}
+
+/* Tip box variant */
+.ds-alert--tip {
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-secondary);
+  border-radius: var(--ds-radius-md);
+  border-left-color: var(--ds-color-accent);
+}

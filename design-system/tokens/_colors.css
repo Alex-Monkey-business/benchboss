@@ -1,0 +1,50 @@
+/* ============================================
+   COLOR TOKENS
+   Neo-brutalist palette with electric blue accent
+   ============================================ */
+
+:root {
+  /* ---- Background ---- */
+  --ds-color-bg:              #FFFEF8;
+  --ds-color-bg-elevated:     #FFFFFF;
+  --ds-color-bg-subtle:       #F5F3ED;
+
+  /* ---- Border ---- */
+  --ds-color-border:          #1A1A1A;
+  --ds-color-border-light:    #D4D4D4;
+  --ds-color-border-focus:    #2563EB;
+
+  /* ---- Text ---- */
+  --ds-color-text-primary:    #1A1A1A;
+  --ds-color-text-secondary:  #5C5C5C;
+  --ds-color-text-tertiary:   #8A8A8A;
+  --ds-color-text-inverse:    #FFFEF8;
+
+  /* ---- Accent (Electric Blue) ---- */
+  --ds-color-accent:          #2563EB;
+  --ds-color-accent-hover:    #1D4ED8;
+  --ds-color-accent-light:    #DBEAFE;
+  --ds-color-accent-text:     #FFFEF8;
+
+  /* ---- Semantic: Success (Emerald) ---- */
+  --ds-color-success:         #059669;
+  --ds-color-success-hover:   #047857;
+  --ds-color-success-light:   #D1FAE5;
+
+  /* ---- Semantic: Warning (Amber) ---- */
+  --ds-color-warning:         #D97706;
+  --ds-color-warning-light:   #FEF3C7;
+  --ds-color-warning-border:  #D97706;
+  --ds-color-warning-text:    #92400E;
+
+  /* ---- Semantic: Error (Red) ---- */
+  --ds-color-error:           #DC2626;
+  --ds-color-error-light:     #FEE2E2;
+
+  /* ---- Semantic: Info ---- */
+  --ds-color-info:            #2563EB;
+  --ds-color-info-light:      #DBEAFE;
+
+  /* ---- Overlay ---- */
+  --ds-color-overlay:         rgba(0, 0, 0, 0.4);
+}

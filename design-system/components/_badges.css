@@ -1,0 +1,79 @@
+/* ============================================
+   BADGES & STATUS INDICATORS
+   Neo-brutal: thick borders, bold typography
+   ============================================ */
+
+/* ---- Badge (inline label) ---- */
+
+.ds-badge {
+  display: inline-block;
+  padding: 2px var(--ds-space-sm);
+  border: var(--ds-border-width) solid var(--ds-color-border);
+  border-radius: var(--ds-radius-sm);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  line-height: 1.6;
+}
+
+/* Badge Variants */
+.ds-badge--accent {
+  background: var(--ds-color-accent);
+  color: var(--ds-color-text-inverse);
+  border-color: var(--ds-color-border);
+}
+
+.ds-badge--subtle {
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-secondary);
+}
+
+.ds-badge--info {
+  background: var(--ds-color-info-light);
+  color: var(--ds-color-info);
+}
+
+.ds-badge--success {
+  background: var(--ds-color-success-light);
+  color: var(--ds-color-success);
+}
+
+.ds-badge--warning {
+  background: var(--ds-color-warning-light);
+  color: var(--ds-color-warning);
+}
+
+.ds-badge--error {
+  background: var(--ds-color-error-light);
+  color: var(--ds-color-error);
+}
+
+/* ---- Status Indicator (dot + label) ---- */
+
+.ds-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+}
+
+.ds-status__dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.ds-status--active .ds-status__dot   { background: var(--ds-color-success); }
+.ds-status--active                    { color: var(--ds-color-success); }
+
+.ds-status--pending .ds-status__dot  { background: var(--ds-color-warning); }
+.ds-status--pending                   { color: var(--ds-color-warning); }
+
+.ds-status--draft .ds-status__dot    { background: var(--ds-color-text-tertiary); }
+.ds-status--draft                     { color: var(--ds-color-text-tertiary); }
+
+.ds-status--error .ds-status__dot    { background: var(--ds-color-error); }
+.ds-status--error                     { color: var(--ds-color-error); }

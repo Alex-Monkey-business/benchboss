@@ -1,0 +1,30 @@
+/* ============================================
+   DESIGN SYSTEM — Main Entry Point
+
+   Import this single file to get the full system:
+   @import './design-system/index.css';
+   ============================================ */
+
+/* 1. Tokens (CSS Custom Properties) */
+@import './tokens/_colors.css';
+@import './tokens/_typography.css';
+@import './tokens/_spacing.css';
+
+/* 2. Base / Reset */
+@import './base/_reset.css';
+
+/* 3. Components */
+@import './components/_buttons.css';
+@import './components/_cards.css';
+@import './components/_badges.css';
+@import './components/_forms.css';
+@import './components/_pills.css';
+@import './components/_dialog.css';
+@import './components/_toast.css';
+@import './components/_stepper.css';
+@import './components/_alert.css';
+@import './components/_empty-state.css';
+
+/* 4. Utilities */
+@import './utilities/_layout.css';
+@import './utilities/_animations.css';

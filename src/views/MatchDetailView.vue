@@ -1,0 +1,566 @@
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
+import { useMatches } from '../composables/useMatches'
+import { useExpenses } from '../composables/useExpenses'
+import { useCoaches } from '../composables/useCoaches'
+import { useReferees } from '../composables/useReferees'
+import { useToast } from '../composables/useToast'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { formatPhone, phoneE164 } from '../lib/phone'
+
+const route = useRoute()
+const router = useRouter()
+const { getMatch, updateMatch, setMatchCoaches, fetchMatchCoaches, deleteMatch } = useMatches()
+const { expenses, fetchExpenses, registerExpense, getExpenseForMatch, removeExpense } = useExpenses()
+const { coaches, fetchCoaches } = useCoaches()
+const { referees, fetchReferees, getRefereeByName } = useReferees()
+const { show: showToast } = useToast()
+
+const match = ref(null)
+const loading = ref(true)
+const matchCoachIds = ref([])
+const showDeleteDialog = ref(false)
+const customReferee = ref(false)
+const refereeInput = ref('')
+
+onMounted(async () => {
+  await Promise.all([fetchCoaches(), fetchReferees()])
+  match.value = await getMatch(route.params.id)
+  if (match.value) {
+    await fetchExpenses([match.value.id])
+    refereeInput.value = match.value.referee || ''
+    matchCoachIds.value = await fetchMatchCoaches(match.value.id)
+    // Show custom input if current referee is not in known list
+    if (match.value.referee && !referees.value.some(r => r.name === match.value.referee)) {
+      customReferee.value = true
+    }
+  }
+  loading.value = false
+})
+
+const selectedReferee = computed(() => {
+  if (!match.value?.referee) return null
+  return getRefereeByName(match.value.referee)
+})
+
+const vippsMessage = computed(() => {
+  if (!match.value?.match_date) return 'Dommerhonorar'
+  const d = new Date(match.value.match_date + 'T12:00:00')
+  const dateStr = d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'numeric', year: 'numeric' })
+  return `Dommerhonorar ${dateStr}`
+})
+
+const telHref = computed(() => {
+  const p = selectedReferee.value?.phone
+  return p ? `tel:${phoneE164(p)}` : ''
+})
+
+const smsHref = computed(() => {
+  const p = selectedReferee.value?.phone
+  return p ? `sms:${phoneE164(p)}` : ''
+})
+
+async function openVipps() {
+  const p = selectedReferee.value?.phone
+  if (!p) return
+  try {
+    await navigator.clipboard.writeText(phoneE164(p))
+    showToast('Telefonnummer kopiert — lim inn i Vipps', 'success')
+  } catch {
+    // Clipboard may fail silently on old browsers / insecure contexts
+  }
+  window.location.href = 'vipps://'
+}
+
+const expense = computed(() => getExpenseForMatch(route.params.id))
+
+function getColorFromName(name) {
+  const n = (name || '').toLowerCase()
+  if (n.includes('grønn') || n.includes('gronn')) return 'gronn'
+  if (n.includes('rød') || n.includes('rod')) return 'rod'
+  if (n.includes('hvit')) return 'hvit'
+  return ''
+}
+
+const teamColors = computed(() => {
+  if (!match.value) return []
+  const colors = []
+  const home = (match.value.home_team || '').toLowerCase()
+  const away = (match.value.away_team || '').toLowerCase()
+  if (home.includes('halsen')) {
+    const c = getColorFromName(match.value.home_team)
+    if (c) colors.push(c)
+  }
+  if (away.includes('halsen')) {
+    const c = getColorFromName(match.value.away_team)
+    if (c && !colors.includes(c)) colors.push(c)
+  }
+  return colors
+})
+
+const formattedDate = computed(() => {
+  if (!match.value?.match_date) return ''
+  const d = new Date(match.value.match_date + 'T12:00:00')
+  return d.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' })
+})
+
+async function selectReferee(name) {
+  customReferee.value = false
+  if (match.value.referee === name) {
+    // Deselect
+    await updateMatch(match.value.id, { referee: '' })
+    match.value.referee = ''
+    refereeInput.value = ''
+    showToast('Dommer fjernet', 'success')
+  } else {
+    await updateMatch(match.value.id, { referee: name })
+    match.value.referee = name
+    refereeInput.value = name
+    showToast('Dommer oppdatert', 'success')
+  }
+}
+
+function showCustomReferee() {
+  customReferee.value = true
+  const isKnown = referees.value.some(r => r.name === match.value.referee)
+  refereeInput.value = isKnown ? '' : (match.value.referee || '')
+}
+
+async function saveCustomReferee() {
+  const name = refereeInput.value.trim()
+  if (name && name !== match.value.referee) {
+    await updateMatch(match.value.id, { referee: name })
+    match.value.referee = name
+    showToast('Dommer oppdatert', 'success')
+  }
+  if (!name) {
+    customReferee.value = false
+  }
+}
+
+async function selectPayer(coachId) {
+  if (expense.value?.paid_by === coachId) {
+    await removeExpense(match.value.id)
+    showToast('Utlegg fjernet', 'success')
+  } else {
+    await registerExpense(match.value.id, coachId, match.value.fee_amount || 200)
+    const name = coaches.value.find(c => c.id === coachId)?.name
+    showToast(`${name} la ut ${match.value.fee_amount || 200} kr`, 'success')
+  }
+}
+
+async function toggleCoach(coachId) {
+  const current = [...matchCoachIds.value]
+  const idx = current.indexOf(coachId)
+  if (idx > -1) {
+    current.splice(idx, 1)
+  } else {
+    current.push(coachId)
+  }
+  await setMatchCoaches(match.value.id, current)
+  matchCoachIds.value = current
+  showToast('Trenere oppdatert', 'success')
+}
+
+async function handleDelete() {
+  showDeleteDialog.value = false
+  await deleteMatch(match.value.id)
+  showToast('Kamp slettet', 'success')
+  router.push('/')
+}
+</script>
+
+<template>
+  <div v-if="loading" style="text-align: center; padding: 80px 0;">
+    <svg class="ds-anim-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ds-color-accent)" stroke-width="2" stroke-linecap="round">
+      <path d="M21 12a9 9 0 11-6.219-8.56"/>
+    </svg>
+  </div>
+
+  <div v-else-if="match" class="desktop-container">
+    <div class="px-lg" style="padding-top: var(--ds-space-md);">
+      <button class="back-btn" @click="router.back()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Tilbake
+      </button>
+    </div>
+
+    <!-- Match Header — same visual language as dashboard MatchCard -->
+    <div class="px-lg mt-lg">
+      <div class="ds-card match-card match-detail-card">
+        <div class="match-card__top">
+          <span class="match-card__datetime">
+            <span
+              v-for="color in teamColors"
+              :key="color"
+              class="match-card__team-tag"
+              :class="`match-card__team-tag--${color}`"
+            >{{ color === 'gronn' ? 'Grønn' : color === 'rod' ? 'Rød' : 'Hvit' }}</span>
+            {{ formattedDate }}<template v-if="match.match_time && match.match_time.substring(0, 5) !== '00:00'"> · {{ match.match_time.substring(0, 5) }}</template>
+          </span>
+        </div>
+        <div class="match-card__teams">
+          <span class="match-card__team">{{ match.home_team }}</span>
+          <span class="match-card__vs">vs</span>
+          <span class="match-card__team">{{ match.away_team }}</span>
+        </div>
+        <div class="match-card__meta" v-if="match.division || match.round">
+          <span v-if="match.division" class="match-card__meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
+            {{ match.division }}
+          </span>
+          <span v-if="match.round" class="match-card__meta-item">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+            Runde {{ match.round }}
+          </span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Action sections — two-column on desktop -->
+    <div class="px-lg mt-lg detail-desktop-grid">
+      <div>
+        <!-- Dommer - pill buttons -->
+        <div class="detail-section">
+          <div class="detail-section__header">
+            <span class="detail-section__label">Dommer</span>
+          </div>
+          <div class="referee-pills" style="margin-top: 10px;">
+            <button
+              v-for="r in referees"
+              :key="r.id"
+              :class="['referee-pill', { 'referee-pill--selected': match.referee === r.name && !customReferee }]"
+              @click="selectReferee(r.name)"
+            >
+              {{ r.name }}
+            </button>
+            <button
+              :class="['referee-pill referee-pill--other', { 'referee-pill--selected': customReferee }]"
+              @click="showCustomReferee"
+            >
+              Annen...
+            </button>
+          </div>
+          <div v-if="customReferee" style="margin-top: 8px;">
+            <input
+              v-model="refereeInput"
+              class="ds-input"
+              placeholder="Skriv dommerens navn..."
+              @keydown.enter="saveCustomReferee"
+              @blur="saveCustomReferee"
+            />
+          </div>
+
+          <!-- Kontaktknapper: Ring / SMS / Vipps -->
+          <div v-if="selectedReferee?.phone" class="referee-contact">
+            <div class="referee-contact__phone">{{ formatPhone(selectedReferee.phone) }}</div>
+            <div class="referee-contact__actions">
+              <a :href="telHref" class="contact-btn contact-btn--neutral">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
+                </svg>
+                Ring
+              </a>
+              <a :href="smsHref" class="contact-btn contact-btn--neutral">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                </svg>
+                SMS
+              </a>
+              <button type="button" class="contact-btn contact-btn--vipps" @click="openVipps">
+                <svg class="vipps-icon" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#FF5B24"/><g transform="translate(-60, -20) scale(2)"><path d="M57.3,40.7c3.7,0,5.8-1.8,7.8-4.4c1.1-1.4,2.5-1.7,3.5-0.9s1.1,2.3,0,3.7c-2.9,3.8-6.6,6.1-11.3,6.1c-5.1,0-9.6-2.8-12.7-7.7c-0.9-1.3-0.7-2.7,0.3-3.4s2.5-0.4,3.4,1C50.5,38.4,53.5,40.7,57.3,40.7z M64.2,28.4c0,1.8-1.4,3-3,3s-3-1.2-3-3s1.4-3,3-3S64.2,26.7,64.2,28.4z" fill="white"/></g></svg>
+                Åpne Vipps
+              </button>
+            </div>
+            <div class="referee-contact__hint-amount">Nummeret kopieres — lim inn i Vipps og send {{ match.fee_amount || 200 }} kr</div>
+          </div>
+          <div v-else-if="selectedReferee && !selectedReferee.phone" class="referee-contact__hint">
+            Ingen telefon registrert — legg til under Mer → Dommere
+          </div>
+        </div>
+
+        <!-- Trenere / Coach Assignment -->
+        <div class="detail-section">
+          <div class="detail-section__header">
+            <span class="detail-section__label">Trenere</span>
+          </div>
+          <div class="coach-grid" style="margin-top: 12px;">
+            <button
+              v-for="(c, i) in coaches"
+              :key="c.id"
+              :class="['coach-btn', { 'coach-btn--selected': matchCoachIds.includes(c.id) }]"
+              @click="toggleCoach(c.id)"
+            >
+              <div :class="['coach-btn__avatar', !c.image && `coach-avatar--${i % 5}`]">
+                <img v-if="c.image" :src="c.image" :alt="c.name" class="coach-btn__avatar-img" />
+                <template v-else>{{ c.name.charAt(0) }}</template>
+              </div>
+              <span class="coach-btn__name">{{ c.name }}</span>
+              <svg v-if="matchCoachIds.includes(c.id)" style="width: 16px; height: 16px; color: var(--ds-color-success);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <!-- Expense / Hvem la ut -->
+        <div class="detail-section">
+          <div class="detail-section__header">
+            <span class="detail-section__label">Hvem la ut {{ match.fee_amount || 200 }} kr?</span>
+          </div>
+          <div class="payer-grid" style="margin-top: 12px;">
+            <button
+              v-for="(c, i) in coaches"
+              :key="c.id"
+              :class="['payer-btn', { 'payer-btn--selected': expense?.paid_by === c.id }]"
+              @click="selectPayer(c.id)"
+            >
+              <span class="payer-btn__name">{{ c.name }}</span>
+              <svg v-if="expense?.paid_by === c.id" style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Delete Match -->
+    <div class="px-lg mt-lg mb-lg" style="padding-top: var(--ds-space-lg); border-top: 1px solid var(--ds-color-border-light);">
+      <button
+        class="ds-btn ds-btn--ghost ds-btn--sm"
+        style="color: var(--ds-color-error);"
+        @click="showDeleteDialog = true"
+      >
+        Slett kamp
+      </button>
+    </div>
+
+    <ConfirmDialog
+      :show="showDeleteDialog"
+      title="Slett kamp?"
+      :message="`Er du sikker på at du vil slette ${match.home_team} vs ${match.away_team}?`"
+      confirm-label="Slett"
+      variant="warning"
+      @confirm="handleDelete"
+      @cancel="showDeleteDialog = false"
+    />
+  </div>
+</template>
+
+<style scoped>
+/* Match detail card — reuses global .match-card classes, adds team tag locally */
+.match-detail-card {
+  padding: var(--ds-space-lg);
+}
+
+/* Override the flex:1 spread — center teams compactly in detail view */
+.match-detail-card .match-card__teams {
+  justify-content: center;
+}
+
+.match-detail-card .match-card__team {
+  flex: none;
+}
+
+.match-detail-card .match-card__team:last-child {
+  text-align: left;
+}
+
+.match-detail-card .match-card__team-tag {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+  margin-right: 4px;
+}
+
+.match-detail-card .match-card__team-tag--gronn {
+  background: var(--ds-color-success-light);
+  color: var(--ds-color-success);
+}
+
+.match-detail-card .match-card__team-tag--rod {
+  background: var(--ds-color-error-light);
+  color: var(--ds-color-error);
+}
+
+.match-detail-card .match-card__team-tag--hvit {
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-tertiary);
+  border: 1px solid var(--ds-color-border-light);
+}
+
+/* Referee pill buttons - compact horizontal chips */
+.referee-pills {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.referee-pill {
+  padding: 6px 14px;
+  border: 1.5px solid var(--ds-color-border);
+  border-radius: 20px;
+  background: var(--ds-color-bg-elevated);
+  font-family: var(--ds-font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.referee-pill:hover {
+  border-color: var(--ds-color-text-tertiary);
+  color: var(--ds-color-text-primary);
+}
+
+.referee-pill--selected {
+  border-color: var(--ds-color-accent);
+  background: var(--ds-color-accent);
+  color: white;
+}
+
+.referee-pill--selected:hover {
+  background: var(--ds-color-accent);
+  border-color: var(--ds-color-accent);
+  color: white;
+}
+
+.referee-pill--other {
+  border-style: dashed;
+}
+
+/* Referee contact block (phone + Ring/SMS/Vipps) */
+.referee-contact {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border: 1px solid var(--ds-color-border-light);
+  border-radius: 12px;
+  background: var(--ds-color-bg-elevated);
+}
+
+.referee-contact__phone {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ds-color-text-primary);
+  margin-bottom: 10px;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+}
+
+.referee-contact__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.referee-contact__hint {
+  margin-top: 12px;
+  font-size: 0.8125rem;
+  color: var(--ds-color-text-tertiary);
+  font-style: italic;
+}
+
+.referee-contact__hint-amount {
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--ds-color-text-tertiary);
+}
+
+.contact-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border-radius: 10px;
+  font-family: var(--ds-font-body);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  text-decoration: none;
+  border: 1.5px solid transparent;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.contact-btn svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+}
+
+.contact-btn--neutral {
+  background: var(--ds-color-bg);
+  border-color: var(--ds-color-border);
+  color: var(--ds-color-text-primary);
+}
+
+.contact-btn--neutral:hover {
+  border-color: var(--ds-color-text-tertiary);
+}
+
+.contact-btn--vipps {
+  background: #FF5B24;
+  color: white;
+}
+
+.contact-btn--vipps:hover {
+  background: #E85419;
+}
+
+.contact-btn .vipps-icon {
+  width: 18px;
+  height: 18px;
+  border-radius: 4px;
+}
+
+/* Payer buttons - compact name-only row */
+.payer-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.payer-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border: 2px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-bg-elevated);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  font-family: var(--ds-font-body);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.payer-btn:hover {
+  border-color: var(--ds-color-text-tertiary);
+}
+
+.payer-btn__name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ds-color-text-primary);
+}
+
+.payer-btn--selected {
+  border-color: var(--ds-color-warning);
+  background: #FFF8E1;
+}
+
+.payer-btn--selected svg {
+  color: var(--ds-color-warning);
+}
+</style>

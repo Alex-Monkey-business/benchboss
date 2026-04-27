@@ -1,0 +1,88 @@
+/* ============================================
+   DIALOG / MODAL
+   Neo-brutal: thick borders, offset shadow
+   ============================================ */
+
+/* ---- Overlay ---- */
+
+.ds-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--ds-color-overlay);
+  z-index: var(--ds-z-modal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ---- Dialog ---- */
+
+.ds-dialog {
+  position: relative;
+  max-width: 560px;
+  width: 90%;
+  max-height: 90vh;
+  overflow-y: auto;
+  background: var(--ds-color-bg-elevated);
+  border: var(--ds-border-width) solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  padding: var(--ds-space-2xl);
+  box-shadow: var(--ds-shadow-lg);
+}
+
+.ds-dialog__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  margin-bottom: var(--ds-space-lg);
+}
+
+.ds-dialog__title {
+  font-family: var(--ds-font-heading);
+  font-size: var(--ds-text-xl);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-color-text-primary);
+}
+
+.ds-dialog__close {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  border: var(--ds-border-width) solid transparent;
+  border-radius: var(--ds-radius-sm);
+  color: var(--ds-color-text-tertiary);
+  transition: all 0.15s ease;
+  flex-shrink: 0;
+}
+
+.ds-dialog__close:hover {
+  background: var(--ds-color-bg-subtle);
+  border-color: var(--ds-color-border);
+  color: var(--ds-color-text-primary);
+}
+
+.ds-dialog__body {
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+  line-height: var(--ds-leading-normal);
+}
+
+.ds-dialog__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-xl);
+}
+
+/* Narrow variant */
+.ds-dialog--narrow {
+  max-width: 420px;
+}
+
+/* Wide variant */
+.ds-dialog--wide {
+  max-width: 720px;
+}

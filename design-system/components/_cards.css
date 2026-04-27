@@ -1,0 +1,106 @@
+/* ============================================
+   CARDS
+   Neo-brutal: thick borders, offset shadows, macOS radius
+   ============================================ */
+
+.ds-card {
+  background: var(--ds-color-bg-elevated);
+  border: var(--ds-border-width) solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  padding: var(--ds-space-xl);
+  transition: all 0.15s cubic-bezier(0.2, 0, 0.2, 1);
+}
+
+/* Interactive card (clickable) */
+.ds-card--interactive {
+  cursor: pointer;
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.ds-card--interactive:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: var(--ds-shadow-lg);
+}
+
+.ds-card--interactive:active {
+  transform: translate(1px, 1px);
+  box-shadow: none;
+}
+
+/* Compact padding */
+.ds-card--compact {
+  padding: var(--ds-space-lg);
+}
+
+/* Spacious padding */
+.ds-card--spacious {
+  padding: var(--ds-space-xl) var(--ds-space-2xl);
+}
+
+/* ---- Card Header ---- */
+
+.ds-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--ds-space-lg);
+}
+
+.ds-card__title {
+  font-family: var(--ds-font-heading);
+  font-size: var(--ds-text-xl);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-color-text-primary);
+}
+
+.ds-card__subtitle {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+  margin-top: var(--ds-space-xs);
+}
+
+/* ---- Card Body ---- */
+
+.ds-card__body {
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+  line-height: var(--ds-leading-normal);
+}
+
+/* ---- Card Footer ---- */
+
+.ds-card__footer {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-md);
+  margin-top: var(--ds-space-lg);
+  padding-top: var(--ds-space-lg);
+  border-top: 1px solid var(--ds-color-border-light);
+}
+
+/* ---- Card Meta (tags, badges, date) ---- */
+
+.ds-card__meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--ds-space-xs);
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-tertiary);
+}
+
+.ds-card__meta-divider {
+  color: var(--ds-color-border-light);
+}
+
+/* ---- Responsive ---- */
+
+@media (max-width: 768px) {
+  .ds-card {
+    padding: var(--ds-space-lg);
+  }
+
+  .ds-card--spacious {
+    padding: var(--ds-space-lg);
+  }
+}
