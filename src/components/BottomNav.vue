@@ -1,17 +1,16 @@
 <script setup>
-import { computed } from 'vue'
 import { useRoute } from 'vue-router'
 
 const route = useRoute()
 
 const tabs = [
   { name: 'matches', label: 'Kamper', path: '/' },
-  { name: 'season', label: 'Dommerutlegg', path: '/sesong' },
-  { name: 'more', label: 'Mer', path: '/mer' }
+  { name: 'admin', label: 'Admin', path: '/admin' }
 ]
 
 function isActive(tab) {
   if (tab.name === 'matches') return route.path === '/' || route.path.startsWith('/kamp')
+  if (tab.name === 'admin') return route.path === '/admin' || route.path.startsWith('/admin/')
   return route.path === tab.path
 }
 </script>
@@ -31,17 +30,10 @@ function isActive(tab) {
         <line x1="8" y1="2" x2="8" y2="6"/>
         <line x1="3" y1="10" x2="21" y2="10"/>
       </svg>
-      <!-- Dommerutlegg (Vipps smile icon from brand kit) -->
-      <svg v-if="tab.name === 'season'" viewBox="35 22 40 28" fill="currentColor" stroke="none">
-        <path d="M57.3,40.7c3.7,0,5.8-1.8,7.8-4.4c1.1-1.4,2.5-1.7,3.5-0.9s1.1,2.3,0,3.7c-2.9,3.8-6.6,6.1-11.3,6.1
-          c-5.1,0-9.6-2.8-12.7-7.7c-0.9-1.3-0.7-2.7,0.3-3.4s2.5-0.4,3.4,1C50.5,38.4,53.5,40.7,57.3,40.7z M64.2,28.4c0,1.8-1.4,3-3,3
-          s-3-1.2-3-3s1.4-3,3-3S64.2,26.7,64.2,28.4z"/>
-      </svg>
-      <!-- Mer -->
-      <svg v-if="tab.name === 'more'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <circle cx="12" cy="12" r="1"/>
-        <circle cx="19" cy="12" r="1"/>
-        <circle cx="5" cy="12" r="1"/>
+      <!-- Admin -->
+      <svg v-if="tab.name === 'admin'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="12" cy="12" r="3"/>
+        <path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 11-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.65 1.65 0 00.33-1.82 1.65 1.65 0 00-1.51-1H3a2 2 0 110-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 112.83-2.83l.06.06a1.65 1.65 0 001.82.33H9a1.65 1.65 0 001-1.51V3a2 2 0 114 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 112.83 2.83l-.06.06a1.65 1.65 0 00-.33 1.82V9a1.65 1.65 0 001.51 1H21a2 2 0 110 4h-.09a1.65 1.65 0 00-1.51 1z"/>
       </svg>
       <span>{{ tab.label }}</span>
     </router-link>

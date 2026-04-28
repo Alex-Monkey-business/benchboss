@@ -27,15 +27,33 @@ const routes = [
     component: () => import('./views/MatchDetailView.vue')
   },
   {
-    path: '/sesong',
-    name: 'season',
+    path: '/admin',
+    name: 'admin',
+    component: () => import('./views/AdminView.vue')
+  },
+  {
+    path: '/admin/dommerutlegg',
+    name: 'admin-dommerutlegg',
     component: () => import('./views/SeasonView.vue')
   },
   {
-    path: '/mer',
-    name: 'more',
-    component: () => import('./views/MoreView.vue')
-  }
+    path: '/admin/sesong-kamper',
+    name: 'admin-sesong-kamper',
+    component: () => import('./views/AdminSesongKamperView.vue')
+  },
+  {
+    path: '/admin/dommere',
+    name: 'admin-dommere',
+    component: () => import('./views/AdminDommereView.vue')
+  },
+  {
+    path: '/admin/hospitanter',
+    name: 'admin-hospitanter',
+    component: () => import('./views/AdminHospitanterView.vue')
+  },
+  // Backwards-compat redirects for old paths
+  { path: '/sesong', redirect: '/admin/dommerutlegg' },
+  { path: '/mer', redirect: '/admin' }
 ]
 
 export const router = createRouter({
