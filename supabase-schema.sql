@@ -33,6 +33,8 @@ CREATE TABLE matches (
   division TEXT,
   referee TEXT,
   fee_amount INTEGER NOT NULL DEFAULT 200,
+  home_score INTEGER,
+  away_score INTEGER,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -62,12 +64,30 @@ CREATE TABLE referees (
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
+-- 7. Hospitanter (G2015-spillere)
+CREATE TABLE players (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  name TEXT NOT NULL UNIQUE,
+  primary_team TEXT CHECK (primary_team IN ('gronn', 'rod', 'hvit')),
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
+-- 8. Hospitanter per kamp (mange-til-mange)
+CREATE TABLE match_players (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+  player_id UUID NOT NULL REFERENCES players(id) ON DELETE CASCADE,
+  UNIQUE(match_id, player_id)
+);
+
 -- Indekser
 CREATE INDEX idx_matches_season ON matches(season_id);
 CREATE INDEX idx_matches_date ON matches(match_date);
 CREATE INDEX idx_expenses_match ON expenses(match_id);
 CREATE INDEX idx_expenses_paid_by ON expenses(paid_by);
 CREATE INDEX idx_match_coaches_match ON match_coaches(match_id);
+CREATE INDEX idx_match_players_match ON match_players(match_id);
+CREATE INDEX idx_match_players_player ON match_players(player_id);
 
 -- Deaktiver RLS (5 venner, ikke-sensitiv data)
 ALTER TABLE coaches DISABLE ROW LEVEL SECURITY;
@@ -76,6 +96,8 @@ ALTER TABLE matches DISABLE ROW LEVEL SECURITY;
 ALTER TABLE match_coaches DISABLE ROW LEVEL SECURITY;
 ALTER TABLE expenses DISABLE ROW LEVEL SECURITY;
 ALTER TABLE referees DISABLE ROW LEVEL SECURITY;
+ALTER TABLE players DISABLE ROW LEVEL SECURITY;
+ALTER TABLE match_players DISABLE ROW LEVEL SECURITY;
 
 -- Seed trenere (PIN: enkel 4-sifret kode, lagret som tekst)
 -- Endre PIN-kodene til det dere vil bruke!
