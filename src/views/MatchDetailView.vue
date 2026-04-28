@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMatches } from '../composables/useMatches'
 import { useExpenses } from '../composables/useExpenses'
@@ -7,14 +7,14 @@ import { useCoaches } from '../composables/useCoaches'
 import { useReferees } from '../composables/useReferees'
 import { useToast } from '../composables/useToast'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
-import { formatPhone, phoneE164 } from '../lib/phone'
+import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 
 const route = useRoute()
 const router = useRouter()
 const { getMatch, updateMatch, setMatchCoaches, fetchMatchCoaches, deleteMatch } = useMatches()
 const { expenses, fetchExpenses, registerExpense, getExpenseForMatch, removeExpense } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
-const { referees, fetchReferees, getRefereeByName } = useReferees()
+const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
 const { show: showToast } = useToast()
 
 const match = ref(null)
@@ -23,6 +23,7 @@ const matchCoachIds = ref([])
 const showDeleteDialog = ref(false)
 const customReferee = ref(false)
 const refereeInput = ref('')
+const newPhone = ref('')
 
 onMounted(async () => {
   await Promise.all([fetchCoaches(), fetchReferees()])
@@ -43,6 +44,21 @@ const selectedReferee = computed(() => {
   if (!match.value?.referee) return null
   return getRefereeByName(match.value.referee)
 })
+
+const isValidNewPhone = computed(() => parsePhone(newPhone.value).length === 8)
+
+watch(() => selectedReferee.value?.id, () => {
+  newPhone.value = ''
+})
+
+async function saveNewPhone() {
+  if (!isValidNewPhone.value || !selectedReferee.value) return
+  const result = await updateReferee(selectedReferee.value.id, { phone: newPhone.value })
+  if (result) {
+    showToast(`Telefon lagret for ${selectedReferee.value.name}`, 'success')
+    newPhone.value = ''
+  }
+}
 
 const vippsMessage = computed(() => {
   if (!match.value?.match_date) return 'Dommerhonorar'
@@ -125,18 +141,38 @@ function showCustomReferee() {
   customReferee.value = true
   const isKnown = referees.value.some(r => r.name === match.value.referee)
   refereeInput.value = isKnown ? '' : (match.value.referee || '')
+  newPhone.value = ''
+}
+
+function cancelCustomReferee() {
+  customReferee.value = false
+  refereeInput.value = match.value.referee || ''
+  newPhone.value = ''
 }
 
 async function saveCustomReferee() {
   const name = refereeInput.value.trim()
-  if (name && name !== match.value.referee) {
-    await updateMatch(match.value.id, { referee: name })
-    match.value.referee = name
-    showToast('Dommer oppdatert', 'success')
-  }
   if (!name) {
     customReferee.value = false
+    return
   }
+  if (newPhone.value && !isValidNewPhone.value) return
+
+  const phone = newPhone.value
+  const existing = referees.value.find(r => r.name === name)
+  if (!existing) {
+    await addReferee(name, phone)
+  } else if (phone && !existing.phone) {
+    await updateReferee(existing.id, { phone })
+  }
+  if (name !== match.value.referee) {
+    await updateMatch(match.value.id, { referee: name })
+    match.value.referee = name
+  }
+  customReferee.value = false
+  refereeInput.value = name
+  newPhone.value = ''
+  showToast('Dommer lagret', 'success')
 }
 
 async function selectPayer(coachId) {
@@ -241,44 +277,96 @@ async function handleDelete() {
               :class="['referee-pill referee-pill--other', { 'referee-pill--selected': customReferee }]"
               @click="showCustomReferee"
             >
-              Annen...
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Ny dommer
             </button>
           </div>
-          <div v-if="customReferee" style="margin-top: 8px;">
+          <!-- Custom referee form: navn + telefon i samme form -->
+          <div v-if="customReferee" class="custom-referee-form">
             <input
               v-model="refereeInput"
               class="ds-input"
-              placeholder="Skriv dommerens navn..."
+              placeholder="Dommerens navn"
               @keydown.enter="saveCustomReferee"
-              @blur="saveCustomReferee"
             />
-          </div>
-
-          <!-- Kontaktknapper: Ring / SMS / Vipps -->
-          <div v-if="selectedReferee?.phone" class="referee-contact">
-            <div class="referee-contact__phone">{{ formatPhone(selectedReferee.phone) }}</div>
-            <div class="referee-contact__actions">
-              <a :href="telHref" class="contact-btn contact-btn--neutral">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
-                </svg>
-                Ring
-              </a>
-              <a :href="smsHref" class="contact-btn contact-btn--neutral">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                </svg>
-                SMS
-              </a>
-              <button type="button" class="contact-btn contact-btn--vipps" @click="openVipps">
-                <svg class="vipps-icon" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#FF5B24"/><g transform="translate(-60, -20) scale(2)"><path d="M57.3,40.7c3.7,0,5.8-1.8,7.8-4.4c1.1-1.4,2.5-1.7,3.5-0.9s1.1,2.3,0,3.7c-2.9,3.8-6.6,6.1-11.3,6.1c-5.1,0-9.6-2.8-12.7-7.7c-0.9-1.3-0.7-2.7,0.3-3.4s2.5-0.4,3.4,1C50.5,38.4,53.5,40.7,57.3,40.7z M64.2,28.4c0,1.8-1.4,3-3,3s-3-1.2-3-3s1.4-3,3-3S64.2,26.7,64.2,28.4z" fill="white"/></g></svg>
-                Åpne Vipps
+            <input
+              v-model="newPhone"
+              class="ds-input"
+              type="tel"
+              inputmode="numeric"
+              autocomplete="off"
+              placeholder="Telefon (valgfritt, 8 siffer)"
+              @keydown.enter="saveCustomReferee"
+            />
+            <div class="custom-referee-form__actions">
+              <button
+                type="button"
+                class="ds-btn ds-btn--ghost ds-btn--sm"
+                @click="cancelCustomReferee"
+              >
+                Avbryt
+              </button>
+              <button
+                type="button"
+                class="ds-btn ds-btn--primary ds-btn--sm"
+                :disabled="!refereeInput.trim() || (newPhone && !isValidNewPhone)"
+                @click="saveCustomReferee"
+              >
+                Legg til
               </button>
             </div>
-            <div class="referee-contact__hint-amount">Nummeret kopieres — lim inn i Vipps og send {{ match.fee_amount || 200 }} kr</div>
           </div>
-          <div v-else-if="selectedReferee && !selectedReferee.phone" class="referee-contact__hint">
-            Ingen telefon registrert — legg til under Mer → Dommere
+
+          <!-- Kontaktkort: vises når en dommer er valgt — telefon eller empty state -->
+          <div v-if="selectedReferee && !customReferee" class="referee-contact">
+            <template v-if="selectedReferee.phone">
+              <div class="referee-contact__phone">{{ formatPhone(selectedReferee.phone) }}</div>
+              <div class="referee-contact__actions">
+                <a :href="telHref" class="contact-btn contact-btn--neutral">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
+                  </svg>
+                  Ring
+                </a>
+                <a :href="smsHref" class="contact-btn contact-btn--neutral">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
+                  </svg>
+                  SMS
+                </a>
+                <button type="button" class="contact-btn contact-btn--vipps" @click="openVipps">
+                  <svg class="vipps-icon" viewBox="0 0 100 100"><rect width="100" height="100" rx="22" fill="#FF5B24"/><g transform="translate(-60, -20) scale(2)"><path d="M57.3,40.7c3.7,0,5.8-1.8,7.8-4.4c1.1-1.4,2.5-1.7,3.5-0.9s1.1,2.3,0,3.7c-2.9,3.8-6.6,6.1-11.3,6.1c-5.1,0-9.6-2.8-12.7-7.7c-0.9-1.3-0.7-2.7,0.3-3.4s2.5-0.4,3.4,1C50.5,38.4,53.5,40.7,57.3,40.7z M64.2,28.4c0,1.8-1.4,3-3,3s-3-1.2-3-3s1.4-3,3-3S64.2,26.7,64.2,28.4z" fill="white"/></g></svg>
+                  Åpne Vipps
+                </button>
+              </div>
+              <div class="referee-contact__hint-amount">Nummeret kopieres — lim inn i Vipps og send {{ match.fee_amount || 200 }} kr</div>
+            </template>
+            <template v-else>
+              <div class="referee-contact__empty-title">Ingen telefon registrert</div>
+              <div class="referee-contact__empty-subtitle">Legg til nummer for å aktivere Ring, SMS og Vipps</div>
+              <div class="referee-add-phone__row">
+                <input
+                  v-model="newPhone"
+                  class="ds-input"
+                  type="tel"
+                  inputmode="numeric"
+                  autocomplete="off"
+                  placeholder="8 siffer"
+                  @keydown.enter="saveNewPhone"
+                />
+                <button
+                  type="button"
+                  class="ds-btn ds-btn--primary ds-btn--sm"
+                  :disabled="!isValidNewPhone"
+                  @click="saveNewPhone"
+                >
+                  Lagre
+                </button>
+              </div>
+            </template>
           </div>
         </div>
 
@@ -438,6 +526,14 @@ async function handleDelete() {
 
 .referee-pill--other {
   border-style: dashed;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.referee-pill--other svg {
+  width: 14px;
+  height: 14px;
 }
 
 /* Referee contact block (phone + Ring/SMS/Vipps) */
@@ -469,6 +565,43 @@ async function handleDelete() {
   font-size: 0.8125rem;
   color: var(--ds-color-text-tertiary);
   font-style: italic;
+}
+
+.custom-referee-form {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.custom-referee-form__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.referee-contact__empty-title {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ds-color-text-primary);
+  margin-bottom: 2px;
+}
+
+.referee-contact__empty-subtitle {
+  font-size: 0.75rem;
+  color: var(--ds-color-text-tertiary);
+  margin-bottom: 10px;
+}
+
+.referee-add-phone__row {
+  display: flex;
+  gap: 8px;
+  align-items: stretch;
+}
+
+.referee-add-phone__row .ds-input {
+  flex: 1;
+  min-width: 0;
 }
 
 .referee-contact__hint-amount {
