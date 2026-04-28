@@ -3,18 +3,20 @@ import { supabase, isSupabaseConfigured } from '../supabase'
 
 const matches = ref([])
 const matchCoaches = ref([])
+const matchPlayers = ref([])
 const loading = ref(false)
 
 const DEMO_MATCHES = [
   // Vinter 2026 – G11 Jotron Serie Avd 1 (kun hjemmekamper)
-  { id: 'dm-1', season_id: 'demo-season-2', round: '2', match_date: '2026-02-28', match_day: 'lørdag', match_time: '12:00', home_team: 'Halsen Rød', away_team: 'Sem Gul', division: 'Avd 1', referee: '', fee_amount: 200 },
-  { id: 'dm-2', season_id: 'demo-season-2', round: '2', match_date: '2026-02-28', match_day: 'lørdag', match_time: '12:00', home_team: 'Halsen Grønn', away_team: 'Borre sort', division: 'Avd 1', referee: '', fee_amount: 200 },
-  { id: 'dm-3', season_id: 'demo-season-2', round: '4', match_date: '2026-03-11', match_day: 'onsdag', match_time: '18:00', home_team: 'Halsen Grønn', away_team: 'Tønsberg FK Blå', division: 'Avd 1', referee: '', fee_amount: 200 },
-  { id: 'dm-4', season_id: 'demo-season-2', round: '4', match_date: '2026-03-14', match_day: 'lørdag', match_time: '12:00', home_team: 'Halsen Rød', away_team: 'Store Bergan rød', division: 'Avd 1', referee: '', fee_amount: 200 },
-  { id: 'dm-5', season_id: 'demo-season-2', round: '4', match_date: '2026-03-18', match_day: 'onsdag', match_time: '18:00', home_team: 'Halsen Rød', away_team: 'Borre sort', division: 'Avd 1', referee: '', fee_amount: 200 },
+  { id: 'dm-1', season_id: 'demo-season-2', round: '2', match_date: '2026-02-28', match_day: 'lørdag', match_time: '12:00', home_team: 'Halsen Rød', away_team: 'Sem Gul', division: 'Avd 1', referee: '', fee_amount: 200, home_score: 3, away_score: 1 },
+  { id: 'dm-2', season_id: 'demo-season-2', round: '2', match_date: '2026-02-28', match_day: 'lørdag', match_time: '12:00', home_team: 'Halsen Grønn', away_team: 'Borre sort', division: 'Avd 1', referee: '', fee_amount: 200, home_score: 2, away_score: 2 },
+  { id: 'dm-3', season_id: 'demo-season-2', round: '4', match_date: '2026-03-11', match_day: 'onsdag', match_time: '18:00', home_team: 'Halsen Grønn', away_team: 'Tønsberg FK Blå', division: 'Avd 1', referee: '', fee_amount: 200, home_score: null, away_score: null },
+  { id: 'dm-4', season_id: 'demo-season-2', round: '4', match_date: '2026-03-14', match_day: 'lørdag', match_time: '12:00', home_team: 'Halsen Rød', away_team: 'Store Bergan rød', division: 'Avd 1', referee: '', fee_amount: 200, home_score: null, away_score: null },
+  { id: 'dm-5', season_id: 'demo-season-2', round: '4', match_date: '2026-03-18', match_day: 'onsdag', match_time: '18:00', home_team: 'Halsen Rød', away_team: 'Borre sort', division: 'Avd 1', referee: '', fee_amount: 200, home_score: null, away_score: null },
 ]
 
 const DEMO_MATCH_COACHES = []
+const DEMO_MATCH_PLAYERS = []
 
 export function useMatches() {
   async function fetchMatches(seasonId) {
@@ -25,6 +27,9 @@ export function useMatches() {
       // Keep user changes in demo mode - only init if empty
       if (matchCoaches.value.length === 0 && DEMO_MATCH_COACHES.length > 0) {
         matchCoaches.value = [...DEMO_MATCH_COACHES]
+      }
+      if (matchPlayers.value.length === 0 && DEMO_MATCH_PLAYERS.length > 0) {
+        matchPlayers.value = [...DEMO_MATCH_PLAYERS]
       }
       loading.value = false
       return
@@ -39,12 +44,22 @@ export function useMatches() {
 
     if (!error && data) matches.value = data
 
+    const matchIds = matches.value.map(m => m.id)
+
     const { data: mc } = await supabase
       .from('match_coaches')
       .select('*')
-      .in('match_id', matches.value.map(m => m.id))
+      .in('match_id', matchIds)
 
     if (mc) matchCoaches.value = mc
+
+    const { data: mp } = await supabase
+      .from('match_players')
+      .select('*')
+      .in('match_id', matchIds)
+
+    if (mp) matchPlayers.value = mp
+
     loading.value = false
   }
 
@@ -157,6 +172,47 @@ export function useMatches() {
     return data ? data.map(mc => mc.coach_id) : []
   }
 
+  async function setMatchPlayers(matchId, playerIds) {
+    if (!isSupabaseConfigured) {
+      matchPlayers.value = matchPlayers.value.filter(mp => mp.match_id !== matchId)
+      playerIds.forEach(pid => matchPlayers.value.push({ match_id: matchId, player_id: pid }))
+      return
+    }
+
+    await supabase.from('match_players').delete().eq('match_id', matchId)
+
+    if (playerIds.length > 0) {
+      await supabase
+        .from('match_players')
+        .insert(playerIds.map(player_id => ({ match_id: matchId, player_id })))
+    }
+
+    matchPlayers.value = matchPlayers.value.filter(mp => mp.match_id !== matchId)
+    playerIds.forEach(pid => matchPlayers.value.push({ match_id: matchId, player_id: pid }))
+  }
+
+  function getPlayersForMatch(matchId) {
+    return matchPlayers.value.filter(mp => mp.match_id === matchId).map(mp => mp.player_id)
+  }
+
+  async function fetchMatchPlayers(matchId) {
+    if (!isSupabaseConfigured) {
+      return matchPlayers.value.filter(mp => mp.match_id === matchId).map(mp => mp.player_id)
+    }
+
+    const { data } = await supabase
+      .from('match_players')
+      .select('player_id')
+      .eq('match_id', matchId)
+
+    if (data) {
+      matchPlayers.value = matchPlayers.value.filter(mp => mp.match_id !== matchId)
+      data.forEach(mp => matchPlayers.value.push({ match_id: matchId, player_id: mp.player_id }))
+    }
+
+    return data ? data.map(mp => mp.player_id) : []
+  }
+
   async function deleteMatch(matchId) {
     if (!isSupabaseConfigured) {
       matches.value = matches.value.filter(m => m.id !== matchId)
@@ -180,8 +236,10 @@ export function useMatches() {
   }
 
   return {
-    matches, matchCoaches, loading,
+    matches, matchCoaches, matchPlayers, loading,
     fetchMatches, getMatch, updateMatch, addMatch, bulkAddMatches,
-    setMatchCoaches, getCoachesForMatch, fetchMatchCoaches, deleteMatch, deleteAllMatches
+    setMatchCoaches, getCoachesForMatch, fetchMatchCoaches,
+    setMatchPlayers, getPlayersForMatch, fetchMatchPlayers,
+    deleteMatch, deleteAllMatches
   }
 }

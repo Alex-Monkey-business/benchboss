@@ -39,6 +39,11 @@ const isAway = computed(() => {
   return !isHalsen(props.match.home_team) && isHalsen(props.match.away_team)
 })
 
+const hasResult = computed(() => {
+  const m = props.match
+  return m.home_score !== null && m.home_score !== undefined && m.away_score !== null && m.away_score !== undefined
+})
+
 const formattedTime = computed(() => {
   if (!props.match.match_time) return ''
   const t = props.match.match_time.substring(0, 5)
@@ -69,7 +74,8 @@ const formattedTime = computed(() => {
     </div>
     <div class="match-card__teams">
       <span class="match-card__team">{{ match.home_team }}</span>
-      <span class="match-card__vs">vs</span>
+      <span v-if="hasResult" class="match-card__score">{{ match.home_score }}–{{ match.away_score }}</span>
+      <span v-else class="match-card__vs">vs</span>
       <span class="match-card__team">{{ match.away_team }}</span>
     </div>
     <div class="match-card__meta">
@@ -135,5 +141,18 @@ const formattedTime = computed(() => {
   margin-right: 4px;
   background: var(--ds-color-bg-subtle);
   color: var(--ds-color-text-tertiary);
+}
+
+.match-card__score {
+  font-family: var(--ds-font-heading);
+  font-size: 0.9375rem;
+  font-weight: 700;
+  color: var(--ds-color-text-primary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: 0.02em;
+  flex-shrink: 0;
+  padding: 2px 8px;
+  border-radius: 6px;
+  background: var(--ds-color-bg-subtle);
 }
 </style>

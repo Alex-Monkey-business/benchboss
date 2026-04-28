@@ -8,6 +8,7 @@ import { useExpenses } from '../composables/useExpenses'
 import { useToast } from '../composables/useToast'
 import { useCoaches } from '../composables/useCoaches'
 import { useReferees } from '../composables/useReferees'
+import { usePlayers } from '../composables/usePlayers'
 import { parseMatchFile, detectSeasonName } from '../lib/excelParser'
 import { formatPhone, parsePhone } from '../lib/phone'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -17,9 +18,10 @@ const { coach, logout } = useAuth()
 const { coaches, fetchCoaches } = useCoaches()
 const coachImage = computed(() => coaches.value.find(c => c.name === coach.value?.name)?.image)
 const { seasons, activeSeason, fetchSeasons, createSeason, setActiveSeason } = useSeasons()
-const { matches, fetchMatches, bulkAddMatches, addMatch, deleteAllMatches } = useMatches()
+const { matches, matchPlayers, fetchMatches, bulkAddMatches, addMatch, deleteAllMatches } = useMatches()
 const { fetchExpenses } = useExpenses()
 const { referees, fetchReferees, addReferee, updateReferee, deleteReferee } = useReferees()
+const { players, fetchPlayers, addPlayer, updatePlayer, deletePlayer } = usePlayers()
 const { show: showToast } = useToast()
 
 const loading = ref(false)
@@ -57,9 +59,42 @@ const newRefereeName = ref('')
 const newRefereePhone = ref('')
 const refereeToDelete = ref(null)
 
+// Hospitanter admin
+const editingPlayerId = ref(null)
+const editPlayerName = ref('')
+const editPlayerTeam = ref('')
+const showAddPlayer = ref(false)
+const newPlayerName = ref('')
+const newPlayerTeam = ref('')
+const playerToDelete = ref(null)
+
+const TEAM_OPTIONS = [
+  { value: '', label: 'Ingen' },
+  { value: 'gronn', label: 'Grønn' },
+  { value: 'rod', label: 'Rød' },
+  { value: 'hvit', label: 'Hvit' }
+]
+const TEAM_LABELS = { gronn: 'Grønn', rod: 'Rød', hvit: 'Hvit' }
+
 onMounted(async () => {
-  await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees()])
+  await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers()])
+  if (activeSeason.value) {
+    await fetchMatches(activeSeason.value.id)
+  }
 })
+
+const playerStats = computed(() => {
+  const counts = {}
+  matchPlayers.value.forEach(mp => {
+    counts[mp.player_id] = (counts[mp.player_id] || 0) + 1
+  })
+  return players.value.map(p => ({ ...p, count: counts[p.id] || 0 }))
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+})
+
+const totalHospitantMatches = computed(() =>
+  matchPlayers.value.length
+)
 
 // File upload
 function onDragOver(e) {
@@ -239,6 +274,44 @@ async function confirmDeleteReferee() {
   const name = refereeToDelete.value.name
   await deleteReferee(refereeToDelete.value.id)
   refereeToDelete.value = null
+  showToast(`${name} slettet`, 'success')
+}
+
+function startEditPlayer(p) {
+  editingPlayerId.value = p.id
+  editPlayerName.value = p.name
+  editPlayerTeam.value = p.primary_team || ''
+}
+
+function cancelEditPlayer() {
+  editingPlayerId.value = null
+  editPlayerName.value = ''
+  editPlayerTeam.value = ''
+}
+
+async function saveEditPlayer() {
+  const name = editPlayerName.value.trim()
+  if (!name) return
+  await updatePlayer(editingPlayerId.value, { name, primary_team: editPlayerTeam.value })
+  showToast('Hospitant oppdatert', 'success')
+  cancelEditPlayer()
+}
+
+async function handleAddPlayer() {
+  const name = newPlayerName.value.trim()
+  if (!name) return
+  await addPlayer(name, newPlayerTeam.value)
+  showToast(`${name} lagt til`, 'success')
+  newPlayerName.value = ''
+  newPlayerTeam.value = ''
+  showAddPlayer.value = false
+}
+
+async function confirmDeletePlayer() {
+  if (!playerToDelete.value) return
+  const name = playerToDelete.value.name
+  await deletePlayer(playerToDelete.value.id)
+  playerToDelete.value = null
   showToast(`${name} slettet`, 'success')
 }
 
@@ -480,6 +553,70 @@ function confirmLogout() {
       </div>
     </div>
 
+    <!-- ═══ HOSPITANTER ═══ -->
+    <div class="px-lg mb-lg">
+      <div class="more-section-label">
+        Hospitanter
+        <span v-if="players.length > 0" class="more-section-label__hint">
+          {{ players.length }} spillere · {{ totalHospitantMatches }} ekstra kamper
+        </span>
+      </div>
+
+      <div class="ds-card ds-card--compact">
+        <div v-if="playerStats.length === 0 && !showAddPlayer" class="referee-empty">
+          Ingen spillere i poolen.
+        </div>
+
+        <div v-else class="referee-list">
+          <div v-for="p in playerStats" :key="p.id" class="referee-row">
+            <template v-if="editingPlayerId === p.id">
+              <div class="referee-row__edit">
+                <input v-model="editPlayerName" class="ds-input" placeholder="Navn" />
+                <select v-model="editPlayerTeam" class="ds-input">
+                  <option v-for="opt in TEAM_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+                </select>
+                <div class="ds-flex ds-gap-sm" style="margin-top: 8px;">
+                  <button class="ds-btn ds-btn--secondary ds-btn--sm" @click="cancelEditPlayer">Avbryt</button>
+                  <button class="ds-btn ds-btn--primary ds-btn--sm" @click="saveEditPlayer">Lagre</button>
+                  <button class="referee-row__delete" @click="playerToDelete = p" aria-label="Slett spiller">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+                  </button>
+                </div>
+              </div>
+            </template>
+            <template v-else>
+              <button class="referee-row__main" @click="startEditPlayer(p)">
+                <div class="referee-row__name">
+                  {{ p.name }}
+                  <span v-if="p.primary_team" :class="['hospitant-team-tag', `hospitant-team-tag--${p.primary_team}`]">{{ TEAM_LABELS[p.primary_team] }}</span>
+                </div>
+                <div class="referee-row__phone">
+                  {{ p.count }} ekstra {{ p.count === 1 ? 'kamp' : 'kamper' }}
+                </div>
+                <svg class="referee-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
+            </template>
+          </div>
+        </div>
+
+        <div v-if="showAddPlayer" class="referee-add-form">
+          <input v-model="newPlayerName" class="ds-input" placeholder="Spillerens navn" @keydown.enter="handleAddPlayer" />
+          <select v-model="newPlayerTeam" class="ds-input">
+            <option v-for="opt in TEAM_OPTIONS" :key="opt.value" :value="opt.value">Hovedlag: {{ opt.label }}</option>
+          </select>
+          <div class="ds-flex ds-gap-sm" style="margin-top: 8px;">
+            <button class="ds-btn ds-btn--secondary ds-btn--sm" @click="showAddPlayer = false; newPlayerName = ''; newPlayerTeam = ''">Avbryt</button>
+            <button class="ds-btn ds-btn--primary ds-btn--sm" @click="handleAddPlayer">Legg til</button>
+          </div>
+        </div>
+
+        <button v-else class="more-inline-action" @click="showAddPlayer = true">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          Ny hospitant
+        </button>
+      </div>
+    </div>
+
     <!-- ═══ KONTO ═══ -->
     <div class="px-lg mb-lg">
       <div class="more-section-label">Konto</div>
@@ -538,6 +675,16 @@ function confirmLogout() {
       @confirm="confirmDeleteReferee"
       @cancel="refereeToDelete = null"
     />
+
+    <ConfirmDialog
+      :show="!!playerToDelete"
+      title="Slett hospitant?"
+      :message="`Er du sikker på at du vil slette ${playerToDelete?.name}? Tilknytninger til kamper fjernes også.`"
+      confirm-label="Slett"
+      variant="warning"
+      @confirm="confirmDeletePlayer"
+      @cancel="playerToDelete = null"
+    />
   </div>
 </template>
 
@@ -559,6 +706,45 @@ function confirmLogout() {
   color: var(--ds-color-text-tertiary);
   padding: 0 4px;
   margin-bottom: 8px;
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.more-section-label__hint {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0.02em;
+  color: var(--ds-color-text-tertiary);
+  opacity: 0.85;
+}
+
+.hospitant-team-tag {
+  display: inline-block;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 1px 6px;
+  border-radius: 4px;
+  letter-spacing: 0.02em;
+  margin-left: 6px;
+}
+
+.hospitant-team-tag--gronn {
+  background: var(--ds-color-success-light);
+  color: var(--ds-color-success);
+}
+
+.hospitant-team-tag--rod {
+  background: var(--ds-color-error-light);
+  color: var(--ds-color-error);
+}
+
+.hospitant-team-tag--hvit {
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-tertiary);
+  border: 1px solid var(--ds-color-border-light);
 }
 
 /* Action row (tappable list item) */

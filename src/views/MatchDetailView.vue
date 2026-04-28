@@ -5,33 +5,41 @@ import { useMatches } from '../composables/useMatches'
 import { useExpenses } from '../composables/useExpenses'
 import { useCoaches } from '../composables/useCoaches'
 import { useReferees } from '../composables/useReferees'
+import { usePlayers } from '../composables/usePlayers'
 import { useToast } from '../composables/useToast'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 
 const route = useRoute()
 const router = useRouter()
-const { getMatch, updateMatch, setMatchCoaches, fetchMatchCoaches, deleteMatch } = useMatches()
+const { getMatch, updateMatch, setMatchCoaches, fetchMatchCoaches, setMatchPlayers, fetchMatchPlayers, deleteMatch } = useMatches()
 const { expenses, fetchExpenses, registerExpense, getExpenseForMatch, removeExpense } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
+const { players, fetchPlayers } = usePlayers()
 const { show: showToast } = useToast()
 
 const match = ref(null)
 const loading = ref(true)
 const matchCoachIds = ref([])
+const matchPlayerIds = ref([])
 const showDeleteDialog = ref(false)
 const customReferee = ref(false)
 const refereeInput = ref('')
 const newPhone = ref('')
+const homeScoreInput = ref('')
+const awayScoreInput = ref('')
 
 onMounted(async () => {
-  await Promise.all([fetchCoaches(), fetchReferees()])
+  await Promise.all([fetchCoaches(), fetchReferees(), fetchPlayers()])
   match.value = await getMatch(route.params.id)
   if (match.value) {
     await fetchExpenses([match.value.id])
     refereeInput.value = match.value.referee || ''
     matchCoachIds.value = await fetchMatchCoaches(match.value.id)
+    matchPlayerIds.value = await fetchMatchPlayers(match.value.id)
+    homeScoreInput.value = match.value.home_score ?? ''
+    awayScoreInput.value = match.value.away_score ?? ''
     // Show custom input if current referee is not in known list
     if (match.value.referee && !referees.value.some(r => r.name === match.value.referee)) {
       customReferee.value = true
@@ -197,6 +205,73 @@ async function toggleCoach(coachId) {
   await setMatchCoaches(match.value.id, current)
   matchCoachIds.value = current
   showToast('Trenere oppdatert', 'success')
+}
+
+async function togglePlayer(playerId) {
+  const current = [...matchPlayerIds.value]
+  const idx = current.indexOf(playerId)
+  if (idx > -1) {
+    current.splice(idx, 1)
+  } else {
+    current.push(playerId)
+  }
+  await setMatchPlayers(match.value.id, current)
+  matchPlayerIds.value = current
+  showToast('Hospitanter oppdatert', 'success')
+}
+
+const teamLabels = { gronn: 'Grønn', rod: 'Rød', hvit: 'Hvit' }
+
+const availablePlayers = computed(() => {
+  const matchTeams = teamColors.value
+  return players.value.filter(p => {
+    // Always show players already selected on this match (so they can be removed)
+    if (matchPlayerIds.value.includes(p.id)) return true
+    // Players without a primary team can hospitate anywhere
+    if (!p.primary_team) return true
+    // Hide if the player's primary team is one of the Halsen teams playing this match
+    return !matchTeams.includes(p.primary_team)
+  })
+})
+
+const hasResult = computed(() => {
+  return match.value?.home_score !== null && match.value?.home_score !== undefined
+    && match.value?.away_score !== null && match.value?.away_score !== undefined
+})
+
+function isValidScore(v) {
+  if (v === '' || v === null || v === undefined) return false
+  const n = Number(v)
+  return Number.isInteger(n) && n >= 0 && n <= 99
+}
+
+const isResultValid = computed(() =>
+  isValidScore(homeScoreInput.value) && isValidScore(awayScoreInput.value)
+)
+
+const isResultChanged = computed(() => {
+  const h = homeScoreInput.value === '' ? null : Number(homeScoreInput.value)
+  const a = awayScoreInput.value === '' ? null : Number(awayScoreInput.value)
+  return h !== (match.value?.home_score ?? null) || a !== (match.value?.away_score ?? null)
+})
+
+async function saveResult() {
+  if (!isResultValid.value || !isResultChanged.value) return
+  const home = Number(homeScoreInput.value)
+  const away = Number(awayScoreInput.value)
+  await updateMatch(match.value.id, { home_score: home, away_score: away })
+  match.value.home_score = home
+  match.value.away_score = away
+  showToast(`Resultat lagret: ${home}–${away}`, 'success')
+}
+
+async function clearResult() {
+  await updateMatch(match.value.id, { home_score: null, away_score: null })
+  match.value.home_score = null
+  match.value.away_score = null
+  homeScoreInput.value = ''
+  awayScoreInput.value = ''
+  showToast('Resultat fjernet', 'success')
 }
 
 async function handleDelete() {
@@ -393,9 +468,78 @@ async function handleDelete() {
             </button>
           </div>
         </div>
+
+        <!-- Hospitanter / Guest players -->
+        <div class="detail-section">
+          <div class="detail-section__header">
+            <span class="detail-section__label">Hospitanter</span>
+          </div>
+          <div v-if="players.length === 0" class="hospitant-empty">
+            Ingen spillere i poolen — legg til under Mer → Hospitanter
+          </div>
+          <div v-else-if="availablePlayers.length === 0" class="hospitant-empty">
+            Ingen tilgjengelige hospitanter for denne kampen.
+          </div>
+          <div v-else class="referee-pills" style="margin-top: 10px;">
+            <button
+              v-for="p in availablePlayers"
+              :key="p.id"
+              :class="['referee-pill', { 'referee-pill--selected': matchPlayerIds.includes(p.id) }]"
+              @click="togglePlayer(p.id)"
+            >
+              {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabels[p.primary_team] }}</span>
+            </button>
+          </div>
+        </div>
       </div>
 
       <div>
+        <!-- Resultat -->
+        <div class="detail-section">
+          <div class="detail-section__header">
+            <span class="detail-section__label">Resultat</span>
+          </div>
+          <div class="result-form">
+            <input
+              v-model="homeScoreInput"
+              type="number"
+              min="0"
+              max="99"
+              inputmode="numeric"
+              class="ds-input result-input"
+              :aria-label="`Mål for ${match.home_team}`"
+              @keydown.enter="saveResult"
+            />
+            <span class="result-dash">–</span>
+            <input
+              v-model="awayScoreInput"
+              type="number"
+              min="0"
+              max="99"
+              inputmode="numeric"
+              class="ds-input result-input"
+              :aria-label="`Mål for ${match.away_team}`"
+              @keydown.enter="saveResult"
+            />
+            <button
+              type="button"
+              class="ds-btn ds-btn--primary ds-btn--sm"
+              :disabled="!isResultValid || !isResultChanged"
+              @click="saveResult"
+            >
+              Lagre
+            </button>
+          </div>
+          <button
+            v-if="hasResult"
+            type="button"
+            class="ds-btn ds-btn--ghost ds-btn--sm result-clear-btn"
+            @click="clearResult"
+          >
+            Fjern resultat
+          </button>
+        </div>
+
         <!-- Expense / Hvem la ut -->
         <div class="detail-section">
           <div class="detail-section__header">
@@ -695,5 +839,52 @@ async function handleDelete() {
 
 .payer-btn--selected svg {
   color: var(--ds-color-warning);
+}
+
+/* Resultat-form */
+.result-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.result-input {
+  width: 64px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+  font-weight: 600;
+  font-size: 1rem;
+  -moz-appearance: textfield;
+}
+
+.result-input::-webkit-outer-spin-button,
+.result-input::-webkit-inner-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+
+.result-dash {
+  font-size: 1.125rem;
+  font-weight: 700;
+  color: var(--ds-color-text-tertiary);
+}
+
+.result-clear-btn {
+  margin-top: 8px;
+  color: var(--ds-color-text-tertiary);
+}
+
+/* Hospitanter */
+.hospitant-empty {
+  margin-top: 10px;
+  font-size: 0.8125rem;
+  color: var(--ds-color-text-tertiary);
+  font-style: italic;
+}
+
+.hospitant-pill__team {
+  font-weight: 400;
+  opacity: 0.8;
 }
 </style>
