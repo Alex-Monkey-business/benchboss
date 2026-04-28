@@ -37,8 +37,12 @@ onMounted(() => {
       </p>
 
       <h1 class="splash__title" :class="{ 'splash__title--in': step2 }">
-        Halsen <span class="splash__accent">G2015</span>
+        Bench<span class="splash__accent">Boss</span>
       </h1>
+
+      <p class="splash__tagline" :class="{ 'splash__tagline--in': step3 }">
+        Built for the beautiful chaos of grassroots football
+      </p>
 
       <div class="splash__dots" :class="{ 'splash__dots--in': step3 }">
         <span></span><span></span><span></span>
@@ -134,6 +138,26 @@ onMounted(() => {
 
 .splash__accent {
   color: var(--ds-color-accent);
+}
+
+/* Tagline */
+.splash__tagline {
+  font-family: var(--ds-font-body);
+  font-size: 0.875rem;
+  font-weight: 400;
+  color: var(--ds-color-text-secondary);
+  text-align: center;
+  max-width: 280px;
+  line-height: 1.5;
+  margin: 12px 0 0;
+  opacity: 0;
+  transform: translateY(12px);
+  transition: all 0.6s ease;
+}
+
+.splash__tagline--in {
+  opacity: 1;
+  transform: translateY(0);
 }
 
 /* Loading dots */

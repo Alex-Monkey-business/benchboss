@@ -48,7 +48,7 @@ async function onPinComplete(pin) {
           <span v-else class="login-avatar__initial">{{ currentCoach?.name?.charAt(0) || '?' }}</span>
         </div>
       </Transition>
-      <h1 class="login-content__title">Halsen G2015</h1>
+      <h1 class="login-content__title">BenchBoss</h1>
 
       <div class="login-content__form">
         <div class="ds-form-group">
