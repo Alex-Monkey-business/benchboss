@@ -1,10 +1,11 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import { useCoaches } from '../composables/useCoaches'
 import PinInput from '../components/PinInput.vue'
 
+const route = useRoute()
 const router = useRouter()
 const { login } = useAuth()
 const { coaches, fetchCoaches, verifyPin } = useCoaches()
@@ -27,7 +28,8 @@ async function onPinComplete(pin) {
   if (isValid) {
     const coach = coaches.value.find(c => c.id === selectedCoach.value)
     login({ id: coach.id, name: coach.name })
-    router.push('/')
+    const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
+    router.push(redirect)
   } else {
     pinError.value = true
     setTimeout(() => {

@@ -71,19 +71,22 @@ let splashShown = sessionStorage.getItem('splashShown')
 router.beforeEach((to) => {
   const { isLoggedIn } = useAuth()
 
-  // Show splash once per session on first navigation
-  if (!splashShown && to.name !== 'splash') {
-    splashShown = true
-    sessionStorage.setItem('splashShown', '1')
-    return { name: 'splash' }
-  }
-
-  // Splash screen is always accessible
   if (to.name === 'splash') return
 
-  if (to.name !== 'login' && !isLoggedIn.value) {
-    return { name: 'login' }
+  // Splash only shows on first root entry per session — deep links skip it.
+  if (!splashShown) {
+    splashShown = true
+    sessionStorage.setItem('splashShown', '1')
+    if (to.path === '/' && to.name !== 'login') {
+      return { name: 'splash' }
+    }
   }
+
+  // Send unauthenticated users to login, remembering where they were heading.
+  if (to.name !== 'login' && !isLoggedIn.value) {
+    return { name: 'login', query: { redirect: to.fullPath } }
+  }
+
   if (to.name === 'login' && isLoggedIn.value) {
     return { name: 'dashboard' }
   }
