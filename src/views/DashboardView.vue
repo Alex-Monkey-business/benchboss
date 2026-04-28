@@ -17,6 +17,7 @@ const { coaches, fetchCoaches } = useCoaches()
 const teamFilter = ref('alle')
 const venueFilter = ref('alle')
 const loading = ref(true)
+const showPastMatches = ref(false)
 
 onMounted(async () => {
   await Promise.all([fetchSeasons(), fetchCoaches()])
@@ -231,27 +232,45 @@ function getCoachNamesForMatch(matchId) {
         </div>
       </div>
 
-      <!-- Tidligere kamper -->
+      <!-- Tidligere kamper (sammenleggbar) -->
       <div v-if="pastGroups.length > 0">
-        <div class="section-header" :class="{ 'ds-anim-fade-up ds-anim-delay-3': upcomingGroups.length === 0 }">
+        <button
+          type="button"
+          class="section-header section-header--collapsible"
+          :class="{ 'ds-anim-fade-up ds-anim-delay-3': upcomingGroups.length === 0 }"
+          :aria-expanded="showPastMatches"
+          @click="showPastMatches = !showPastMatches"
+        >
           <h2 class="section-header__title">Tidligere kamper</h2>
           <span class="ds-badge ds-badge--subtle">{{ pastMatches.length }}</span>
-        </div>
-        <div v-for="group in pastGroups" :key="group.date" class="mb-md">
-          <div class="px-lg" style="padding-top: 4px; padding-bottom: 4px;">
-            <span style="font-size: 0.8125rem; font-weight: 600; color: var(--ds-color-text-tertiary); text-transform: capitalize; letter-spacing: 0.02em;">
-              {{ group.label }}
-            </span>
-          </div>
-          <div class="px-lg ds-stack--sm ds-anim-stagger-list">
-            <MatchCard
-              v-for="match in group.matches"
-              :key="match.id"
-              :match="match"
-              :expense="getExpenseForMatch(match.id)"
-              :paid-by-name="getCoachName(getExpenseForMatch(match.id)?.paid_by)"
-              :coach-names="getCoachNamesForMatch(match.id)"
-            />
+          <span class="section-header__toggle">
+            <span class="section-header__toggle-text">{{ showPastMatches ? 'Skjul' : 'Vis' }}</span>
+            <svg
+              :class="['section-header__chevron', { 'section-header__chevron--open': showPastMatches }]"
+              viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
+            >
+              <polyline points="6 9 12 15 18 9"/>
+            </svg>
+          </span>
+        </button>
+        <div v-if="showPastMatches">
+          <div v-for="group in pastGroups" :key="group.date" class="mb-md">
+            <div class="px-lg" style="padding-top: 4px; padding-bottom: 4px;">
+              <span style="font-size: 0.8125rem; font-weight: 600; color: var(--ds-color-text-tertiary); text-transform: capitalize; letter-spacing: 0.02em;">
+                {{ group.label }}
+              </span>
+            </div>
+            <div class="px-lg ds-stack--sm ds-anim-stagger-list">
+              <MatchCard
+                v-for="match in group.matches"
+                :key="match.id"
+                :match="match"
+                :expense="getExpenseForMatch(match.id)"
+                :paid-by-name="getCoachName(getExpenseForMatch(match.id)?.paid_by)"
+                :coach-names="getCoachNamesForMatch(match.id)"
+              />
+            </div>
           </div>
         </div>
       </div>
@@ -265,5 +284,56 @@ function getCoachNamesForMatch(matchId) {
   font-weight: 500;
   color: var(--ds-color-text-tertiary);
   margin-bottom: 8px;
+}
+
+.section-header--collapsible {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  font: inherit;
+  color: inherit;
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.section-header--collapsible:hover .section-header__toggle,
+.section-header--collapsible:focus-visible .section-header__toggle {
+  background: var(--ds-color-accent);
+  color: white;
+  border-color: var(--ds-color-accent);
+}
+
+.section-header__toggle {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border: 1px solid var(--ds-color-border);
+  border-radius: 999px;
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-secondary);
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  transition: all 0.15s ease;
+}
+
+.section-header__toggle-text {
+  line-height: 1;
+}
+
+.section-header__chevron {
+  width: 14px;
+  height: 14px;
+  transition: transform 0.2s ease;
+}
+
+.section-header__chevron--open {
+  transform: rotate(180deg);
 }
 </style>
