@@ -12,6 +12,7 @@ import { usePlayers } from '../composables/usePlayers'
 import { parseMatchFile, detectSeasonName } from '../lib/excelParser'
 import { formatPhone, parsePhone } from '../lib/phone'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import Sheet from '../components/Sheet.vue'
 
 const router = useRouter()
 const { coach, logout } = useAuth()
@@ -51,7 +52,7 @@ const showDeleteAllDialog = ref(false)
 const deleting = ref(false)
 
 // Dommere admin
-const editingRefereeId = ref(null)
+const editingReferee = ref(null) // null when sheet closed, referee object when open
 const editRefereeName = ref('')
 const editRefereePhone = ref('')
 const showAddReferee = ref(false)
@@ -60,7 +61,7 @@ const newRefereePhone = ref('')
 const refereeToDelete = ref(null)
 
 // Hospitanter admin
-const editingPlayerId = ref(null)
+const editingPlayer = ref(null)
 const editPlayerName = ref('')
 const editPlayerTeam = ref('')
 const showAddPlayer = ref(false)
@@ -230,13 +231,13 @@ async function confirmDeleteAll() {
 }
 
 function startEditReferee(r) {
-  editingRefereeId.value = r.id
+  editingReferee.value = r
   editRefereeName.value = r.name
   editRefereePhone.value = formatPhone(r.phone) || r.phone || ''
 }
 
 function cancelEditReferee() {
-  editingRefereeId.value = null
+  editingReferee.value = null
   editRefereeName.value = ''
   editRefereePhone.value = ''
 }
@@ -249,9 +250,15 @@ async function saveEditReferee() {
     showToast('Telefonnummer må være 8 sifre', 'error')
     return
   }
-  await updateReferee(editingRefereeId.value, { name, phone })
+  await updateReferee(editingReferee.value.id, { name, phone })
   showToast('Dommer oppdatert', 'success')
   cancelEditReferee()
+}
+
+function cancelAddReferee() {
+  showAddReferee.value = false
+  newRefereeName.value = ''
+  newRefereePhone.value = ''
 }
 
 async function handleAddReferee() {
@@ -278,13 +285,13 @@ async function confirmDeleteReferee() {
 }
 
 function startEditPlayer(p) {
-  editingPlayerId.value = p.id
+  editingPlayer.value = p
   editPlayerName.value = p.name
   editPlayerTeam.value = p.primary_team || ''
 }
 
 function cancelEditPlayer() {
-  editingPlayerId.value = null
+  editingPlayer.value = null
   editPlayerName.value = ''
   editPlayerTeam.value = ''
 }
@@ -292,7 +299,7 @@ function cancelEditPlayer() {
 async function saveEditPlayer() {
   const name = editPlayerName.value.trim()
   if (!name) return
-  await updatePlayer(editingPlayerId.value, { name, primary_team: editPlayerTeam.value })
+  await updatePlayer(editingPlayer.value.id, { name, primary_team: editPlayerTeam.value })
   showToast('Hospitant oppdatert', 'success')
   cancelEditPlayer()
 }
@@ -305,6 +312,22 @@ async function handleAddPlayer() {
   newPlayerName.value = ''
   newPlayerTeam.value = ''
   showAddPlayer.value = false
+}
+
+function cancelAddPlayer() {
+  showAddPlayer.value = false
+  newPlayerName.value = ''
+  newPlayerTeam.value = ''
+}
+
+function cancelNewSeason() {
+  showNewSeason.value = false
+  newSeasonName.value = ''
+}
+
+function cancelAddMatch() {
+  showAddMatch.value = false
+  newMatch.value = { match_date: '', match_time: '', home_team: '', away_team: '', division: '', round: '' }
 }
 
 async function confirmDeletePlayer() {
@@ -403,53 +426,15 @@ function confirmLogout() {
       </div>
     </div>
 
-    <!-- ═══ ADD MATCH (expandable) ═══ -->
+    <!-- ═══ ADD MATCH ═══ -->
     <div class="px-lg mb-lg">
-      <button v-if="!showAddMatch" class="more-action-row" @click="showAddMatch = true">
+      <button class="more-action-row" @click="showAddMatch = true">
         <span class="more-action-row__icon more-action-row__icon--accent">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </span>
         <span class="more-action-row__label">Legg til kamp manuelt</span>
         <svg class="more-action-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
-
-      <div v-else class="ds-card ds-card--compact">
-        <div class="ds-flex ds-flex--between" style="margin-bottom: 16px; align-items: center;">
-          <h3 class="more-section__title" style="margin: 0;">Ny kamp</h3>
-          <button class="more-close-btn" @click="showAddMatch = false">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-          </button>
-        </div>
-        <div class="ds-form-row">
-          <div class="ds-form-group">
-            <label class="ds-label">Dato</label>
-            <input v-model="newMatch.match_date" type="date" class="ds-input" />
-          </div>
-          <div class="ds-form-group">
-            <label class="ds-label">Tid</label>
-            <input v-model="newMatch.match_time" type="time" class="ds-input" />
-          </div>
-        </div>
-        <div class="ds-form-group">
-          <label class="ds-label">Hjemmelag</label>
-          <input v-model="newMatch.home_team" class="ds-input" placeholder="f.eks. Halsen Grønn" />
-        </div>
-        <div class="ds-form-group">
-          <label class="ds-label">Bortelag</label>
-          <input v-model="newMatch.away_team" class="ds-input" placeholder="f.eks. Falk Blå" />
-        </div>
-        <div class="ds-form-row">
-          <div class="ds-form-group">
-            <label class="ds-label ds-label--optional">Avdeling</label>
-            <input v-model="newMatch.division" class="ds-input" placeholder="f.eks. Avd 3" />
-          </div>
-          <div class="ds-form-group">
-            <label class="ds-label ds-label--optional">Runde</label>
-            <input v-model="newMatch.round" class="ds-input" placeholder="f.eks. 2" />
-          </div>
-        </div>
-        <button class="ds-btn ds-btn--primary" @click="handleAddMatch">Legg til kamp</button>
-      </div>
     </div>
 
     <!-- ═══ SEASONS ═══ -->
@@ -485,17 +470,9 @@ function confirmLogout() {
           </button>
         </div>
 
-        <!-- New season -->
-        <div v-if="showNewSeason" class="more-season-new">
-          <div class="ds-flex ds-gap-sm">
-            <input v-model="newSeasonName" class="ds-input" placeholder="f.eks. Høst 2025" @keydown.enter="handleCreateSeason" />
-            <button class="ds-btn ds-btn--primary" @click="handleCreateSeason">Opprett</button>
-          </div>
-        </div>
-
-        <button class="more-inline-action" @click="showNewSeason = !showNewSeason">
+        <button class="more-inline-action" @click="showNewSeason = true">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          {{ showNewSeason ? 'Avbryt' : 'Ny sesong' }}
+          Ny sesong
         </button>
       </div>
     </div>
@@ -511,42 +488,18 @@ function confirmLogout() {
 
         <div v-else class="referee-list">
           <div v-for="r in referees" :key="r.id" class="referee-row">
-            <template v-if="editingRefereeId === r.id">
-              <div class="referee-row__edit">
-                <input v-model="editRefereeName" class="ds-input" placeholder="Navn" />
-                <input v-model="editRefereePhone" class="ds-input" placeholder="8-sifret nummer" inputmode="numeric" />
-                <div class="ds-flex ds-gap-sm" style="margin-top: 8px;">
-                  <button class="ds-btn ds-btn--secondary ds-btn--sm" @click="cancelEditReferee">Avbryt</button>
-                  <button class="ds-btn ds-btn--primary ds-btn--sm" @click="saveEditReferee">Lagre</button>
-                  <button class="referee-row__delete" @click="refereeToDelete = r" aria-label="Slett dommer">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                  </button>
-                </div>
+            <button class="referee-row__main" @click="startEditReferee(r)">
+              <div class="referee-row__name">{{ r.name }}</div>
+              <div class="referee-row__phone">
+                <template v-if="r.phone">{{ formatPhone(r.phone) }}</template>
+                <template v-else><span class="referee-row__phone--missing">Ingen telefon</span></template>
               </div>
-            </template>
-            <template v-else>
-              <button class="referee-row__main" @click="startEditReferee(r)">
-                <div class="referee-row__name">{{ r.name }}</div>
-                <div class="referee-row__phone">
-                  <template v-if="r.phone">{{ formatPhone(r.phone) }}</template>
-                  <template v-else><span class="referee-row__phone--missing">Ingen telefon</span></template>
-                </div>
-                <svg class="referee-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-              </button>
-            </template>
+              <svg class="referee-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
           </div>
         </div>
 
-        <div v-if="showAddReferee" class="referee-add-form">
-          <input v-model="newRefereeName" class="ds-input" placeholder="Navn" @keydown.enter="handleAddReferee" />
-          <input v-model="newRefereePhone" class="ds-input" placeholder="8-sifret nummer (valgfritt)" inputmode="numeric" @keydown.enter="handleAddReferee" />
-          <div class="ds-flex ds-gap-sm" style="margin-top: 8px;">
-            <button class="ds-btn ds-btn--secondary ds-btn--sm" @click="showAddReferee = false; newRefereeName = ''; newRefereePhone = ''">Avbryt</button>
-            <button class="ds-btn ds-btn--primary ds-btn--sm" @click="handleAddReferee">Legg til</button>
-          </div>
-        </div>
-
-        <button v-else class="more-inline-action" @click="showAddReferee = true">
+        <button class="more-inline-action" @click="showAddReferee = true">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Ny dommer
         </button>
@@ -569,48 +522,20 @@ function confirmLogout() {
 
         <div v-else class="referee-list">
           <div v-for="p in playerStats" :key="p.id" class="referee-row">
-            <template v-if="editingPlayerId === p.id">
-              <div class="referee-row__edit">
-                <input v-model="editPlayerName" class="ds-input" placeholder="Navn" />
-                <select v-model="editPlayerTeam" class="ds-input">
-                  <option v-for="opt in TEAM_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-                </select>
-                <div class="ds-flex ds-gap-sm" style="margin-top: 8px;">
-                  <button class="ds-btn ds-btn--secondary ds-btn--sm" @click="cancelEditPlayer">Avbryt</button>
-                  <button class="ds-btn ds-btn--primary ds-btn--sm" @click="saveEditPlayer">Lagre</button>
-                  <button class="referee-row__delete" @click="playerToDelete = p" aria-label="Slett spiller">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-                  </button>
-                </div>
+            <button class="referee-row__main" @click="startEditPlayer(p)">
+              <div class="referee-row__name">
+                {{ p.name }}
+                <span v-if="p.primary_team" :class="['hospitant-team-tag', `hospitant-team-tag--${p.primary_team}`]">{{ TEAM_LABELS[p.primary_team] }}</span>
               </div>
-            </template>
-            <template v-else>
-              <button class="referee-row__main" @click="startEditPlayer(p)">
-                <div class="referee-row__name">
-                  {{ p.name }}
-                  <span v-if="p.primary_team" :class="['hospitant-team-tag', `hospitant-team-tag--${p.primary_team}`]">{{ TEAM_LABELS[p.primary_team] }}</span>
-                </div>
-                <div class="referee-row__phone">
-                  {{ p.count }} ekstra {{ p.count === 1 ? 'kamp' : 'kamper' }}
-                </div>
-                <svg class="referee-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-              </button>
-            </template>
+              <div class="referee-row__phone">
+                {{ p.count }} ekstra {{ p.count === 1 ? 'kamp' : 'kamper' }}
+              </div>
+              <svg class="referee-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
           </div>
         </div>
 
-        <div v-if="showAddPlayer" class="referee-add-form">
-          <input v-model="newPlayerName" class="ds-input" placeholder="Spillerens navn" @keydown.enter="handleAddPlayer" />
-          <select v-model="newPlayerTeam" class="ds-input">
-            <option v-for="opt in TEAM_OPTIONS" :key="opt.value" :value="opt.value">Hovedlag: {{ opt.label }}</option>
-          </select>
-          <div class="ds-flex ds-gap-sm" style="margin-top: 8px;">
-            <button class="ds-btn ds-btn--secondary ds-btn--sm" @click="showAddPlayer = false; newPlayerName = ''; newPlayerTeam = ''">Avbryt</button>
-            <button class="ds-btn ds-btn--primary ds-btn--sm" @click="handleAddPlayer">Legg til</button>
-          </div>
-        </div>
-
-        <button v-else class="more-inline-action" @click="showAddPlayer = true">
+        <button class="more-inline-action" @click="showAddPlayer = true">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Ny hospitant
         </button>
@@ -685,6 +610,128 @@ function confirmLogout() {
       @confirm="confirmDeletePlayer"
       @cancel="playerToDelete = null"
     />
+
+    <!-- Add Match Sheet -->
+    <Sheet :show="showAddMatch" title="Ny kamp" @close="cancelAddMatch">
+      <div class="ds-form-row">
+        <div class="ds-form-group">
+          <label class="ds-label">Dato</label>
+          <input v-model="newMatch.match_date" type="date" class="ds-input" />
+        </div>
+        <div class="ds-form-group">
+          <label class="ds-label">Tid</label>
+          <input v-model="newMatch.match_time" type="time" class="ds-input" />
+        </div>
+      </div>
+      <div class="ds-form-group">
+        <label class="ds-label">Hjemmelag</label>
+        <input v-model="newMatch.home_team" class="ds-input" placeholder="f.eks. Halsen Grønn" />
+      </div>
+      <div class="ds-form-group">
+        <label class="ds-label">Bortelag</label>
+        <input v-model="newMatch.away_team" class="ds-input" placeholder="f.eks. Falk Blå" />
+      </div>
+      <div class="ds-form-row">
+        <div class="ds-form-group">
+          <label class="ds-label ds-label--optional">Avdeling</label>
+          <input v-model="newMatch.division" class="ds-input" placeholder="f.eks. Avd 3" />
+        </div>
+        <div class="ds-form-group">
+          <label class="ds-label ds-label--optional">Runde</label>
+          <input v-model="newMatch.round" class="ds-input" placeholder="f.eks. 2" />
+        </div>
+      </div>
+      <div class="sheet-actions">
+        <button class="ds-btn ds-btn--secondary" @click="cancelAddMatch">Avbryt</button>
+        <button class="ds-btn ds-btn--primary" @click="handleAddMatch">Legg til kamp</button>
+      </div>
+    </Sheet>
+
+    <!-- New Season Sheet -->
+    <Sheet :show="showNewSeason" title="Ny sesong" @close="cancelNewSeason">
+      <div class="ds-form-group">
+        <label class="ds-label">Sesongnavn</label>
+        <input v-model="newSeasonName" class="ds-input" placeholder="f.eks. Høst 2025" @keydown.enter="handleCreateSeason" />
+      </div>
+      <div class="sheet-actions">
+        <button class="ds-btn ds-btn--secondary" @click="cancelNewSeason">Avbryt</button>
+        <button class="ds-btn ds-btn--primary" :disabled="!newSeasonName.trim()" @click="handleCreateSeason">Opprett</button>
+      </div>
+    </Sheet>
+
+    <!-- Add Referee Sheet -->
+    <Sheet :show="showAddReferee" title="Ny dommer" @close="cancelAddReferee">
+      <div class="ds-form-group">
+        <label class="ds-label">Navn</label>
+        <input v-model="newRefereeName" class="ds-input" placeholder="Dommerens navn" @keydown.enter="handleAddReferee" />
+      </div>
+      <div class="ds-form-group">
+        <label class="ds-label ds-label--optional">Telefon</label>
+        <input v-model="newRefereePhone" class="ds-input" placeholder="8-sifret nummer" inputmode="numeric" @keydown.enter="handleAddReferee" />
+      </div>
+      <div class="sheet-actions">
+        <button class="ds-btn ds-btn--secondary" @click="cancelAddReferee">Avbryt</button>
+        <button class="ds-btn ds-btn--primary" :disabled="!newRefereeName.trim()" @click="handleAddReferee">Legg til</button>
+      </div>
+    </Sheet>
+
+    <!-- Edit Referee Sheet -->
+    <Sheet :show="!!editingReferee" title="Rediger dommer" @close="cancelEditReferee">
+      <div class="ds-form-group">
+        <label class="ds-label">Navn</label>
+        <input v-model="editRefereeName" class="ds-input" placeholder="Navn" />
+      </div>
+      <div class="ds-form-group">
+        <label class="ds-label ds-label--optional">Telefon</label>
+        <input v-model="editRefereePhone" class="ds-input" placeholder="8-sifret nummer" inputmode="numeric" />
+      </div>
+      <div class="sheet-actions sheet-actions--with-delete">
+        <button class="sheet-actions__delete" @click="refereeToDelete = editingReferee" aria-label="Slett dommer">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+        </button>
+        <button class="ds-btn ds-btn--secondary" @click="cancelEditReferee">Avbryt</button>
+        <button class="ds-btn ds-btn--primary" @click="saveEditReferee">Lagre</button>
+      </div>
+    </Sheet>
+
+    <!-- Add Player Sheet -->
+    <Sheet :show="showAddPlayer" title="Ny hospitant" @close="cancelAddPlayer">
+      <div class="ds-form-group">
+        <label class="ds-label">Navn</label>
+        <input v-model="newPlayerName" class="ds-input" placeholder="Spillerens navn" @keydown.enter="handleAddPlayer" />
+      </div>
+      <div class="ds-form-group">
+        <label class="ds-label ds-label--optional">Hovedlag</label>
+        <select v-model="newPlayerTeam" class="ds-input">
+          <option v-for="opt in TEAM_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+        </select>
+      </div>
+      <div class="sheet-actions">
+        <button class="ds-btn ds-btn--secondary" @click="cancelAddPlayer">Avbryt</button>
+        <button class="ds-btn ds-btn--primary" :disabled="!newPlayerName.trim()" @click="handleAddPlayer">Legg til</button>
+      </div>
+    </Sheet>
+
+    <!-- Edit Player Sheet -->
+    <Sheet :show="!!editingPlayer" title="Rediger hospitant" @close="cancelEditPlayer">
+      <div class="ds-form-group">
+        <label class="ds-label">Navn</label>
+        <input v-model="editPlayerName" class="ds-input" placeholder="Navn" />
+      </div>
+      <div class="ds-form-group">
+        <label class="ds-label ds-label--optional">Hovedlag</label>
+        <select v-model="editPlayerTeam" class="ds-input">
+          <option v-for="opt in TEAM_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
+        </select>
+      </div>
+      <div class="sheet-actions sheet-actions--with-delete">
+        <button class="sheet-actions__delete" @click="playerToDelete = editingPlayer" aria-label="Slett spiller">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+        </button>
+        <button class="ds-btn ds-btn--secondary" @click="cancelEditPlayer">Avbryt</button>
+        <button class="ds-btn ds-btn--primary" @click="saveEditPlayer">Lagre</button>
+      </div>
+    </Sheet>
   </div>
 </template>
 
@@ -729,6 +776,42 @@ function confirmLogout() {
   border-radius: 4px;
   letter-spacing: 0.02em;
   margin-left: 6px;
+}
+
+.sheet-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: var(--ds-space-lg);
+}
+
+.sheet-actions--with-delete {
+  justify-content: space-between;
+}
+
+.sheet-actions--with-delete > .ds-btn {
+  margin-left: 0;
+}
+
+.sheet-actions__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--ds-radius-md);
+  background: transparent;
+  border: 1px solid var(--ds-color-border);
+  color: var(--ds-color-error);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-right: auto;
+}
+
+.sheet-actions__delete:hover {
+  background: var(--ds-color-error-light);
+  border-color: var(--ds-color-error);
 }
 
 .hospitant-team-tag--gronn {

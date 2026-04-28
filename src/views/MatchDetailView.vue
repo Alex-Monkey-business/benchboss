@@ -8,6 +8,7 @@ import { useReferees } from '../composables/useReferees'
 import { usePlayers } from '../composables/usePlayers'
 import { useToast } from '../composables/useToast'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import Sheet from '../components/Sheet.vue'
 import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 
 const route = useRoute()
@@ -359,44 +360,46 @@ async function handleDelete() {
               Ny dommer
             </button>
           </div>
-          <!-- Custom referee form: navn + telefon i samme form -->
-          <div v-if="customReferee" class="custom-referee-form">
-            <input
-              v-model="refereeInput"
-              class="ds-input"
-              placeholder="Dommerens navn"
-              @keydown.enter="saveCustomReferee"
-            />
-            <input
-              v-model="newPhone"
-              class="ds-input"
-              type="tel"
-              inputmode="numeric"
-              autocomplete="off"
-              placeholder="Telefon (valgfritt, 8 siffer)"
-              @keydown.enter="saveCustomReferee"
-            />
-            <div class="custom-referee-form__actions">
-              <button
-                type="button"
-                class="ds-btn ds-btn--ghost ds-btn--sm"
-                @click="cancelCustomReferee"
-              >
-                Avbryt
-              </button>
-              <button
-                type="button"
-                class="ds-btn ds-btn--primary ds-btn--sm"
-                :disabled="!refereeInput.trim() || (newPhone && !isValidNewPhone)"
-                @click="saveCustomReferee"
-              >
-                Legg til
-              </button>
+          <!-- Custom referee sheet: navn + telefon -->
+          <Sheet :show="customReferee" title="Ny dommer" @close="cancelCustomReferee">
+            <div class="custom-referee-form">
+              <input
+                v-model="refereeInput"
+                class="ds-input"
+                placeholder="Dommerens navn"
+                @keydown.enter="saveCustomReferee"
+              />
+              <input
+                v-model="newPhone"
+                class="ds-input"
+                type="tel"
+                inputmode="numeric"
+                autocomplete="off"
+                placeholder="Telefon (valgfritt, 8 siffer)"
+                @keydown.enter="saveCustomReferee"
+              />
+              <div class="custom-referee-form__actions">
+                <button
+                  type="button"
+                  class="ds-btn ds-btn--secondary ds-btn--sm"
+                  @click="cancelCustomReferee"
+                >
+                  Avbryt
+                </button>
+                <button
+                  type="button"
+                  class="ds-btn ds-btn--primary ds-btn--sm"
+                  :disabled="!refereeInput.trim() || (newPhone && !isValidNewPhone)"
+                  @click="saveCustomReferee"
+                >
+                  Legg til
+                </button>
+              </div>
             </div>
-          </div>
+          </Sheet>
 
           <!-- Kontaktkort: vises når en dommer er valgt — telefon eller empty state -->
-          <div v-if="selectedReferee && !customReferee" class="referee-contact">
+          <div v-if="selectedReferee" class="referee-contact">
             <template v-if="selectedReferee.phone">
               <div class="referee-contact__phone">{{ formatPhone(selectedReferee.phone) }}</div>
               <div class="referee-contact__actions">
