@@ -51,6 +51,11 @@ const routes = [
     name: 'admin-hospitanter',
     component: () => import('./views/AdminHospitanterView.vue')
   },
+  {
+    path: '/admin/hospitanter/:id',
+    name: 'admin-hospitant-detail',
+    component: () => import('./views/AdminHospitantDetailView.vue')
+  },
   // Backwards-compat redirects for old paths
   { path: '/sesong', redirect: '/admin/dommerutlegg' },
   { path: '/mer', redirect: '/admin' }

@@ -4,21 +4,16 @@ import { useSeasons } from '../composables/useSeasons'
 import { useMatches } from '../composables/useMatches'
 import { usePlayers } from '../composables/usePlayers'
 import { useToast } from '../composables/useToast'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
 
 const { activeSeason, fetchSeasons } = useSeasons()
 const { matchPlayers, fetchMatches } = useMatches()
-const { players, fetchPlayers, addPlayer, updatePlayer, deletePlayer } = usePlayers()
+const { players, fetchPlayers, addPlayer } = usePlayers()
 const { show: showToast } = useToast()
 
-const editingPlayer = ref(null)
-const editPlayerName = ref('')
-const editPlayerTeam = ref('')
 const showAddPlayer = ref(false)
 const newPlayerName = ref('')
 const newPlayerTeam = ref('')
-const playerToDelete = ref(null)
 
 const TEAM_OPTIONS = [
   { value: '', label: 'Ingen' },
@@ -46,26 +41,6 @@ const playerStats = computed(() => {
 
 const totalHospitantMatches = computed(() => matchPlayers.value.length)
 
-function startEditPlayer(p) {
-  editingPlayer.value = p
-  editPlayerName.value = p.name
-  editPlayerTeam.value = p.primary_team || ''
-}
-
-function cancelEditPlayer() {
-  editingPlayer.value = null
-  editPlayerName.value = ''
-  editPlayerTeam.value = ''
-}
-
-async function saveEditPlayer() {
-  const name = editPlayerName.value.trim()
-  if (!name) return
-  await updatePlayer(editingPlayer.value.id, { name, primary_team: editPlayerTeam.value })
-  showToast('Hospitant oppdatert', 'success')
-  cancelEditPlayer()
-}
-
 function cancelAddPlayer() {
   showAddPlayer.value = false
   newPlayerName.value = ''
@@ -78,15 +53,6 @@ async function handleAddPlayer() {
   await addPlayer(name, newPlayerTeam.value)
   showToast(`${name} lagt til`, 'success')
   cancelAddPlayer()
-}
-
-async function confirmDeletePlayer() {
-  if (!playerToDelete.value) return
-  const name = playerToDelete.value.name
-  await deletePlayer(playerToDelete.value.id)
-  playerToDelete.value = null
-  cancelEditPlayer()
-  showToast(`${name} slettet`, 'success')
 }
 </script>
 
@@ -115,18 +81,21 @@ async function confirmDeletePlayer() {
         </div>
 
         <div v-else class="referee-list">
-          <div v-for="p in playerStats" :key="p.id" class="referee-row">
-            <button class="referee-row__main" @click="startEditPlayer(p)">
-              <div class="referee-row__name">
-                {{ p.name }}
-                <span v-if="p.primary_team" :class="['hospitant-team-tag', `hospitant-team-tag--${p.primary_team}`]">{{ TEAM_LABELS[p.primary_team] }}</span>
-              </div>
-              <div class="referee-row__phone">
-                {{ p.count }} ekstra {{ p.count === 1 ? 'kamp' : 'kamper' }}
-              </div>
-              <svg class="referee-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </div>
+          <router-link
+            v-for="p in playerStats"
+            :key="p.id"
+            :to="`/admin/hospitanter/${p.id}`"
+            class="referee-row"
+          >
+            <div class="referee-row__name">
+              {{ p.name }}
+              <span v-if="p.primary_team" :class="['hospitant-team-tag', `hospitant-team-tag--${p.primary_team}`]">{{ TEAM_LABELS[p.primary_team] }}</span>
+            </div>
+            <div class="referee-row__count">
+              {{ p.count }} ekstra {{ p.count === 1 ? 'kamp' : 'kamper' }}
+            </div>
+            <svg class="referee-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </router-link>
         </div>
 
         <button class="more-inline-action" @click="showAddPlayer = true">
@@ -154,36 +123,6 @@ async function confirmDeletePlayer() {
         <button class="ds-btn ds-btn--primary" :disabled="!newPlayerName.trim()" @click="handleAddPlayer">Legg til</button>
       </div>
     </Sheet>
-
-    <Sheet :show="!!editingPlayer" title="Rediger hospitant" @close="cancelEditPlayer">
-      <div class="ds-form-group">
-        <label class="ds-label">Navn</label>
-        <input v-model="editPlayerName" class="ds-input" placeholder="Navn" />
-      </div>
-      <div class="ds-form-group">
-        <label class="ds-label ds-label--optional">Hovedlag</label>
-        <select v-model="editPlayerTeam" class="ds-input">
-          <option v-for="opt in TEAM_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-        </select>
-      </div>
-      <div class="sheet-actions sheet-actions--with-delete">
-        <button class="sheet-actions__delete" @click="playerToDelete = editingPlayer" aria-label="Slett spiller">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-        </button>
-        <button class="ds-btn ds-btn--secondary" @click="cancelEditPlayer">Avbryt</button>
-        <button class="ds-btn ds-btn--primary" @click="saveEditPlayer">Lagre</button>
-      </div>
-    </Sheet>
-
-    <ConfirmDialog
-      :show="!!playerToDelete"
-      title="Slett hospitant?"
-      :message="`Er du sikker på at du vil slette ${playerToDelete?.name}? Tilknytninger til kamper fjernes også.`"
-      confirm-label="Slett"
-      variant="warning"
-      @confirm="confirmDeletePlayer"
-      @cancel="playerToDelete = null"
-    />
   </div>
 </template>
 
@@ -201,25 +140,24 @@ async function confirmDeletePlayer() {
 }
 
 .referee-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 14px 4px;
+  text-decoration: none;
+  color: inherit;
   border-bottom: 1px solid var(--ds-color-border-light);
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease;
 }
 
 .referee-row:last-child {
   border-bottom: 0;
 }
 
-.referee-row__main {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 14px 4px;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  text-align: left;
-  font: inherit;
-  -webkit-tap-highlight-color: transparent;
+.referee-row:hover {
+  background: var(--ds-color-bg-subtle);
 }
 
 .referee-row__name {
@@ -229,7 +167,7 @@ async function confirmDeletePlayer() {
   color: var(--ds-color-text-primary);
 }
 
-.referee-row__phone {
+.referee-row__count {
   font-size: 0.8125rem;
   color: var(--ds-color-text-secondary);
 }
@@ -290,29 +228,5 @@ async function confirmDeletePlayer() {
   justify-content: flex-end;
   gap: 8px;
   margin-top: var(--ds-space-lg);
-}
-
-.sheet-actions--with-delete {
-  justify-content: space-between;
-}
-
-.sheet-actions__delete {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--ds-radius-md);
-  background: transparent;
-  border: 1px solid var(--ds-color-border);
-  color: var(--ds-color-error);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  margin-right: auto;
-}
-
-.sheet-actions__delete:hover {
-  background: var(--ds-color-error-light);
-  border-color: var(--ds-color-error);
 }
 </style>
