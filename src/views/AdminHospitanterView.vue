@@ -105,8 +105,6 @@ async function handleAddPlayer() {
       </div>
     </div>
 
-    <div style="height: 24px;"></div>
-
     <Sheet :show="showAddPlayer" title="Ny hospitant" @close="cancelAddPlayer">
       <div class="ds-form-group">
         <label class="ds-label">Navn</label>

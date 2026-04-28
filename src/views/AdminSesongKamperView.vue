@@ -326,8 +326,6 @@ async function confirmDeleteAll() {
       </div>
     </div>
 
-    <div style="height: 24px;"></div>
-
     <Sheet :show="showNewSeason" title="Ny sesong" @close="cancelNewSeason">
       <div class="ds-form-group">
         <label class="ds-label">Sesongnavn</label>

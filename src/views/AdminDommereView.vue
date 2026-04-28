@@ -116,8 +116,6 @@ async function confirmDeleteReferee() {
       </div>
     </div>
 
-    <div style="height: 24px;"></div>
-
     <Sheet :show="showAddReferee" title="Ny dommer" @close="cancelAddReferee">
       <div class="ds-form-group">
         <label class="ds-label">Navn</label>

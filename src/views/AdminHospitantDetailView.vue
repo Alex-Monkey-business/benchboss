@@ -158,8 +158,6 @@ async function confirmDelete() {
       </div>
     </template>
 
-    <div style="height: 24px;"></div>
-
     <Sheet :show="editing" title="Rediger hospitant" @close="cancelEdit">
       <div class="ds-form-group">
         <label class="ds-label">Navn</label>

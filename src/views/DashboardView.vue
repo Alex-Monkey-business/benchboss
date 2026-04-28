@@ -244,7 +244,6 @@ function getCoachNamesForMatch(matchId) {
           <h2 class="section-header__title">Tidligere kamper</h2>
           <span class="ds-badge ds-badge--subtle">{{ pastMatches.length }}</span>
           <span class="section-header__toggle">
-            <span class="section-header__toggle-text">{{ showPastMatches ? 'Skjul' : 'Vis' }}</span>
             <svg
               :class="['section-header__chevron', { 'section-header__chevron--open': showPastMatches }]"
               viewBox="0 0 24 24" fill="none" stroke="currentColor"
@@ -311,20 +310,14 @@ function getCoachNamesForMatch(matchId) {
   margin-left: auto;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 4px 10px;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
   border: 1px solid var(--ds-color-border);
   border-radius: 999px;
   background: var(--ds-color-bg-elevated);
   color: var(--ds-color-text-secondary);
-  font-size: 0.75rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
   transition: all 0.15s ease;
-}
-
-.section-header__toggle-text {
-  line-height: 1;
 }
 
 .section-header__chevron {

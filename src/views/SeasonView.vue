@@ -95,10 +95,7 @@ function handleExport() {
       <!-- Expense summary per coach -->
       <div class="px-lg mb-lg">
         <div class="ds-card">
-          <div class="ds-flex ds-flex--between" style="align-items: flex-start; margin-bottom: 16px;">
-            <h3 style="font-family: var(--ds-font-heading); font-size: 1rem; font-weight: 500;">Utlegg per trener</h3>
-            <img src="/illustrations/accounting.png" alt="" class="section-illustration" />
-          </div>
+          <h3 style="font-family: var(--ds-font-heading); font-size: 1rem; font-weight: 500; margin-bottom: 16px;">Utlegg per trener</h3>
 
           <table class="settlement-table">
             <thead>

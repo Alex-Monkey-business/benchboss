@@ -164,6 +164,11 @@
   opacity: 0.6;
 }
 
+.match-card__meta-item svg.icon--wide {
+  width: 18px;
+  height: auto;
+}
+
 /* ---- Team Color Dot ---- */
 
 .team-dot {

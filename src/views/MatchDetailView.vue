@@ -420,7 +420,7 @@ async function handleDelete() {
                   Åpne Vipps
                 </button>
               </div>
-              <div class="referee-contact__hint-amount">Nummeret kopieres — lim inn i Vipps og send {{ match.fee_amount || 200 }} kr</div>
+              <div class="referee-contact__hint-amount">Lim inn i Vipps · send {{ match.fee_amount || 200 }} kr</div>
             </template>
             <template v-else>
               <div class="referee-contact__empty-title">Ingen telefon registrert</div>
@@ -478,7 +478,7 @@ async function handleDelete() {
             <span class="detail-section__label">Hospitanter</span>
           </div>
           <div v-if="players.length === 0" class="hospitant-empty">
-            Ingen spillere i poolen — legg til under Mer → Hospitanter
+            Ingen spillere i poolen — legg til under Admin → Hospitanter
           </div>
           <div v-else-if="availablePlayers.length === 0" class="hospitant-empty">
             Ingen tilgjengelige hospitanter for denne kampen.
@@ -546,7 +546,7 @@ async function handleDelete() {
         <!-- Expense / Hvem la ut -->
         <div class="detail-section">
           <div class="detail-section__header">
-            <span class="detail-section__label">Hvem la ut {{ match.fee_amount || 200 }} kr?</span>
+            <span class="detail-section__label">Hvem la ut?</span>
           </div>
           <div class="payer-grid" style="margin-top: 12px;">
             <button
