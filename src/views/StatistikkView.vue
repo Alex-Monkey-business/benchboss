@@ -1,5 +1,5 @@
 <script setup>
-import { computed, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useSeasons } from '../composables/useSeasons'
 import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
@@ -12,11 +12,14 @@ const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees } = useReferees()
 const { players, fetchPlayers } = usePlayers()
 
+const loading = ref(true)
+
 onMounted(async () => {
   await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers()])
   if (activeSeason.value) {
     await fetchMatches(activeSeason.value.id)
   }
+  loading.value = false
 })
 
 const TEAM_LABELS = { gronn: 'Grønn', rod: 'Rød', hvit: 'Hvit' }
@@ -148,6 +151,13 @@ const hasAnyResult = computed(() => playedMatches.value.length > 0)
       <p class="page-header__subtitle">{{ activeSeason?.name }}</p>
     </div>
 
+    <div v-if="loading" class="px-lg" style="text-align: center; padding: 48px 0;">
+      <svg class="ds-anim-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ds-color-accent)" stroke-width="2" stroke-linecap="round">
+        <path d="M21 12a9 9 0 11-6.219-8.56"/>
+      </svg>
+    </div>
+
+    <template v-else>
     <!-- Halsen totalt -->
     <div class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-1">
       <div class="stat-section-label">Halsen totalt</div>
@@ -254,6 +264,7 @@ const hasAnyResult = computed(() => playedMatches.value.length > 0)
         </div>
       </div>
     </div>
+    </template>
   </div>
 </template>
 
