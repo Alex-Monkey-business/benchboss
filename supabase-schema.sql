@@ -89,15 +89,27 @@ CREATE INDEX idx_match_coaches_match ON match_coaches(match_id);
 CREATE INDEX idx_match_players_match ON match_players(match_id);
 CREATE INDEX idx_match_players_player ON match_players(player_id);
 
--- Deaktiver RLS (5 venner, ikke-sensitiv data)
-ALTER TABLE coaches DISABLE ROW LEVEL SECURITY;
-ALTER TABLE seasons DISABLE ROW LEVEL SECURITY;
-ALTER TABLE matches DISABLE ROW LEVEL SECURITY;
-ALTER TABLE match_coaches DISABLE ROW LEVEL SECURITY;
-ALTER TABLE expenses DISABLE ROW LEVEL SECURITY;
-ALTER TABLE referees DISABLE ROW LEVEL SECURITY;
-ALTER TABLE players DISABLE ROW LEVEL SECURITY;
-ALTER TABLE match_players DISABLE ROW LEVEL SECURITY;
+-- RLS aktivert med allow_all-policy. Dette dismisser Supabase advisor-warning,
+-- men gir IKKE ekte sikkerhet — anon-nøkkelen kan fortsatt lese/skrive alt.
+-- Ekte sikkerhet krever migrasjon til Supabase Auth (e-post/magic link) +
+-- policies basert på auth.uid(). Se memo "Supabase Auth migration".
+ALTER TABLE coaches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE seasons ENABLE ROW LEVEL SECURITY;
+ALTER TABLE matches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE match_coaches ENABLE ROW LEVEL SECURITY;
+ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
+ALTER TABLE referees ENABLE ROW LEVEL SECURITY;
+ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE match_players ENABLE ROW LEVEL SECURITY;
+
+CREATE POLICY allow_all ON coaches FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY allow_all ON seasons FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY allow_all ON matches FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY allow_all ON match_coaches FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY allow_all ON expenses FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY allow_all ON referees FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY allow_all ON players FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY allow_all ON match_players FOR ALL TO public USING (true) WITH CHECK (true);
 
 -- Seed trenere (PIN: enkel 4-sifret kode, lagret som tekst)
 -- Endre PIN-kodene til det dere vil bruke!

@@ -26,5 +26,9 @@ CREATE TABLE IF NOT EXISTS match_players (
 CREATE INDEX IF NOT EXISTS idx_match_players_match ON match_players(match_id);
 CREATE INDEX IF NOT EXISTS idx_match_players_player ON match_players(player_id);
 
-ALTER TABLE players DISABLE ROW LEVEL SECURITY;
-ALTER TABLE match_players DISABLE ROW LEVEL SECURITY;
+-- RLS med allow_all-policy (matcher mønsteret til de andre tabellene).
+-- Dette dismisser advisor-warning; ekte sikkerhet krever Supabase Auth-migrasjon.
+ALTER TABLE players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE match_players ENABLE ROW LEVEL SECURITY;
+CREATE POLICY allow_all ON players FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY allow_all ON match_players FOR ALL TO public USING (true) WITH CHECK (true);
