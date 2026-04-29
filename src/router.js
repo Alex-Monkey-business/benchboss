@@ -27,6 +27,11 @@ const routes = [
     component: () => import('./views/MatchDetailView.vue')
   },
   {
+    path: '/statistikk',
+    name: 'statistikk',
+    component: () => import('./views/StatistikkView.vue')
+  },
+  {
     path: '/admin',
     name: 'admin',
     component: () => import('./views/AdminView.vue')
