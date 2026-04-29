@@ -16,8 +16,8 @@ const { coaches, fetchCoaches } = useCoaches()
 
 const teamFilter = ref('alle')
 const venueFilter = ref('alle')
+const timeFilter = ref('upcoming')
 const loading = ref(true)
-const showPastMatches = ref(false)
 
 onMounted(async () => {
   await Promise.all([fetchSeasons(), fetchCoaches()])
@@ -95,10 +95,22 @@ const filteredMatches = computed(() => {
   return result
 })
 
+const today = computed(() => new Date().toISOString().split('T')[0])
+
+function isInCurrentTimeFilter(match) {
+  if (timeFilter.value === 'past') return match.match_date < today.value
+  return match.match_date >= today.value
+}
+
+const timeScopedHalsenMatches = computed(() =>
+  halsenMatches.value.filter(isInCurrentTimeFilter)
+)
+
 const venueFilteredMatches = computed(() => {
-  if (venueFilter.value === 'hjemme') return halsenMatches.value.filter(m => isHomeMatch(m))
-  if (venueFilter.value === 'borte') return halsenMatches.value.filter(m => isAwayMatch(m))
-  return halsenMatches.value
+  const list = timeScopedHalsenMatches.value
+  if (venueFilter.value === 'hjemme') return list.filter(m => isHomeMatch(m))
+  if (venueFilter.value === 'borte') return list.filter(m => isAwayMatch(m))
+  return list
 })
 
 const counts = computed(() => {
@@ -114,8 +126,9 @@ const counts = computed(() => {
 })
 
 const teamFilteredMatches = computed(() => {
-  if (teamFilter.value === 'alle') return halsenMatches.value
-  return halsenMatches.value.filter(m => getTeamColors(m).includes(teamFilter.value))
+  const list = timeScopedHalsenMatches.value
+  if (teamFilter.value === 'alle') return list
+  return list.filter(m => getTeamColors(m).includes(teamFilter.value))
 })
 
 const venueCounts = computed(() => {
@@ -126,8 +139,6 @@ const venueCounts = computed(() => {
     borte: all.filter(m => isAwayMatch(m)).length
   }
 })
-
-const today = computed(() => new Date().toISOString().split('T')[0])
 
 const upcomingMatches = computed(() => filteredMatches.value.filter(m => m.match_date >= today.value))
 const pastMatches = computed(() =>
@@ -156,6 +167,13 @@ function groupByDate(matchList) {
 const upcomingGroups = computed(() => groupByDate(upcomingMatches.value))
 const pastGroups = computed(() => groupByDate(pastMatches.value))
 
+const displayedGroups = computed(() =>
+  timeFilter.value === 'past' ? pastGroups.value : upcomingGroups.value
+)
+const displayedCount = computed(() =>
+  timeFilter.value === 'past' ? pastMatches.value.length : upcomingMatches.value.length
+)
+
 function getCoachName(coachId) {
   return coaches.value.find(c => c.id === coachId)?.name || ''
 }
@@ -172,24 +190,45 @@ function getCoachNamesForMatch(matchId) {
       <h1 class="page-header__title ds-anim-fade-up">{{ activeSeason?.name || 'Kampoversikt' }}</h1>
     </div>
 
-    <div class="px-lg mb-md ds-anim-fade-up ds-anim-delay-2">
-      <div class="filter-label">Hvor</div>
-      <div class="ds-pills">
-        <button
-          v-for="f in [{ key: 'alle', label: 'Alle' }, { key: 'hjemme', label: 'Hjemme' }, { key: 'borte', label: 'Borte' }]"
-          :key="f.key"
-          :class="['ds-pill', { 'ds-pill--active': venueFilter === f.key }]"
-          @click="venueFilter = f.key"
-        >
-          {{ f.label }}
-          <span class="ds-pill__count">{{ venueCounts[f.key] }}</span>
-        </button>
-      </div>
+    <div class="time-tabs ds-anim-fade-up ds-anim-delay-1" role="tablist">
+      <button
+        type="button"
+        role="tab"
+        :aria-selected="timeFilter === 'upcoming'"
+        :class="['time-tabs__option', { 'time-tabs__option--active': timeFilter === 'upcoming' }]"
+        @click="timeFilter = 'upcoming'"
+      >
+        Kommende
+        <span class="time-tabs__count">{{ upcomingMatches.length }}</span>
+      </button>
+      <button
+        type="button"
+        role="tab"
+        :aria-selected="timeFilter === 'past'"
+        :class="['time-tabs__option', { 'time-tabs__option--active': timeFilter === 'past' }]"
+        @click="timeFilter = 'past'"
+      >
+        Tidligere
+        <span class="time-tabs__count">{{ pastMatches.length }}</span>
+      </button>
     </div>
 
     <div class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-2">
-      <div class="filter-label">Lag</div>
-      <TeamFilter v-model="teamFilter" :counts="counts" />
+      <div class="filter-row">
+        <div class="ds-pills">
+          <button
+            v-for="f in [{ key: 'alle', label: 'Alle' }, { key: 'hjemme', label: 'Hjemme' }, { key: 'borte', label: 'Borte' }]"
+            :key="f.key"
+            :class="['ds-pill', { 'ds-pill--active': venueFilter === f.key }]"
+            @click="venueFilter = f.key"
+          >
+            {{ f.label }}
+            <span class="ds-pill__count">{{ venueCounts[f.key] }}</span>
+          </button>
+        </div>
+        <span class="filter-row__divider" aria-hidden="true"></span>
+        <TeamFilter v-model="teamFilter" :counts="counts" />
+      </div>
     </div>
 
     <div v-if="loading" class="px-lg" style="text-align: center; padding: 48px 0;">
@@ -207,70 +246,32 @@ function getCoachNamesForMatch(matchId) {
     </div>
 
     <div v-else>
-      <!-- Kommende kamper -->
-      <div v-if="upcomingGroups.length > 0">
-        <div class="section-header ds-anim-fade-up ds-anim-delay-3">
-          <h2 class="section-header__title">Kommende kamper</h2>
-          <span class="ds-badge ds-badge--subtle">{{ upcomingMatches.length }}</span>
-        </div>
-        <div v-for="group in upcomingGroups" :key="group.date" class="mb-md">
-          <div class="px-lg" style="padding-top: 4px; padding-bottom: 4px;">
-            <span style="font-size: 0.8125rem; font-weight: 600; color: var(--ds-color-text-tertiary); text-transform: capitalize; letter-spacing: 0.02em;">
-              {{ group.label }}
-            </span>
-          </div>
-          <div class="px-lg ds-stack--sm ds-anim-stagger-list">
-            <MatchCard
-              v-for="match in group.matches"
-              :key="match.id"
-              :match="match"
-              :expense="getExpenseForMatch(match.id)"
-              :paid-by-name="getCoachName(getExpenseForMatch(match.id)?.paid_by)"
-              :coach-names="getCoachNamesForMatch(match.id)"
-            />
-          </div>
+      <div v-if="displayedCount === 0" class="px-lg">
+        <div class="ds-empty">
+          <h3 class="ds-empty__title">
+            {{ timeFilter === 'past' ? 'Ingen tidligere kamper' : 'Ingen kommende kamper' }}
+          </h3>
+          <p class="ds-empty__description">
+            {{ timeFilter === 'past' ? 'Spilte kamper vil dukke opp her etter hvert.' : 'Alle kommende kamper er ferdige eller filtrert vekk.' }}
+          </p>
         </div>
       </div>
 
-      <!-- Tidligere kamper (sammenleggbar) -->
-      <div v-if="pastGroups.length > 0">
-        <button
-          type="button"
-          class="section-header section-header--collapsible"
-          :class="{ 'ds-anim-fade-up ds-anim-delay-3': upcomingGroups.length === 0 }"
-          :aria-expanded="showPastMatches"
-          @click="showPastMatches = !showPastMatches"
-        >
-          <h2 class="section-header__title">Tidligere kamper</h2>
-          <span class="ds-badge ds-badge--subtle">{{ pastMatches.length }}</span>
-          <span class="section-header__toggle">
-            <svg
-              :class="['section-header__chevron', { 'section-header__chevron--open': showPastMatches }]"
-              viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
-            >
-              <polyline points="6 9 12 15 18 9"/>
-            </svg>
+      <div v-for="group in displayedGroups" :key="group.date" class="mb-md">
+        <div class="px-lg" style="padding-top: 4px; padding-bottom: 4px;">
+          <span style="font-size: 0.8125rem; font-weight: 600; color: var(--ds-color-text-tertiary); text-transform: capitalize; letter-spacing: 0.02em;">
+            {{ group.label }}
           </span>
-        </button>
-        <div v-if="showPastMatches">
-          <div v-for="group in pastGroups" :key="group.date" class="mb-md">
-            <div class="px-lg" style="padding-top: 4px; padding-bottom: 4px;">
-              <span style="font-size: 0.8125rem; font-weight: 600; color: var(--ds-color-text-tertiary); text-transform: capitalize; letter-spacing: 0.02em;">
-                {{ group.label }}
-              </span>
-            </div>
-            <div class="px-lg ds-stack--sm ds-anim-stagger-list">
-              <MatchCard
-                v-for="match in group.matches"
-                :key="match.id"
-                :match="match"
-                :expense="getExpenseForMatch(match.id)"
-                :paid-by-name="getCoachName(getExpenseForMatch(match.id)?.paid_by)"
-                :coach-names="getCoachNamesForMatch(match.id)"
-              />
-            </div>
-          </div>
+        </div>
+        <div class="px-lg ds-stack--sm ds-anim-stagger-list">
+          <MatchCard
+            v-for="match in group.matches"
+            :key="match.id"
+            :match="match"
+            :expense="getExpenseForMatch(match.id)"
+            :paid-by-name="getCoachName(getExpenseForMatch(match.id)?.paid_by)"
+            :coach-names="getCoachNamesForMatch(match.id)"
+          />
         </div>
       </div>
     </div>
@@ -278,55 +279,76 @@ function getCoachNamesForMatch(matchId) {
 </template>
 
 <style scoped>
-.filter-label {
-  font-size: 0.8125rem;
-  font-weight: 500;
-  color: var(--ds-color-text-tertiary);
-  margin-bottom: 8px;
-}
-
-.section-header--collapsible {
-  width: 100%;
+.filter-row {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: 8px;
-  background: transparent;
-  border: 0;
-  cursor: pointer;
-  font: inherit;
-  color: inherit;
-  text-align: left;
-  -webkit-tap-highlight-color: transparent;
 }
 
-.section-header--collapsible:hover .section-header__toggle,
-.section-header--collapsible:focus-visible .section-header__toggle {
-  background: var(--ds-color-accent);
-  color: white;
-  border-color: var(--ds-color-accent);
+.filter-row__divider {
+  width: 1px;
+  height: 18px;
+  background: var(--ds-color-border);
+  margin: 0 4px;
+  flex-shrink: 0;
 }
 
-.section-header__toggle {
-  margin-left: auto;
+@media (max-width: 480px) {
+  .filter-row__divider {
+    display: none;
+  }
+}
+
+.time-tabs {
+  display: flex;
+  gap: 24px;
+  padding: 0 var(--ds-space-lg);
+  border-bottom: 1px solid var(--ds-color-border-light);
+  margin-bottom: var(--ds-space-md);
+}
+
+.time-tabs__option {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--ds-color-border);
+  gap: 8px;
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: var(--ds-color-text-tertiary);
+  font-family: var(--ds-font-body);
+  font-size: 0.9375rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: color 0.15s ease, border-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  margin-bottom: -1px;
+}
+
+.time-tabs__option:hover {
+  color: var(--ds-color-text-primary);
+}
+
+.time-tabs__option--active {
+  color: var(--ds-color-text-primary);
+  border-bottom-color: var(--ds-color-accent);
+}
+
+.time-tabs__count {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ds-color-text-tertiary);
+  background: var(--ds-color-bg-subtle);
+  padding: 1px 7px;
   border-radius: 999px;
-  background: var(--ds-color-bg-elevated);
-  color: var(--ds-color-text-secondary);
-  transition: all 0.15s ease;
+  font-variant-numeric: tabular-nums;
+  min-width: 20px;
+  text-align: center;
 }
 
-.section-header__chevron {
-  width: 14px;
-  height: 14px;
-  transition: transform 0.2s ease;
-}
-
-.section-header__chevron--open {
-  transform: rotate(180deg);
+.time-tabs__option--active .time-tabs__count {
+  background: var(--ds-color-accent-light);
+  color: var(--ds-color-accent);
 }
 </style>
