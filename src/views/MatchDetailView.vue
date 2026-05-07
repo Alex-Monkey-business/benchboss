@@ -30,6 +30,9 @@ const refereeInput = ref('')
 const newPhone = ref('')
 const homeScoreInput = ref('')
 const awayScoreInput = ref('')
+const showEditDateTime = ref(false)
+const editDateInput = ref('')
+const editTimeInput = ref('')
 
 onMounted(async () => {
   await Promise.all([fetchCoaches(), fetchReferees(), fetchPlayers()])
@@ -281,6 +284,41 @@ async function handleDelete() {
   showToast('Kamp slettet', 'success')
   router.push('/')
 }
+
+function openEditDateTime() {
+  editDateInput.value = match.value.match_date || ''
+  editTimeInput.value = (match.value.match_time || '').substring(0, 5)
+  showEditDateTime.value = true
+}
+
+function cancelEditDateTime() {
+  showEditDateTime.value = false
+}
+
+const isDateTimeChanged = computed(() => {
+  if (!match.value) return false
+  const currentDate = match.value.match_date || ''
+  const currentTime = (match.value.match_time || '').substring(0, 5)
+  return editDateInput.value !== currentDate || editTimeInput.value !== currentTime
+})
+
+async function saveDateTime() {
+  if (!editDateInput.value || !isDateTimeChanged.value) return
+  const newDate = editDateInput.value
+  const newTime = editTimeInput.value || null
+  const weekday = new Date(newDate + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'long' })
+  const updates = {
+    match_date: newDate,
+    match_time: newTime,
+    match_day: weekday,
+  }
+  await updateMatch(match.value.id, updates)
+  match.value.match_date = newDate
+  match.value.match_time = newTime
+  match.value.match_day = weekday
+  showEditDateTime.value = false
+  showToast('Tidspunkt oppdatert', 'success')
+}
 </script>
 
 <template>
@@ -313,6 +351,17 @@ async function handleDelete() {
             >{{ color === 'gronn' ? 'Grønn' : color === 'rod' ? 'Rød' : 'Hvit' }}</span>
             {{ formattedDate }}<template v-if="match.match_time && match.match_time.substring(0, 5) !== '00:00'"> · {{ match.match_time.substring(0, 5) }}</template>
           </span>
+          <button
+            type="button"
+            class="match-card__edit-btn"
+            aria-label="Endre tidspunkt"
+            @click="openEditDateTime"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+            </svg>
+          </button>
         </div>
         <div class="match-card__teams">
           <span class="match-card__team">{{ match.home_team }}</span>
@@ -576,6 +625,38 @@ async function handleDelete() {
       </button>
     </div>
 
+    <Sheet :show="showEditDateTime" title="Endre tidspunkt" @close="cancelEditDateTime">
+      <div class="edit-datetime-form">
+        <div class="edit-datetime-form__row">
+          <div class="edit-datetime-form__group">
+            <label class="ds-label">Dato</label>
+            <input v-model="editDateInput" type="date" class="ds-input" />
+          </div>
+          <div class="edit-datetime-form__group">
+            <label class="ds-label">Tid</label>
+            <input v-model="editTimeInput" type="time" class="ds-input" />
+          </div>
+        </div>
+        <div class="edit-datetime-form__actions">
+          <button
+            type="button"
+            class="ds-btn ds-btn--secondary ds-btn--sm"
+            @click="cancelEditDateTime"
+          >
+            Avbryt
+          </button>
+          <button
+            type="button"
+            class="ds-btn ds-btn--primary ds-btn--sm"
+            :disabled="!editDateInput || !isDateTimeChanged"
+            @click="saveDateTime"
+          >
+            Lagre
+          </button>
+        </div>
+      </div>
+    </Sheet>
+
     <ConfirmDialog
       :show="showDeleteDialog"
       title="Slett kamp?"
@@ -592,6 +673,65 @@ async function handleDelete() {
 /* Match detail card — reuses global .match-card classes, adds team tag locally */
 .match-detail-card {
   padding: var(--ds-space-lg);
+}
+
+.match-detail-card .match-card__top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.match-card__edit-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ds-color-text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+.match-card__edit-btn:hover {
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-primary);
+}
+
+.match-card__edit-btn svg {
+  width: 14px;
+  height: 14px;
+}
+
+.edit-datetime-form {
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.edit-datetime-form__row {
+  display: flex;
+  gap: 12px;
+}
+
+.edit-datetime-form__group {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.edit-datetime-form__actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
 }
 
 /* Override the flex:1 spread — center teams compactly in detail view */

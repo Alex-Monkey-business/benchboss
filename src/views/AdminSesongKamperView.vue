@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useSeasons } from '../composables/useSeasons'
 import { useMatches } from '../composables/useMatches'
 import { useExpenses } from '../composables/useExpenses'
@@ -9,7 +9,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
 
 const { seasons, activeSeason, fetchSeasons, createSeason, setActiveSeason } = useSeasons()
-const { matches, fetchMatches, bulkAddMatches, addMatch, deleteAllMatches } = useMatches()
+const { matches, fetchMatches, bulkAddMatches, addMatch, updateMatch, deleteAllMatches } = useMatches()
 const { fetchExpenses } = useExpenses()
 const { show: showToast } = useToast()
 
@@ -36,6 +36,10 @@ const newMatch = ref({
 
 const showDeleteAllDialog = ref(false)
 const deleting = ref(false)
+
+const editingMatch = ref(null)
+const editDateInput = ref('')
+const editTimeInput = ref('')
 
 onMounted(async () => {
   await fetchSeasons()
@@ -178,6 +182,45 @@ async function confirmDeleteAll() {
   deleting.value = false
   showToast('Alle kamper slettet', 'success')
 }
+
+function openEditDateTime(match) {
+  editingMatch.value = match
+  editDateInput.value = match.match_date || ''
+  editTimeInput.value = (match.match_time || '').substring(0, 5)
+}
+
+function cancelEditDateTime() {
+  editingMatch.value = null
+}
+
+const isDateTimeChanged = computed(() => {
+  if (!editingMatch.value) return false
+  const currentDate = editingMatch.value.match_date || ''
+  const currentTime = (editingMatch.value.match_time || '').substring(0, 5)
+  return editDateInput.value !== currentDate || editTimeInput.value !== currentTime
+})
+
+async function saveDateTime() {
+  if (!editingMatch.value || !editDateInput.value || !isDateTimeChanged.value) return
+  const newDate = editDateInput.value
+  const newTime = editTimeInput.value || null
+  const weekday = new Date(newDate + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'long' })
+  const updates = {
+    match_date: newDate,
+    match_time: newTime,
+    match_day: weekday,
+  }
+  await updateMatch(editingMatch.value.id, updates)
+  if (activeSeason.value) await fetchMatches(activeSeason.value.id)
+  editingMatch.value = null
+  showToast('Tidspunkt oppdatert', 'success')
+}
+
+function formatMatchDate(dateStr) {
+  if (!dateStr) return ''
+  const d = new Date(dateStr + 'T12:00:00')
+  return d.toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })
+}
 </script>
 
 <template>
@@ -316,6 +359,42 @@ async function confirmDeleteAll() {
       </button>
     </div>
 
+    <!-- ═══ MATCH LIST ═══ -->
+    <div v-if="matches.length > 0" class="px-lg mb-lg">
+      <div class="section-label">Kamper i {{ activeSeason?.name }}</div>
+      <div class="ds-card ds-card--compact match-list-card">
+        <div
+          v-for="m in matches"
+          :key="m.id"
+          class="match-row"
+        >
+          <div class="match-row__when">
+            <span class="match-row__date">{{ formatMatchDate(m.match_date) }}</span>
+            <span
+              v-if="m.match_time && m.match_time.substring(0, 5) !== '00:00'"
+              class="match-row__time"
+            >{{ m.match_time.substring(0, 5) }}</span>
+          </div>
+          <div class="match-row__teams">
+            <span class="match-row__team">{{ m.home_team }}</span>
+            <span class="match-row__vs">vs</span>
+            <span class="match-row__team">{{ m.away_team }}</span>
+          </div>
+          <button
+            type="button"
+            class="match-row__edit"
+            aria-label="Endre tidspunkt"
+            @click="openEditDateTime(m)"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
     <!-- ═══ DANGER ZONE ═══ -->
     <div v-if="matches.length > 0" class="px-lg mb-lg">
       <div class="danger-zone">
@@ -369,6 +448,33 @@ async function confirmDeleteAll() {
       <div class="sheet-actions">
         <button class="ds-btn ds-btn--secondary" @click="cancelAddMatch">Avbryt</button>
         <button class="ds-btn ds-btn--primary" @click="handleAddMatch">Legg til kamp</button>
+      </div>
+    </Sheet>
+
+    <Sheet
+      :show="!!editingMatch"
+      :title="editingMatch ? `${editingMatch.home_team} vs ${editingMatch.away_team}` : ''"
+      @close="cancelEditDateTime"
+    >
+      <div class="ds-form-row">
+        <div class="ds-form-group">
+          <label class="ds-label">Dato</label>
+          <input v-model="editDateInput" type="date" class="ds-input" />
+        </div>
+        <div class="ds-form-group">
+          <label class="ds-label">Tid</label>
+          <input v-model="editTimeInput" type="time" class="ds-input" />
+        </div>
+      </div>
+      <div class="sheet-actions">
+        <button class="ds-btn ds-btn--secondary" @click="cancelEditDateTime">Avbryt</button>
+        <button
+          class="ds-btn ds-btn--primary"
+          :disabled="!editDateInput || !isDateTimeChanged"
+          @click="saveDateTime"
+        >
+          Lagre
+        </button>
       </div>
     </Sheet>
 
@@ -538,5 +644,109 @@ async function confirmDeleteAll() {
   justify-content: flex-end;
   gap: 8px;
   margin-top: var(--ds-space-lg);
+}
+
+.match-list-card {
+  padding: 4px 0;
+}
+
+.match-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: var(--ds-radius-sm);
+  transition: background 0.15s;
+}
+
+.match-row + .match-row {
+  border-top: 1px solid var(--ds-color-border-light);
+}
+
+.match-row:hover {
+  background: var(--ds-color-bg-subtle);
+}
+
+.match-row__when {
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  width: 110px;
+  font-variant-numeric: tabular-nums;
+}
+
+.match-row__date {
+  font-size: var(--ds-text-xs);
+  font-weight: 600;
+  color: var(--ds-color-text-primary);
+}
+
+.match-row__time {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+  margin-top: 1px;
+}
+
+.match-row__teams {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--ds-text-sm);
+  min-width: 0;
+}
+
+.match-row__team {
+  font-weight: 500;
+  color: var(--ds-color-text-primary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.match-row__vs {
+  font-size: 0.6875rem;
+  color: var(--ds-color-text-tertiary);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  flex-shrink: 0;
+}
+
+.match-row__edit {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--ds-color-text-tertiary);
+  cursor: pointer;
+  transition: all 0.15s;
+  flex-shrink: 0;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.match-row__edit:hover {
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-accent);
+}
+
+.match-row__edit svg {
+  width: 14px;
+  height: 14px;
+}
+
+@media (max-width: 480px) {
+  .match-row__teams {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0;
+  }
+  .match-row__vs {
+    display: none;
+  }
 }
 </style>
