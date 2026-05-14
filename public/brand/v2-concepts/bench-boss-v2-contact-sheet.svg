@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1400 900" role="img" aria-labelledby="title desc">
+  <title id="title">Bench Boss logo concepts v2</title>
+  <desc id="desc">Three simplified Bench Boss logo concepts.</desc>
+  <rect width="1400" height="900" fill="#0A0A0A"/>
+  <text x="80" y="110" fill="#F9F7F2" font-family="Inter, Arial, Helvetica, sans-serif" font-size="52" font-weight="900" letter-spacing="-1">Bench Boss</text>
+  <text x="80" y="154" fill="#B8B7B0" font-family="Inter, Arial, Helvetica, sans-serif" font-size="22" font-weight="700">Logo concepts v2 - enklere app-merker</text>
+
+  <g transform="translate(80 230)">
+    <rect width="360" height="500" rx="28" fill="#FFFFFF"/>
+    <g transform="translate(52 40) scale(.5)">
+      <rect width="512" height="512" rx="112" fill="#0A0A0A"/>
+      <rect x="118" y="82" width="276" height="348" rx="56" fill="#F4F3EE"/>
+      <path d="M256 100v312" stroke="#0A0A0A" stroke-width="7" stroke-linecap="round" opacity=".16"/>
+      <circle cx="256" cy="256" r="54" fill="none" stroke="#0A0A0A" stroke-width="7" opacity=".16"/>
+      <path d="M192 150v212M192 150h74c46 0 76 25 76 64s-30 64-76 64h-74M192 278h88c45 0 72 24 72 62s-29 66-76 66h-84" fill="none" stroke="#0A0A0A" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="314" cy="220" r="22" fill="#B9603F"/>
+      <path d="M286 304l56-34-14 64" fill="none" stroke="#B9603F" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <text x="52" y="356" fill="#0A0A0A" font-family="Inter, Arial, Helvetica, sans-serif" font-size="30" font-weight="900">A. Taktikk-B</text>
+    <text x="52" y="396" fill="#4F4E48" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18" font-weight="650">Mest app-ikon. Fotball + kontroll.</text>
+  </g>
+
+  <g transform="translate(520 230)">
+    <rect width="360" height="500" rx="28" fill="#FFFFFF"/>
+    <g transform="translate(52 40) scale(.5)">
+      <rect width="512" height="512" rx="112" fill="#F4F3EE"/>
+      <path d="M132 182h248c24 0 44 20 44 44v12H88v-12c0-24 20-44 44-44Z" fill="#0A0A0A"/>
+      <path d="M92 254h328v50H92z" fill="#B9603F"/>
+      <path d="M126 304h42v86h-42zM344 304h42v86h-42z" fill="#0A0A0A"/>
+      <path d="M154 138h204" stroke="#0A0A0A" stroke-width="28" stroke-linecap="round"/>
+      <path d="M206 96l50 42 50-42" fill="none" stroke="#B9603F" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="166" cy="222" r="12" fill="#F4F3EE"/>
+      <circle cx="346" cy="222" r="12" fill="#F4F3EE"/>
+      <path d="M190 222h132" stroke="#F4F3EE" stroke-width="10" stroke-linecap="round" opacity=".8"/>
+    </g>
+    <text x="52" y="356" fill="#0A0A0A" font-family="Inter, Arial, Helvetica, sans-serif" font-size="30" font-weight="900">B. Benk-sjef</text>
+    <text x="52" y="396" fill="#4F4E48" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18" font-weight="650">Mest leken. Benken som “Boss”.</text>
+  </g>
+
+  <g transform="translate(960 230)">
+    <rect width="360" height="500" rx="28" fill="#FFFFFF"/>
+    <g transform="translate(52 40) scale(.5)">
+      <rect width="512" height="512" rx="112" fill="#0A0A0A"/>
+      <path d="M112 244c24-74 87-119 164-119 64 0 118 28 153 82 12 18 5 43-15 51l-68 27c-54 22-115 24-171 6l-46-15c-17-6-23-23-17-32Z" fill="#F4F3EE"/>
+      <path d="M110 267c84 35 177 36 262 2l58-23c14-5 30 3 33 18 4 18-8 35-26 39l-130 27c-73 15-148 3-213-34-13-8-11-34 16-29Z" fill="#B9603F"/>
+      <path d="M198 160v122M198 160h51c34 0 55 18 55 47s-21 47-55 47h-51M198 254h63c34 0 55 18 55 47" fill="none" stroke="#0A0A0A" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle cx="337" cy="172" r="12" fill="#B9603F"/>
+      <path d="M350 194l34-18-9 38" fill="none" stroke="#B9603F" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+    </g>
+    <text x="52" y="356" fill="#0A0A0A" font-family="Inter, Arial, Helvetica, sans-serif" font-size="30" font-weight="900">C. Coach-cap</text>
+    <text x="52" y="396" fill="#4F4E48" font-family="Inter, Arial, Helvetica, sans-serif" font-size="18" font-weight="650">Mest pappatrener. Litt mer karakter.</text>
+  </g>
+</svg>

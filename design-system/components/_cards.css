@@ -1,6 +1,7 @@
 /* ============================================
    CARDS
-   Neo-brutal: thick borders, offset shadows, macOS radius
+   Notion-style: hairline border, no shadow at rest.
+   Generous padding. Hover via subtle bg/border shift.
    ============================================ */
 
 .ds-card {
@@ -8,23 +9,36 @@
   border: var(--ds-border-width) solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
   padding: var(--ds-space-xl);
-  transition: all 0.15s cubic-bezier(0.2, 0, 0.2, 1);
+  transition:
+    background-color var(--ds-duration-normal) var(--ds-ease-out),
+    border-color var(--ds-duration-normal) var(--ds-ease-out),
+    box-shadow var(--ds-duration-normal) var(--ds-ease-out);
 }
 
 /* Interactive card (clickable) */
 .ds-card--interactive {
   cursor: pointer;
-  box-shadow: var(--ds-shadow-sm);
 }
 
 .ds-card--interactive:hover {
-  transform: translate(-3px, -3px);
-  box-shadow: var(--ds-shadow-lg);
+  border-color: var(--ds-color-border-strong);
+  box-shadow: var(--ds-shadow-sm);
 }
 
 .ds-card--interactive:active {
-  transform: translate(1px, 1px);
-  box-shadow: none;
+  background: var(--ds-color-bg-subtle);
+}
+
+/* Elevated (use sparingly — e.g. modal-like cards) */
+.ds-card--elevated {
+  border-color: transparent;
+  box-shadow: var(--ds-shadow-md);
+}
+
+/* Flat (no border, no shadow — relies on bg contrast) */
+.ds-card--flat {
+  border-color: transparent;
+  background: var(--ds-color-bg-subtle);
 }
 
 /* Compact padding */
@@ -34,73 +48,100 @@
 
 /* Spacious padding */
 .ds-card--spacious {
-  padding: var(--ds-space-xl) var(--ds-space-2xl);
+  padding: var(--ds-space-2xl);
 }
 
 /* ---- Card Header ---- */
-
 .ds-card__header {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
+  gap: var(--ds-space-md);
   margin-bottom: var(--ds-space-lg);
 }
 
 .ds-card__title {
   font-family: var(--ds-font-heading);
-  font-size: var(--ds-text-xl);
-  font-weight: var(--ds-weight-bold);
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-tight);
   color: var(--ds-color-text-primary);
+  line-height: var(--ds-leading-snug);
+}
+
+.ds-card__title--display {
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-2xl);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-tighter);
 }
 
 .ds-card__subtitle {
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
-  margin-top: var(--ds-space-xs);
+  margin-top: var(--ds-space-2xs);
+}
+
+.ds-card__eyebrow {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+  margin-bottom: var(--ds-space-sm);
 }
 
 /* ---- Card Body ---- */
-
 .ds-card__body {
   color: var(--ds-color-text-secondary);
   font-size: var(--ds-text-sm);
-  line-height: var(--ds-leading-normal);
+  line-height: var(--ds-leading-relaxed);
 }
 
 /* ---- Card Footer ---- */
-
 .ds-card__footer {
   display: flex;
   align-items: center;
   gap: var(--ds-space-md);
   margin-top: var(--ds-space-lg);
   padding-top: var(--ds-space-lg);
-  border-top: 1px solid var(--ds-color-border-light);
+  border-top: 1px solid var(--ds-color-border);
 }
 
 /* ---- Card Meta (tags, badges, date) ---- */
-
 .ds-card__meta {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: var(--ds-space-xs);
+  gap: var(--ds-space-sm);
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-tertiary);
 }
 
 .ds-card__meta-divider {
-  color: var(--ds-color-border-light);
+  color: var(--ds-color-border-strong);
+}
+
+/* ---- Card Stat (for big numbers — e.g. totals) ---- */
+.ds-card__stat {
+  font-family: var(--ds-font-display);
+  font-weight: var(--ds-weight-semibold);
+  font-size: var(--ds-text-3xl);
+  line-height: 1;
+  letter-spacing: var(--ds-tracking-tighter);
+  color: var(--ds-color-text-primary);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'ss01' 1;
 }
 
 /* ---- Responsive ---- */
-
 @media (max-width: 768px) {
   .ds-card {
     padding: var(--ds-space-lg);
+    border-radius: var(--ds-radius-md);
   }
 
   .ds-card--spacious {
-    padding: var(--ds-space-lg);
+    padding: var(--ds-space-xl);
   }
 }

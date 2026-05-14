@@ -1,11 +1,11 @@
 /* ============================================
    TOAST NOTIFICATIONS
-   Neo-brutal: thick borders, offset shadow
+   Solid surface, soft elevation, no border.
    ============================================ */
 
 .ds-toast-container {
   position: fixed;
-  bottom: var(--ds-space-xl);
+  bottom: calc(var(--ds-space-xl) + env(safe-area-inset-bottom, 0px));
   left: 50%;
   transform: translateX(-50%);
   z-index: var(--ds-z-toast);
@@ -20,32 +20,34 @@
   display: inline-flex;
   align-items: center;
   gap: var(--ds-space-sm);
-  padding: var(--ds-space-md) var(--ds-space-lg);
+  padding: 10px var(--ds-space-md);
   background: var(--ds-color-text-primary);
   color: var(--ds-color-text-inverse);
-  border: var(--ds-border-width) solid var(--ds-color-border);
   border-radius: var(--ds-radius-md);
   font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-semibold);
-  box-shadow: var(--ds-shadow-md);
+  font-weight: var(--ds-weight-medium);
+  letter-spacing: -0.005em;
+  box-shadow: var(--ds-shadow-lg);
   pointer-events: auto;
+  max-width: calc(100vw - var(--ds-space-2xl));
 }
 
 .ds-toast--success {
   background: var(--ds-color-success);
+  color: #ffffff;
 }
 
 .ds-toast--error {
   background: var(--ds-color-error);
+  color: #ffffff;
 }
 
 .ds-toast--warning {
   background: var(--ds-color-warning);
-  color: var(--ds-color-warning-text);
+  color: #ffffff;
 }
 
 /* ---- Toast Icon ---- */
-
 .ds-toast__icon {
   flex-shrink: 0;
   width: 18px;

@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Bench Boss option C</title>
+  <desc id="desc">A coach cap mark for Bench Boss.</desc>
+  <rect width="512" height="512" rx="112" fill="#0A0A0A"/>
+  <path d="M112 244c24-74 87-119 164-119 64 0 118 28 153 82 12 18 5 43-15 51l-68 27c-54 22-115 24-171 6l-46-15c-17-6-23-23-17-32Z" fill="#F4F3EE"/>
+  <path d="M110 267c84 35 177 36 262 2l58-23c14-5 30 3 33 18 4 18-8 35-26 39l-130 27c-73 15-148 3-213-34-13-8-11-34 16-29Z" fill="#B9603F"/>
+  <path d="M198 160v122M198 160h51c34 0 55 18 55 47s-21 47-55 47h-51M198 254h63c34 0 55 18 55 47" fill="none" stroke="#0A0A0A" stroke-width="28" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="337" cy="172" r="12" fill="#B9603F"/>
+  <path d="M350 194l34-18-9 38" fill="none" stroke="#B9603F" stroke-width="12" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

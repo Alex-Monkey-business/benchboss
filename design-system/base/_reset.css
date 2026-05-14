@@ -1,6 +1,7 @@
 /* ============================================
    RESET & BASE STYLES
-   Neo-brutal: bold headings, strong focus states
+   Notion-monokrom: Fraunces display for h1/h2,
+   Inter for h3+ and body, crisp focus rings.
    ============================================ */
 
 *,
@@ -34,16 +35,38 @@ body {
 /* ---- Typography ---- */
 
 h1, h2, h3, h4, h5, h6 {
-  font-family: var(--ds-font-heading);
-  line-height: var(--ds-leading-tight);
-  font-weight: var(--ds-weight-bold);
   color: var(--ds-color-text-primary);
+  line-height: var(--ds-leading-tight);
+}
+
+/* h1, h2 — editorial Fraunces moment */
+h1, h2 {
+  font-family: var(--ds-font-display);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-tighter);
+  font-variation-settings: var(--ds-font-display-settings);
+  font-feature-settings: 'ss01', 'ss02';
+}
+
+/* h3+ — Inter, tight tracking */
+h3, h4, h5, h6 {
+  font-family: var(--ds-font-heading);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-tight);
+  line-height: var(--ds-leading-snug);
 }
 
 h1 { font-size: var(--ds-text-3xl); }
 h2 { font-size: var(--ds-text-2xl); }
 h3 { font-size: var(--ds-text-xl); }
 h4 { font-size: var(--ds-text-lg); }
+
+/* Tabular numbers feel premium for money/stats */
+.tabular,
+[data-numeric] {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1;
+}
 
 p {
   line-height: var(--ds-leading-normal);
@@ -111,8 +134,9 @@ table {
 }
 
 :focus-visible {
-  outline: 3px solid var(--ds-color-accent);
+  outline: 2px solid var(--ds-color-accent);
   outline-offset: 2px;
+  border-radius: var(--ds-radius-sm);
 }
 
 /* ---- Reduced Motion ---- */

@@ -1,40 +1,89 @@
 /* ============================================
    TYPOGRAPHY TOKENS
-   Space Grotesk for headings, Inter for body/UI
+   Inter for body/UI. Fraunces for editorial moments
+   (h1, large numbers, hero stats).
+   Notion-style hierarchy: weight + size, not color.
    ============================================ */
 
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&display=swap');
 
 :root {
   /* ---- Font Families ---- */
-  --ds-font-heading:  'Space Grotesk', 'Inter', system-ui, sans-serif;
+  /* Editorial serif — reserved for hero h1/h2 and large stat numbers */
+  --ds-font-display:  'Fraunces', 'Tiempos Headline', Georgia, serif;
+
+  /* Display sans — system-first stack. Lands on SF Pro Display on Apple,
+     Inter elsewhere. This is what Airbnb/Spotify show on iPhone. */
+  --ds-font-display-sans:
+    -apple-system,
+    BlinkMacSystemFont,
+    'SF Pro Display',
+    'Inter',
+    'Segoe UI',
+    system-ui,
+    sans-serif;
+
+  --ds-font-heading:  var(--ds-font-display-sans);
   --ds-font-body:     'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
-  --ds-font-mono:     'JetBrains Mono', 'Fira Code', 'Fira Mono', monospace;
+  --ds-font-mono:     'JetBrains Mono', 'Fira Code', ui-monospace, monospace;
+  --ds-font-numeric:  'Inter', var(--ds-font-display-sans);
 
   /* ---- Font Sizes ---- */
   --ds-text-xs:   0.8125rem;  /* 13px */
   --ds-text-sm:   0.9375rem;  /* 15px */
-  --ds-text-base: 1.0625rem;  /* 17px */
+  --ds-text-base: 1rem;       /* 16px */
+  --ds-text-md:   1.0625rem;  /* 17px */
   --ds-text-lg:   1.25rem;    /* 20px */
-  --ds-text-xl:   1.625rem;   /* 26px */
-  --ds-text-2xl:  2.25rem;    /* 36px */
-  --ds-text-3xl:  3rem;       /* 48px */
+  --ds-text-xl:   1.5rem;     /* 24px */
+  --ds-text-2xl:  2rem;       /* 32px */
+  --ds-text-3xl:  2.75rem;    /* 44px */
+  --ds-text-4xl:  3.5rem;     /* 56px — editorial display */
 
   /* ---- Font Weights ---- */
   --ds-weight-regular:  400;
   --ds-weight-medium:   500;
   --ds-weight-semibold: 600;
   --ds-weight-bold:     700;
-  --ds-weight-black:    800;
+  --ds-weight-black:    700;  /* alias for backwards compat */
 
   /* ---- Line Heights ---- */
-  --ds-leading-tight:   1.2;
-  --ds-leading-normal:  1.5;
-  --ds-leading-relaxed: 1.65;
+  --ds-leading-tight:    1.15;
+  --ds-leading-snug:     1.3;
+  --ds-leading-normal:   1.5;
+  --ds-leading-relaxed:  1.65;
 
   /* ---- Letter Spacing ---- */
-  --ds-tracking-tight:  -0.02em;
-  --ds-tracking-normal:  0;
-  --ds-tracking-wide:    0.02em;
-  --ds-tracking-wider:   0.05em;
+  --ds-tracking-tighter: -0.03em;
+  --ds-tracking-tight:   -0.015em;
+  --ds-tracking-normal:   0;
+  --ds-tracking-wide:     0.02em;
+  --ds-tracking-wider:    0.06em;
+
+  /* ---- Fraunces optical sizing ---- */
+  --ds-font-display-settings: 'opsz' 144, 'SOFT' 30, 'WONK' 0;
+}
+
+/* ---- Type helpers ---- */
+.ds-display {
+  font-family: var(--ds-font-display);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-tighter);
+  line-height: var(--ds-leading-tight);
+  font-feature-settings: 'ss01', 'ss02';
+  font-variation-settings: var(--ds-font-display-settings);
+}
+
+.ds-numeric {
+  font-family: var(--ds-font-numeric);
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'ss01' 1;
+}
+
+.ds-eyebrow {
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
 }

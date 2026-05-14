@@ -1,50 +1,66 @@
 /* ============================================
    COLOR TOKENS
-   Neo-brutalist palette with electric blue accent
+   Notion-monokrom: pure white, charcoal, Notion grays.
+   No colored accent — emphasis via weight, underline,
+   and subtle background shifts.
    ============================================ */
 
 :root {
   /* ---- Background ---- */
-  --ds-color-bg:              #FFFEF8;
+  --ds-color-bg:              #FFFFFF;
   --ds-color-bg-elevated:     #FFFFFF;
-  --ds-color-bg-subtle:       #F5F3ED;
+  --ds-color-bg-subtle:       #F4F3EE;   /* warmer panel, darker than before */
+  --ds-color-bg-hover:        #EDECE7;   /* clearer hover */
+  --ds-color-bg-sunken:       #E8E7E1;   /* deep zone separation */
 
   /* ---- Border ---- */
-  --ds-color-border:          #1A1A1A;
-  --ds-color-border-light:    #D4D4D4;
-  --ds-color-border-focus:    #2563EB;
+  --ds-color-border:          #DEDDD8;   /* darker hairline — visible on white */
+  --ds-color-border-strong:   #B8B7B0;
+  --ds-color-border-light:    #ECEBE5;
+  --ds-color-border-focus:    #0A0A0A;
 
-  /* ---- Text ---- */
-  --ds-color-text-primary:    #1A1A1A;
-  --ds-color-text-secondary:  #5C5C5C;
-  --ds-color-text-tertiary:   #8A8A8A;
-  --ds-color-text-inverse:    #FFFEF8;
+  /* ---- Text (high contrast) ---- */
+  --ds-color-text-primary:    #0A0A0A;   /* near-true black for crispness */
+  --ds-color-text-secondary:  #4F4E48;   /* darker secondary, more readable */
+  --ds-color-text-tertiary:   #8A8983;
+  --ds-color-text-inverse:    #FFFFFF;
 
-  /* ---- Accent (Electric Blue) ---- */
-  --ds-color-accent:          #2563EB;
-  --ds-color-accent-hover:    #1D4ED8;
-  --ds-color-accent-light:    #DBEAFE;
-  --ds-color-accent-text:     #FFFEF8;
+  /* ---- Accent (true black for max punch) ---- */
+  --ds-color-accent:          #0A0A0A;
+  --ds-color-accent-hover:    #000000;
+  --ds-color-accent-light:    #EDECE7;
+  --ds-color-accent-text:     #FFFFFF;
 
-  /* ---- Semantic: Success (Emerald) ---- */
-  --ds-color-success:         #059669;
-  --ds-color-success-hover:   #047857;
-  --ds-color-success-light:   #D1FAE5;
+  /* ---- Warm secondary accent (humanity, urgency, celebration) ---- */
+  /* Use sparingly — max ~5% of surface. For status pills, "your turn"
+     moments, paid-by avatars, season-settled celebrations. */
+  --ds-color-warm:            #B9603F;   /* muted terracotta */
+  --ds-color-warm-hover:      #9F4F32;
+  --ds-color-warm-bg:         #F8E8E0;   /* soft peach */
+  --ds-color-warm-text:       #7A3A24;
 
-  /* ---- Semantic: Warning (Amber) ---- */
-  --ds-color-warning:         #D97706;
-  --ds-color-warning-light:   #FEF3C7;
-  --ds-color-warning-border:  #D97706;
-  --ds-color-warning-text:    #92400E;
+  /* ---- Semantic: Success (clean emerald) ---- */
+  --ds-color-success:         #16A34A;
+  --ds-color-success-hover:   #15803D;
+  --ds-color-success-light:   #DCFCE7;
+  --ds-color-success-text:    #14532D;
 
-  /* ---- Semantic: Error (Red) ---- */
+  /* ---- Semantic: Warning ---- */
+  --ds-color-warning:         #B07A1A;
+  --ds-color-warning-light:   #FAF4E5;
+  --ds-color-warning-border:  #E9DDB8;
+  --ds-color-warning-text:    #7A5410;
+
+  /* ---- Semantic: Error (clean red) ---- */
   --ds-color-error:           #DC2626;
+  --ds-color-error-hover:     #B91C1C;
   --ds-color-error-light:     #FEE2E2;
+  --ds-color-error-text:      #7F1D1D;
 
   /* ---- Semantic: Info ---- */
-  --ds-color-info:            #2563EB;
-  --ds-color-info-light:      #DBEAFE;
+  --ds-color-info:            #1A1A1A;
+  --ds-color-info-light:      #F1F1EF;
 
   /* ---- Overlay ---- */
-  --ds-color-overlay:         rgba(0, 0, 0, 0.4);
+  --ds-color-overlay:         rgba(15, 15, 15, 0.32);
 }

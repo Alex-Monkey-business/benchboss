@@ -1,6 +1,7 @@
 /* ============================================
    STEPPER / PROGRESS INDICATOR
-   Neo-brutal: thick connector, bordered steps
+   Notion-style: filled charcoal when active,
+   hairline circles when pending. No shadow.
    ============================================ */
 
 .ds-stepper {
@@ -10,7 +11,6 @@
 }
 
 /* ---- Step ---- */
-
 .ds-step {
   display: flex;
   align-items: center;
@@ -21,70 +21,70 @@
 .ds-step + .ds-step::before {
   content: '';
   display: block;
-  width: 24px;
-  height: var(--ds-border-width);
-  background: var(--ds-color-border);
+  width: 28px;
+  height: 1px;
+  background: var(--ds-color-border-strong);
   margin-right: var(--ds-space-xs);
-  transition: background-color 0.2s ease;
+  transition: background-color var(--ds-duration-normal) var(--ds-ease-out);
 }
 
-.ds-step--done + .ds-step::before,
-.ds-step--active + .ds-step::before {
+.ds-step--done + .ds-step::before {
   background: var(--ds-color-accent);
-  opacity: 0.4;
 }
 
 /* ---- Step Number Circle ---- */
-
 .ds-step__number {
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
-  border-radius: var(--ds-radius-sm);
-  border: var(--ds-border-width) solid var(--ds-color-border);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-bold);
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid var(--ds-color-border-strong);
+  font-size: 11px;
+  font-weight: var(--ds-weight-semibold);
   flex-shrink: 0;
-  transition: all 0.2s ease;
-  background: var(--ds-color-bg-subtle);
+  transition:
+    background-color var(--ds-duration-normal) var(--ds-ease-out),
+    border-color var(--ds-duration-normal) var(--ds-ease-out),
+    color var(--ds-duration-normal) var(--ds-ease-out);
+  background: var(--ds-color-bg-elevated);
   color: var(--ds-color-text-tertiary);
+  font-variant-numeric: tabular-nums;
 }
 
 .ds-step--active .ds-step__number {
   background: var(--ds-color-accent);
-  color: var(--ds-color-text-inverse);
-  border-color: var(--ds-color-border);
-  box-shadow: var(--ds-shadow-sm);
+  color: var(--ds-color-accent-text);
+  border-color: var(--ds-color-accent);
 }
 
 .ds-step--done .ds-step__number {
-  background: var(--ds-color-accent-light);
-  color: var(--ds-color-accent);
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
   border-color: var(--ds-color-accent);
 }
 
 /* ---- Step Label ---- */
-
 .ds-step__label {
   font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
+  font-weight: var(--ds-weight-medium);
   color: var(--ds-color-text-tertiary);
-  transition: color 0.2s ease;
+  transition: color var(--ds-duration-normal) var(--ds-ease-out);
   white-space: nowrap;
+  letter-spacing: -0.005em;
 }
 
 .ds-step--active .ds-step__label {
   color: var(--ds-color-text-primary);
+  font-weight: var(--ds-weight-semibold);
 }
 
 .ds-step--done .ds-step__label {
-  color: var(--ds-color-accent);
+  color: var(--ds-color-text-primary);
 }
 
 /* ---- Responsive ---- */
-
 @media (max-width: 480px) {
   .ds-step__label {
     display: none;

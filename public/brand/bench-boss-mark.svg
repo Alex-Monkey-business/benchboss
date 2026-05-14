@@ -1,0 +1,48 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Bench Boss mark</title>
+  <desc id="desc">A compact BB monogram built from coach-board and bench geometry.</desc>
+  <defs>
+    <linearGradient id="warm" x1="96" y1="80" x2="416" y2="432" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#D88258"/>
+      <stop offset="1" stop-color="#B9603F"/>
+    </linearGradient>
+    <filter id="softShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="18" stdDeviation="18" flood-color="#000000" flood-opacity=".28"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="112" fill="#0A0A0A"/>
+  <path
+    d="M94 356c44 42 98 63 162 63s118-21 162-63"
+    fill="none"
+    stroke="#F4F3EE"
+    stroke-width="16"
+    stroke-linecap="round"
+    opacity=".16"
+  />
+  <path
+    d="M106 348h300c14 0 25 11 25 25v5c0 14-11 25-25 25H106c-14 0-25-11-25-25v-5c0-14 11-25 25-25Z"
+    fill="url(#warm)"
+    filter="url(#softShadow)"
+  />
+
+  <g fill="#F9F7F2">
+    <path d="M130 118h76c59 0 95 29 95 76 0 25-12 45-34 59 30 13 47 38 47 72 0 52-39 84-103 84h-81V118Zm66 117h13c25 0 40-13 40-34 0-20-15-32-40-32h-13v66Zm0 122h20c28 0 45-15 45-39 0-25-17-40-45-40h-20v79Z"/>
+    <path d="M281 118h69c55 0 89 27 89 72 0 24-11 43-32 56 29 13 45 37 45 69 0 51-38 82-100 82h-71V118Zm61 114h11c22 0 36-12 36-31 0-18-14-30-36-30h-11v61Zm0 113h18c26 0 42-14 42-37s-16-38-42-38h-18v75Z"/>
+  </g>
+
+  <path
+    d="M256 92l27 30h-54l27-30Z"
+    fill="url(#warm)"
+  />
+  <path
+    d="M160 246h192"
+    fill="none"
+    stroke="#0A0A0A"
+    stroke-width="10"
+    stroke-linecap="round"
+    opacity=".7"
+  />
+  <circle cx="214" cy="246" r="10" fill="#B9603F"/>
+  <circle cx="298" cy="246" r="10" fill="#B9603F"/>
+</svg>

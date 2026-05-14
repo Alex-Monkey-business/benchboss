@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 360" role="img" aria-labelledby="title desc">
+  <title id="title">Bench Boss logo dark</title>
+  <desc id="desc">Dark background Bench Boss wordmark with a BB monogram app icon.</desc>
+  <rect width="1200" height="360" rx="48" fill="#0A0A0A"/>
+  <g transform="translate(36 36)">
+    <rect width="288" height="288" rx="72" fill="#F4F3EE"/>
+    <path d="M52 192c25 24 56 36 92 36s67-12 92-36" fill="none" stroke="#0A0A0A" stroke-width="10" stroke-linecap="round" opacity=".14"/>
+    <rect x="46" y="184" width="196" height="34" rx="17" fill="#B9603F"/>
+    <g fill="#0A0A0A">
+      <path d="M74 54h49c38 0 61 19 61 49 0 16-8 29-22 38 19 9 30 25 30 46 0 33-25 53-66 53H74V54Zm43 75h8c16 0 26-8 26-22 0-13-10-21-26-21h-8v43Zm0 78h13c18 0 29-10 29-25s-11-25-29-25h-13v50Z"/>
+      <path d="M171 54h45c35 0 57 17 57 46 0 15-7 27-20 36 18 8 29 24 29 44 0 33-24 52-64 52h-47V54Zm40 73h7c14 0 23-8 23-20s-9-19-23-19h-7v39Zm0 72h11c17 0 27-9 27-24 0-14-10-24-27-24h-11v48Z"/>
+    </g>
+    <path d="M144 37l18 20h-36l18-20Z" fill="#B9603F"/>
+    <path d="M94 136h100" fill="none" stroke="#F4F3EE" stroke-width="7" stroke-linecap="round" opacity=".82"/>
+    <circle cx="122" cy="136" r="6" fill="#B9603F"/>
+    <circle cx="166" cy="136" r="6" fill="#B9603F"/>
+  </g>
+  <text x="384" y="176" fill="#F9F7F2" font-family="Inter, Arial, Helvetica, sans-serif" font-size="92" font-weight="900" letter-spacing="-3">Bench</text>
+  <text x="384" y="260" fill="#F9F7F2" font-family="Inter, Arial, Helvetica, sans-serif" font-size="92" font-weight="900" letter-spacing="-3">Boss</text>
+  <path d="M388 286h262" fill="none" stroke="#B9603F" stroke-width="12" stroke-linecap="round"/>
+  <text x="678" y="286" fill="#B8B7B0" font-family="Inter, Arial, Helvetica, sans-serif" font-size="24" font-weight="800" letter-spacing="2">PAPPATRENER-KONTROLL</text>
+</svg>

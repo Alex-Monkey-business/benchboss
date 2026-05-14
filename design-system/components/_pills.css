@@ -1,13 +1,13 @@
 /* ============================================
    FILTER PILLS / SEGMENTED CONTROL
-   Neo-brutal: thick borders, bold active state
+   Notion-style: subtle container, no shadow on active,
+   bg-shift only.
    ============================================ */
 
 .ds-pills {
   display: flex;
   align-items: center;
   background: var(--ds-color-bg-subtle);
-  border: var(--ds-border-width) solid var(--ds-color-border);
   border-radius: var(--ds-radius-md);
   padding: 3px;
   gap: 2px;
@@ -26,23 +26,26 @@
   display: inline-flex;
   align-items: center;
   gap: var(--ds-space-xs);
-  padding: var(--ds-space-xs) var(--ds-space-md);
-  border: none;
+  padding: 6px 12px;
+  border: 0;
   border-radius: var(--ds-radius-sm);
   background: transparent;
   color: var(--ds-color-text-secondary);
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-semibold);
+  font-weight: var(--ds-weight-medium);
+  letter-spacing: -0.005em;
   cursor: pointer;
-  transition: all 0.15s cubic-bezier(0.2, 0, 0.2, 1);
+  transition:
+    background-color var(--ds-duration-fast) var(--ds-ease-out),
+    color var(--ds-duration-fast) var(--ds-ease-out);
   white-space: nowrap;
   flex-shrink: 0;
 }
 
 @media (max-width: 420px) {
   .ds-pill {
-    padding: var(--ds-space-xs) var(--ds-space-sm);
+    padding: 6px 10px;
     font-size: 0.8125rem;
   }
 }
@@ -55,8 +58,7 @@
 .ds-pill[aria-selected="true"] {
   background: var(--ds-color-bg-elevated);
   color: var(--ds-color-text-primary);
-  box-shadow: var(--ds-shadow-sm);
-  font-weight: var(--ds-weight-bold);
+  font-weight: var(--ds-weight-semibold);
 }
 
 /* Count inside pill */
@@ -64,6 +66,7 @@
   font-size: var(--ds-text-xs);
   color: var(--ds-color-text-tertiary);
   margin-left: 2px;
+  font-variant-numeric: tabular-nums;
 }
 
 .ds-pill--active .ds-pill__count {

@@ -1,7 +1,14 @@
 <script setup>
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuth } from '../stores/auth'
+import { useMatches } from '../composables/useMatches'
+import { useExpenses } from '../composables/useExpenses'
 
 const route = useRoute()
+const { coach } = useAuth()
+const { matches, getCoachesForMatch } = useMatches()
+const { getExpenseForMatch } = useExpenses()
 
 const tabs = [
   { name: 'matches', label: 'Kamper', path: '/' },
@@ -15,6 +22,19 @@ function isActive(tab) {
   if (tab.name === 'stats') return route.path === '/statistikk'
   return route.path === tab.path
 }
+
+// Pending = past HOME matches where I'm assigned as coach AND no expense logged.
+// Away matches don't have utlegg, so they never count.
+const pendingCount = computed(() => {
+  if (!coach.value || !matches.value?.length) return 0
+  const today = new Date().toISOString().slice(0, 10)
+  return matches.value.filter(m =>
+    (m.home_team || '').toLowerCase().includes('halsen') &&
+    m.match_date < today &&
+    !getExpenseForMatch(m.id) &&
+    getCoachesForMatch(m.id).includes(coach.value.id)
+  ).length
+})
 </script>
 
 <template>
@@ -26,12 +46,15 @@ function isActive(tab) {
       :class="['bottom-nav__item', { 'bottom-nav__item--active': isActive(tab) }]"
     >
       <!-- Kamper -->
-      <svg v-if="tab.name === 'matches'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-        <line x1="16" y1="2" x2="16" y2="6"/>
-        <line x1="8" y1="2" x2="8" y2="6"/>
-        <line x1="3" y1="10" x2="21" y2="10"/>
-      </svg>
+      <span v-if="tab.name === 'matches'" class="bottom-nav__icon-wrap">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+          <line x1="16" y1="2" x2="16" y2="6"/>
+          <line x1="8" y1="2" x2="8" y2="6"/>
+          <line x1="3" y1="10" x2="21" y2="10"/>
+        </svg>
+        <span v-if="pendingCount > 0" class="bottom-nav__badge" aria-label="venter på handling"></span>
+      </span>
       <!-- Statistikk -->
       <svg v-if="tab.name === 'stats'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <line x1="6" y1="20" x2="6" y2="13"/>

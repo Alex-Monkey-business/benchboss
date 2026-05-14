@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 320" role="img" aria-labelledby="title desc">
+  <title id="title">Bench Boss wordmark option A</title>
+  <desc id="desc">A clean Bench Boss wordmark with the tactics-board icon.</desc>
+  <rect width="1120" height="320" rx="42" fill="#FFFFFF"/>
+  <g transform="translate(56 40) scale(.47)">
+    <rect width="512" height="512" rx="112" fill="#0A0A0A"/>
+    <rect x="118" y="82" width="276" height="348" rx="56" fill="#F4F3EE"/>
+    <path d="M256 100v312" stroke="#0A0A0A" stroke-width="7" stroke-linecap="round" opacity=".16"/>
+    <circle cx="256" cy="256" r="54" fill="none" stroke="#0A0A0A" stroke-width="7" opacity=".16"/>
+    <path d="M192 150v212M192 150h74c46 0 76 25 76 64s-30 64-76 64h-74M192 278h88c45 0 72 24 72 62s-29 66-76 66h-84" fill="none" stroke="#0A0A0A" stroke-width="36" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="314" cy="220" r="22" fill="#B9603F"/>
+    <path d="M286 304l56-34-14 64" fill="none" stroke="#B9603F" stroke-width="18" stroke-linecap="round" stroke-linejoin="round"/>
+  </g>
+  <text x="340" y="142" fill="#0A0A0A" font-family="Inter, Arial, Helvetica, sans-serif" font-size="82" font-weight="900" letter-spacing="-2">Bench</text>
+  <text x="340" y="226" fill="#0A0A0A" font-family="Inter, Arial, Helvetica, sans-serif" font-size="82" font-weight="900" letter-spacing="-2">Boss</text>
+  <path d="M340 250h244" stroke="#B9603F" stroke-width="10" stroke-linecap="round"/>
+</svg>

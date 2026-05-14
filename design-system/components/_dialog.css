@@ -24,10 +24,16 @@
   max-height: 90vh;
   overflow-y: auto;
   background: var(--ds-color-bg-elevated);
-  border: var(--ds-border-width) solid var(--ds-color-border);
+  border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
-  padding: var(--ds-space-2xl);
-  box-shadow: var(--ds-shadow-lg);
+  padding: var(--ds-space-xl);
+  box-shadow: var(--ds-shadow-xl);
+}
+
+@media (min-width: 768px) {
+  .ds-dialog {
+    padding: var(--ds-space-2xl);
+  }
 }
 
 .ds-dialog__header {
@@ -38,9 +44,10 @@
 }
 
 .ds-dialog__title {
-  font-family: var(--ds-font-heading);
-  font-size: var(--ds-text-xl);
-  font-weight: var(--ds-weight-bold);
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-tight);
   color: var(--ds-color-text-primary);
 }
 
@@ -99,9 +106,9 @@
   width: 90%;
   max-height: 90vh;
   background: var(--ds-color-bg-elevated);
-  border: var(--ds-border-width) solid var(--ds-color-border);
+  border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
-  box-shadow: var(--ds-shadow-lg);
+  box-shadow: var(--ds-shadow-xl);
   overflow: hidden;
 }
 
@@ -116,9 +123,10 @@
 }
 
 .ds-sheet__title {
-  font-family: var(--ds-font-heading);
-  font-size: var(--ds-text-lg);
-  font-weight: var(--ds-weight-bold);
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-tight);
   color: var(--ds-color-text-primary);
   margin: 0;
 }

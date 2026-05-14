@@ -4,9 +4,12 @@ import { supabase, isSupabaseConfigured } from '../supabase'
 const coaches = ref([])
 const loaded = ref(false)
 
-// Profile images by coach name (add more as needed)
+// Profile images by coach name. Alex has no photo yet → falls back to initial avatar.
 const COACH_IMAGES = {
-  'Trond': '/coaches/trond.png'
+  'Trond': '/coaches/trond.png',
+  'Iver': '/coaches/iver.png',
+  'Simon': '/coaches/simon.png',
+  'Jacob': '/coaches/jacob.png'
 }
 
 // Demo coaches for development without Supabase

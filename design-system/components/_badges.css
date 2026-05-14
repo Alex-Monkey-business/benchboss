@@ -1,27 +1,27 @@
 /* ============================================
    BADGES & STATUS INDICATORS
-   Neo-brutal: thick borders, bold typography
+   Notion-style: sentence case, medium weight,
+   subtle tinted bg. No uppercase shouting.
    ============================================ */
 
 /* ---- Badge (inline label) ---- */
-
 .ds-badge {
   display: inline-block;
-  padding: 2px var(--ds-space-sm);
-  border: var(--ds-border-width) solid var(--ds-color-border);
+  padding: 3px 8px;
   border-radius: var(--ds-radius-sm);
   font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-bold);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
-  line-height: 1.6;
+  font-weight: var(--ds-weight-medium);
+  letter-spacing: 0;
+  line-height: 1.4;
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-secondary);
+  border: 1px solid transparent;
 }
 
-/* Badge Variants */
+/* Badge Variants — subtle tinted backgrounds */
 .ds-badge--accent {
   background: var(--ds-color-accent);
-  color: var(--ds-color-text-inverse);
-  border-color: var(--ds-color-border);
+  color: var(--ds-color-accent-text);
 }
 
 .ds-badge--subtle {
@@ -31,32 +31,39 @@
 
 .ds-badge--info {
   background: var(--ds-color-info-light);
-  color: var(--ds-color-info);
+  color: var(--ds-color-text-primary);
 }
 
 .ds-badge--success {
   background: var(--ds-color-success-light);
-  color: var(--ds-color-success);
+  color: var(--ds-color-success-text);
 }
 
 .ds-badge--warning {
   background: var(--ds-color-warning-light);
-  color: var(--ds-color-warning);
+  color: var(--ds-color-warning-text);
 }
 
 .ds-badge--error {
   background: var(--ds-color-error-light);
-  color: var(--ds-color-error);
+  color: var(--ds-color-error-text);
+}
+
+/* Outline variant — for filter chips etc. */
+.ds-badge--outline {
+  background: transparent;
+  border-color: var(--ds-color-border);
+  color: var(--ds-color-text-secondary);
 }
 
 /* ---- Status Indicator (dot + label) ---- */
-
 .ds-status {
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
+  font-weight: var(--ds-weight-medium);
+  letter-spacing: 0;
 }
 
 .ds-status__dot {
@@ -67,13 +74,13 @@
 }
 
 .ds-status--active .ds-status__dot   { background: var(--ds-color-success); }
-.ds-status--active                    { color: var(--ds-color-success); }
+.ds-status--active                    { color: var(--ds-color-success-text); }
 
 .ds-status--pending .ds-status__dot  { background: var(--ds-color-warning); }
-.ds-status--pending                   { color: var(--ds-color-warning); }
+.ds-status--pending                   { color: var(--ds-color-warning-text); }
 
 .ds-status--draft .ds-status__dot    { background: var(--ds-color-text-tertiary); }
 .ds-status--draft                     { color: var(--ds-color-text-tertiary); }
 
 .ds-status--error .ds-status__dot    { background: var(--ds-color-error); }
-.ds-status--error                     { color: var(--ds-color-error); }
+.ds-status--error                     { color: var(--ds-color-error-text); }

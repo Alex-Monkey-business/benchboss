@@ -8,8 +8,10 @@ import { useCoaches } from '../composables/useCoaches'
 import { usePlayers } from '../composables/usePlayers'
 import { useToast } from '../composables/useToast'
 import MatchCard from '../components/MatchCard.vue'
+import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
+import Skeleton from '../components/Skeleton.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -82,7 +84,7 @@ async function saveEdit() {
   const name = editName.value.trim()
   if (!name || !player.value) return
   await updatePlayer(player.value.id, { name, primary_team: editTeam.value })
-  showToast('Hospitant oppdatert', 'success')
+  showToast('Lånespiller oppdatert', 'success')
   cancelEdit()
 }
 
@@ -103,14 +105,15 @@ async function confirmDelete() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="15 18 9 12 15 6"/>
         </svg>
-        Hospitanter
+        Lånespillere
       </router-link>
     </div>
 
-    <div v-if="loading" style="text-align: center; padding: 80px 0;">
-      <svg class="ds-anim-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ds-color-accent)" stroke-width="2" stroke-linecap="round">
-        <path d="M21 12a9 9 0 11-6.219-8.56"/>
-      </svg>
+    <div v-if="loading" class="px-lg" aria-hidden="true" style="display: flex; flex-direction: column; gap: 14px;">
+      <Skeleton :width="160" :height="28" />
+      <Skeleton :width="100" :height="13" />
+      <div style="height: 8px;"></div>
+      <MatchCardSkeleton :count="3" />
     </div>
 
     <template v-else-if="player">
@@ -133,7 +136,7 @@ async function confirmDelete() {
       <div class="px-lg mb-lg">
         <div v-if="playerMatches.length === 0" class="ds-empty">
           <h3 class="ds-empty__title">Ingen ekstra kamper enda</h3>
-          <p class="ds-empty__description">Når du legger til {{ player.name }} som hospitant på en kamp dukker den opp her.</p>
+          <p class="ds-empty__description">Når du legger til {{ player.name }} som lånespiller på en kamp dukker den opp her.</p>
         </div>
 
         <div v-else class="ds-stack--sm">

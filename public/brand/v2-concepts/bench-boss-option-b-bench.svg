@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-labelledby="title desc">
+  <title id="title">Bench Boss option B</title>
+  <desc id="desc">A simple bench and boss stripe mark for Bench Boss.</desc>
+  <rect width="512" height="512" rx="112" fill="#F4F3EE"/>
+  <path d="M132 182h248c24 0 44 20 44 44v12H88v-12c0-24 20-44 44-44Z" fill="#0A0A0A"/>
+  <path d="M92 254h328v50H92z" fill="#B9603F"/>
+  <path d="M126 304h42v86h-42zM344 304h42v86h-42z" fill="#0A0A0A"/>
+  <path d="M154 138h204" stroke="#0A0A0A" stroke-width="28" stroke-linecap="round"/>
+  <path d="M206 96l50 42 50-42" fill="none" stroke="#B9603F" stroke-width="24" stroke-linecap="round" stroke-linejoin="round"/>
+  <circle cx="166" cy="222" r="12" fill="#F4F3EE"/>
+  <circle cx="346" cy="222" r="12" fill="#F4F3EE"/>
+  <path d="M190 222h132" stroke="#F4F3EE" stroke-width="10" stroke-linecap="round" opacity=".8"/>
+</svg>

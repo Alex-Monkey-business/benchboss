@@ -27,7 +27,7 @@ const links = [
   { to: '/admin/dommerutlegg', label: 'Sesongoppgjør', icon: 'vipps' },
   { to: '/admin/sesong-kamper', label: 'Sesong & kampprogram', icon: 'calendar' },
   { to: '/admin/dommere', label: 'Dommere', icon: 'whistle' },
-  { to: '/admin/hospitanter', label: 'Hospitanter', icon: 'kid' }
+  { to: '/admin/hospitanter', label: 'Lånespillere', icon: 'kid' }
 ]
 </script>
 

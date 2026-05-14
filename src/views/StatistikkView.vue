@@ -5,6 +5,9 @@ import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
 import { useReferees } from '../composables/useReferees'
 import { usePlayers } from '../composables/usePlayers'
+import AnimatedNumber from '../components/AnimatedNumber.vue'
+import Skeleton from '../components/Skeleton.vue'
+import FormCurve from '../components/FormCurve.vue'
 
 const { activeSeason, fetchSeasons } = useSeasons()
 const { matches, matchCoaches, matchPlayers, fetchMatches } = useMatches()
@@ -93,9 +96,55 @@ function statsForColor(color) {
   }
 }
 
+// Recent results for form-curve, oldest → newest
+function recentResultsForColor(color, limit = 10) {
+  const sorted = [...playedMatches.value]
+    .filter(m => !(isHalsenTeam(m.home_team) && isHalsenTeam(m.away_team)))
+    .filter(m => {
+      const homeColor = isHalsenTeam(m.home_team) ? colorOf(m.home_team) : null
+      const awayColor = isHalsenTeam(m.away_team) ? colorOf(m.away_team) : null
+      return homeColor === color || awayColor === color
+    })
+    .sort((a, b) => a.match_date.localeCompare(b.match_date))
+    .slice(-limit)
+
+  return sorted.map(m => {
+    const onHome = isHalsenTeam(m.home_team) && colorOf(m.home_team) === color
+    const teamScore = onHome ? m.home_score : m.away_score
+    const oppScore = onHome ? m.away_score : m.home_score
+    const opponent = onHome ? m.away_team : m.home_team
+    let result = 'd'
+    if (teamScore > oppScore) result = 'w'
+    else if (teamScore < oppScore) result = 'l'
+    return { result, opponent, score: `${teamScore}–${oppScore}`, date: m.match_date }
+  })
+}
+
+const halsenRecentResults = computed(() => {
+  const sorted = [...playedMatches.value]
+    .filter(m => !(isHalsenTeam(m.home_team) && isHalsenTeam(m.away_team)))
+    .sort((a, b) => a.match_date.localeCompare(b.match_date))
+    .slice(-10)
+  return sorted.map(m => {
+    const home = isHalsenTeam(m.home_team)
+    const halsenScore = home ? m.home_score : m.away_score
+    const oppScore = home ? m.away_score : m.home_score
+    const opponent = home ? m.away_team : m.home_team
+    let result = 'd'
+    if (halsenScore > oppScore) result = 'w'
+    else if (halsenScore < oppScore) result = 'l'
+    return { result, opponent, score: `${halsenScore}–${oppScore}`, date: m.match_date }
+  })
+})
+
 const teamStats = computed(() =>
   TEAM_KEYS
-    .map(key => ({ key, label: TEAM_LABELS[key], ...statsForColor(key) }))
+    .map(key => ({
+      key,
+      label: TEAM_LABELS[key],
+      recent: recentResultsForColor(key),
+      ...statsForColor(key)
+    }))
     .sort((a, b) =>
       b.points - a.points ||
       b.diff - a.diff ||
@@ -151,10 +200,30 @@ const hasAnyResult = computed(() => playedMatches.value.length > 0)
       <p class="page-header__subtitle">{{ activeSeason?.name }}</p>
     </div>
 
-    <div v-if="loading" class="px-lg" style="text-align: center; padding: 48px 0;">
-      <svg class="ds-anim-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ds-color-accent)" stroke-width="2" stroke-linecap="round">
-        <path d="M21 12a9 9 0 11-6.219-8.56"/>
-      </svg>
+    <div v-if="loading" class="px-lg stat-skel-stack" aria-hidden="true">
+      <Skeleton :width="100" :height="14" />
+      <div class="ds-card stat-skel-card">
+        <div class="stat-skel-card__top">
+          <div v-for="i in 4" :key="i" class="stat-skel-card__metric">
+            <Skeleton :width="36" :height="28" />
+            <Skeleton :width="22" :height="11" />
+          </div>
+        </div>
+        <div class="stat-skel-card__goals">
+          <Skeleton :width="80" :height="13" />
+          <Skeleton :width="32" :height="13" />
+        </div>
+      </div>
+      <Skeleton :width="80" :height="14" style="margin-top: 8px;" />
+      <div class="ds-card stat-skel-card">
+        <div v-for="i in 3" :key="i" class="stat-skel-row">
+          <Skeleton :width="60" :height="13" />
+          <Skeleton :width="20" :height="13" />
+          <Skeleton :width="20" :height="13" />
+          <Skeleton :width="20" :height="13" />
+          <Skeleton :width="30" :height="13" />
+        </div>
+      </div>
     </div>
 
     <template v-else>
@@ -165,27 +234,32 @@ const hasAnyResult = computed(() => playedMatches.value.length > 0)
         <template v-if="hasAnyResult">
           <div class="stat-card-large__top">
             <div class="stat-card-large__metric">
-              <span class="stat-card-large__value">{{ halsenTotal.played }}</span>
+              <AnimatedNumber class="stat-card-large__value" :value="halsenTotal.played" />
               <span class="stat-card-large__label">Spilt</span>
             </div>
             <div class="stat-card-large__metric stat-card-large__metric--win">
-              <span class="stat-card-large__value">{{ halsenTotal.w }}</span>
+              <AnimatedNumber class="stat-card-large__value" :value="halsenTotal.w" />
               <span class="stat-card-large__label">V</span>
             </div>
             <div class="stat-card-large__metric stat-card-large__metric--draw">
-              <span class="stat-card-large__value">{{ halsenTotal.d }}</span>
+              <AnimatedNumber class="stat-card-large__value" :value="halsenTotal.d" />
               <span class="stat-card-large__label">U</span>
             </div>
             <div class="stat-card-large__metric stat-card-large__metric--loss">
-              <span class="stat-card-large__value">{{ halsenTotal.l }}</span>
+              <AnimatedNumber class="stat-card-large__value" :value="halsenTotal.l" />
               <span class="stat-card-large__label">T</span>
             </div>
           </div>
           <div class="stat-card-large__goals">
-            <span class="stat-card-large__goals-text">Mål: {{ halsenTotal.gf }} – {{ halsenTotal.ga }}</span>
-            <span :class="['stat-card-large__diff', halsenTotal.diff >= 0 ? 'stat-card-large__diff--pos' : 'stat-card-large__diff--neg']">
-              {{ halsenTotal.diff > 0 ? '+' : '' }}{{ halsenTotal.diff }}
+            <span class="stat-card-large__goals-text">
+              Mål: <AnimatedNumber :value="halsenTotal.gf" /> – <AnimatedNumber :value="halsenTotal.ga" />
             </span>
+            <span :class="['stat-card-large__diff', halsenTotal.diff >= 0 ? 'stat-card-large__diff--pos' : 'stat-card-large__diff--neg']">
+              {{ halsenTotal.diff > 0 ? '+' : '' }}<AnimatedNumber :value="Math.abs(halsenTotal.diff)" />
+            </span>
+          </div>
+          <div class="stat-card-large__form">
+            <FormCurve :results="halsenRecentResults" :max="10" />
           </div>
         </template>
         <div v-else class="stat-empty">
@@ -224,11 +298,25 @@ const hasAnyResult = computed(() => playedMatches.value.length > 0)
           <span class="standings__points">{{ team.points }}</span>
         </div>
       </div>
+
+      <!-- Form per team — last 10 matches -->
+      <div v-if="teamStats.some(t => t.recent.length > 0)" class="form-section">
+        <div class="form-section__label">Form siste 10</div>
+        <div class="form-section__rows">
+          <div v-for="team in teamStats" :key="team.key" class="form-section__row">
+            <span class="form-section__team">
+              <span :class="['standings__dot', `standings__dot--${team.key}`]" aria-hidden="true"></span>
+              {{ team.label }}
+            </span>
+            <FormCurve :results="team.recent" :max="10" label="" />
+          </div>
+        </div>
+      </div>
     </div>
 
-    <!-- Hospitant-leaderboard -->
+    <!-- Lånespiller-leaderboard -->
     <div v-if="playerStats.length > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-3">
-      <div class="stat-section-label">Hospitanter</div>
+      <div class="stat-section-label">Lånespillere</div>
       <div class="leaderboard ds-anim-stagger-list">
         <div v-for="(item, i) in playerStats" :key="item.id" class="leaderboard__row">
           <span class="leaderboard__rank">{{ i + 1 }}</span>
@@ -269,6 +357,94 @@ const hasAnyResult = computed(() => playedMatches.value.length > 0)
 </template>
 
 <style scoped>
+.stat-card-large__form {
+  margin-top: var(--ds-space-sm);
+  padding-top: var(--ds-space-sm);
+  border-top: 1px solid var(--ds-color-border-light);
+}
+
+.form-section {
+  margin-top: var(--ds-space-md);
+  padding: var(--ds-space-md) var(--ds-space-lg);
+  background: var(--ds-color-bg-subtle);
+  border-radius: var(--ds-radius-md);
+}
+
+.form-section__label {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+  margin-bottom: var(--ds-space-sm);
+}
+
+.form-section__rows {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+}
+
+.form-section__row {
+  display: grid;
+  grid-template-columns: 90px 1fr;
+  align-items: center;
+  gap: var(--ds-space-sm);
+}
+
+.form-section__team {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-primary);
+}
+
+.stat-skel-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.stat-skel-card {
+  padding: var(--ds-space-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-md);
+}
+
+.stat-skel-card__top {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--ds-space-md);
+}
+
+.stat-skel-card__metric {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ds-space-xs);
+}
+
+.stat-skel-card__goals {
+  display: flex;
+  justify-content: space-between;
+  padding-top: var(--ds-space-sm);
+  border-top: 1px solid var(--ds-color-border-light);
+}
+
+.stat-skel-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto auto;
+  align-items: center;
+  gap: var(--ds-space-md);
+  padding: var(--ds-space-sm) 0;
+  border-bottom: 1px solid var(--ds-color-border-light);
+}
+
+.stat-skel-row:last-child { border-bottom: 0; }
+
 .stat-section-label {
   font-size: var(--ds-text-xs);
   font-weight: 600;
@@ -445,16 +621,16 @@ const hasAnyResult = computed(() => playedMatches.value.length > 0)
 }
 
 .standings__dot--gronn {
-  background: #7CB891;
+  background: var(--ds-color-success);
 }
 
 .standings__dot--rod {
-  background: #D4796F;
+  background: var(--ds-color-error);
 }
 
 .standings__dot--hvit {
   background: var(--ds-color-bg);
-  border: 1.5px solid var(--ds-color-border);
+  border: 1px solid var(--ds-color-border-strong);
 }
 
 .standings__num {

@@ -9,6 +9,8 @@ import { usePlayers } from '../composables/usePlayers'
 import { useToast } from '../composables/useToast'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
+import Skeleton from '../components/Skeleton.vue'
+import { relativeDateLabel } from '../lib/dateLabels'
 import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 
 const route = useRoute()
@@ -127,11 +129,7 @@ const teamColors = computed(() => {
   return colors
 })
 
-const formattedDate = computed(() => {
-  if (!match.value?.match_date) return ''
-  const d = new Date(match.value.match_date + 'T12:00:00')
-  return d.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' })
-})
+const formattedDate = computed(() => relativeDateLabel(match.value?.match_date))
 
 async function selectReferee(name) {
   customReferee.value = false
@@ -221,7 +219,7 @@ async function togglePlayer(playerId) {
   }
   await setMatchPlayers(match.value.id, current)
   matchPlayerIds.value = current
-  showToast('Hospitanter oppdatert', 'success')
+  showToast('Lånespillere oppdatert', 'success')
 }
 
 const teamLabels = { gronn: 'Grønn', rod: 'Rød', hvit: 'Hvit' }
@@ -322,10 +320,33 @@ async function saveDateTime() {
 </script>
 
 <template>
-  <div v-if="loading" style="text-align: center; padding: 80px 0;">
-    <svg class="ds-anim-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ds-color-accent)" stroke-width="2" stroke-linecap="round">
-      <path d="M21 12a9 9 0 11-6.219-8.56"/>
-    </svg>
+  <div v-if="loading" class="desktop-container md-skel" aria-hidden="true">
+    <div class="px-lg" style="padding-top: var(--ds-space-md);">
+      <Skeleton :width="80" :height="14" />
+    </div>
+    <div class="px-lg" style="margin-top: var(--ds-space-lg);">
+      <div class="ds-card md-skel__card">
+        <div class="md-skel__top">
+          <Skeleton :width="80" :height="13" />
+          <Skeleton :width="40" :height="13" />
+        </div>
+        <div class="md-skel__teams">
+          <Skeleton :width="'70%'" :height="22" />
+          <Skeleton :width="36" :height="22" />
+          <Skeleton :width="'60%'" :height="22" />
+        </div>
+        <div class="md-skel__meta">
+          <Skeleton :width="80" :height="12" />
+          <Skeleton :width="100" :height="12" />
+        </div>
+      </div>
+    </div>
+    <div class="px-lg" style="margin-top: var(--ds-space-lg);">
+      <Skeleton :width="120" :height="14" />
+      <div class="md-skel__list" style="margin-top: var(--ds-space-md);">
+        <Skeleton v-for="i in 3" :key="i" :width="'100%'" :height="44" radius="10px" />
+      </div>
+    </div>
   </div>
 
   <div v-else-if="match" class="desktop-container">
@@ -497,40 +518,36 @@ async function saveDateTime() {
           </div>
         </div>
 
-        <!-- Trenere / Coach Assignment -->
+        <!-- Expense / Hvem la ut — co-located with Dommer (you Vipps the ref) -->
         <div class="detail-section">
           <div class="detail-section__header">
-            <span class="detail-section__label">Trenere</span>
+            <span class="detail-section__label">Hvem la ut?</span>
           </div>
-          <div class="coach-grid" style="margin-top: 12px;">
+          <div class="payer-grid" style="margin-top: 12px;">
             <button
-              v-for="(c, i) in coaches"
+              v-for="c in coaches"
               :key="c.id"
-              :class="['coach-btn', { 'coach-btn--selected': matchCoachIds.includes(c.id) }]"
-              @click="toggleCoach(c.id)"
+              :class="['payer-btn', { 'payer-btn--selected': expense?.paid_by === c.id }]"
+              @click="selectPayer(c.id)"
             >
-              <div :class="['coach-btn__avatar', !c.image && `coach-avatar--${i % 5}`]">
-                <img v-if="c.image" :src="c.image" :alt="c.name" class="coach-btn__avatar-img" />
-                <template v-else>{{ c.name.charAt(0) }}</template>
-              </div>
-              <span class="coach-btn__name">{{ c.name }}</span>
-              <svg v-if="matchCoachIds.includes(c.id)" style="width: 16px; height: 16px; color: var(--ds-color-success);" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <span class="payer-btn__name">{{ c.name }}</span>
+              <svg v-if="expense?.paid_by === c.id" style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
             </button>
           </div>
         </div>
 
-        <!-- Hospitanter / Guest players -->
+        <!-- Lånespillere / Guest players -->
         <div class="detail-section">
           <div class="detail-section__header">
-            <span class="detail-section__label">Hospitanter</span>
+            <span class="detail-section__label">Lånespillere</span>
           </div>
           <div v-if="players.length === 0" class="hospitant-empty">
-            Ingen spillere i poolen — legg til under Admin → Hospitanter
+            Ingen spillere i poolen — legg til under Admin → Lånespillere
           </div>
           <div v-else-if="availablePlayers.length === 0" class="hospitant-empty">
-            Ingen tilgjengelige hospitanter for denne kampen.
+            Ingen tilgjengelige lånespillere for denne kampen.
           </div>
           <div v-else class="referee-pills" style="margin-top: 10px;">
             <button
@@ -592,22 +609,28 @@ async function saveDateTime() {
           </button>
         </div>
 
-        <!-- Expense / Hvem la ut -->
+        <!-- Trenere — least urgent, last -->
         <div class="detail-section">
           <div class="detail-section__header">
-            <span class="detail-section__label">Hvem la ut?</span>
+            <span class="detail-section__label">Trenere</span>
           </div>
-          <div class="payer-grid" style="margin-top: 12px;">
+          <div class="coach-grid" style="margin-top: 12px;">
             <button
-              v-for="(c, i) in coaches"
+              v-for="c in coaches"
               :key="c.id"
-              :class="['payer-btn', { 'payer-btn--selected': expense?.paid_by === c.id }]"
-              @click="selectPayer(c.id)"
+              :class="['coach-btn', { 'coach-btn--selected': matchCoachIds.includes(c.id) }]"
+              @click="toggleCoach(c.id)"
             >
-              <span class="payer-btn__name">{{ c.name }}</span>
-              <svg v-if="expense?.paid_by === c.id" style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
+              <div class="coach-btn__avatar">
+                <img v-if="c.image" :src="c.image" :alt="c.name" class="coach-btn__avatar-img" />
+                <template v-else>{{ c.name.charAt(0) }}</template>
+                <span v-if="matchCoachIds.includes(c.id)" class="coach-btn__check" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                    <polyline points="20 6 9 17 4 12"/>
+                  </svg>
+                </span>
+              </div>
+              <span class="coach-btn__name">{{ c.name }}</span>
             </button>
           </div>
         </div>
@@ -670,6 +693,39 @@ async function saveDateTime() {
 </template>
 
 <style scoped>
+.md-skel__card {
+  padding: var(--ds-space-xl);
+}
+
+.md-skel__top {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: var(--ds-space-md);
+}
+
+.md-skel__teams {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  column-gap: var(--ds-space-md);
+  margin-bottom: var(--ds-space-md);
+}
+
+.md-skel__teams > :last-child { justify-self: end; }
+
+.md-skel__meta {
+  display: flex;
+  gap: var(--ds-space-md);
+  padding-top: var(--ds-space-md);
+  border-top: 1px solid var(--ds-color-border-light);
+}
+
+.md-skel__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+}
+
 /* Match detail card — reuses global .match-card classes, adds team tag locally */
 .match-detail-card {
   padding: var(--ds-space-lg);
@@ -954,34 +1010,47 @@ async function saveDateTime() {
 .payer-btn {
   display: flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 16px;
-  border: 2px solid var(--ds-color-border);
+  gap: 8px;
+  padding: 9px 14px;
+  border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-md);
   background: var(--ds-color-bg-elevated);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition:
+    border-color var(--ds-duration-fast) var(--ds-ease-out),
+    background-color var(--ds-duration-fast) var(--ds-ease-out);
   font-family: var(--ds-font-body);
   -webkit-tap-highlight-color: transparent;
 }
 
-.payer-btn:hover {
-  border-color: var(--ds-color-text-tertiary);
+@media (hover: hover) and (pointer: fine) {
+  .payer-btn:hover {
+    border-color: var(--ds-color-border-strong);
+  }
+}
+
+.payer-btn:active {
+  transform: scale(0.98);
 }
 
 .payer-btn__name {
-  font-size: 0.875rem;
-  font-weight: 500;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
   color: var(--ds-color-text-primary);
 }
 
 .payer-btn--selected {
-  border-color: var(--ds-color-warning);
-  background: #FFF8E1;
+  border-color: var(--ds-color-accent);
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+}
+
+.payer-btn--selected .payer-btn__name {
+  color: var(--ds-color-accent-text);
 }
 
 .payer-btn--selected svg {
-  color: var(--ds-color-warning);
+  color: var(--ds-color-accent-text);
 }
 
 /* Resultat-form */

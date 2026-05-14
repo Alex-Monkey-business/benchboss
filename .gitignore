@@ -25,3 +25,9 @@ dist-ssr
 
 # Local Netlify folder
 .netlify
+
+# Claude Code project config (per-user)
+.claude
+
+# Skillfish lock (per-user)
+src/skills-lock.json

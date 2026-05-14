@@ -1,6 +1,7 @@
 /* ============================================
    BUTTONS
-   Neo-brutal: thick borders, offset shadows, hover lift
+   Notion-monokrom: solid charcoal primary, ghost secondary.
+   No offset shadow. Hover via bg shift, not translate.
    ============================================ */
 
 .ds-btn {
@@ -8,147 +9,153 @@
   align-items: center;
   justify-content: center;
   gap: var(--ds-space-sm);
-  padding: 0.625rem var(--ds-space-lg);
-  border: var(--ds-border-width) solid var(--ds-color-border);
-  border-radius: var(--ds-radius-sm);
+  padding: 0.625rem var(--ds-space-md);
+  border: var(--ds-border-width) solid transparent;
+  border-radius: var(--ds-radius-md);
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-semibold);
+  font-weight: var(--ds-weight-medium);
   line-height: 1;
+  letter-spacing: -0.005em;
   text-decoration: none;
   white-space: nowrap;
   cursor: pointer;
-  transition: all 0.15s cubic-bezier(0.2, 0, 0.2, 1);
+  transition:
+    background-color var(--ds-duration-fast) var(--ds-ease-out),
+    border-color var(--ds-duration-fast) var(--ds-ease-out),
+    color var(--ds-duration-fast) var(--ds-ease-out),
+    box-shadow var(--ds-duration-fast) var(--ds-ease-out),
+    transform var(--ds-duration-fast) var(--ds-ease-out);
   -webkit-user-select: none;
   user-select: none;
 }
 
-.ds-btn:disabled,
-.ds-btn[aria-disabled="true"] {
-  opacity: 0.5;
-  cursor: not-allowed;
-  pointer-events: none;
+.ds-btn:focus-visible {
+  outline: none;
+  box-shadow: var(--ds-shadow-focus);
 }
 
-/* ---- Primary ---- */
+.ds-btn:active {
+  transform: scale(0.98);
+}
 
+.ds-btn:disabled,
+.ds-btn[aria-disabled="true"] {
+  opacity: 0.45;
+  cursor: not-allowed;
+  pointer-events: none;
+  transform: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ds-btn:active { transform: none; }
+}
+
+/* ---- Primary (solid charcoal) ---- */
 .ds-btn--primary {
   background: var(--ds-color-accent);
   color: var(--ds-color-accent-text);
-  border-color: var(--ds-color-border);
-  box-shadow: var(--ds-shadow-sm);
+  border-color: var(--ds-color-accent);
 }
 
 .ds-btn--primary:hover {
   background: var(--ds-color-accent-hover);
-  transform: translate(-2px, -2px);
-  box-shadow: var(--ds-shadow-md);
+  border-color: var(--ds-color-accent-hover);
 }
 
 .ds-btn--primary:active {
-  transform: translate(1px, 1px);
-  box-shadow: none;
+  background: #000000;
 }
 
-/* ---- Secondary ---- */
-
+/* ---- Secondary (hairline ghost) ---- */
 .ds-btn--secondary {
   background: var(--ds-color-bg-elevated);
   color: var(--ds-color-text-primary);
   border-color: var(--ds-color-border);
-  box-shadow: var(--ds-shadow-sm);
 }
 
 .ds-btn--secondary:hover {
-  background: var(--ds-color-bg-subtle);
-  transform: translate(-2px, -2px);
-  box-shadow: var(--ds-shadow-md);
+  background: var(--ds-color-bg-hover);
+  border-color: var(--ds-color-border-strong);
 }
 
 .ds-btn--secondary:active {
-  transform: translate(1px, 1px);
-  box-shadow: none;
+  background: var(--ds-color-bg-subtle);
 }
 
-/* ---- Ghost ---- */
-
+/* ---- Ghost (no border, text only) ---- */
 .ds-btn--ghost {
   background: transparent;
   color: var(--ds-color-text-secondary);
   border-color: transparent;
-  padding: var(--ds-space-sm) var(--ds-space-md);
+  padding: 0.5rem var(--ds-space-sm);
 }
 
 .ds-btn--ghost:hover {
   color: var(--ds-color-text-primary);
-  background: var(--ds-color-bg-subtle);
-  border-color: var(--ds-color-border-light);
+  background: var(--ds-color-bg-hover);
 }
 
-/* ---- Confirm / Success ---- */
+.ds-btn--ghost:active {
+  background: var(--ds-color-bg-subtle);
+}
 
+/* ---- Confirm (primary CTA — large) ---- */
 .ds-btn--confirm {
-  background: var(--ds-color-success);
-  color: var(--ds-color-text-inverse);
-  border-color: var(--ds-color-border);
-  padding: var(--ds-space-lg) var(--ds-space-2xl);
-  font-size: var(--ds-text-lg);
-  font-weight: var(--ds-weight-bold);
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+  border-color: var(--ds-color-accent);
+  padding: var(--ds-space-md) var(--ds-space-2xl);
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-medium);
   border-radius: var(--ds-radius-md);
-  box-shadow: var(--ds-shadow-md);
   width: 100%;
   max-width: 400px;
 }
 
 .ds-btn--confirm:hover {
-  background: var(--ds-color-success-hover);
-  transform: translate(-2px, -2px);
-  box-shadow: var(--ds-shadow-lg);
+  background: var(--ds-color-accent-hover);
+  border-color: var(--ds-color-accent-hover);
 }
 
 .ds-btn--confirm:active {
-  transform: translate(1px, 1px);
-  box-shadow: none;
+  background: #000000;
 }
 
 /* ---- Danger ---- */
-
 .ds-btn--danger {
   background: var(--ds-color-error);
-  color: var(--ds-color-text-inverse);
-  border-color: var(--ds-color-border);
-  box-shadow: var(--ds-shadow-sm);
+  color: #ffffff;
+  border-color: var(--ds-color-error);
 }
 
 .ds-btn--danger:hover {
-  background: #B91C1C;
-  transform: translate(-2px, -2px);
-  box-shadow: var(--ds-shadow-md);
+  background: var(--ds-color-error-hover);
+  border-color: var(--ds-color-error-hover);
 }
 
 .ds-btn--danger:active {
-  transform: translate(1px, 1px);
-  box-shadow: none;
+  background: #7A241D;
 }
 
 /* ---- Size Modifiers ---- */
-
 .ds-btn--sm {
-  padding: var(--ds-space-xs) var(--ds-space-md);
+  padding: 0.4375rem var(--ds-space-md);
   font-size: var(--ds-text-xs);
+  border-radius: var(--ds-radius-sm);
 }
 
 .ds-btn--lg {
-  padding: var(--ds-space-md) var(--ds-space-2xl);
-  font-size: var(--ds-text-base);
+  padding: 0.875rem var(--ds-space-xl);
+  font-size: var(--ds-text-md);
   border-radius: var(--ds-radius-md);
 }
 
 /* ---- Icon-only Button ---- */
-
 .ds-btn--icon {
   padding: var(--ds-space-sm);
-  border-radius: var(--ds-radius-sm);
+  border-radius: var(--ds-radius-md);
+  aspect-ratio: 1;
 }
 
 .ds-btn--icon svg {

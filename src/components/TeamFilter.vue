@@ -44,15 +44,15 @@ const filters = [
 }
 
 .team-pill__dot--gronn {
-  background: #7CB891;
+  background: var(--ds-color-success);
 }
 
 .team-pill__dot--rod {
-  background: #D4796F;
+  background: var(--ds-color-error);
 }
 
 .team-pill__dot--hvit {
   background: var(--ds-color-bg);
-  border: 1.5px solid var(--ds-color-border);
+  border: 1px solid var(--ds-color-border-strong);
 }
 </style>

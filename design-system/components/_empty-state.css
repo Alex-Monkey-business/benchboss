@@ -1,6 +1,7 @@
 /* ============================================
    EMPTY STATE
-   Placeholder for when there's no data/content
+   Typographic-first: title carries weight,
+   small icon is optional accent. No washed-out illustration.
    ============================================ */
 
 .ds-empty {
@@ -8,31 +9,44 @@
   flex-direction: column;
   align-items: center;
   text-align: center;
-  max-width: 460px;
+  max-width: 420px;
   margin: 0 auto;
-  padding: var(--ds-space-3xl) var(--ds-space-xl);
+  padding: var(--ds-space-3xl) var(--ds-space-lg);
 }
 
+/* Optional small icon — kept subtle, not the focal point */
+.ds-empty__icon {
+  width: 40px;
+  height: 40px;
+  margin-bottom: var(--ds-space-lg);
+  color: var(--ds-color-text-tertiary);
+}
+
+/* Legacy image support — kept but pushed back visually */
 .ds-empty__image {
-  width: 140px;
-  height: 140px;
-  opacity: 0.75;
-  margin-bottom: var(--ds-space-xl);
+  width: 88px;
+  height: 88px;
+  opacity: 0.45;
+  margin-bottom: var(--ds-space-lg);
+  filter: grayscale(1);
 }
 
 .ds-empty__title {
-  font-family: var(--ds-font-heading);
-  font-size: var(--ds-text-xl);
-  font-weight: var(--ds-weight-bold);
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-tight);
   color: var(--ds-color-text-primary);
   margin-bottom: var(--ds-space-sm);
+  line-height: var(--ds-leading-snug);
 }
 
 .ds-empty__description {
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
-  line-height: var(--ds-leading-normal);
+  line-height: var(--ds-leading-relaxed);
   margin-bottom: var(--ds-space-xl);
+  max-width: 36ch;
 }
 
 .ds-empty__action {
@@ -43,9 +57,13 @@
   display: inline-block;
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
-  transition: color 0.15s ease;
+  text-decoration: underline;
+  text-decoration-color: var(--ds-color-border-strong);
+  text-underline-offset: 3px;
+  transition: color var(--ds-duration-fast) var(--ds-ease-out);
 }
 
 .ds-empty__link:hover {
-  color: var(--ds-color-accent);
+  color: var(--ds-color-text-primary);
+  text-decoration-color: var(--ds-color-text-primary);
 }

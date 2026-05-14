@@ -1,11 +1,47 @@
 <script setup>
 import { computed } from 'vue'
+import { isPast, isToday } from '../lib/dateLabels'
 
 const props = defineProps({
   match: { type: Object, required: true },
   expense: { type: Object, default: null },
   paidByName: { type: String, default: '' },
   coachNames: { type: String, default: '' }
+})
+
+// Days until match (negative = past)
+function daysUntil(dateStr) {
+  if (!dateStr) return 999
+  const now = new Date(); now.setHours(0, 0, 0, 0)
+  const d = new Date(dateStr + 'T12:00:00'); d.setHours(0, 0, 0, 0)
+  return Math.round((d - now) / (24 * 60 * 60 * 1000))
+}
+
+// One-status-at-a-time, prioritized by urgency.
+// Utlegg + dommer is a HOME match concern only — away matches don't need either.
+const status = computed(() => {
+  const m = props.match
+  const isHome = isHalsen(m.home_team)
+  const past = isPast(m.match_date)
+  const days = daysUntil(m.match_date)
+  const upcomingSoon = days >= 0 && days <= 7
+
+  // 1. Upcoming home match without dommer — most urgent
+  if (isHome && upcomingSoon && !m.referee) {
+    return { label: 'Trenger dommer', tone: 'warn' }
+  }
+
+  // 2. Past home match without utlegg
+  if (isHome && past && !props.expense) {
+    return { label: 'Mangler utlegg', tone: 'warn' }
+  }
+
+  // 3. Past home match with expense → check ✓
+  if (isHome && past && props.expense) {
+    return { icon: 'check', tone: 'ok' }
+  }
+
+  return null
 })
 
 function isHalsen(name) {
@@ -65,10 +101,11 @@ const formattedTime = computed(() => {
         >{{ color === 'gronn' ? 'Grønn' : color === 'rod' ? 'Rød' : 'Hvit' }}</span>
         {{ formattedTime }}
       </span>
-      <span v-if="expense" class="expense-check">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <span v-if="status" class="match-status" :class="`match-status--${status.tone}`">
+        <svg v-if="status.icon === 'check'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="20 6 9 17 4 12"/>
         </svg>
+        <template v-else>{{ status.label }}</template>
       </span>
     </div>
     <div class="match-card__teams">
@@ -101,6 +138,31 @@ const formattedTime = computed(() => {
 .match-card {
   display: block;
   text-decoration: none;
+  padding: 20px 22px;
+  transition:
+    transform 160ms var(--ds-ease-out),
+    border-color 160ms var(--ds-ease-out),
+    box-shadow 160ms var(--ds-ease-out);
+}
+
+/* Hover only on real pointers — touch tap shouldn't lift the card */
+@media (hover: hover) and (pointer: fine) {
+  .match-card:hover {
+    transform: translateY(-1px);
+  }
+}
+
+.match-card:active {
+  transform: scale(0.98);
+  transition-duration: 100ms;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .match-card,
+  .match-card:active {
+    transform: none;
+    transition: none;
+  }
 }
 
 /* Team tag label instead of colored dot */
@@ -143,15 +205,48 @@ const formattedTime = computed(() => {
 }
 
 .match-card__score {
-  font-family: var(--ds-font-heading);
-  font-size: 0.9375rem;
-  font-weight: 700;
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-bold);
   color: var(--ds-color-text-primary);
   font-variant-numeric: tabular-nums;
-  letter-spacing: 0.02em;
-  flex-shrink: 0;
-  padding: 2px 8px;
-  border-radius: 6px;
-  background: var(--ds-color-bg-subtle);
+  letter-spacing: -0.01em;
+  line-height: 1.2;
+  padding: 0 2px;
+}
+
+/* ---- Status pill (top-right of match card) ---- */
+.match-status {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.6875rem;
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: -0.005em;
+  line-height: 1;
+  padding: 3px 8px;
+  border-radius: var(--ds-radius-full);
+  white-space: nowrap;
+}
+
+.match-status--ok {
+  padding: 0;
+  background: transparent;
+  color: var(--ds-color-success);
+}
+
+.match-status--ok svg {
+  width: 14px;
+  height: 14px;
+}
+
+.match-status--warn {
+  background: var(--ds-color-warm-bg);
+  color: var(--ds-color-warm-text);
+}
+
+.match-status--today {
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
 }
 </style>

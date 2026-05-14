@@ -7,6 +7,8 @@ import { useExpenses } from '../composables/useExpenses'
 import { useCoaches } from '../composables/useCoaches'
 import { useToast } from '../composables/useToast'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import Skeleton from '../components/Skeleton.vue'
+import AnimatedNumber from '../components/AnimatedNumber.vue'
 import { exportSeasonToExcel } from '../lib/excelExport'
 
 const { coach: currentCoach } = useAuth()
@@ -37,6 +39,19 @@ const totalAmount = computed(() => expenses.value.reduce((s, e) => s + e.amount,
 const registeredCount = computed(() => expenses.value.length)
 const isSettled = computed(() => activeSeason.value?.status === 'settled')
 
+// My own owed-by-the-club balance for the active season
+const myOwed = computed(() => {
+  if (!currentCoach.value) return 0
+  const me = settlement.value.find(s => s.coach.id === currentCoach.value.id)
+  return me?.paid || 0
+})
+
+const myMatchesPaid = computed(() => {
+  if (!currentCoach.value) return 0
+  const me = settlement.value.find(s => s.coach.id === currentCoach.value.id)
+  return me?.matchesPaid || 0
+})
+
 async function confirmSettle() {
   showSettleDialog.value = false
   if (activeSeason.value) {
@@ -64,13 +79,39 @@ function handleExport() {
       <p class="page-header__subtitle">{{ activeSeason?.name }}</p>
     </div>
 
-    <div v-if="loading" style="text-align: center; padding: 48px 0;">
-      <svg class="ds-anim-spin" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--ds-color-accent)" stroke-width="2" stroke-linecap="round">
-        <path d="M21 12a9 9 0 11-6.219-8.56"/>
-      </svg>
+    <div v-if="loading" class="px-lg season-skel" aria-hidden="true">
+      <div class="season-skel__row">
+        <div class="ds-card season-skel__card">
+          <Skeleton :width="48" :height="28" />
+          <Skeleton :width="60" :height="12" />
+        </div>
+        <div class="ds-card season-skel__card">
+          <Skeleton :width="80" :height="28" />
+          <Skeleton :width="50" :height="12" />
+        </div>
+      </div>
+      <div class="ds-card season-skel__list">
+        <div v-for="i in 4" :key="i" class="season-skel__line">
+          <Skeleton :width="120" :height="14" />
+          <Skeleton :width="60" :height="14" />
+        </div>
+      </div>
     </div>
 
     <template v-else>
+      <!-- My balance card (Halsen owes me) -->
+      <div v-if="currentCoach && !isSettled" class="px-lg mb-md">
+        <div class="ds-card my-balance">
+          <div class="my-balance__eyebrow">Halsen skylder deg så langt</div>
+          <div class="my-balance__amount">
+            <AnimatedNumber :value="myOwed" /><span class="my-balance__currency"> kr</span>
+          </div>
+          <div class="my-balance__meta">
+            Fra <AnimatedNumber :value="myMatchesPaid" /> {{ myMatchesPaid === 1 ? 'kamp' : 'kamper' }} denne sesongen
+          </div>
+        </div>
+      </div>
+
       <!-- Summary stats -->
       <div class="px-lg mb-lg">
         <div class="stat-row" style="grid-template-columns: repeat(2, 1fr);">
@@ -162,3 +203,72 @@ function handleExport() {
     />
   </div>
 </template>
+
+<style scoped>
+.my-balance {
+  padding: var(--ds-space-xl);
+  background: var(--ds-color-warm-bg);
+  border-color: rgba(185, 96, 63, 0.22);
+}
+
+.my-balance__eyebrow {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  color: var(--ds-color-warm-text);
+  margin-bottom: var(--ds-space-sm);
+}
+
+.my-balance__amount {
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-3xl);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-tighter);
+  color: var(--ds-color-text-primary);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: 'tnum' 1, 'ss01' 1;
+}
+
+.my-balance__currency {
+  font-size: var(--ds-text-xl);
+  color: var(--ds-color-text-secondary);
+  font-weight: var(--ds-weight-regular);
+  margin-left: 4px;
+}
+
+.my-balance__meta {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+  margin-top: var(--ds-space-sm);
+}
+
+.season-skel {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-md);
+}
+.season-skel__row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ds-space-md);
+}
+.season-skel__card {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+  padding: var(--ds-space-lg);
+}
+.season-skel__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-md);
+  padding: var(--ds-space-lg);
+}
+.season-skel__line {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+</style>

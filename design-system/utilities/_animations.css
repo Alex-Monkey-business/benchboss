@@ -1,19 +1,17 @@
 /* ============================================
    ANIMATIONS & TRANSITIONS
-   Vue-compatible transition classes + utilities
+   Vue-compatible transition classes + utilities.
+   Durations / primary easings live in _spacing.css;
+   only easing variants and reveal duration here.
    ============================================ */
 
-/* ---- Transition Durations ---- */
-
 :root {
-  --ds-duration-fast:   0.1s;
-  --ds-duration-normal: 0.15s;
-  --ds-duration-slow:   0.25s;
-  --ds-duration-reveal: 0.4s;
+  --ds-duration-reveal: 0.42s;
 
-  --ds-ease-default:  cubic-bezier(0.2, 0, 0.2, 1);
-  --ds-ease-bounce:   cubic-bezier(0.34, 1.4, 0.64, 1);
+  /* Easing variants (primary --ds-ease-out lives in _spacing.css) */
+  --ds-ease-default:  var(--ds-ease-out);
   --ds-ease-smooth:   cubic-bezier(0.23, 1, 0.32, 1);
+  --ds-ease-bounce:   cubic-bezier(0.34, 1.4, 0.64, 1);
   --ds-ease-pop:      cubic-bezier(0.34, 1.56, 0.64, 1);
 }
 
@@ -23,10 +21,9 @@
    ============================================ */
 
 /* ---- Fade ---- */
-
 .ds-fade-enter-active,
 .ds-fade-leave-active {
-  transition: opacity var(--ds-duration-fast) var(--ds-ease-default);
+  transition: opacity var(--ds-duration-fast) var(--ds-ease-out);
 }
 
 .ds-fade-enter-from,
@@ -35,13 +32,11 @@
 }
 
 /* ---- Slide Up ---- */
-
-.ds-slide-up-enter-active {
-  transition: all var(--ds-duration-normal) var(--ds-ease-default);
-}
-
+.ds-slide-up-enter-active,
 .ds-slide-up-leave-active {
-  transition: all var(--ds-duration-normal) var(--ds-ease-default);
+  transition:
+    opacity var(--ds-duration-normal) var(--ds-ease-out),
+    transform var(--ds-duration-normal) var(--ds-ease-out);
 }
 
 .ds-slide-up-enter-from {
@@ -51,19 +46,15 @@
 
 .ds-slide-up-leave-to {
   opacity: 0;
-  transform: translateY(-8px);
+  transform: translateY(-6px);
 }
 
 /* ---- Dropdown ---- */
-
-.ds-dropdown-enter-active {
-  transition: opacity var(--ds-duration-fast) var(--ds-ease-default),
-              transform var(--ds-duration-fast) var(--ds-ease-default);
-}
-
+.ds-dropdown-enter-active,
 .ds-dropdown-leave-active {
-  transition: opacity var(--ds-duration-fast) var(--ds-ease-default),
-              transform var(--ds-duration-fast) var(--ds-ease-default);
+  transition:
+    opacity var(--ds-duration-fast) var(--ds-ease-out),
+    transform var(--ds-duration-fast) var(--ds-ease-out);
 }
 
 .ds-dropdown-enter-from,
@@ -73,18 +64,21 @@
 }
 
 /* ---- Toast ---- */
-
 .ds-toast-enter-active {
-  transition: all var(--ds-duration-slow) var(--ds-ease-default);
+  transition:
+    opacity var(--ds-duration-normal) var(--ds-ease-smooth),
+    transform var(--ds-duration-normal) var(--ds-ease-smooth);
 }
 
 .ds-toast-leave-active {
-  transition: all var(--ds-duration-normal) var(--ds-ease-default);
+  transition:
+    opacity var(--ds-duration-normal) var(--ds-ease-out),
+    transform var(--ds-duration-normal) var(--ds-ease-out);
 }
 
 .ds-toast-enter-from {
   opacity: 0;
-  transform: translateY(12px);
+  transform: translateY(16px) scale(0.96);
 }
 
 .ds-toast-leave-to {
@@ -93,33 +87,31 @@
 }
 
 /* ---- Scale In ---- */
-
 .ds-scale-enter-active {
-  transition: all var(--ds-duration-normal) var(--ds-ease-pop);
+  transition:
+    opacity var(--ds-duration-normal) var(--ds-ease-out),
+    transform var(--ds-duration-normal) var(--ds-ease-out);
 }
 
 .ds-scale-leave-active {
-  transition: all var(--ds-duration-fast) var(--ds-ease-default);
+  transition:
+    opacity var(--ds-duration-fast) var(--ds-ease-out),
+    transform var(--ds-duration-fast) var(--ds-ease-out);
 }
 
-.ds-scale-enter-from {
-  opacity: 0;
-  transform: scale(0.95);
-}
-
+.ds-scale-enter-from,
 .ds-scale-leave-to {
   opacity: 0;
-  transform: scale(0.95);
+  transform: scale(0.96);
 }
 
-/* ---- Dialog (Overlay + Scale) ---- */
-
+/* ---- Dialog Overlay ---- */
 .ds-dialog-enter-active {
-  transition: opacity var(--ds-duration-slow) var(--ds-ease-smooth);
+  transition: opacity var(--ds-duration-normal) var(--ds-ease-out);
 }
 
 .ds-dialog-leave-active {
-  transition: opacity var(--ds-duration-normal) var(--ds-ease-default);
+  transition: opacity var(--ds-duration-fast) var(--ds-ease-out);
 }
 
 .ds-dialog-enter-from,
@@ -128,27 +120,45 @@
 }
 
 /* ============================================
-   UTILITY ANIMATIONS
-   Usage: class="ds-anim-fade-up"
+   STAGGER LIST
+   Auto-stagger children on initial render.
+   Usage: <div class="ds-anim-stagger-list">…</div>
    ============================================ */
 
-/* ---- Fade Up (staggered page entrance) ---- */
+.ds-anim-stagger-list > * {
+  animation: ds-fadeUp 0.42s var(--ds-ease-smooth) both;
+}
+
+.ds-anim-stagger-list > *:nth-child(1)  { animation-delay: 0.02s; }
+.ds-anim-stagger-list > *:nth-child(2)  { animation-delay: 0.06s; }
+.ds-anim-stagger-list > *:nth-child(3)  { animation-delay: 0.10s; }
+.ds-anim-stagger-list > *:nth-child(4)  { animation-delay: 0.14s; }
+.ds-anim-stagger-list > *:nth-child(5)  { animation-delay: 0.18s; }
+.ds-anim-stagger-list > *:nth-child(6)  { animation-delay: 0.22s; }
+.ds-anim-stagger-list > *:nth-child(7)  { animation-delay: 0.26s; }
+.ds-anim-stagger-list > *:nth-child(8)  { animation-delay: 0.30s; }
+.ds-anim-stagger-list > *:nth-child(9)  { animation-delay: 0.32s; }
+.ds-anim-stagger-list > *:nth-child(10) { animation-delay: 0.34s; }
+.ds-anim-stagger-list > *:nth-child(n+11) { animation-delay: 0.36s; }
+
+/* ============================================
+   UTILITY ANIMATIONS
+   ============================================ */
 
 .ds-anim-fade-up {
   animation: ds-fadeUp var(--ds-duration-reveal) var(--ds-ease-smooth) both;
 }
 
-/* Stagger delays via CSS custom property or classes */
-.ds-anim-delay-1 { animation-delay: 0.08s; }
-.ds-anim-delay-2 { animation-delay: 0.16s; }
-.ds-anim-delay-3 { animation-delay: 0.24s; }
-.ds-anim-delay-4 { animation-delay: 0.32s; }
-.ds-anim-delay-5 { animation-delay: 0.40s; }
+.ds-anim-delay-1 { animation-delay: 0.06s; }
+.ds-anim-delay-2 { animation-delay: 0.12s; }
+.ds-anim-delay-3 { animation-delay: 0.18s; }
+.ds-anim-delay-4 { animation-delay: 0.24s; }
+.ds-anim-delay-5 { animation-delay: 0.30s; }
 
 @keyframes ds-fadeUp {
   from {
     opacity: 0;
-    transform: translateY(20px);
+    transform: translateY(10px);
   }
   to {
     opacity: 1;
@@ -156,18 +166,14 @@
   }
 }
 
-/* ---- Reveal (simple opacity) ---- */
-
 .ds-anim-reveal {
-  animation: ds-reveal var(--ds-duration-reveal) var(--ds-ease-default) both;
+  animation: ds-reveal var(--ds-duration-reveal) var(--ds-ease-out) both;
 }
 
 @keyframes ds-reveal {
   from { opacity: 0; }
   to   { opacity: 1; }
 }
-
-/* ---- Icon Bounce ---- */
 
 .ds-anim-bounce {
   animation: ds-bounce 0.4s var(--ds-ease-bounce);
@@ -180,8 +186,6 @@
   100% { transform: translateY(0); }
 }
 
-/* ---- Spin (loading) ---- */
-
 .ds-anim-spin {
   animation: ds-spin 0.8s linear infinite;
 }
@@ -189,4 +193,40 @@
 @keyframes ds-spin {
   from { transform: rotate(0deg); }
   to   { transform: rotate(360deg); }
+}
+
+/* ---- Shimmer (for skeleton loaders) ---- */
+.ds-anim-shimmer {
+  position: relative;
+  overflow: hidden;
+  background: var(--ds-color-bg-subtle);
+}
+
+.ds-anim-shimmer::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(
+    90deg,
+    transparent 0%,
+    rgba(255, 255, 255, 0.45) 50%,
+    transparent 100%
+  );
+  animation: ds-shimmer 1.4s ease-in-out infinite;
+}
+
+@keyframes ds-shimmer {
+  from { transform: translateX(-100%); }
+  to   { transform: translateX(100%); }
+}
+
+/* ---- Reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  .ds-anim-stagger-list > *,
+  .ds-anim-fade-up,
+  .ds-anim-reveal,
+  .ds-anim-bounce,
+  .ds-anim-shimmer::after {
+    animation: none !important;
+  }
 }
