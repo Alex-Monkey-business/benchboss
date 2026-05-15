@@ -65,26 +65,31 @@ async function onPinComplete(pin) {
     <div class="login-content">
       <h1 class="login-content__title">BenchBoss</h1>
 
-      <!-- Big trading-card of selected coach -->
+      <!-- Big trading-card of selected coach.
+           v-if avoids rendering an empty placeholder before coaches load,
+           which caused a visible flicker on initial mount. -->
       <Transition name="card-swap" mode="out-in">
         <div
+          v-if="currentCoach"
           :key="selectedCoach"
           :data-coach="currentCoachKey"
           :class="['login-card', { 'login-card--animated': hasInteracted }]"
         >
           <div class="login-card__avatar">
             <img
-              v-if="currentCoach?.image"
+              v-if="currentCoach.image"
               :src="currentCoach.image"
-              :alt="currentCoach?.name"
+              :alt="currentCoach.name"
               class="login-card__avatar-img"
               decoding="async"
               fetchpriority="high"
             />
-            <span v-else class="login-card__initial">{{ currentCoach?.name?.charAt(0) || '?' }}</span>
+            <span v-else class="login-card__initial">{{ currentCoach.name?.charAt(0) || '?' }}</span>
           </div>
-          <span class="login-card__name">{{ currentCoach?.name || '' }}</span>
+          <span class="login-card__name">{{ currentCoach.name }}</span>
         </div>
+        <!-- Placeholder while coaches load — same dimensions, no flicker -->
+        <div v-else class="login-card login-card--placeholder" aria-hidden="true"></div>
       </Transition>
 
       <!-- Coach picker with hint -->
@@ -168,40 +173,23 @@ async function onPinComplete(pin) {
   .login-content { gap: var(--ds-space-lg); }
 }
 
-/* Compact when PIN is focused (keyboard up) — shrink card + tighten gaps */
+/* Compact when PIN is focused — only shrink the hero card, keep layout
+   centered to avoid jarring justify-content jumps */
 .login-content:has(.login-content__form :focus-within) {
   gap: var(--ds-space-md);
-  padding-top: var(--ds-space-md);
-  justify-content: flex-start;
 }
 
 .login-content:has(.login-content__form :focus-within) .login-card {
-  width: 132px;
-  border-radius: 16px;
-  box-shadow: var(--ds-shadow-sm);
+  width: 160px;
+  border-radius: 18px;
 }
 
 .login-content:has(.login-content__form :focus-within) .login-card__name {
-  padding: 10px 8px 8px;
-  font-size: var(--ds-text-sm);
+  padding: 12px 8px 10px;
 }
 
 .login-content:has(.login-content__form :focus-within) .login-card__initial {
-  font-size: 58px;
-}
-
-.login-content:has(.login-content__form :focus-within) .login-picker-label {
-  display: none;
-}
-
-.login-content:has(.login-content__form :focus-within) .login-picker {
-  gap: 8px;
-}
-
-.login-content:has(.login-content__form :focus-within) .login-picker__item {
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  font-size: 68px;
 }
 
 .login-content__title {
@@ -236,6 +224,15 @@ async function onPinComplete(pin) {
 @media (max-height: 720px) {
   .login-card { width: 180px; }
 }
+
+/* Empty placeholder while coaches load — neutral, no animation */
+.login-card--placeholder {
+  background: var(--ds-color-bg-subtle);
+  border-color: var(--ds-color-border-light);
+  box-shadow: none;
+}
+
+.login-card--placeholder::after { display: none; }
 
 .login-card::after {
   content: '';
@@ -281,6 +278,7 @@ async function onPinComplete(pin) {
   font-weight: var(--ds-weight-semibold);
   letter-spacing: -0.03em;
   color: var(--coach-text, var(--ds-color-warm-text));
+  transition: font-size 240ms var(--ds-ease-out);
 }
 
 /* Animate figure on coach swap, but NOT on initial mount (would run before
@@ -316,6 +314,7 @@ async function onPinComplete(pin) {
   text-align: center;
   text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 8px rgba(0, 0, 0, 0.25);
   z-index: 2;
+  transition: padding 240ms var(--ds-ease-out);
 }
 
 /* ---- Horizontal picker row ---- */
