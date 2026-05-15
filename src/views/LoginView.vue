@@ -13,6 +13,9 @@ const { coaches, fetchCoaches, verifyPin } = useCoaches()
 const selectedCoach = ref(null)
 const pinError = ref(false)
 const pinRef = ref(null)
+// Skip enter animations until the user has actively switched coach.
+// Otherwise initial mount animates before the image is decoded → jank.
+const hasInteracted = ref(false)
 
 const currentCoach = computed(() => coaches.value.find(c => c.id === selectedCoach.value))
 const currentCoachKey = computed(() => currentCoach.value?.name?.toLowerCase())
@@ -22,10 +25,19 @@ onMounted(async () => {
   if (coaches.value.length > 0) {
     selectedCoach.value = coaches.value[0].id
   }
+  // Warm browser cache + decode pipeline for all coach photos so they
+  // appear instantly the first time they're rendered.
+  for (const c of coaches.value) {
+    if (!c.image) continue
+    const img = new Image()
+    img.src = c.image
+    img.decode?.().catch(() => {})
+  }
 })
 
 function selectCoach(id) {
   if (id === selectedCoach.value) return
+  hasInteracted.value = true
   selectedCoach.value = id
   pinError.value = false
   pinRef.value?.clear()
@@ -58,7 +70,7 @@ async function onPinComplete(pin) {
         <div
           :key="selectedCoach"
           :data-coach="currentCoachKey"
-          class="login-card"
+          :class="['login-card', { 'login-card--animated': hasInteracted }]"
         >
           <div class="login-card__avatar">
             <img
@@ -66,6 +78,8 @@ async function onPinComplete(pin) {
               :src="currentCoach.image"
               :alt="currentCoach?.name"
               class="login-card__avatar-img"
+              decoding="async"
+              fetchpriority="high"
             />
             <span v-else class="login-card__initial">{{ currentCoach?.name?.charAt(0) || '?' }}</span>
           </div>
@@ -86,7 +100,7 @@ async function onPinComplete(pin) {
           :class="['login-picker__item', { 'login-picker__item--active': c.id === selectedCoach }]"
           @click="selectCoach(c.id)"
         >
-          <img v-if="c.image" :src="c.image" :alt="c.name" class="login-picker__img" />
+          <img v-if="c.image" :src="c.image" :alt="c.name" class="login-picker__img" decoding="async" />
           <span v-else class="login-picker__initial">{{ c.name.charAt(0) }}</span>
         </button>
       </div>
@@ -144,8 +158,50 @@ async function onPinComplete(pin) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--ds-space-xl) var(--ds-space-lg) calc(var(--ds-space-2xl) + env(safe-area-inset-bottom, 0px));
+  padding: var(--ds-space-xl) var(--ds-space-lg) calc(var(--ds-space-xl) + env(safe-area-inset-bottom, 0px));
   gap: var(--ds-space-xl);
+  transition: gap 220ms var(--ds-ease-out);
+}
+
+/* Short viewports — laptop or mobile in landscape */
+@media (max-height: 720px) {
+  .login-content { gap: var(--ds-space-lg); }
+}
+
+/* Compact when PIN is focused (keyboard up) — shrink card + tighten gaps */
+.login-content:has(.login-content__form :focus-within) {
+  gap: var(--ds-space-md);
+  padding-top: var(--ds-space-md);
+  justify-content: flex-start;
+}
+
+.login-content:has(.login-content__form :focus-within) .login-card {
+  width: 132px;
+  border-radius: 16px;
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.login-content:has(.login-content__form :focus-within) .login-card__name {
+  padding: 10px 8px 8px;
+  font-size: var(--ds-text-sm);
+}
+
+.login-content:has(.login-content__form :focus-within) .login-card__initial {
+  font-size: 58px;
+}
+
+.login-content:has(.login-content__form :focus-within) .login-picker-label {
+  display: none;
+}
+
+.login-content:has(.login-content__form :focus-within) .login-picker {
+  gap: 8px;
+}
+
+.login-content:has(.login-content__form :focus-within) .login-picker__item {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
 }
 
 .login-content__title {
@@ -170,6 +226,15 @@ async function onPinComplete(pin) {
   border: 1px solid var(--ds-color-border);
   box-shadow: var(--ds-shadow-md);
   overflow: hidden;
+  transition:
+    width 240ms var(--ds-ease-out),
+    border-radius 240ms var(--ds-ease-out),
+    box-shadow 240ms var(--ds-ease-out);
+}
+
+/* Short viewports — slightly smaller hero card */
+@media (max-height: 720px) {
+  .login-card { width: 180px; }
 }
 
 .login-card::after {
@@ -207,7 +272,6 @@ async function onPinComplete(pin) {
   object-fit: contain;
   object-position: center bottom;
   filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.22));
-  animation: login-card-figure-in 700ms var(--ds-ease-smooth) both;
 }
 
 .login-card__initial {
@@ -217,18 +281,24 @@ async function onPinComplete(pin) {
   font-weight: var(--ds-weight-semibold);
   letter-spacing: -0.03em;
   color: var(--coach-text, var(--ds-color-warm-text));
-  animation: login-card-figure-in 700ms var(--ds-ease-smooth) both;
 }
 
-/* Cutout figure settles into place when card swaps */
+/* Animate figure on coach swap, but NOT on initial mount (would run before
+   image is decoded → jank) */
+.login-card--animated .login-card__avatar-img,
+.login-card--animated .login-card__initial {
+  animation: login-card-figure-in 500ms var(--ds-ease-smooth) both;
+  animation-delay: 120ms;
+}
+
 @keyframes login-card-figure-in {
-  from { transform: scale(1.06); }
-  to   { transform: scale(1); }
+  from { transform: scale(1.05); opacity: 0.85; }
+  to   { transform: scale(1); opacity: 1; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .login-card__avatar-img,
-  .login-card__initial {
+  .login-card--animated .login-card__avatar-img,
+  .login-card--animated .login-card__initial {
     animation: none;
   }
 }
