@@ -16,21 +16,29 @@ const step = ref('pin')
 const pinError = ref(false)
 const pinRef = ref(null)
 
+// Track image preload — block step transition until photos are decoded,
+// so cards don't fade in with empty silhouettes.
+let preloadPromise = Promise.resolve()
+
 onMounted(async () => {
   await fetchCoaches()
-  // Warm cache for coach photos before profile step appears
-  for (const c of coaches.value) {
-    if (!c.image) continue
-    const img = new Image()
-    img.src = c.image
-    img.decode?.().catch(() => {})
-  }
+  preloadPromise = Promise.all(
+    coaches.value
+      .filter(c => c.image)
+      .map(c => {
+        const img = new Image()
+        img.src = c.image
+        return img.decode?.().catch(() => {}) ?? Promise.resolve()
+      })
+  )
 })
 
-function onPinComplete(pin) {
+async function onPinComplete(pin) {
   // Any coach's PIN unlocks — in practice they all share one.
   const ok = coaches.value.some(c => c.pin === pin)
   if (ok) {
+    // Wait up to 700ms for images; usually they're done long before user finishes PIN
+    await Promise.race([preloadPromise, new Promise(r => setTimeout(r, 700))])
     step.value = 'profile'
   } else {
     pinError.value = true

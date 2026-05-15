@@ -1,17 +1,17 @@
 <script setup>
 import { ref, onMounted, onBeforeUnmount } from 'vue'
-import { useRouter } from 'vue-router'
-import { useAuth } from '../stores/auth'
 
-const router = useRouter()
-const { isLoggedIn } = useAuth()
+// Splash plays as an overlay above the actual route, so the destination
+// (login or dashboard) is already mounted underneath. When splash fades,
+// it REVEALS what's there — no router thrash, no mount gap.
+const emit = defineEmits(['done'])
 
 const videoEl = ref(null)
-const leaving = ref(false)
 const ready = ref(false)
 const outroVisible = ref(false)
 const videoFading = ref(false)
 const titleVisible = ref(false)
+const fadingOut = ref(false)
 
 const TITLE_TARGET = ['B', 'e', 'n', 'c', 'h', 'B', 'o', 's', 's']
 const ACCENT_FROM_INDEX = 5
@@ -22,12 +22,12 @@ const SCRAMBLE_INTERVAL_MS = 55
 const LOCK_START_MS = 1400
 const LOCK_STAGGER_MS = 120
 
-const OUTRO_HOLD_MS = 1500
+const OUTRO_HOLD_MS = 700      // shorter — overlay fades naturally, no nav delay needed
 const PRE_OUTRO_MS = 1300
+const FADE_OUT_MS = 600
 
-const ORIGINAL_THEME_COLOR = '#2563EB'
+const ORIGINAL_THEME_COLOR = '#FFFFFF'
 const SPLASH_THEME_COLOR = '#0A0A0A'
-const OUTRO_THEME_COLOR = '#0A0A0A'
 
 function randomChar() {
   return SCRAMBLE_CHARSET[Math.floor(Math.random() * SCRAMBLE_CHARSET.length)]
@@ -42,10 +42,10 @@ const allLetters = ref(
   }))
 )
 
-let leaveTimer = null
 let safetyTimer = null
 let outroTimer = null
 let preOutroTimer = null
+let fadeOutTimer = null
 let titleTimer = null
 let scrambleStartTimer = null
 let scrambleInterval = null
@@ -79,20 +79,17 @@ function startScramble() {
 }
 
 function startOutro() {
-  if (outroVisible.value || leaving.value) return
+  if (outroVisible.value || fadingOut.value) return
   outroVisible.value = true
   videoFading.value = true
-  setThemeColor(OUTRO_THEME_COLOR)
-  outroTimer = setTimeout(leave, OUTRO_HOLD_MS)
+  outroTimer = setTimeout(beginFadeOut, OUTRO_HOLD_MS)
 }
 
-function leave() {
-  if (leaving.value) return
-  leaving.value = true
-  leaveTimer = setTimeout(() => {
-    setThemeColor(ORIGINAL_THEME_COLOR)
-    router.replace(isLoggedIn.value ? '/' : '/login')
-  }, 500)
+function beginFadeOut() {
+  if (fadingOut.value) return
+  fadingOut.value = true
+  setThemeColor(ORIGINAL_THEME_COLOR)
+  fadeOutTimer = setTimeout(() => emit('done'), FADE_OUT_MS)
 }
 
 onMounted(() => {
@@ -125,14 +122,14 @@ onMounted(() => {
     { once: true }
   )
 
-  v.play().catch(() => leave())
+  v.play().catch(() => beginFadeOut())
 })
 
 onBeforeUnmount(() => {
-  clearTimeout(leaveTimer)
   clearTimeout(safetyTimer)
   clearTimeout(outroTimer)
   clearTimeout(preOutroTimer)
+  clearTimeout(fadeOutTimer)
   clearTimeout(titleTimer)
   clearTimeout(scrambleStartTimer)
   if (scrambleInterval) clearInterval(scrambleInterval)
@@ -145,9 +142,9 @@ onBeforeUnmount(() => {
   <div
     class="splash"
     :class="{
-      'splash--leaving': leaving,
       'splash--ready': ready,
       'splash--video-fading': videoFading,
+      'splash--fading-out': fadingOut,
     }"
     @click="startOutro"
   >
@@ -160,7 +157,7 @@ onBeforeUnmount(() => {
       playsinline
       preload="auto"
       @ended="startOutro"
-      @error="leave"
+      @error="beginFadeOut"
     />
 
     <div class="splash__bar splash__bar--top" aria-hidden="true" />
@@ -169,10 +166,7 @@ onBeforeUnmount(() => {
     <div class="splash__scrim" :class="{ 'splash__scrim--in': titleVisible }" />
 
     <div class="splash__brand" :class="{ 'splash__brand--in': titleVisible }">
-      <p
-        class="splash__welcome"
-        :class="{ 'splash__welcome--in': outroVisible }"
-      >
+      <p class="splash__welcome" :class="{ 'splash__welcome--in': outroVisible }">
         Velkommen til
       </p>
       <h1 class="splash__title" aria-label="BenchBoss">
@@ -213,12 +207,14 @@ onBeforeUnmount(() => {
   background: #0A0A0A;
   overflow: hidden;
   cursor: pointer;
-  transition: opacity 0.5s ease, transform 0.5s ease;
+  z-index: 1000;
+  opacity: 1;
+  transition: opacity 600ms cubic-bezier(0.16, 1, 0.3, 1);
 }
 
-.splash--leaving {
+.splash--fading-out {
   opacity: 0;
-  transform: scale(1.04);
+  pointer-events: none;
 }
 
 .splash__video {
@@ -236,11 +232,10 @@ onBeforeUnmount(() => {
 
 .splash--video-fading .splash__video {
   opacity: 0;
-  transform: scale(1.06);
-  transition: opacity 1.3s ease, transform 1.6s ease;
+  transform: scale(1.04);
+  transition: opacity 0.7s var(--ds-ease-smooth), transform 1s var(--ds-ease-smooth);
 }
 
-/* Cinematic letterbox bars — slide in once video is ready, retract for outro. */
 .splash__bar {
   position: absolute;
   left: 0;
@@ -259,7 +254,6 @@ onBeforeUnmount(() => {
   height: 4vh;
 }
 
-/* Soft dark vignette behind the brand mark — lifts text off bright video frames. */
 .splash__scrim {
   position: absolute;
   inset: 0;
@@ -276,16 +270,13 @@ onBeforeUnmount(() => {
   z-index: 2;
 }
 
-.splash__scrim--in {
-  opacity: 1;
-}
+.splash__scrim--in { opacity: 1; }
 
 .splash--video-fading .splash__scrim {
   opacity: 0;
-  transition: opacity 1s ease;
+  transition: opacity 0.6s var(--ds-ease-smooth);
 }
 
-/* Brand block — fades in over the playing video, stays through outro. */
 .splash__brand {
   position: absolute;
   inset: 0;
@@ -299,8 +290,11 @@ onBeforeUnmount(() => {
   transition: opacity 0.6s ease;
 }
 
-.splash__brand--in {
-  opacity: 1;
+.splash__brand--in { opacity: 1; }
+
+.splash--video-fading .splash__brand {
+  opacity: 0;
+  transition: opacity 0.5s var(--ds-ease-smooth);
 }
 
 .splash__welcome {
@@ -339,7 +333,6 @@ onBeforeUnmount(() => {
   min-width: 0.62em;
   text-align: center;
   text-shadow: 0 2px 18px rgba(0, 0, 0, 0.7);
-  /* Tiny lift the moment a letter locks — makes the resolution feel intentional. */
   transition: transform 0.25s cubic-bezier(0.22, 1, 0.36, 1);
 }
 
@@ -348,22 +341,19 @@ onBeforeUnmount(() => {
 }
 
 .splash__letter--accent {
-  color: #60A5FA;
-  text-shadow:
-    0 2px 18px rgba(0, 0, 0, 0.7),
-    0 0 24px rgba(96, 165, 250, 0.35);
+  color: #FFFEF8;
+  text-shadow: 0 2px 18px rgba(0, 0, 0, 0.7);
 }
 
 .splash__underline {
   display: block;
   width: clamp(80px, 22vw, 140px);
-  height: 3px;
+  height: 2px;
   margin-top: 18px;
-  background: #60A5FA;
+  background: rgba(255, 254, 248, 0.85);
   border-radius: 2px;
-  box-shadow: 0 0 14px rgba(96, 165, 250, 0.4);
   transform: scaleX(0);
-  transform-origin: left center;
+  transform-origin: center;
   transition: transform 0.6s cubic-bezier(0.65, 0, 0.35, 1) 0.4s;
 }
 
@@ -391,9 +381,7 @@ onBeforeUnmount(() => {
   z-index: 5;
 }
 
-.splash__skip--in {
-  opacity: 1;
-}
+.splash__skip--in { opacity: 1; }
 
 .splash__skip--gone {
   opacity: 0;

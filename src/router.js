@@ -3,11 +3,6 @@ import { useAuth } from './stores/auth'
 
 const routes = [
   {
-    path: '/splash',
-    name: 'splash',
-    component: () => import('./views/SplashView.vue')
-  },
-  {
     path: '/login',
     name: 'login',
     component: () => import('./views/LoginView.vue')
@@ -71,28 +66,8 @@ export const router = createRouter({
   routes
 })
 
-const SPLASH_COOLDOWN_MS = 30 * 60 * 1000
-
-function splashIsFresh() {
-  const last = Number(localStorage.getItem('splashLastShown'))
-  return last && Date.now() - last < SPLASH_COOLDOWN_MS
-}
-
-let splashShownThisLoad = splashIsFresh()
-
 router.beforeEach((to) => {
   const { isLoggedIn } = useAuth()
-
-  if (to.name === 'splash') return
-
-  // Splash shows on cold start (no view in last 30 min) — deep links skip it.
-  if (!splashShownThisLoad) {
-    splashShownThisLoad = true
-    localStorage.setItem('splashLastShown', String(Date.now()))
-    if (to.path === '/' && to.name !== 'login') {
-      return { name: 'splash' }
-    }
-  }
 
   // Send unauthenticated users to login, remembering where they were heading.
   if (to.name !== 'login' && !isLoggedIn.value) {
