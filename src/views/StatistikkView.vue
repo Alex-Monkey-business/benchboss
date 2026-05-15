@@ -15,7 +15,8 @@ const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees } = useReferees()
 const { players, fetchPlayers } = usePlayers()
 
-const loading = ref(true)
+// Skeleton only on the very first load. Data persists across navigation.
+const loading = ref(matches.value.length === 0)
 
 onMounted(async () => {
   await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers()])

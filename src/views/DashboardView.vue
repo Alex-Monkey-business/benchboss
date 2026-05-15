@@ -25,7 +25,9 @@ const { coaches, fetchCoaches } = useCoaches()
 const teamFilter = ref('alle')
 const venueFilter = ref('alle')
 const timeFilter = ref('upcoming')
-const loading = ref(true)
+// Skeleton only on the very first load. Data persists in module-level refs
+// across navigation, so subsequent visits render instantly.
+const loading = ref(matches.value.length === 0)
 
 onMounted(async () => {
   await Promise.all([fetchSeasons(), fetchCoaches()])

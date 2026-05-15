@@ -23,7 +23,8 @@ const { coaches, fetchCoaches } = useCoaches()
 const { players, fetchPlayers, updatePlayer, deletePlayer } = usePlayers()
 const { show: showToast } = useToast()
 
-const loading = ref(true)
+// Skeleton only if players AND matches haven't been loaded yet.
+const loading = ref(players.value.length === 0 || matches.value.length === 0)
 const editing = ref(false)
 const editName = ref('')
 const editTeam = ref('')

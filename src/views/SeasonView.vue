@@ -18,7 +18,8 @@ const { expenses, fetchExpenses, getSettlement } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
 const { show: showToast } = useToast()
 
-const loading = ref(true)
+// Skeleton only on the very first load. Data persists across navigation.
+const loading = ref(matches.value.length === 0)
 const showSettleDialog = ref(false)
 
 onMounted(async () => {

@@ -15,15 +15,18 @@ import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 
 const route = useRoute()
 const router = useRouter()
-const { getMatch, updateMatch, setMatchCoaches, fetchMatchCoaches, setMatchPlayers, fetchMatchPlayers, deleteMatch } = useMatches()
+const { matches, getMatch, updateMatch, setMatchCoaches, fetchMatchCoaches, setMatchPlayers, fetchMatchPlayers, deleteMatch } = useMatches()
 const { expenses, fetchExpenses, registerExpense, getExpenseForMatch, removeExpense } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
 const { players, fetchPlayers } = usePlayers()
 const { show: showToast } = useToast()
 
-const match = ref(null)
-const loading = ref(true)
+// Try cache first — instant render when arriving from Dashboard.
+// Skeleton only on direct-URL load when matches haven't been fetched yet.
+const cachedMatch = matches.value.find(m => m.id === route.params.id)
+const match = ref(cachedMatch || null)
+const loading = ref(!cachedMatch)
 const matchCoachIds = ref([])
 const matchPlayerIds = ref([])
 const showDeleteDialog = ref(false)

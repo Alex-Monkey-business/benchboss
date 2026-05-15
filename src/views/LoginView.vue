@@ -15,6 +15,7 @@ const pinError = ref(false)
 const pinRef = ref(null)
 
 const currentCoach = computed(() => coaches.value.find(c => c.id === selectedCoach.value))
+const currentCoachKey = computed(() => currentCoach.value?.name?.toLowerCase())
 
 onMounted(async () => {
   await fetchCoaches()
@@ -22,6 +23,13 @@ onMounted(async () => {
     selectedCoach.value = coaches.value[0].id
   }
 })
+
+function selectCoach(id) {
+  if (id === selectedCoach.value) return
+  selectedCoach.value = id
+  pinError.value = false
+  pinRef.value?.clear()
+}
 
 async function onPinComplete(pin) {
   const isValid = await verifyPin(selectedCoach.value, pin)
@@ -43,45 +51,91 @@ async function onPinComplete(pin) {
 <template>
   <div class="login-screen">
     <div class="login-content">
-      <!-- Coach avatar — transitions on selection change -->
-      <Transition name="avatar-swap" mode="out-in">
-        <div class="login-avatar" :key="selectedCoach">
-          <img v-if="currentCoach?.image" :src="currentCoach.image" :alt="currentCoach?.name" class="login-avatar__img" />
-          <span v-else class="login-avatar__initial">{{ currentCoach?.name?.charAt(0) || '?' }}</span>
-        </div>
-      </Transition>
       <h1 class="login-content__title">BenchBoss</h1>
 
-      <div class="login-content__form">
-        <div class="ds-form-group">
-          <label class="ds-label">Hvem er du?</label>
-          <select v-model="selectedCoach" class="ds-input ds-select">
-            <option v-for="c in coaches" :key="c.id" :value="c.id">
-              {{ c.name }}
-            </option>
-          </select>
+      <!-- Big trading-card of selected coach -->
+      <Transition name="card-swap" mode="out-in">
+        <div
+          :key="selectedCoach"
+          :data-coach="currentCoachKey"
+          class="login-card"
+        >
+          <div class="login-card__avatar">
+            <img
+              v-if="currentCoach?.image"
+              :src="currentCoach.image"
+              :alt="currentCoach?.name"
+              class="login-card__avatar-img"
+            />
+            <span v-else class="login-card__initial">{{ currentCoach?.name?.charAt(0) || '?' }}</span>
+          </div>
+          <span class="login-card__name">{{ currentCoach?.name || '' }}</span>
         </div>
+      </Transition>
 
-        <div class="ds-form-group">
-          <label class="ds-label">PIN-kode</label>
-          <PinInput ref="pinRef" :error="pinError" @complete="onPinComplete" />
-          <Transition name="ds-fade">
-            <p v-if="pinError" class="ds-help ds-help--error" style="text-align: center; margin-top: 12px;">
-              Feil PIN-kode
-            </p>
-          </Transition>
-        </div>
+      <!-- Coach picker with hint -->
+      <span class="login-picker-label">Hvem er du?</span>
+      <div class="login-picker" role="tablist" aria-label="Velg trener">
+        <button
+          v-for="c in coaches"
+          :key="c.id"
+          type="button"
+          role="tab"
+          :data-coach="c.name.toLowerCase()"
+          :aria-selected="c.id === selectedCoach"
+          :class="['login-picker__item', { 'login-picker__item--active': c.id === selectedCoach }]"
+          @click="selectCoach(c.id)"
+        >
+          <img v-if="c.image" :src="c.image" :alt="c.name" class="login-picker__img" />
+          <span v-else class="login-picker__initial">{{ c.name.charAt(0) }}</span>
+        </button>
+      </div>
+
+      <!-- PIN -->
+      <div class="login-content__form">
+        <label class="login-pin-label">PIN-kode</label>
+        <PinInput ref="pinRef" :error="pinError" @complete="onPinComplete" />
+        <Transition name="ds-fade">
+          <p v-if="pinError" class="ds-help ds-help--error login-error">
+            Feil PIN-kode
+          </p>
+        </Transition>
       </div>
     </div>
   </div>
 </template>
 
 <style scoped>
+/* Per-coach color tokens — mirror the match-detail picker */
+.login-card[data-coach="alex"]  { --coach-bg: #F8E8E0; --coach-text: #7A3A24; }
+.login-card[data-coach="iver"]  { --coach-bg: #E2EDDE; --coach-text: #3D5C44; }
+.login-card[data-coach="jacob"] { --coach-bg: #D6DDEF; --coach-text: #3D456B; }
+.login-card[data-coach="simon"] { --coach-bg: #F0E7D6; --coach-text: #6B5630; }
+.login-card[data-coach="trond"] { --coach-bg: #DDE6EC; --coach-text: #3A4C5C; }
+
+.login-picker__item[data-coach="alex"]  { --coach-bg: #F8E8E0; --coach-text: #7A3A24; }
+.login-picker__item[data-coach="iver"]  { --coach-bg: #E2EDDE; --coach-text: #3D5C44; }
+.login-picker__item[data-coach="jacob"] { --coach-bg: #D6DDEF; --coach-text: #3D456B; }
+.login-picker__item[data-coach="simon"] { --coach-bg: #F0E7D6; --coach-text: #6B5630; }
+.login-picker__item[data-coach="trond"] { --coach-bg: #DDE6EC; --coach-text: #3A4C5C; }
+
 .login-screen {
   min-height: 100dvh;
   background: var(--ds-color-bg);
   position: relative;
   overflow: hidden;
+  transition: background-color 400ms var(--ds-ease-smooth);
+}
+
+/* Ambient bg — soft tint of selected coach's color (Apple TV+ profile-style) */
+.login-screen:has(.login-card[data-coach="alex"])  { background: color-mix(in srgb, #F8E8E0 45%, white); }
+.login-screen:has(.login-card[data-coach="iver"])  { background: color-mix(in srgb, #E2EDDE 45%, white); }
+.login-screen:has(.login-card[data-coach="jacob"]) { background: color-mix(in srgb, #D6DDEF 45%, white); }
+.login-screen:has(.login-card[data-coach="simon"]) { background: color-mix(in srgb, #F0E7D6 45%, white); }
+.login-screen:has(.login-card[data-coach="trond"]) { background: color-mix(in srgb, #DDE6EC 45%, white); }
+
+@media (prefers-reduced-motion: reduce) {
+  .login-screen { transition: none; }
 }
 
 .login-content {
@@ -90,70 +144,218 @@ async function onPinComplete(pin) {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  padding: var(--ds-space-xl) var(--ds-space-xl) 48px;
+  padding: var(--ds-space-xl) var(--ds-space-lg) calc(var(--ds-space-2xl) + env(safe-area-inset-bottom, 0px));
+  gap: var(--ds-space-xl);
 }
 
-/* Coach avatar circle */
-.login-avatar {
-  width: 96px;
-  height: 96px;
-  border-radius: 50%;
-  background: var(--ds-color-accent);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin-bottom: 20px;
-  border: 3px solid var(--ds-color-border);
+.login-content__title {
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-2xl);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-tighter);
+  color: var(--ds-color-text-primary);
+  text-align: center;
+  line-height: var(--ds-leading-tight);
+  font-variation-settings: var(--ds-font-display-settings);
+  margin: 0;
+}
+
+/* ---- Big trading card ---- */
+.login-card {
+  position: relative;
+  width: 220px;
+  aspect-ratio: 4 / 5;
+  border-radius: 22px;
+  background: var(--coach-bg, var(--ds-color-warm-bg));
+  border: 1px solid var(--ds-color-border);
   box-shadow: var(--ds-shadow-md);
   overflow: hidden;
 }
 
-.login-avatar__img {
+.login-card::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 60%;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--coach-text, #0A0A0A) 0%, transparent) 0%,
+    color-mix(in srgb, var(--coach-text, #0A0A0A) 55%, transparent) 55%,
+    color-mix(in srgb, var(--coach-text, #0A0A0A) 96%, transparent) 100%
+  );
+  z-index: 1;
+  pointer-events: none;
+}
+
+.login-card__avatar {
+  position: absolute;
+  inset: 0;
+  padding-top: 18px;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.login-card__avatar-img {
+  display: block;
+  max-width: 100%;
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.22));
+  animation: login-card-figure-in 700ms var(--ds-ease-smooth) both;
+}
+
+.login-card__initial {
+  margin: auto;
+  font-family: var(--ds-font-display-sans);
+  font-size: 96px;
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: -0.03em;
+  color: var(--coach-text, var(--ds-color-warm-text));
+  animation: login-card-figure-in 700ms var(--ds-ease-smooth) both;
+}
+
+/* Cutout figure settles into place when card swaps */
+@keyframes login-card-figure-in {
+  from { transform: scale(1.06); }
+  to   { transform: scale(1); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .login-card__avatar-img,
+  .login-card__initial {
+    animation: none;
+  }
+}
+
+.login-card__name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 18px 12px 16px;
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: -0.01em;
+  color: #ffffff;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 8px rgba(0, 0, 0, 0.25);
+  z-index: 2;
+}
+
+/* ---- Horizontal picker row ---- */
+.login-picker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.login-picker__item {
+  position: relative;
+  width: 44px;
+  height: 44px;
+  border-radius: 14px;
+  border: 1px solid var(--ds-color-border);
+  background: var(--coach-bg, var(--ds-color-bg-subtle));
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  overflow: hidden;
+  cursor: pointer;
+  padding: 2px 0 0;
+  transition:
+    transform var(--ds-duration-fast) var(--ds-ease-out),
+    border-color var(--ds-duration-fast) var(--ds-ease-out),
+    box-shadow var(--ds-duration-fast) var(--ds-ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.login-picker__item:active {
+  transform: scale(0.95);
+}
+
+.login-picker__img {
   width: 100%;
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center bottom;
 }
 
-.login-avatar__initial {
-  font-family: var(--ds-font-heading);
-  font-size: 2.25rem;
-  font-weight: 700;
-  color: white;
-  line-height: 1;
+.login-picker__initial {
+  margin: auto;
+  font-family: var(--ds-font-display-sans);
+  font-size: 18px;
+  font-weight: var(--ds-weight-semibold);
+  color: var(--coach-text, var(--ds-color-text-secondary));
 }
 
-/* Avatar swap transition */
-.avatar-swap-enter-active {
-  transition: opacity 0.2s ease, transform 0.2s ease;
+.login-picker__item--active {
+  border-color: var(--ds-color-accent);
+  box-shadow: 0 0 0 2px var(--ds-color-accent), var(--ds-shadow-sm);
 }
-.avatar-swap-leave-active {
-  transition: opacity 0.15s ease, transform 0.15s ease;
+
+/* ---- Card swap transition ---- */
+.card-swap-enter-active {
+  transition:
+    opacity 240ms var(--ds-ease-out),
+    transform 240ms var(--ds-ease-out);
 }
-.avatar-swap-enter-from {
+.card-swap-leave-active {
+  transition:
+    opacity 140ms var(--ds-ease-out),
+    transform 140ms var(--ds-ease-out);
+}
+.card-swap-enter-from {
   opacity: 0;
-  transform: scale(0.85);
+  transform: scale(0.94) translateY(6px);
 }
-.avatar-swap-leave-to {
+.card-swap-leave-to {
   opacity: 0;
-  transform: scale(0.85);
+  transform: scale(0.96);
 }
 
-.login-content__title {
-  font-family: var(--ds-font-heading);
-  font-size: var(--ds-text-2xl);
-  font-weight: var(--ds-weight-bold);
-  color: var(--ds-color-text-primary);
-  text-align: center;
-  margin-bottom: 40px;
-  line-height: var(--ds-leading-tight);
+@media (prefers-reduced-motion: reduce) {
+  .card-swap-enter-active,
+  .card-swap-leave-active {
+    transition: opacity 100ms;
+  }
+  .card-swap-enter-from,
+  .card-swap-leave-to {
+    transform: none;
+  }
 }
 
+/* ---- Form ---- */
 .login-content__form {
   width: 100%;
   max-width: 320px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
 }
 
-.login-content__form .ds-form-group {
-  margin-bottom: var(--ds-space-xl);
+.login-pin-label,
+.login-picker-label {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+  margin-bottom: 12px;
+}
+
+.login-picker-label {
+  margin-bottom: 0;
+  margin-top: -8px;
+}
+
+.login-error {
+  text-align: center;
+  margin-top: 12px;
 }
 </style>

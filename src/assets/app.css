@@ -304,7 +304,7 @@
 
 .coach-btn[data-coach="alex"]  { --coach-bg: #F8E8E0; --coach-text: #7A3A24; }   /* peach */
 .coach-btn[data-coach="iver"]  { --coach-bg: #E2EDDE; --coach-text: #3D5C44; }   /* sage */
-.coach-btn[data-coach="jacob"] { --coach-bg: #F2DBD7; --coach-text: #7E3A40; }   /* rose */
+.coach-btn[data-coach="jacob"] { --coach-bg: #D6DDEF; --coach-text: #3D456B; }   /* cornflower */
 .coach-btn[data-coach="simon"] { --coach-bg: #F0E7D6; --coach-text: #6B5630; }   /* sand */
 .coach-btn[data-coach="trond"] { --coach-bg: #DDE6EC; --coach-text: #3A4C5C; }   /* sky */
 
