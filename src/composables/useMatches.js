@@ -213,6 +213,14 @@ export function useMatches() {
     return data ? data.map(mp => mp.player_id) : []
   }
 
+  // Fetch all match_players rows — needed for cross-match conflict detection.
+  async function fetchAllMatchPlayers() {
+    if (!isSupabaseConfigured) return matchPlayers.value
+    const { data } = await supabase.from('match_players').select('match_id, player_id')
+    if (data) matchPlayers.value = data
+    return matchPlayers.value
+  }
+
   async function deleteMatch(matchId) {
     if (!isSupabaseConfigured) {
       matches.value = matches.value.filter(m => m.id !== matchId)
@@ -239,7 +247,7 @@ export function useMatches() {
     matches, matchCoaches, matchPlayers, loading,
     fetchMatches, getMatch, updateMatch, addMatch, bulkAddMatches,
     setMatchCoaches, getCoachesForMatch, fetchMatchCoaches,
-    setMatchPlayers, getPlayersForMatch, fetchMatchPlayers,
+    setMatchPlayers, getPlayersForMatch, fetchMatchPlayers, fetchAllMatchPlayers,
     deleteMatch, deleteAllMatches
   }
 }

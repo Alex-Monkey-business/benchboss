@@ -15,7 +15,7 @@ import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 
 const route = useRoute()
 const router = useRouter()
-const { matches, getMatch, updateMatch, setMatchCoaches, fetchMatchCoaches, setMatchPlayers, fetchMatchPlayers, deleteMatch } = useMatches()
+const { matches, matchPlayers, getMatch, updateMatch, setMatchCoaches, fetchMatchCoaches, setMatchPlayers, fetchMatchPlayers, fetchAllMatchPlayers, deleteMatch } = useMatches()
 const { expenses, fetchExpenses, registerExpense, getExpenseForMatch, removeExpense } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
@@ -40,7 +40,7 @@ const editDateInput = ref('')
 const editTimeInput = ref('')
 
 onMounted(async () => {
-  await Promise.all([fetchCoaches(), fetchReferees(), fetchPlayers()])
+  await Promise.all([fetchCoaches(), fetchReferees(), fetchPlayers(), fetchAllMatchPlayers()])
   match.value = await getMatch(route.params.id)
   if (match.value) {
     await fetchExpenses([match.value.id])
@@ -227,9 +227,51 @@ async function togglePlayer(playerId) {
 
 const teamLabels = { gronn: 'Grønn', rod: 'Rød', hvit: 'Hvit' }
 
+// Detect a same-day conflict for one player. Returns { time, opponent } or null.
+function getConflictForPlayer(p, currentMatchId, currentDate) {
+  if (!currentDate) return null
+
+  function describeMatch(m) {
+    const time = m.match_time?.slice(0, 5)
+    const opponentRaw = (m.home_team || '').toLowerCase().includes('halsen')
+      ? m.away_team
+      : m.home_team
+    return {
+      time: time && time !== '00:00' ? time : null,
+      opponent: opponentRaw || ''
+    }
+  }
+
+  // 1. Explicit: booked as guest elsewhere same day
+  const guestMatch = matchPlayers.value
+    .filter(mp => mp.player_id === p.id && mp.match_id !== currentMatchId)
+    .map(mp => matches.value.find(m => m.id === mp.match_id))
+    .find(m => m && m.match_date === currentDate)
+  if (guestMatch) return describeMatch(guestMatch)
+
+  // 2. Implicit: player's primary Halsen team plays same day
+  if (p.primary_team) {
+    const primaryMatch = matches.value.find(m => {
+      if (m.id === currentMatchId) return false
+      if (m.match_date !== currentDate) return false
+      const homeColor = (m.home_team || '').toLowerCase().includes('halsen')
+        ? getColorFromName(m.home_team) : null
+      const awayColor = (m.away_team || '').toLowerCase().includes('halsen')
+        ? getColorFromName(m.away_team) : null
+      return homeColor === p.primary_team || awayColor === p.primary_team
+    })
+    if (primaryMatch) return describeMatch(primaryMatch)
+  }
+
+  return null
+}
+
 const availablePlayers = computed(() => {
   const matchTeams = teamColors.value
-  return players.value.filter(p => {
+  const currentMatchId = match.value?.id
+  const currentDate = match.value?.match_date
+
+  const filtered = players.value.filter(p => {
     // Always show players already selected on this match (so they can be removed)
     if (matchPlayerIds.value.includes(p.id)) return true
     // Players without a primary team can hospitate anywhere
@@ -237,6 +279,24 @@ const availablePlayers = computed(() => {
     // Hide if the player's primary team is one of the Halsen teams playing this match
     return !matchTeams.includes(p.primary_team)
   })
+
+  // Sort: non-conflict first, then conflict; tiebreaker alphabetical
+  return filtered.slice().sort((a, b) => {
+    const aConflict = !!getConflictForPlayer(a, currentMatchId, currentDate)
+    const bConflict = !!getConflictForPlayer(b, currentMatchId, currentDate)
+    if (aConflict !== bConflict) return aConflict ? 1 : -1
+    return a.name.localeCompare(b.name)
+  })
+})
+
+const playerConflicts = computed(() => {
+  if (!match.value) return {}
+  const out = {}
+  for (const p of availablePlayers.value) {
+    const c = getConflictForPlayer(p, match.value.id, match.value.match_date)
+    if (c) out[p.id] = c
+  }
+  return out
 })
 
 const hasResult = computed(() => {
@@ -556,10 +616,23 @@ async function saveDateTime() {
             <button
               v-for="p in availablePlayers"
               :key="p.id"
-              :class="['referee-pill', { 'referee-pill--selected': matchPlayerIds.includes(p.id) }]"
+              :class="[
+                'referee-pill',
+                {
+                  'referee-pill--selected': matchPlayerIds.includes(p.id),
+                  'referee-pill--conflict': playerConflicts[p.id]
+                }
+              ]"
               @click="togglePlayer(p.id)"
             >
               {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabels[p.primary_team] }}</span>
+              <span v-if="playerConflicts[p.id]" class="hospitant-pill__conflict" :title="`Også kamp ${playerConflicts[p.id].time || 'samme dag'} mot ${playerConflicts[p.id].opponent}`">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                  <circle cx="12" cy="12" r="9"/>
+                  <polyline points="12 7 12 12 15 14"/>
+                </svg>
+                {{ playerConflicts[p.id].time || 'samme dag' }}
+              </span>
             </button>
           </div>
         </div>
@@ -1102,5 +1175,37 @@ async function saveDateTime() {
 .hospitant-pill__team {
   font-weight: 400;
   opacity: 0.8;
+}
+
+/* Same-day conflict annotation on lånespiller pill */
+.hospitant-pill__conflict {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  margin-left: 6px;
+  padding: 1px 6px 1px 4px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-warm-bg);
+  color: var(--ds-color-warm-text);
+  font-size: 0.6875rem;
+  font-weight: var(--ds-weight-medium);
+  letter-spacing: -0.005em;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.hospitant-pill__conflict svg {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+}
+
+.referee-pill--conflict {
+  border-color: var(--ds-color-warm);
+}
+
+.referee-pill--selected .hospitant-pill__conflict {
+  background: rgba(255, 255, 255, 0.18);
+  color: var(--ds-color-warm-bg);
 }
 </style>
