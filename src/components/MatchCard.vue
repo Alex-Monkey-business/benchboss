@@ -99,7 +99,6 @@ const formattedTime = computed(() => {
           class="match-card__team-tag"
           :class="`match-card__team-tag--${color}`"
         >{{ color === 'gronn' ? 'Grønn' : color === 'rod' ? 'Rød' : 'Hvit' }}</span>
-        {{ formattedTime }}
       </span>
       <span v-if="status" class="match-status" :class="`match-status--${status.tone}`">
         <svg v-if="status.icon === 'check'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
@@ -110,7 +109,8 @@ const formattedTime = computed(() => {
     </div>
     <div class="match-card__teams">
       <span class="match-card__team">{{ match.home_team }}</span>
-      <span v-if="hasResult" class="match-card__score">{{ match.home_score }}–{{ match.away_score }}</span>
+      <span v-if="hasResult" class="match-card__score">{{ match.home_score }} – {{ match.away_score }}</span>
+      <span v-else-if="formattedTime" class="match-card__time">{{ formattedTime }}</span>
       <span v-else class="match-card__vs">vs</span>
       <span class="match-card__team">{{ match.away_team }}</span>
     </div>

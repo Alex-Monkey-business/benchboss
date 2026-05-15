@@ -117,7 +117,7 @@ function recentResultsForColor(color, limit = 10) {
     let result = 'd'
     if (teamScore > oppScore) result = 'w'
     else if (teamScore < oppScore) result = 'l'
-    return { result, opponent, score: `${teamScore}–${oppScore}`, date: m.match_date }
+    return { result, opponent, score: `${teamScore} – ${oppScore}`, date: m.match_date }
   })
 }
 
@@ -134,7 +134,7 @@ const halsenRecentResults = computed(() => {
     let result = 'd'
     if (halsenScore > oppScore) result = 'w'
     else if (halsenScore < oppScore) result = 'l'
-    return { result, opponent, score: `${halsenScore}–${oppScore}`, date: m.match_date }
+    return { result, opponent, score: `${halsenScore} – ${oppScore}`, date: m.match_date }
   })
 })
 
@@ -292,7 +292,7 @@ const hasAnyResult = computed(() => playedMatches.value.length > 0)
           <span class="standings__num">{{ team.w }}</span>
           <span class="standings__num standings__num--muted">{{ team.d }}</span>
           <span class="standings__num standings__num--muted">{{ team.l }}</span>
-          <span class="standings__goals">{{ team.gf }}–{{ team.ga }}</span>
+          <span class="standings__goals">{{ team.gf }} – {{ team.ga }}</span>
           <span :class="['standings__diff', team.diff > 0 ? 'standings__diff--pos' : team.diff < 0 ? 'standings__diff--neg' : '']">
             {{ team.diff > 0 ? '+' : '' }}{{ team.diff }}
           </span>

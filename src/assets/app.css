@@ -192,9 +192,10 @@
   white-space: nowrap;
 }
 
-.match-card__team:last-child {
-  text-align: right;
-}
+/* FotMob pattern: team names anchor INWARD toward the central time/score,
+   so the kick-off time becomes the optical anchor of every row */
+.match-card__team:first-child { text-align: right; }
+.match-card__team:last-child  { text-align: left; }
 
 .match-card__vs {
   font-family: var(--ds-font-display-sans);
@@ -205,6 +206,18 @@
   text-transform: lowercase;
   flex-shrink: 0;
   padding: 0 var(--ds-space-xs);
+}
+
+/* Central kick-off time anchor (FotMob-style) */
+.match-card__time {
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-secondary);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.005em;
+  flex-shrink: 0;
+  padding: 0 var(--ds-space-sm);
 }
 
 .match-card__meta {
