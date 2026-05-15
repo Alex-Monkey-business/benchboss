@@ -326,6 +326,29 @@
 .coach-btn[data-coach="simon"] { --coach-bg: #F0E7D6; --coach-text: #6B5630; }   /* sand */
 .coach-btn[data-coach="trond"] { --coach-bg: #DDE6EC; --coach-text: #3A4C5C; }   /* sky */
 
+/* Dark-mode coach palette — same hues, inverted lightness */
+[data-theme="dark"] .coach-btn[data-coach="alex"]  { --coach-bg: #2A1E18; --coach-text: #F4C4A8; }
+[data-theme="dark"] .coach-btn[data-coach="iver"]  { --coach-bg: #1A241D; --coach-text: #B5D2B0; }
+[data-theme="dark"] .coach-btn[data-coach="jacob"] { --coach-bg: #1A1F33; --coach-text: #B9C2E5; }
+[data-theme="dark"] .coach-btn[data-coach="simon"] { --coach-bg: #2A241A; --coach-text: #D9C99E; }
+[data-theme="dark"] .coach-btn[data-coach="trond"] { --coach-bg: #1A222A; --coach-text: #B0C5D8; }
+
+/* Dark mode: gradient bottom must stay dark so white name remains readable —
+   coach-text is now a LIGHT color in dark mode, so we override the overlay */
+[data-theme="dark"] .coach-btn::after {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 40%,
+    rgba(0, 0, 0, 0.45) 70%,
+    rgba(0, 0, 0, 0.85) 100%
+  );
+}
+
+/* Stronger drop-shadow in dark mode for cutout depth */
+[data-theme="dark"] .coach-btn__avatar-img {
+  filter: drop-shadow(0 8px 18px rgba(0, 0, 0, 0.55));
+}
+
 .coach-btn {
   position: relative;
   display: block;

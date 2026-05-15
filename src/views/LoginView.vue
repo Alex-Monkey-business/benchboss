@@ -113,6 +113,25 @@ function selectCoach(c) {
 .profile-card[data-coach="simon"] { --coach-bg: #F0E7D6; --coach-text: #6B5630; }
 .profile-card[data-coach="trond"] { --coach-bg: #DDE6EC; --coach-text: #3A4C5C; }
 
+:global([data-theme="dark"]) .profile-card[data-coach="alex"]  { --coach-bg: #2A1E18; --coach-text: #F4C4A8; }
+:global([data-theme="dark"]) .profile-card[data-coach="iver"]  { --coach-bg: #1A241D; --coach-text: #B5D2B0; }
+:global([data-theme="dark"]) .profile-card[data-coach="jacob"] { --coach-bg: #1A1F33; --coach-text: #B9C2E5; }
+:global([data-theme="dark"]) .profile-card[data-coach="simon"] { --coach-bg: #2A241A; --coach-text: #D9C99E; }
+:global([data-theme="dark"]) .profile-card[data-coach="trond"] { --coach-bg: #1A222A; --coach-text: #B0C5D8; }
+
+/* Dark mode: gradient bottom stays dark + stronger figure shadow */
+:global([data-theme="dark"]) .profile-card__avatar-img {
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
+}
+
+:global([data-theme="dark"]) .profile-card::after {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.75) 100%
+  );
+}
+
 .login-screen {
   min-height: 100dvh;
   background: var(--ds-color-bg);
@@ -254,25 +273,13 @@ function selectCoach(c) {
   transform: scale(0.97);
 }
 
-/* Gradient overlay using coach color for name legibility */
-.profile-card::after {
-  content: '';
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    180deg,
-    color-mix(in srgb, var(--coach-text, #0A0A0A) 0%, transparent) 40%,
-    color-mix(in srgb, var(--coach-text, #0A0A0A) 55%, transparent) 75%,
-    color-mix(in srgb, var(--coach-text, #0A0A0A) 90%, transparent) 100%
-  );
-  z-index: 1;
-  pointer-events: none;
-}
-
+/* Image anchored at bottom with breathing room on top.
+   Name overlays bottom of image with a SHORT, subtle gradient
+   just behind the text — enough for legibility, no haze on the figure. */
 .profile-card__avatar {
   position: absolute;
   inset: 0;
-  padding-top: 12px;
+  padding-top: 14px;
   display: flex;
   align-items: flex-end;
   justify-content: center;
@@ -286,16 +293,33 @@ function selectCoach(c) {
   height: 100%;
   object-fit: contain;
   object-position: center bottom;
-  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.18));
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.15));
 }
 
 .profile-card__initial {
   margin: auto;
   font-family: var(--ds-font-display-sans);
-  font-size: 48px;
+  font-size: 56px;
   font-weight: var(--ds-weight-semibold);
   letter-spacing: -0.03em;
   color: var(--coach-text, var(--ds-color-warm-text));
+}
+
+/* Short dark scrim behind the name — bottom 32% of card */
+.profile-card::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 32%;
+  background: linear-gradient(
+    180deg,
+    rgba(0, 0, 0, 0) 0%,
+    rgba(0, 0, 0, 0.65) 100%
+  );
+  z-index: 1;
+  pointer-events: none;
 }
 
 .profile-card__name {
@@ -303,7 +327,7 @@ function selectCoach(c) {
   left: 0;
   right: 0;
   bottom: 0;
-  padding: 12px 8px 10px;
+  padding: 10px 8px 10px;
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: -0.005em;

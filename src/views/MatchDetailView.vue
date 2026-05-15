@@ -935,13 +935,13 @@ async function saveDateTime() {
 .referee-pill--selected {
   border-color: var(--ds-color-accent);
   background: var(--ds-color-accent);
-  color: white;
+  color: var(--ds-color-accent-text);
 }
 
 .referee-pill--selected:hover {
   background: var(--ds-color-accent);
   border-color: var(--ds-color-accent);
-  color: white;
+  color: var(--ds-color-accent-text);
 }
 
 .referee-pill--other {

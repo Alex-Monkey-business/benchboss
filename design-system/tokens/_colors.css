@@ -1,45 +1,45 @@
 /* ============================================
    COLOR TOKENS
-   Notion-monokrom: pure white, charcoal, Notion grays.
-   No colored accent — emphasis via weight, underline,
-   and subtle background shifts.
+   Notion-monokrom (light) + Spotify-style dark mode.
+   Theme is selected via [data-theme="dark"] on <html>.
+   The useTheme composable resolves system preference into
+   an explicit "light" or "dark" attribute, so we only need
+   one dark-mode rule here.
    ============================================ */
 
 :root {
   /* ---- Background ---- */
   --ds-color-bg:              #FFFFFF;
   --ds-color-bg-elevated:     #FFFFFF;
-  --ds-color-bg-subtle:       #F4F3EE;   /* warmer panel, darker than before */
-  --ds-color-bg-hover:        #EDECE7;   /* clearer hover */
-  --ds-color-bg-sunken:       #E8E7E1;   /* deep zone separation */
+  --ds-color-bg-subtle:       #F4F3EE;
+  --ds-color-bg-hover:        #EDECE7;
+  --ds-color-bg-sunken:       #E8E7E1;
 
   /* ---- Border ---- */
-  --ds-color-border:          #DEDDD8;   /* darker hairline — visible on white */
+  --ds-color-border:          #DEDDD8;
   --ds-color-border-strong:   #B8B7B0;
   --ds-color-border-light:    #ECEBE5;
   --ds-color-border-focus:    #0A0A0A;
 
-  /* ---- Text (high contrast) ---- */
-  --ds-color-text-primary:    #0A0A0A;   /* near-true black for crispness */
-  --ds-color-text-secondary:  #4F4E48;   /* darker secondary, more readable */
+  /* ---- Text ---- */
+  --ds-color-text-primary:    #0A0A0A;
+  --ds-color-text-secondary:  #4F4E48;
   --ds-color-text-tertiary:   #8A8983;
   --ds-color-text-inverse:    #FFFFFF;
 
-  /* ---- Accent (true black for max punch) ---- */
+  /* ---- Accent ---- */
   --ds-color-accent:          #0A0A0A;
   --ds-color-accent-hover:    #000000;
   --ds-color-accent-light:    #EDECE7;
   --ds-color-accent-text:     #FFFFFF;
 
-  /* ---- Warm secondary accent (humanity, urgency, celebration) ---- */
-  /* Use sparingly — max ~5% of surface. For status pills, "your turn"
-     moments, paid-by avatars, season-settled celebrations. */
-  --ds-color-warm:            #B9603F;   /* muted terracotta */
+  /* ---- Warm secondary accent ---- */
+  --ds-color-warm:            #B9603F;
   --ds-color-warm-hover:      #9F4F32;
-  --ds-color-warm-bg:         #F8E8E0;   /* soft peach */
+  --ds-color-warm-bg:         #F8E8E0;
   --ds-color-warm-text:       #7A3A24;
 
-  /* ---- Semantic: Success (clean emerald) ---- */
+  /* ---- Semantic: Success ---- */
   --ds-color-success:         #16A34A;
   --ds-color-success-hover:   #15803D;
   --ds-color-success-light:   #DCFCE7;
@@ -51,7 +51,7 @@
   --ds-color-warning-border:  #E9DDB8;
   --ds-color-warning-text:    #7A5410;
 
-  /* ---- Semantic: Error (clean red) ---- */
+  /* ---- Semantic: Error ---- */
   --ds-color-error:           #DC2626;
   --ds-color-error-hover:     #B91C1C;
   --ds-color-error-light:     #FEE2E2;
@@ -63,4 +63,64 @@
 
   /* ---- Overlay ---- */
   --ds-color-overlay:         rgba(15, 15, 15, 0.32);
+}
+
+/* ============================================
+   DARK MODE — Spotify-style
+   Deep neutral surfaces (not pure black), warm-leaning
+   light text, accent flips to white for inverse buttons.
+   ============================================ */
+[data-theme="dark"] {
+  /* ---- Background ---- */
+  --ds-color-bg:              #0E0E0D;
+  --ds-color-bg-elevated:     #1A1A18;
+  --ds-color-bg-subtle:       #19191A;
+  --ds-color-bg-hover:        #242422;
+  --ds-color-bg-sunken:       #050505;
+
+  /* ---- Border ---- */
+  --ds-color-border:          #2B2B28;
+  --ds-color-border-strong:   #4A4A45;
+  --ds-color-border-light:    #232321;
+  --ds-color-border-focus:    #F5F5F2;
+
+  /* ---- Text ---- */
+  --ds-color-text-primary:    #F5F5F2;
+  --ds-color-text-secondary:  #B5B5AE;
+  --ds-color-text-tertiary:   #7A7A74;
+  --ds-color-text-inverse:    #0A0A0A;
+
+  /* ---- Accent (inverted — white on dark) ---- */
+  --ds-color-accent:          #F5F5F2;
+  --ds-color-accent-hover:    #FFFFFF;
+  --ds-color-accent-light:    #242422;
+  --ds-color-accent-text:     #0A0A0A;
+
+  /* ---- Warm secondary (brighter for dark contrast) ---- */
+  --ds-color-warm:            #E08866;
+  --ds-color-warm-hover:      #EC9A7A;
+  --ds-color-warm-bg:         #2C201A;
+  --ds-color-warm-text:       #EFB99E;
+
+  /* ---- Semantic ---- */
+  --ds-color-success:         #4ADE80;
+  --ds-color-success-hover:   #22C55E;
+  --ds-color-success-light:   #14271C;
+  --ds-color-success-text:    #86EFAC;
+
+  --ds-color-warning:         #E0A040;
+  --ds-color-warning-light:   #2A1F0E;
+  --ds-color-warning-border:  #3A2D14;
+  --ds-color-warning-text:    #F0C079;
+
+  --ds-color-error:           #F87171;
+  --ds-color-error-hover:     #EF4444;
+  --ds-color-error-light:     #2A1414;
+  --ds-color-error-text:      #FCA5A5;
+
+  --ds-color-info:            #F5F5F2;
+  --ds-color-info-light:      #1F1F1E;
+
+  /* ---- Overlay ---- */
+  --ds-color-overlay:         rgba(0, 0, 0, 0.6);
 }

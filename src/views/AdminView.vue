@@ -3,11 +3,19 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import { useCoaches } from '../composables/useCoaches'
+import { useTheme } from '../composables/useTheme'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const router = useRouter()
 const { coach, logout } = useAuth()
 const { coaches, fetchCoaches } = useCoaches()
+const { theme, setTheme } = useTheme()
+
+const THEME_OPTIONS = [
+  { value: 'light', label: 'Lys' },
+  { value: 'dark', label: 'Mørk' },
+  { value: 'system', label: 'System' }
+]
 
 const showLogoutDialog = ref(false)
 
@@ -68,6 +76,23 @@ const links = [
         <span class="admin-row__label">{{ link.label }}</span>
         <svg class="admin-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </router-link>
+    </div>
+
+    <div class="px-lg" style="margin-top: var(--ds-space-xl);">
+      <div class="admin-section-label">Utseende</div>
+      <div class="theme-toggle" role="radiogroup" aria-label="Velg fargetema">
+        <button
+          v-for="opt in THEME_OPTIONS"
+          :key="opt.value"
+          type="button"
+          role="radio"
+          :aria-checked="theme === opt.value"
+          :class="['theme-toggle__option', { 'theme-toggle__option--active': theme === opt.value }]"
+          @click="setTheme(opt.value)"
+        >
+          {{ opt.label }}
+        </button>
+      </div>
     </div>
 
     <div class="px-lg mb-lg" style="margin-top: var(--ds-space-xl);">
@@ -234,5 +259,43 @@ const links = [
 
 .admin-account-card__logout:hover {
   text-decoration: underline;
+}
+
+/* Theme toggle — segmented control style */
+.theme-toggle {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--ds-color-bg-subtle);
+  border-radius: var(--ds-radius-md);
+  gap: 2px;
+}
+
+.theme-toggle__option {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 8px 16px;
+  border-radius: var(--ds-radius-sm);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  letter-spacing: -0.005em;
+  transition:
+    background-color var(--ds-duration-fast) var(--ds-ease-out),
+    color var(--ds-duration-fast) var(--ds-ease-out);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.theme-toggle__option:active {
+  transform: scale(0.97);
+}
+
+.theme-toggle__option--active {
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-primary);
+  font-weight: var(--ds-weight-semibold);
+  box-shadow: var(--ds-shadow-xs);
 }
 </style>
