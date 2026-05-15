@@ -56,6 +56,16 @@ const routes = [
     name: 'admin-hospitant-detail',
     component: () => import('./views/AdminHospitantDetailView.vue')
   },
+  {
+    path: '/admin/handbok',
+    name: 'admin-handbok',
+    component: () => import('./views/TrainingHandbookView.vue')
+  },
+  {
+    path: '/admin/handbok/:slug',
+    name: 'admin-handbok-principle',
+    component: () => import('./views/TrainingPrincipleView.vue')
+  },
   // Backwards-compat redirects for old paths
   { path: '/sesong', redirect: '/admin/dommerutlegg' },
   { path: '/mer', redirect: '/admin' }

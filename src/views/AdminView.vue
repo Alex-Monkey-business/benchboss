@@ -37,12 +37,36 @@ const links = [
   { to: '/admin/dommere', label: 'Dommere', icon: 'whistle' },
   { to: '/admin/hospitanter', label: 'Lånespillere', icon: 'kid' }
 ]
+
+// Same palette as principle cards — used in the hero strip on AdminView
+const HANDBOK_ACCENTS = ['#F8E8E0', '#E2EDDE', '#D6DDEF', '#F8E8E0', '#DDE6EC', '#F0E7D6']
 </script>
 
 <template>
   <div class="desktop-container">
     <div class="page-header">
       <h1 class="page-header__title">Admin</h1>
+    </div>
+
+    <!-- Trener-håndbok — own hero card, different register from utility links -->
+    <div class="px-lg" style="margin-bottom: var(--ds-space-lg);">
+      <router-link to="/admin/handbok" class="handbok-hero">
+        <span class="handbok-hero__strip" aria-hidden="true">
+          <span v-for="(c, i) in HANDBOK_ACCENTS" :key="i" :style="{ background: c }"></span>
+        </span>
+        <span class="handbok-hero__body">
+          <span class="handbok-hero__eyebrow">Trener-håndbok</span>
+          <span class="handbok-hero__title">Slik trener vi&nbsp;G2015</span>
+          <span class="handbok-hero__lead">6 prinsipper — les når du vil</span>
+        </span>
+        <svg class="handbok-hero__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </router-link>
+    </div>
+
+    <div class="px-lg" style="margin-bottom: 6px;">
+      <span class="admin-section-label" style="margin-left: 4px;">Verktøy</span>
     </div>
 
     <div class="px-lg admin-list">
@@ -71,6 +95,10 @@ const links = [
             <path d="M5 22v-2.5a4.5 4.5 0 0 1 4.5-4.5l2.5 2 2.5-2a4.5 4.5 0 0 1 4.5 4.5V22"/>
             <circle cx="8.5" cy="19" r="1.6"/>
             <polygon points="8.5,17.7 9.5,18.4 9.1,19.5 7.9,19.5 7.5,18.4" fill="currentColor"/>
+          </svg>
+          <svg v-else-if="link.icon === 'book'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 4.5A2.5 2.5 0 016.5 2H20v18H6.5A2.5 2.5 0 014 17.5z"/>
+            <path d="M4 17.5A2.5 2.5 0 016.5 15H20"/>
           </svg>
         </span>
         <span class="admin-row__label">{{ link.label }}</span>
@@ -260,6 +288,99 @@ const links = [
 .admin-account-card__logout:hover {
   text-decoration: underline;
 }
+
+/* ---- Trener-håndbok hero ---- */
+.handbok-hero {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-md);
+  padding: 0 var(--ds-space-md) 0 0;
+  background: var(--ds-color-bg-elevated);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  text-decoration: none;
+  color: inherit;
+  overflow: hidden;
+  box-shadow: var(--ds-shadow-xs);
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--ds-duration-fast) var(--ds-ease-out),
+    border-color var(--ds-duration-fast) var(--ds-ease-out),
+    box-shadow var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .handbok-hero:hover {
+    border-color: var(--ds-color-border-strong);
+    box-shadow: var(--ds-shadow-sm);
+    transform: translateY(-1px);
+  }
+}
+
+.handbok-hero:active {
+  transform: scale(0.99);
+}
+
+.handbok-hero__strip {
+  flex-shrink: 0;
+  width: 14px;
+  display: flex;
+  flex-direction: column;
+  align-self: stretch;
+}
+
+.handbok-hero__strip > span {
+  flex: 1;
+  display: block;
+}
+
+.handbok-hero__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--ds-space-md) 0;
+  min-width: 0;
+}
+
+.handbok-hero__eyebrow {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+}
+
+.handbok-hero__title {
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-tight);
+  color: var(--ds-color-text-primary);
+  line-height: 1.15;
+  font-variation-settings: var(--ds-font-display-settings);
+}
+
+.handbok-hero__lead {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+  letter-spacing: -0.005em;
+}
+
+.handbok-hero__chevron {
+  width: 18px;
+  height: 18px;
+  color: var(--ds-color-text-tertiary);
+  flex-shrink: 0;
+}
+
+[data-theme="dark"] .handbok-hero__strip > span:nth-child(1) { background: #2A1E18; }
+[data-theme="dark"] .handbok-hero__strip > span:nth-child(2) { background: #1A241D; }
+[data-theme="dark"] .handbok-hero__strip > span:nth-child(3) { background: #1A1F33; }
+[data-theme="dark"] .handbok-hero__strip > span:nth-child(4) { background: #2A1E18; }
+[data-theme="dark"] .handbok-hero__strip > span:nth-child(5) { background: #1A222A; }
+[data-theme="dark"] .handbok-hero__strip > span:nth-child(6) { background: #2A241A; }
 
 /* Theme toggle — segmented control style */
 .theme-toggle {
