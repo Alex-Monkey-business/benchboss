@@ -4,7 +4,8 @@ import { supabase, isSupabaseConfigured } from '../supabase'
 const coaches = ref([])
 const loaded = ref(false)
 
-// Profile images by coach name. Alex has no photo yet → falls back to initial avatar.
+// Profile images by coach name. Transparent PNG cutouts so the per-coach
+// background color shows through. Alex has no photo yet → initial fallback.
 const COACH_IMAGES = {
   'Trond': '/coaches/trond.png',
   'Iver': '/coaches/iver.png',

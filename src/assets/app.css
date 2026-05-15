@@ -285,35 +285,65 @@
 
 .coach-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(80px, 1fr));
-  gap: var(--ds-space-md);
+  grid-template-columns: repeat(auto-fill, minmax(96px, 1fr));
+  gap: var(--ds-space-sm);
 }
 
 @media (min-width: 480px) {
   .coach-grid {
-    grid-template-columns: repeat(auto-fill, minmax(90px, 1fr));
+    grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+    gap: var(--ds-space-md);
   }
 }
 
+/* Per-coach color tokens — assigned by data-coach attribute */
+.coach-btn {
+  --coach-bg:   var(--ds-color-warm-bg);
+  --coach-text: var(--ds-color-warm-text);
+}
+
+.coach-btn[data-coach="alex"]  { --coach-bg: #F8E8E0; --coach-text: #7A3A24; }   /* peach */
+.coach-btn[data-coach="iver"]  { --coach-bg: #E2EDDE; --coach-text: #3D5C44; }   /* sage */
+.coach-btn[data-coach="jacob"] { --coach-bg: #F2DBD7; --coach-text: #7E3A40; }   /* rose */
+.coach-btn[data-coach="simon"] { --coach-bg: #F0E7D6; --coach-text: #6B5630; }   /* sand */
+.coach-btn[data-coach="trond"] { --coach-bg: #DDE6EC; --coach-text: #3A4C5C; }   /* sky */
+
 .coach-btn {
   position: relative;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 8px;
-  padding: 12px 8px 10px;
+  display: block;
+  padding: 0;
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
-  background: var(--ds-color-bg-elevated);
+  background: var(--coach-bg);
   box-shadow: var(--ds-shadow-xs);
   cursor: pointer;
+  overflow: hidden;
+  aspect-ratio: 4 / 5;
   transition:
     transform var(--ds-duration-fast) var(--ds-ease-out),
     border-color var(--ds-duration-fast) var(--ds-ease-out),
-    background-color var(--ds-duration-fast) var(--ds-ease-out),
     box-shadow var(--ds-duration-fast) var(--ds-ease-out);
   font-family: var(--ds-font-body);
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Gradient overlay at bottom — uses coach-text color so each card breathes
+   its own atmosphere instead of generic black */
+.coach-btn::after {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 60%;
+  background: linear-gradient(
+    180deg,
+    color-mix(in srgb, var(--coach-text) 0%, transparent) 0%,
+    color-mix(in srgb, var(--coach-text) 55%, transparent) 55%,
+    color-mix(in srgb, var(--coach-text) 96%, transparent) 100%
+  );
+  z-index: 1;
+  pointer-events: none;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -321,69 +351,90 @@
     border-color: var(--ds-color-border-strong);
     box-shadow: var(--ds-shadow-sm);
   }
+  .coach-btn:hover .coach-btn__avatar-img {
+    transform: scale(1.04);
+  }
 }
 
 .coach-btn:active {
   transform: scale(0.97);
 }
 
+/* Avatar — fills upper area, name strip sits below on warm bg */
+/* Avatar fills the card — cutout sits at bottom edge with top breathing room */
 .coach-btn__avatar {
-  position: relative;
-  width: 52px;
-  height: 52px;
-  border-radius: 16px;          /* squircle — reads as UI element, not portrait */
+  position: absolute;
+  inset: 0;
+  padding-top: 14px;
   display: flex;
-  align-items: center;
+  align-items: flex-end;
   justify-content: center;
-  font-family: var(--ds-font-display-sans);
-  font-size: 22px;
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: -0.02em;
-  background: var(--ds-color-warm-bg);
-  color: var(--ds-color-warm-text);
   overflow: hidden;
 }
 
 .coach-btn__avatar-img {
-  width: 100%;
+  display: block;
+  max-width: 100%;
+  max-height: 100%;
+  width: auto;
   height: 100%;
-  border-radius: 16px;
-  object-fit: cover;
+  object-fit: contain;
+  object-position: center bottom;
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.18));
+  transition: transform 360ms var(--ds-ease-out);
 }
 
-/* Selected = charcoal card border + subtle warm tint + check overlay */
+/* Initial fallback (Alex) — centered, not bottom-aligned */
+.coach-btn__initial {
+  margin: auto;
+  font-family: var(--ds-font-display-sans);
+  font-size: 56px;
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: -0.03em;
+  color: var(--coach-text);
+}
+
+/* Name overlay — white on gradient, bottom-aligned */
+.coach-btn__name {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 14px 8px 10px;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
+  color: #ffffff;
+  letter-spacing: -0.005em;
+  text-align: center;
+  text-shadow: 0 1px 3px rgba(0, 0, 0, 0.55), 0 0 8px rgba(0, 0, 0, 0.25);
+  z-index: 2;
+}
+
+/* Selected = charcoal border + top-right check badge */
 .coach-btn--selected {
   border-color: var(--ds-color-accent);
-  background: var(--ds-color-warm-bg);
+  box-shadow: 0 0 0 1px var(--ds-color-accent), var(--ds-shadow-sm);
 }
 
-/* Selected scrim + centered check overlay on avatar (iOS Photos-style) */
 .coach-btn__check {
   position: absolute;
-  inset: 0;
-  border-radius: 16px;
-  background: rgba(10, 10, 10, 0.42);
-  color: #ffffff;
+  top: 8px;
+  right: 8px;
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
   display: flex;
   align-items: center;
   justify-content: center;
-  backdrop-filter: blur(1px);
+  z-index: 3;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
 }
 
 .coach-btn__check svg {
-  width: 22px;
-  height: 22px;
-}
-
-.coach-btn__name {
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-primary);
-  letter-spacing: -0.005em;
-}
-
-.coach-btn--selected .coach-btn__name {
-  font-weight: var(--ds-weight-semibold);
+  width: 14px;
+  height: 14px;
 }
 
 /* Index colors are now redundant — initial fallback uses warm tint by default.

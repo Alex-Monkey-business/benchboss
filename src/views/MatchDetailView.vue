@@ -618,19 +618,20 @@ async function saveDateTime() {
             <button
               v-for="c in coaches"
               :key="c.id"
+              :data-coach="c.name.toLowerCase()"
               :class="['coach-btn', { 'coach-btn--selected': matchCoachIds.includes(c.id) }]"
               @click="toggleCoach(c.id)"
             >
               <div class="coach-btn__avatar">
                 <img v-if="c.image" :src="c.image" :alt="c.name" class="coach-btn__avatar-img" />
-                <template v-else>{{ c.name.charAt(0) }}</template>
-                <span v-if="matchCoachIds.includes(c.id)" class="coach-btn__check" aria-hidden="true">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                    <polyline points="20 6 9 17 4 12"/>
-                  </svg>
-                </span>
+                <span v-else class="coach-btn__initial">{{ c.name.charAt(0) }}</span>
               </div>
               <span class="coach-btn__name">{{ c.name }}</span>
+              <span v-if="matchCoachIds.includes(c.id)" class="coach-btn__check" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </span>
             </button>
           </div>
         </div>
