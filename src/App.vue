@@ -18,29 +18,32 @@ const showDemo = computed(() => !isSupabaseConfigured)
 // Splash plays as an overlay on cold load — destination route er allerede
 // mounted under, så fade-out viser den uten router-thrash.
 //
-// Visnings-policy (best practice for en daglig-bruk coach-app):
-//   1. Maks én gang per dag (date-stamp i localStorage)
+// Visnings-policy:
+//   1. Maks én gang per uke (7-dagers rolling fra siste visning)
 //   2. Aldri to ganger i samme browser-session (refresh / back-nav)
 //   3. Bump SPLASH_VERSION når selve splashen endres for å tvinge replay
 const SPLASH_VERSION = 1
+const SPLASH_COOLDOWN_MS = 7 * 24 * 60 * 60 * 1000
 const SESSION_KEY = 'splashShownInSession'
 const LAST_KEY = 'splashLastShown'
-
-function todayKey() {
-  const d = new Date()
-  const yyyy = d.getFullYear()
-  const mm = String(d.getMonth() + 1).padStart(2, '0')
-  const dd = String(d.getDate()).padStart(2, '0')
-  return `${yyyy}-${mm}-${dd}-v${SPLASH_VERSION}`
-}
+const VERSION_KEY = 'splashVersion'
 
 function shouldShowSplash() {
   if (sessionStorage.getItem(SESSION_KEY)) return false
-  if (localStorage.getItem(LAST_KEY) === todayKey()) {
+
+  const savedVersion = Number(localStorage.getItem(VERSION_KEY))
+  const last = Number(localStorage.getItem(LAST_KEY))
+  const withinCooldown = savedVersion === SPLASH_VERSION
+    && last
+    && Date.now() - last < SPLASH_COOLDOWN_MS
+
+  if (withinCooldown) {
     sessionStorage.setItem(SESSION_KEY, '1')
     return false
   }
-  localStorage.setItem(LAST_KEY, todayKey())
+
+  localStorage.setItem(LAST_KEY, String(Date.now()))
+  localStorage.setItem(VERSION_KEY, String(SPLASH_VERSION))
   sessionStorage.setItem(SESSION_KEY, '1')
   return true
 }

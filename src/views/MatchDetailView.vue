@@ -50,10 +50,9 @@ const open = ref({
   summary: false     // Resultat + Scorere + Kampreferat
 })
 
-// Scorer sheet state
+// Scorer sheet state — tap-to-increment-flow
 const showScorerSheet = ref(false)
-const editingScorerEntry = ref(null) // null = add-mode; ellers aggregated entry { player_id, player, count, goalIds }
-const scorerPlayerId = ref('')
+const lastTappedPlayerId = ref('')   // siste tappet spiller — fjern-knapp i bunn refererer til denne
 const showNewPlayerForm = ref(false)
 const newPlayerName = ref('')
 const newPlayerTeam = ref('')
@@ -443,64 +442,44 @@ const scorersLabel = computed(() => {
     .join(', ')
 })
 
+function goalCountForPlayer(playerId) {
+  return matchGoals.value.filter(g => g.player_id === playerId).length
+}
+
 const goalCountMismatch = computed(() => {
   const home = match.value?.home_score
   if (home === null || home === undefined) return false
   return matchGoals.value.length > 0 && matchGoals.value.length !== home
 })
 
-function openAddScorerSheet() {
-  editingScorerEntry.value = null
-  scorerPlayerId.value = ''
+function openScorerSheet(preselectPlayerId = '') {
+  lastTappedPlayerId.value = preselectPlayerId
   showNewPlayerForm.value = false
   newPlayerName.value = ''
   newPlayerTeam.value = ''
   showScorerSheet.value = true
 }
 
-function openEditScorerSheet(aggregatedEntry) {
-  // Klon så endringer i underliggende store ikke muterer state mens sheet er åpen
-  editingScorerEntry.value = {
-    player_id: aggregatedEntry.player_id,
-    player: aggregatedEntry.player,
-    count: aggregatedEntry.count,
-    goalIds: [...aggregatedEntry.goalIds]
-  }
-  showScorerSheet.value = true
-}
-
 function closeScorerSheet() {
   showScorerSheet.value = false
+  lastTappedPlayerId.value = ''
 }
 
-const isScorerValid = computed(() => !!scorerPlayerId.value)
-
-async function saveScorer() {
-  if (!isScorerValid.value) return
-  await addGoal(match.value.id, { player_id: scorerPlayerId.value })
-  const name = getPlayerById(scorerPlayerId.value)?.name
-  showToast(name ? `Mål til ${name}` : 'Mål lagt til', 'success')
-  showScorerSheet.value = false
+async function tapPlayerInPicker(playerId) {
+  lastTappedPlayerId.value = playerId
+  await addGoal(match.value.id, { player_id: playerId })
 }
 
-async function removeOneGoal() {
-  const entry = editingScorerEntry.value
+const lastTappedScorerEntry = computed(() => {
+  if (!lastTappedPlayerId.value) return null
+  return aggregatedScorers.value.find(s => s.player_id === lastTappedPlayerId.value) || null
+})
+
+async function removeLastGoalForActivePlayer() {
+  const entry = lastTappedScorerEntry.value
   if (!entry || entry.goalIds.length === 0) return
-  // Fjern det siste loggede målet (høyest position via vår sortering)
   const goalId = entry.goalIds[entry.goalIds.length - 1]
   await removeGoal(goalId)
-  showToast(`Ett mål fjernet fra ${entry.player?.name || 'spilleren'}`, 'success')
-  showScorerSheet.value = false
-}
-
-async function removeAllGoalsForPlayer() {
-  const entry = editingScorerEntry.value
-  if (!entry) return
-  for (const goalId of entry.goalIds) {
-    await removeGoal(goalId)
-  }
-  showToast(`${entry.count} mål fjernet fra ${entry.player?.name || 'spilleren'}`, 'success')
-  showScorerSheet.value = false
 }
 
 async function quickAddPlayer() {
@@ -508,11 +487,13 @@ async function quickAddPlayer() {
   if (!name) return
   const p = await addPlayer(name, newPlayerTeam.value)
   if (p) {
-    scorerPlayerId.value = p.id
+    // Spiller opprettet i scorer-kontekst → registrer mål med en gang
+    await addGoal(match.value.id, { player_id: p.id })
+    lastTappedPlayerId.value = p.id
     showNewPlayerForm.value = false
     newPlayerName.value = ''
     newPlayerTeam.value = ''
-    showToast(`${p.name} lagt til`, 'success')
+    showToast(`Mål til ${p.name}`, 'success')
   }
 }
 
@@ -949,7 +930,7 @@ function focusTeamGroup() {
                 'referee-pill scorer-pill',
                 s.player?.primary_team ? `scorer-pill--${s.player.primary_team}` : ''
               ]"
-              @click="openEditScorerSheet(s)"
+              @click="openScorerSheet(s.player_id)"
             >
               {{ s.player?.name || 'Ukjent' }}<span
                 v-if="s.count > 1"
@@ -960,7 +941,7 @@ function focusTeamGroup() {
           <button
             type="button"
             class="ds-btn ds-btn--secondary ds-btn--sm scorers-block__add"
-            @click="openAddScorerSheet"
+            @click="openScorerSheet()"
           >
             + Legg til scorer
           </button>
@@ -1044,61 +1025,15 @@ function focusTeamGroup() {
       </div>
     </Sheet>
 
-    <!-- Målscorer sheet — to modes: add (picker) eller edit (fjern fra spiller) -->
-    <Sheet
-      :show="showScorerSheet"
-      :title="editingScorerEntry ? 'Mål' : 'Legg til mål'"
-      @close="closeScorerSheet"
-    >
-      <!-- EDIT MODE: vis info + fjern-knapper for en bestemt spiller -->
-      <div v-if="editingScorerEntry" class="scorer-form">
-        <div class="scorer-edit-summary">
-          <span
-            :class="[
-              'scorer-edit-summary__chip',
-              editingScorerEntry.player?.primary_team ? `scorer-picker__chip--${editingScorerEntry.player.primary_team}` : ''
-            ]"
-          >{{ editingScorerEntry.player?.name || 'Ukjent' }}</span>
-          <div class="scorer-edit-summary__text">
-            har scoret <strong>{{ editingScorerEntry.count }}</strong> {{ editingScorerEntry.count === 1 ? 'mål' : 'mål' }} i denne kampen
-          </div>
-        </div>
-
-        <div class="scorer-form__actions">
-          <button
-            v-if="editingScorerEntry.count > 1"
-            type="button"
-            class="ds-btn ds-btn--ghost ds-btn--sm scorer-form__delete"
-            @click="removeAllGoalsForPlayer"
-          >
-            Slett alle ({{ editingScorerEntry.count }})
-          </button>
-          <span class="scorer-form__spacer"></span>
-          <button
-            type="button"
-            class="ds-btn ds-btn--secondary ds-btn--sm"
-            @click="closeScorerSheet"
-          >
-            Avbryt
-          </button>
-          <button
-            type="button"
-            class="ds-btn ds-btn--primary ds-btn--sm"
-            @click="removeOneGoal"
-          >
-            {{ editingScorerEntry.count > 1 ? 'Fjern ett mål' : 'Fjern mål' }}
-          </button>
-        </div>
-      </div>
-
-      <!-- ADD MODE: picker + lagre -->
-      <div v-else class="scorer-form">
-        <div v-if="players.length === 0" class="hospitant-empty" style="margin: 0;">
+    <!-- Målscorer sheet — tap-to-increment-flow -->
+    <Sheet :show="showScorerSheet" title="Mål" @close="closeScorerSheet">
+      <div class="scorer-form">
+        <div v-if="players.length === 0 && !showNewPlayerForm" class="hospitant-empty" style="margin: 0;">
           Ingen spillere i poolen ennå — legg til en spiller for å registrere mål.
         </div>
 
         <template v-else>
-          <div class="scorer-form__label">Velg spiller</div>
+          <p class="scorer-form__hint">Trykk på spiller for å registrere mål. Trykk flere ganger for flere mål.</p>
           <div class="scorer-picker">
             <template v-for="team in ['gronn', 'rod', 'hvit', 'other']" :key="team">
               <div
@@ -1116,11 +1051,15 @@ function focusTeamGroup() {
                     :class="[
                       'scorer-picker__chip',
                       p.primary_team ? `scorer-picker__chip--${p.primary_team}` : '',
-                      { 'scorer-picker__chip--selected': scorerPlayerId === p.id }
+                      { 'scorer-picker__chip--active': lastTappedPlayerId === p.id },
+                      { 'scorer-picker__chip--has-goals': goalCountForPlayer(p.id) > 0 }
                     ]"
-                    @click="scorerPlayerId = p.id"
+                    @click="tapPlayerInPicker(p.id)"
                   >
-                    {{ p.name }}
+                    {{ p.name }}<span
+                      v-if="goalCountForPlayer(p.id) > 0"
+                      class="scorer-picker__chip-count"
+                    > ×{{ goalCountForPlayer(p.id) }}</span>
                   </button>
                 </div>
               </div>
@@ -1131,7 +1070,7 @@ function focusTeamGroup() {
         <button
           v-if="!showNewPlayerForm"
           type="button"
-          class="ds-btn ds-btn--ghost ds-btn--sm scorer-form__newplayer-btn"
+          class="ds-btn ds-btn--ghost scorer-form__newplayer-btn"
           @click="showNewPlayerForm = true"
         >
           + Ny spiller
@@ -1162,38 +1101,38 @@ function focusTeamGroup() {
           <div class="scorer-form__newplayer-actions">
             <button
               type="button"
-              class="ds-btn ds-btn--secondary ds-btn--sm"
+              class="ds-btn ds-btn--secondary"
               @click="showNewPlayerForm = false"
             >
               Avbryt
             </button>
             <button
               type="button"
-              class="ds-btn ds-btn--primary ds-btn--sm"
+              class="ds-btn ds-btn--primary"
               :disabled="!newPlayerName.trim()"
               @click="quickAddPlayer"
             >
-              Lagre spiller
+              Lagre + 1 mål
             </button>
           </div>
         </div>
 
-        <div class="scorer-form__actions">
-          <span class="scorer-form__spacer"></span>
+        <!-- Bunn-actions: fjern fra siste tappet (når den har mål) + Ferdig -->
+        <div class="scorer-form__bottom">
           <button
+            v-if="lastTappedScorerEntry && lastTappedScorerEntry.count > 0"
             type="button"
-            class="ds-btn ds-btn--secondary ds-btn--sm"
-            @click="closeScorerSheet"
+            class="ds-btn ds-btn--secondary scorer-form__remove"
+            @click="removeLastGoalForActivePlayer"
           >
-            Avbryt
+            − Fjern mål fra {{ lastTappedScorerEntry.player?.name || 'spiller' }}
           </button>
           <button
             type="button"
-            class="ds-btn ds-btn--primary ds-btn--sm"
-            :disabled="!isScorerValid"
-            @click="saveScorer"
+            class="ds-btn ds-btn--primary scorer-form__done"
+            @click="closeScorerSheet"
           >
-            Lagre
+            Ferdig
           </button>
         </div>
       </div>
@@ -1894,6 +1833,11 @@ function focusTeamGroup() {
 .scorers-block__add {
   width: 100%;
   justify-content: center;
+  min-height: 48px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: 12px;
 }
 
 .scorers-block__hint {
@@ -1941,19 +1885,43 @@ function focusTeamGroup() {
 }
 
 .scorer-picker__chip {
-  padding: 6px 12px;
+  padding: 10px 16px 10px 26px;
+  min-height: 44px;
   border: 1.5px solid var(--ds-color-border);
-  border-radius: 18px;
+  border-radius: 22px;
   background: var(--ds-color-bg-elevated);
   font-family: var(--ds-font-body);
-  font-size: 0.8125rem;
+  font-size: 0.9375rem;
   font-weight: 500;
   color: var(--ds-color-text-secondary);
   cursor: pointer;
   transition: border-color 0.15s ease, background 0.15s ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
   -webkit-tap-highlight-color: transparent;
   position: relative;
-  padding-left: 22px;
+}
+
+.scorer-picker__chip--has-goals {
+  border-color: var(--ds-color-accent);
+  color: var(--ds-color-text-primary);
+  font-weight: 600;
+}
+
+.scorer-picker__chip--active {
+  background: var(--ds-color-accent);
+  border-color: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+}
+
+.scorer-picker__chip--active::before {
+  /* prikken er fortsatt fargestripe, sikre kontrast på mørk accent */
+  outline: 2px solid var(--ds-color-accent-text);
+  outline-offset: -1px;
+}
+
+.scorer-picker__chip-count {
+  font-weight: 700;
+  margin-left: 4px;
+  font-variant-numeric: tabular-nums;
 }
 
 .scorer-picker__chip:active {
@@ -1988,6 +1956,45 @@ function focusTeamGroup() {
 .scorer-form__newplayer-btn {
   align-self: flex-start;
   color: var(--ds-color-accent);
+  min-height: 44px;
+  padding: 10px 16px;
+  font-size: 0.9375rem;
+}
+
+.scorer-form__hint {
+  margin: 0 0 4px;
+  font-size: 0.8125rem;
+  color: var(--ds-color-text-tertiary);
+  line-height: 1.4;
+}
+
+.scorer-form__bottom {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 10px;
+  padding-top: 14px;
+  border-top: 1px solid var(--ds-color-border-light);
+}
+
+.scorer-form__remove {
+  min-height: 48px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: 12px;
+  width: 100%;
+  color: var(--ds-color-error);
+  border-color: var(--ds-color-error-light, var(--ds-color-border));
+}
+
+.scorer-form__done {
+  min-height: 52px;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 14px 20px;
+  border-radius: 12px;
+  width: 100%;
 }
 
 .scorer-form__newplayer {
@@ -2047,7 +2054,12 @@ function focusTeamGroup() {
 }
 
 .report-save-btn {
-  margin-top: 10px;
-  align-self: flex-start;
+  margin-top: 12px;
+  width: 100%;
+  min-height: 48px;
+  font-size: 0.9375rem;
+  font-weight: 600;
+  padding: 12px 20px;
+  border-radius: 12px;
 }
 </style>
