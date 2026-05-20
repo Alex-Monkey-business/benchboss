@@ -22,7 +22,7 @@ const { expenses, fetchExpenses, registerExpense, getExpenseForMatch, removeExpe
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
 const { players, fetchPlayers, addPlayer, getPlayerById } = usePlayers()
-const { goals: allGoals, fetchMatchGoals, addGoal, updateGoal, removeGoal } = useMatchGoals()
+const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals()
 const { show: showToast } = useToast()
 
 // Try cache first — instant render when arriving from Dashboard.
@@ -52,16 +52,15 @@ const open = ref({
 
 // Scorer sheet state
 const showScorerSheet = ref(false)
-const editingGoalId = ref(null)
+const editingScorerEntry = ref(null) // null = add-mode; ellers aggregated entry { player_id, player, count, goalIds }
 const scorerPlayerId = ref('')
 const showNewPlayerForm = ref(false)
 const newPlayerName = ref('')
 const newPlayerTeam = ref('')
 
-// Kampreferat autosave
+// Kampreferat — eksplisitt Lagre-knapp
 const reportInput = ref('')
 const reportSavedAt = ref(null)
-let reportSaveTimer = null
 
 onMounted(async () => {
   await Promise.all([fetchCoaches(), fetchReferees(), fetchPlayers(), fetchAllMatchPlayers()])
@@ -418,9 +417,29 @@ const matchGoals = computed(() => {
     .sort((a, b) => a.position - b.position)
 })
 
+// Aggregert per spiller: { player_id, player, count, goalIds, firstPosition }
+const aggregatedScorers = computed(() => {
+  const groups = new Map()
+  for (const g of matchGoals.value) {
+    if (!groups.has(g.player_id)) {
+      groups.set(g.player_id, {
+        player_id: g.player_id,
+        player: getPlayerById(g.player_id),
+        count: 0,
+        goalIds: [],
+        firstPosition: g.position
+      })
+    }
+    const entry = groups.get(g.player_id)
+    entry.count++
+    entry.goalIds.push(g.id)
+  }
+  return Array.from(groups.values()).sort((a, b) => a.firstPosition - b.firstPosition)
+})
+
 const scorersLabel = computed(() => {
-  return matchGoals.value
-    .map(g => getPlayerById(g.player_id)?.name || '?')
+  return aggregatedScorers.value
+    .map(s => s.count > 1 ? `${s.player?.name || '?'} ×${s.count}` : (s.player?.name || '?'))
     .join(', ')
 })
 
@@ -431,7 +450,7 @@ const goalCountMismatch = computed(() => {
 })
 
 function openAddScorerSheet() {
-  editingGoalId.value = null
+  editingScorerEntry.value = null
   scorerPlayerId.value = ''
   showNewPlayerForm.value = false
   newPlayerName.value = ''
@@ -439,12 +458,14 @@ function openAddScorerSheet() {
   showScorerSheet.value = true
 }
 
-function openEditScorerSheet(goal) {
-  editingGoalId.value = goal.id
-  scorerPlayerId.value = goal.player_id
-  showNewPlayerForm.value = false
-  newPlayerName.value = ''
-  newPlayerTeam.value = ''
+function openEditScorerSheet(aggregatedEntry) {
+  // Klon så endringer i underliggende store ikke muterer state mens sheet er åpen
+  editingScorerEntry.value = {
+    player_id: aggregatedEntry.player_id,
+    player: aggregatedEntry.player,
+    count: aggregatedEntry.count,
+    goalIds: [...aggregatedEntry.goalIds]
+  }
   showScorerSheet.value = true
 }
 
@@ -456,20 +477,29 @@ const isScorerValid = computed(() => !!scorerPlayerId.value)
 
 async function saveScorer() {
   if (!isScorerValid.value) return
-  if (editingGoalId.value) {
-    await updateGoal(editingGoalId.value, { player_id: scorerPlayerId.value })
-    showToast('Mål oppdatert', 'success')
-  } else {
-    await addGoal(match.value.id, { player_id: scorerPlayerId.value })
-    showToast('Mål lagt til', 'success')
-  }
+  await addGoal(match.value.id, { player_id: scorerPlayerId.value })
+  const name = getPlayerById(scorerPlayerId.value)?.name
+  showToast(name ? `Mål til ${name}` : 'Mål lagt til', 'success')
   showScorerSheet.value = false
 }
 
-async function deleteScorer() {
-  if (!editingGoalId.value) return
-  await removeGoal(editingGoalId.value)
-  showToast('Mål fjernet', 'success')
+async function removeOneGoal() {
+  const entry = editingScorerEntry.value
+  if (!entry || entry.goalIds.length === 0) return
+  // Fjern det siste loggede målet (høyest position via vår sortering)
+  const goalId = entry.goalIds[entry.goalIds.length - 1]
+  await removeGoal(goalId)
+  showToast(`Ett mål fjernet fra ${entry.player?.name || 'spilleren'}`, 'success')
+  showScorerSheet.value = false
+}
+
+async function removeAllGoalsForPlayer() {
+  const entry = editingScorerEntry.value
+  if (!entry) return
+  for (const goalId of entry.goalIds) {
+    await removeGoal(goalId)
+  }
+  showToast(`${entry.count} mål fjernet fra ${entry.player?.name || 'spilleren'}`, 'success')
   showScorerSheet.value = false
 }
 
@@ -496,17 +526,19 @@ const playersByTeam = computed(() => {
   return groups
 })
 
-// ─── Kampreferat autosave (~600ms debounce) ──────────────────────────────────
-watch(reportInput, (val) => {
-  if (!match.value) return
-  if ((match.value.report || '') === val) return
-  if (reportSaveTimer) clearTimeout(reportSaveTimer)
-  reportSaveTimer = setTimeout(async () => {
-    await updateMatch(match.value.id, { report: val })
-    match.value.report = val
-    reportSavedAt.value = new Date()
-  }, 600)
+// ─── Kampreferat — eksplisitt lagring ────────────────────────────────────────
+const isReportChanged = computed(() => {
+  if (!match.value) return false
+  return reportInput.value !== (match.value.report || '')
 })
+
+async function saveReport() {
+  if (!isReportChanged.value || !match.value) return
+  await updateMatch(match.value.id, { report: reportInput.value })
+  match.value.report = reportInput.value
+  reportSavedAt.value = new Date()
+  showToast('Referat lagret', 'success')
+}
 
 const reportSavedLabel = computed(() => {
   if (!reportSavedAt.value) return ''
@@ -910,18 +942,19 @@ function focusTeamGroup() {
           </div>
           <div v-else class="referee-pills scorer-pills">
             <button
-              v-for="g in matchGoals"
-              :key="g.id"
+              v-for="s in aggregatedScorers"
+              :key="s.player_id"
               type="button"
               :class="[
                 'referee-pill scorer-pill',
-                getPlayerById(g.player_id)?.primary_team
-                  ? `scorer-pill--${getPlayerById(g.player_id).primary_team}`
-                  : ''
+                s.player?.primary_team ? `scorer-pill--${s.player.primary_team}` : ''
               ]"
-              @click="openEditScorerSheet(g)"
+              @click="openEditScorerSheet(s)"
             >
-              {{ getPlayerById(g.player_id)?.name || 'Ukjent' }}
+              {{ s.player?.name || 'Ukjent' }}<span
+                v-if="s.count > 1"
+                class="scorer-pill__count"
+              > ×{{ s.count }}</span>
             </button>
           </div>
           <button
@@ -938,10 +971,7 @@ function focusTeamGroup() {
 
         <!-- Kampreferat -->
         <div class="sub-section">
-          <div class="sub-section__label">
-            Kampreferat
-            <span v-if="reportSavedLabel" class="sub-section__hint">{{ reportSavedLabel }}</span>
-          </div>
+          <div class="sub-section__label">Kampreferat</div>
           <textarea
             v-model="reportInput"
             class="ds-input report-textarea"
@@ -951,7 +981,16 @@ function focusTeamGroup() {
           ></textarea>
           <div class="report-meta">
             <span class="report-meta__count">{{ reportInput.length }} / 1000</span>
+            <span v-if="reportSavedLabel && !isReportChanged" class="report-meta__saved">{{ reportSavedLabel }}</span>
           </div>
+          <button
+            type="button"
+            class="ds-btn ds-btn--primary ds-btn--sm report-save-btn"
+            :disabled="!isReportChanged"
+            @click="saveReport"
+          >
+            {{ isReportChanged ? 'Lagre referat' : 'Lagret' }}
+          </button>
         </div>
       </DisclosureSection>
     </div>
@@ -1005,13 +1044,55 @@ function focusTeamGroup() {
       </div>
     </Sheet>
 
-    <!-- Målscorer sheet (legg til / rediger) -->
+    <!-- Målscorer sheet — to modes: add (picker) eller edit (fjern fra spiller) -->
     <Sheet
       :show="showScorerSheet"
-      :title="editingGoalId ? 'Rediger mål' : 'Legg til mål'"
+      :title="editingScorerEntry ? 'Mål' : 'Legg til mål'"
       @close="closeScorerSheet"
     >
-      <div class="scorer-form">
+      <!-- EDIT MODE: vis info + fjern-knapper for en bestemt spiller -->
+      <div v-if="editingScorerEntry" class="scorer-form">
+        <div class="scorer-edit-summary">
+          <span
+            :class="[
+              'scorer-edit-summary__chip',
+              editingScorerEntry.player?.primary_team ? `scorer-picker__chip--${editingScorerEntry.player.primary_team}` : ''
+            ]"
+          >{{ editingScorerEntry.player?.name || 'Ukjent' }}</span>
+          <div class="scorer-edit-summary__text">
+            har scoret <strong>{{ editingScorerEntry.count }}</strong> {{ editingScorerEntry.count === 1 ? 'mål' : 'mål' }} i denne kampen
+          </div>
+        </div>
+
+        <div class="scorer-form__actions">
+          <button
+            v-if="editingScorerEntry.count > 1"
+            type="button"
+            class="ds-btn ds-btn--ghost ds-btn--sm scorer-form__delete"
+            @click="removeAllGoalsForPlayer"
+          >
+            Slett alle ({{ editingScorerEntry.count }})
+          </button>
+          <span class="scorer-form__spacer"></span>
+          <button
+            type="button"
+            class="ds-btn ds-btn--secondary ds-btn--sm"
+            @click="closeScorerSheet"
+          >
+            Avbryt
+          </button>
+          <button
+            type="button"
+            class="ds-btn ds-btn--primary ds-btn--sm"
+            @click="removeOneGoal"
+          >
+            {{ editingScorerEntry.count > 1 ? 'Fjern ett mål' : 'Fjern mål' }}
+          </button>
+        </div>
+      </div>
+
+      <!-- ADD MODE: picker + lagre -->
+      <div v-else class="scorer-form">
         <div v-if="players.length === 0" class="hospitant-empty" style="margin: 0;">
           Ingen spillere i poolen ennå — legg til en spiller for å registrere mål.
         </div>
@@ -1098,14 +1179,6 @@ function focusTeamGroup() {
         </div>
 
         <div class="scorer-form__actions">
-          <button
-            v-if="editingGoalId"
-            type="button"
-            class="ds-btn ds-btn--ghost ds-btn--sm scorer-form__delete"
-            @click="deleteScorer"
-          >
-            Slett mål
-          </button>
           <span class="scorer-form__spacer"></span>
           <button
             type="button"
@@ -1738,6 +1811,67 @@ function focusTeamGroup() {
   padding-left: 18px;
 }
 
+.scorer-pill__count {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  margin-left: 4px;
+}
+
+/* Scorer-edit-sheet ─ vis spillerinfo + fjern-knapper */
+.scorer-edit-summary {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 10px;
+  padding: 16px 14px;
+  border: 1px solid var(--ds-color-border-light);
+  border-radius: 12px;
+  background: var(--ds-color-bg-elevated);
+}
+
+.scorer-edit-summary__chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 4px 10px 4px 22px;
+  border-radius: 14px;
+  background: var(--ds-color-bg);
+  border: 1px solid var(--ds-color-border);
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ds-color-text-primary);
+  position: relative;
+}
+
+.scorer-edit-summary__chip::before {
+  content: '';
+  position: absolute;
+  left: 9px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: var(--ds-color-text-tertiary);
+}
+
+.scorer-edit-summary__chip.scorer-picker__chip--gronn::before { background: var(--ds-color-success); }
+.scorer-edit-summary__chip.scorer-picker__chip--rod::before { background: var(--ds-color-error); }
+.scorer-edit-summary__chip.scorer-picker__chip--hvit::before {
+  background: var(--ds-color-bg);
+  border: 1px solid var(--ds-color-text-tertiary);
+}
+
+.scorer-edit-summary__text {
+  font-size: 0.875rem;
+  color: var(--ds-color-text-secondary);
+  line-height: 1.4;
+}
+
+.scorer-edit-summary__text strong {
+  color: var(--ds-color-text-primary);
+  font-weight: 700;
+}
+
 .scorer-pill::before {
   content: '';
   position: absolute;
@@ -1910,5 +2044,10 @@ function focusTeamGroup() {
 
 .report-meta__saved {
   color: var(--ds-color-success, var(--ds-color-text-tertiary));
+}
+
+.report-save-btn {
+  margin-top: 10px;
+  align-self: flex-start;
 }
 </style>
