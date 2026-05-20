@@ -68,7 +68,7 @@ async function handleAddPlayer() {
     </div>
 
     <div class="page-header">
-      <h1 class="page-header__title">Lånespillere</h1>
+      <h1 class="page-header__title">Spillere</h1>
       <p v-if="players.length > 0" class="page-header__subtitle">
         {{ players.length }} spillere · {{ totalHospitantMatches }} ekstra kamper
       </p>
@@ -100,12 +100,12 @@ async function handleAddPlayer() {
 
         <button class="more-inline-action" @click="showAddPlayer = true">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Ny lånespiller
+          Ny spiller
         </button>
       </div>
     </div>
 
-    <Sheet :show="showAddPlayer" title="Ny lånespiller" @close="cancelAddPlayer">
+    <Sheet :show="showAddPlayer" title="Ny spiller" @close="cancelAddPlayer">
       <div class="ds-form-group">
         <label class="ds-label">Navn</label>
         <input v-model="newPlayerName" class="ds-input" placeholder="Spillerens navn" @keydown.enter="handleAddPlayer" />

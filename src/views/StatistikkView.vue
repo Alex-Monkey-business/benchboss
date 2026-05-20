@@ -5,6 +5,7 @@ import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
 import { useReferees } from '../composables/useReferees'
 import { usePlayers } from '../composables/usePlayers'
+import { useMatchGoals } from '../composables/useMatchGoals'
 import AnimatedNumber from '../components/AnimatedNumber.vue'
 import Skeleton from '../components/Skeleton.vue'
 import FormCurve from '../components/FormCurve.vue'
@@ -14,12 +15,13 @@ const { matches, matchCoaches, matchPlayers, fetchMatches } = useMatches()
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees } = useReferees()
 const { players, fetchPlayers } = usePlayers()
+const { goals: allGoals, fetchAllGoals } = useMatchGoals()
 
 // Skeleton only on the very first load. Data persists across navigation.
 const loading = ref(matches.value.length === 0)
 
 onMounted(async () => {
-  await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers()])
+  await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchAllGoals()])
   if (activeSeason.value) {
     await fetchMatches(activeSeason.value.id)
   }
@@ -191,6 +193,20 @@ const playerStats = computed(() => {
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
 })
 
+// Toppscorere — kun mål registrert i denne sesongens kamper
+const topScorers = computed(() => {
+  const seasonMatchIds = new Set(halsenMatches.value.map(m => m.id))
+  const counts = {}
+  allGoals.value.forEach(g => {
+    if (!seasonMatchIds.has(g.match_id)) return
+    counts[g.player_id] = (counts[g.player_id] || 0) + 1
+  })
+  return players.value
+    .map(p => ({ id: p.id, name: p.name, primary_team: p.primary_team, count: counts[p.id] || 0 }))
+    .filter(p => p.count > 0)
+    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+})
+
 const hasAnyResult = computed(() => playedMatches.value.length > 0)
 </script>
 
@@ -311,6 +327,24 @@ const hasAnyResult = computed(() => playedMatches.value.length > 0)
             </span>
             <FormCurve :results="team.recent" :max="10" label="" />
           </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toppscorere — vises alltid (med empty state) for å gjøre feature synlig -->
+    <div class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-3">
+      <div class="stat-section-label">Toppscorere</div>
+      <div v-if="topScorers.length === 0" class="leaderboard-empty">
+        Ingen mål registrert ennå. Legg til scorere på en kamp under «Resultat & referat».
+      </div>
+      <div v-else class="leaderboard ds-anim-stagger-list">
+        <div v-for="(item, i) in topScorers" :key="item.id" class="leaderboard__row">
+          <span class="leaderboard__rank">{{ i + 1 }}</span>
+          <span class="leaderboard__name">
+            {{ item.name }}
+            <span v-if="item.primary_team" :class="['leaderboard__tag', `leaderboard__tag--${item.primary_team}`]">{{ TEAM_LABELS[item.primary_team] }}</span>
+          </span>
+          <span class="leaderboard__count">{{ item.count }} mål</span>
         </div>
       </div>
     </div>
@@ -692,6 +726,16 @@ const hasAnyResult = computed(() => playedMatches.value.length > 0)
   border: var(--ds-border-width) solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
   overflow: hidden;
+}
+
+.leaderboard-empty {
+  padding: 14px 16px;
+  font-size: 0.8125rem;
+  color: var(--ds-color-text-tertiary);
+  background: var(--ds-color-bg-elevated);
+  border: 1px dashed var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  line-height: 1.4;
 }
 
 .leaderboard__row {

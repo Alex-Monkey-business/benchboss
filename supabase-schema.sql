@@ -35,6 +35,7 @@ CREATE TABLE matches (
   fee_amount INTEGER NOT NULL DEFAULT 200,
   home_score INTEGER,
   away_score INTEGER,
+  report TEXT,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -80,6 +81,15 @@ CREATE TABLE match_players (
   UNIQUE(match_id, player_id)
 );
 
+-- 9. Målscorere per kamp (én rad per mål for Halsen)
+CREATE TABLE match_goals (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  match_id UUID NOT NULL REFERENCES matches(id) ON DELETE CASCADE,
+  player_id UUID NOT NULL REFERENCES players(id) ON DELETE RESTRICT,
+  position INTEGER NOT NULL DEFAULT 0,
+  created_at TIMESTAMPTZ DEFAULT now()
+);
+
 -- Indekser
 CREATE INDEX idx_matches_season ON matches(season_id);
 CREATE INDEX idx_matches_date ON matches(match_date);
@@ -88,6 +98,8 @@ CREATE INDEX idx_expenses_paid_by ON expenses(paid_by);
 CREATE INDEX idx_match_coaches_match ON match_coaches(match_id);
 CREATE INDEX idx_match_players_match ON match_players(match_id);
 CREATE INDEX idx_match_players_player ON match_players(player_id);
+CREATE INDEX idx_match_goals_match ON match_goals(match_id);
+CREATE INDEX idx_match_goals_player ON match_goals(player_id);
 
 -- RLS aktivert med allow_all-policy. Dette dismisser Supabase advisor-warning,
 -- men gir IKKE ekte sikkerhet — anon-nøkkelen kan fortsatt lese/skrive alt.
@@ -101,6 +113,7 @@ ALTER TABLE expenses ENABLE ROW LEVEL SECURITY;
 ALTER TABLE referees ENABLE ROW LEVEL SECURITY;
 ALTER TABLE players ENABLE ROW LEVEL SECURITY;
 ALTER TABLE match_players ENABLE ROW LEVEL SECURITY;
+ALTER TABLE match_goals ENABLE ROW LEVEL SECURITY;
 
 CREATE POLICY allow_all ON coaches FOR ALL TO public USING (true) WITH CHECK (true);
 CREATE POLICY allow_all ON seasons FOR ALL TO public USING (true) WITH CHECK (true);
@@ -110,6 +123,7 @@ CREATE POLICY allow_all ON expenses FOR ALL TO public USING (true) WITH CHECK (t
 CREATE POLICY allow_all ON referees FOR ALL TO public USING (true) WITH CHECK (true);
 CREATE POLICY allow_all ON players FOR ALL TO public USING (true) WITH CHECK (true);
 CREATE POLICY allow_all ON match_players FOR ALL TO public USING (true) WITH CHECK (true);
+CREATE POLICY allow_all ON match_goals FOR ALL TO public USING (true) WITH CHECK (true);
 
 -- Seed trenere (PIN: enkel 4-sifret kode, lagret som tekst)
 -- Endre PIN-kodene til det dere vil bruke!

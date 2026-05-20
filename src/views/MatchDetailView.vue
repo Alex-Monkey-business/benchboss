@@ -6,10 +6,12 @@ import { useExpenses } from '../composables/useExpenses'
 import { useCoaches } from '../composables/useCoaches'
 import { useReferees } from '../composables/useReferees'
 import { usePlayers } from '../composables/usePlayers'
+import { useMatchGoals } from '../composables/useMatchGoals'
 import { useToast } from '../composables/useToast'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
 import Skeleton from '../components/Skeleton.vue'
+import DisclosureSection from '../components/DisclosureSection.vue'
 import { relativeDateLabel } from '../lib/dateLabels'
 import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 
@@ -19,7 +21,8 @@ const { matches, matchPlayers, getMatch, updateMatch, setMatchCoaches, fetchMatc
 const { expenses, fetchExpenses, registerExpense, getExpenseForMatch, removeExpense } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
-const { players, fetchPlayers } = usePlayers()
+const { players, fetchPlayers, addPlayer, getPlayerById } = usePlayers()
+const { goals: allGoals, fetchMatchGoals, addGoal, updateGoal, removeGoal } = useMatchGoals()
 const { show: showToast } = useToast()
 
 // Try cache first — instant render when arriving from Dashboard.
@@ -39,16 +42,41 @@ const showEditDateTime = ref(false)
 const editDateInput = ref('')
 const editTimeInput = ref('')
 
+// Disclosure open-state — 3 grouped sections.
+// Top group (logistics) er default open; bruker kan toggle resten.
+const open = ref({
+  logistics: true,   // Dommer + Hvem la ut
+  team: false,       // Lånespillere + Trenere
+  summary: false     // Resultat + Scorere + Kampreferat
+})
+
+// Scorer sheet state
+const showScorerSheet = ref(false)
+const editingGoalId = ref(null)
+const scorerPlayerId = ref('')
+const showNewPlayerForm = ref(false)
+const newPlayerName = ref('')
+const newPlayerTeam = ref('')
+
+// Kampreferat autosave
+const reportInput = ref('')
+const reportSavedAt = ref(null)
+let reportSaveTimer = null
+
 onMounted(async () => {
   await Promise.all([fetchCoaches(), fetchReferees(), fetchPlayers(), fetchAllMatchPlayers()])
   match.value = await getMatch(route.params.id)
   if (match.value) {
-    await fetchExpenses([match.value.id])
+    await Promise.all([
+      fetchExpenses([match.value.id]),
+      fetchMatchGoals(match.value.id)
+    ])
     refereeInput.value = match.value.referee || ''
     matchCoachIds.value = await fetchMatchCoaches(match.value.id)
     matchPlayerIds.value = await fetchMatchPlayers(match.value.id)
     homeScoreInput.value = match.value.home_score ?? ''
     awayScoreInput.value = match.value.away_score ?? ''
+    reportInput.value = match.value.report || ''
     // Show custom input if current referee is not in known list
     if (match.value.referee && !referees.value.some(r => r.name === match.value.referee)) {
       customReferee.value = true
@@ -380,6 +408,177 @@ async function saveDateTime() {
   showEditDateTime.value = false
   showToast('Tidspunkt oppdatert', 'success')
 }
+
+// ─── Målscorere ──────────────────────────────────────────────────────────────
+const matchGoals = computed(() => {
+  if (!match.value) return []
+  return allGoals.value
+    .filter(g => g.match_id === match.value.id)
+    .slice()
+    .sort((a, b) => a.position - b.position)
+})
+
+const scorersLabel = computed(() => {
+  return matchGoals.value
+    .map(g => getPlayerById(g.player_id)?.name || '?')
+    .join(', ')
+})
+
+const goalCountMismatch = computed(() => {
+  const home = match.value?.home_score
+  if (home === null || home === undefined) return false
+  return matchGoals.value.length > 0 && matchGoals.value.length !== home
+})
+
+function openAddScorerSheet() {
+  editingGoalId.value = null
+  scorerPlayerId.value = ''
+  showNewPlayerForm.value = false
+  newPlayerName.value = ''
+  newPlayerTeam.value = ''
+  showScorerSheet.value = true
+}
+
+function openEditScorerSheet(goal) {
+  editingGoalId.value = goal.id
+  scorerPlayerId.value = goal.player_id
+  showNewPlayerForm.value = false
+  newPlayerName.value = ''
+  newPlayerTeam.value = ''
+  showScorerSheet.value = true
+}
+
+function closeScorerSheet() {
+  showScorerSheet.value = false
+}
+
+const isScorerValid = computed(() => !!scorerPlayerId.value)
+
+async function saveScorer() {
+  if (!isScorerValid.value) return
+  if (editingGoalId.value) {
+    await updateGoal(editingGoalId.value, { player_id: scorerPlayerId.value })
+    showToast('Mål oppdatert', 'success')
+  } else {
+    await addGoal(match.value.id, { player_id: scorerPlayerId.value })
+    showToast('Mål lagt til', 'success')
+  }
+  showScorerSheet.value = false
+}
+
+async function deleteScorer() {
+  if (!editingGoalId.value) return
+  await removeGoal(editingGoalId.value)
+  showToast('Mål fjernet', 'success')
+  showScorerSheet.value = false
+}
+
+async function quickAddPlayer() {
+  const name = newPlayerName.value.trim()
+  if (!name) return
+  const p = await addPlayer(name, newPlayerTeam.value)
+  if (p) {
+    scorerPlayerId.value = p.id
+    showNewPlayerForm.value = false
+    newPlayerName.value = ''
+    newPlayerTeam.value = ''
+    showToast(`${p.name} lagt til`, 'success')
+  }
+}
+
+const playersByTeam = computed(() => {
+  const groups = { gronn: [], rod: [], hvit: [], other: [] }
+  for (const p of [...players.value].sort((a, b) => a.name.localeCompare(b.name))) {
+    const t = p.primary_team || 'other'
+    if (groups[t]) groups[t].push(p)
+    else groups.other.push(p)
+  }
+  return groups
+})
+
+// ─── Kampreferat autosave (~600ms debounce) ──────────────────────────────────
+watch(reportInput, (val) => {
+  if (!match.value) return
+  if ((match.value.report || '') === val) return
+  if (reportSaveTimer) clearTimeout(reportSaveTimer)
+  reportSaveTimer = setTimeout(async () => {
+    await updateMatch(match.value.id, { report: val })
+    match.value.report = val
+    reportSavedAt.value = new Date()
+  }, 600)
+})
+
+const reportSavedLabel = computed(() => {
+  if (!reportSavedAt.value) return ''
+  const d = reportSavedAt.value
+  const hh = String(d.getHours()).padStart(2, '0')
+  const mm = String(d.getMinutes()).padStart(2, '0')
+  return `Lagret kl ${hh}:${mm}`
+})
+
+// ─── Summary-tekst for collapsed disclosure-headere ───────────────────────────
+const reportSummary = computed(() => {
+  const r = (match.value?.report || '').trim()
+  if (!r) return ''
+  return r.length > 60 ? r.slice(0, 60) + '…' : r
+})
+
+const refereeSummary = computed(() => match.value?.referee || '')
+
+const payerSummary = computed(() => {
+  if (!expense.value) return ''
+  const c = coaches.value.find(c => c.id === expense.value.paid_by)
+  if (!c) return ''
+  const amt = expense.value.amount || match.value?.fee_amount || 200
+  return `${c.name} · ${amt} kr`
+})
+
+const coachesSummary = computed(() => {
+  if (!matchCoachIds.value.length) return ''
+  return matchCoachIds.value
+    .map(id => coaches.value.find(c => c.id === id)?.name)
+    .filter(Boolean)
+    .join(', ')
+})
+
+// Grupperte summaries for de 3 store disclosure-headerne
+const logisticsSummary = computed(() => {
+  const parts = []
+  if (refereeSummary.value) parts.push(refereeSummary.value)
+  if (payerSummary.value) parts.push(payerSummary.value)
+  return parts.join(' · ')
+})
+
+const summarySummary = computed(() => {
+  const parts = []
+  if (hasResult.value) parts.push(`${match.value.home_score} – ${match.value.away_score}`)
+  if (scorersLabel.value) parts.push(scorersLabel.value)
+  if (reportSummary.value) parts.push('Referat skrevet')
+  return parts.join(' · ')
+})
+
+const teamSummary = computed(() => {
+  const parts = []
+  if (matchPlayerIds.value.length) parts.push(`${matchPlayerIds.value.length} lånespiller${matchPlayerIds.value.length === 1 ? '' : 'e'}`)
+  if (coachesSummary.value) parts.push(coachesSummary.value)
+  return parts.join(' · ')
+})
+
+// Synlig chip-rad under match-card
+const selectedLanespillere = computed(() => {
+  return matchPlayerIds.value
+    .map(id => players.value.find(p => p.id === id))
+    .filter(Boolean)
+})
+
+function focusTeamGroup() {
+  open.value.team = true
+  setTimeout(() => {
+    const el = document.querySelector('[data-section="team"]')
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, 60)
+}
+
 </script>
 
 <template>
@@ -452,12 +651,8 @@ async function saveDateTime() {
           <span class="match-card__vs">vs</span>
           <span class="match-card__team">{{ match.away_team }}</span>
         </div>
-        <div class="match-card__meta" v-if="match.division || match.round">
-          <span v-if="match.division" class="match-card__meta-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M3 9h18"/><path d="M9 21V9"/></svg>
-            {{ match.division }}
-          </span>
-          <span v-if="match.round" class="match-card__meta-item">
+        <div class="match-card__meta" v-if="match.round">
+          <span class="match-card__meta-item">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
             Runde {{ match.round }}
           </span>
@@ -465,15 +660,41 @@ async function saveDateTime() {
       </div>
     </div>
 
-    <!-- Action sections — two-column on desktop -->
-    <div class="px-lg mt-lg detail-desktop-grid">
-      <div>
-        <!-- Dommer - pill buttons -->
-        <div class="detail-section">
-          <div class="detail-section__header">
-            <span class="detail-section__label">Dommer</span>
-          </div>
-          <div class="referee-pills" style="margin-top: 10px;">
+    <!-- Lånespiller-rad — synlig under match-card så coach ser hvem som er booket -->
+    <button
+      v-if="selectedLanespillere.length"
+      type="button"
+      class="lanespiller-row"
+      aria-label="Rediger lånespillere"
+      @click="focusTeamGroup"
+    >
+      <span class="lanespiller-row__label">Lånespillere</span>
+      <span class="lanespiller-row__chips">
+        <span
+          v-for="p in selectedLanespillere"
+          :key="p.id"
+          :class="[
+            'lanespiller-chip',
+            p.primary_team ? `lanespiller-chip--${p.primary_team}` : ''
+          ]"
+        >{{ p.name }}</span>
+      </span>
+    </button>
+
+    <!-- Action sections — 4 grouped disclosures -->
+    <div class="px-lg mt-lg detail-disclosures">
+
+      <!-- Gruppe 1: Dommer & utlegg -->
+      <DisclosureSection
+        v-model="open.logistics"
+        label="Dommer & utlegg"
+        :summary="logisticsSummary"
+        empty-text="Ikke satt"
+      >
+        <!-- Dommer -->
+        <div class="sub-section">
+          <div class="sub-section__label">Dommer</div>
+          <div class="referee-pills">
             <button
               v-for="r in referees"
               :key="r.id"
@@ -493,45 +714,7 @@ async function saveDateTime() {
               Ny dommer
             </button>
           </div>
-          <!-- Custom referee sheet: navn + telefon -->
-          <Sheet :show="customReferee" title="Ny dommer" @close="cancelCustomReferee">
-            <div class="custom-referee-form">
-              <input
-                v-model="refereeInput"
-                class="ds-input"
-                placeholder="Dommerens navn"
-                @keydown.enter="saveCustomReferee"
-              />
-              <input
-                v-model="newPhone"
-                class="ds-input"
-                type="tel"
-                inputmode="numeric"
-                autocomplete="off"
-                placeholder="Telefon (valgfritt, 8 siffer)"
-                @keydown.enter="saveCustomReferee"
-              />
-              <div class="custom-referee-form__actions">
-                <button
-                  type="button"
-                  class="ds-btn ds-btn--secondary ds-btn--sm"
-                  @click="cancelCustomReferee"
-                >
-                  Avbryt
-                </button>
-                <button
-                  type="button"
-                  class="ds-btn ds-btn--primary ds-btn--sm"
-                  :disabled="!refereeInput.trim() || (newPhone && !isValidNewPhone)"
-                  @click="saveCustomReferee"
-                >
-                  Legg til
-                </button>
-              </div>
-            </div>
-          </Sheet>
 
-          <!-- Kontaktkort: vises når en dommer er valgt — telefon eller empty state -->
           <div v-if="selectedReferee" class="referee-contact">
             <template v-if="selectedReferee.phone">
               <div class="referee-contact__phone">{{ formatPhone(selectedReferee.phone) }}</div>
@@ -581,12 +764,10 @@ async function saveDateTime() {
           </div>
         </div>
 
-        <!-- Expense / Hvem la ut — co-located with Dommer (you Vipps the ref) -->
-        <div class="detail-section">
-          <div class="detail-section__header">
-            <span class="detail-section__label">Hvem la ut?</span>
-          </div>
-          <div class="payer-grid" style="margin-top: 12px;">
+        <!-- Hvem la ut -->
+        <div class="sub-section">
+          <div class="sub-section__label">Hvem la ut?</div>
+          <div class="payer-grid">
             <button
               v-for="c in coaches"
               :key="c.id"
@@ -600,19 +781,26 @@ async function saveDateTime() {
             </button>
           </div>
         </div>
+      </DisclosureSection>
 
-        <!-- Lånespillere / Guest players -->
-        <div class="detail-section">
-          <div class="detail-section__header">
-            <span class="detail-section__label">Lånespillere</span>
+      <!-- Gruppe 2: Lånespillere og trenere (lånespillere først — viktigst) -->
+      <DisclosureSection
+        v-model="open.team"
+        data-section="team"
+        label="Lånespillere og trenere"
+        :summary="teamSummary"
+        empty-text="Ingen"
+      >
+        <!-- Lånespillere -->
+        <div class="sub-section">
+          <div class="sub-section__label">Lånespillere</div>
+          <div v-if="players.length === 0" class="hospitant-empty" style="margin: 0;">
+            Ingen spillere i poolen — legg til under Admin → Spillere
           </div>
-          <div v-if="players.length === 0" class="hospitant-empty">
-            Ingen spillere i poolen — legg til under Admin → Lånespillere
-          </div>
-          <div v-else-if="availablePlayers.length === 0" class="hospitant-empty">
+          <div v-else-if="availablePlayers.length === 0" class="hospitant-empty" style="margin: 0;">
             Ingen tilgjengelige lånespillere for denne kampen.
           </div>
-          <div v-else class="referee-pills" style="margin-top: 10px;">
+          <div v-else class="referee-pills">
             <button
               v-for="p in availablePlayers"
               :key="p.id"
@@ -636,14 +824,43 @@ async function saveDateTime() {
             </button>
           </div>
         </div>
-      </div>
 
-      <div>
-        <!-- Resultat -->
-        <div class="detail-section">
-          <div class="detail-section__header">
-            <span class="detail-section__label">Resultat</span>
+        <!-- Trenere -->
+        <div class="sub-section">
+          <div class="sub-section__label">Trenere</div>
+          <div class="coach-grid">
+            <button
+              v-for="c in coaches"
+              :key="c.id"
+              :data-coach="c.name.toLowerCase()"
+              :class="['coach-btn', { 'coach-btn--selected': matchCoachIds.includes(c.id) }]"
+              @click="toggleCoach(c.id)"
+            >
+              <div class="coach-btn__avatar">
+                <img v-if="c.image" :src="c.image" :alt="c.name" class="coach-btn__avatar-img" />
+                <span v-else class="coach-btn__initial">{{ c.name.charAt(0) }}</span>
+              </div>
+              <span class="coach-btn__name">{{ c.name }}</span>
+              <span v-if="matchCoachIds.includes(c.id)" class="coach-btn__check" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+                  <polyline points="20 6 9 17 4 12"/>
+                </svg>
+              </span>
+            </button>
           </div>
+        </div>
+      </DisclosureSection>
+
+      <!-- Gruppe 3: Resultat, scorere & kampreferat (bunn) -->
+      <DisclosureSection
+        v-model="open.summary"
+        label="Resultat, scorere & referat"
+        :summary="summarySummary"
+        empty-text="Ikke spilt"
+      >
+        <!-- Resultat -->
+        <div class="sub-section">
+          <div class="sub-section__label">Resultat</div>
           <div class="result-form">
             <input
               v-model="homeScoreInput"
@@ -685,33 +902,58 @@ async function saveDateTime() {
           </button>
         </div>
 
-        <!-- Trenere — least urgent, last -->
-        <div class="detail-section">
-          <div class="detail-section__header">
-            <span class="detail-section__label">Trenere</span>
+        <!-- Målscorere -->
+        <div class="sub-section">
+          <div class="sub-section__label">Målscorere</div>
+          <div v-if="matchGoals.length === 0" class="hospitant-empty" style="margin: 0;">
+            Ingen scorere registrert ennå.
           </div>
-          <div class="coach-grid" style="margin-top: 12px;">
+          <div v-else class="referee-pills scorer-pills">
             <button
-              v-for="c in coaches"
-              :key="c.id"
-              :data-coach="c.name.toLowerCase()"
-              :class="['coach-btn', { 'coach-btn--selected': matchCoachIds.includes(c.id) }]"
-              @click="toggleCoach(c.id)"
+              v-for="g in matchGoals"
+              :key="g.id"
+              type="button"
+              :class="[
+                'referee-pill scorer-pill',
+                getPlayerById(g.player_id)?.primary_team
+                  ? `scorer-pill--${getPlayerById(g.player_id).primary_team}`
+                  : ''
+              ]"
+              @click="openEditScorerSheet(g)"
             >
-              <div class="coach-btn__avatar">
-                <img v-if="c.image" :src="c.image" :alt="c.name" class="coach-btn__avatar-img" />
-                <span v-else class="coach-btn__initial">{{ c.name.charAt(0) }}</span>
-              </div>
-              <span class="coach-btn__name">{{ c.name }}</span>
-              <span v-if="matchCoachIds.includes(c.id)" class="coach-btn__check" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
-              </span>
+              {{ getPlayerById(g.player_id)?.name || 'Ukjent' }}
             </button>
           </div>
+          <button
+            type="button"
+            class="ds-btn ds-btn--secondary ds-btn--sm scorers-block__add"
+            @click="openAddScorerSheet"
+          >
+            + Legg til scorer
+          </button>
+          <div v-if="goalCountMismatch" class="scorers-block__hint">
+            Antall scorere ({{ matchGoals.length }}) matcher ikke Halsen-mål ({{ match.home_score }}).
+          </div>
         </div>
-      </div>
+
+        <!-- Kampreferat -->
+        <div class="sub-section">
+          <div class="sub-section__label">
+            Kampreferat
+            <span v-if="reportSavedLabel" class="sub-section__hint">{{ reportSavedLabel }}</span>
+          </div>
+          <textarea
+            v-model="reportInput"
+            class="ds-input report-textarea"
+            rows="6"
+            maxlength="1000"
+            placeholder="Skriv kort om kampen — taktikk, høydepunkter, læring …"
+          ></textarea>
+          <div class="report-meta">
+            <span class="report-meta__count">{{ reportInput.length }} / 1000</span>
+          </div>
+        </div>
+      </DisclosureSection>
     </div>
 
     <!-- Delete Match -->
@@ -724,6 +966,165 @@ async function saveDateTime() {
         Slett kamp
       </button>
     </div>
+
+    <!-- Ny dommer sheet (mounted at root so disclosure-toggle ikke unmounter input-state) -->
+    <Sheet :show="customReferee" title="Ny dommer" @close="cancelCustomReferee">
+      <div class="custom-referee-form">
+        <input
+          v-model="refereeInput"
+          class="ds-input"
+          placeholder="Dommerens navn"
+          @keydown.enter="saveCustomReferee"
+        />
+        <input
+          v-model="newPhone"
+          class="ds-input"
+          type="tel"
+          inputmode="numeric"
+          autocomplete="off"
+          placeholder="Telefon (valgfritt, 8 siffer)"
+          @keydown.enter="saveCustomReferee"
+        />
+        <div class="custom-referee-form__actions">
+          <button
+            type="button"
+            class="ds-btn ds-btn--secondary ds-btn--sm"
+            @click="cancelCustomReferee"
+          >
+            Avbryt
+          </button>
+          <button
+            type="button"
+            class="ds-btn ds-btn--primary ds-btn--sm"
+            :disabled="!refereeInput.trim() || (newPhone && !isValidNewPhone)"
+            @click="saveCustomReferee"
+          >
+            Legg til
+          </button>
+        </div>
+      </div>
+    </Sheet>
+
+    <!-- Målscorer sheet (legg til / rediger) -->
+    <Sheet
+      :show="showScorerSheet"
+      :title="editingGoalId ? 'Rediger mål' : 'Legg til mål'"
+      @close="closeScorerSheet"
+    >
+      <div class="scorer-form">
+        <div v-if="players.length === 0" class="hospitant-empty" style="margin: 0;">
+          Ingen spillere i poolen ennå — legg til en spiller for å registrere mål.
+        </div>
+
+        <template v-else>
+          <div class="scorer-form__label">Velg spiller</div>
+          <div class="scorer-picker">
+            <template v-for="team in ['gronn', 'rod', 'hvit', 'other']" :key="team">
+              <div
+                v-if="playersByTeam[team].length"
+                class="scorer-picker__group"
+              >
+                <div class="scorer-picker__group-label">
+                  {{ team === 'other' ? 'Uten lag' : teamLabels[team] }}
+                </div>
+                <div class="scorer-picker__row">
+                  <button
+                    v-for="p in playersByTeam[team]"
+                    :key="p.id"
+                    type="button"
+                    :class="[
+                      'scorer-picker__chip',
+                      p.primary_team ? `scorer-picker__chip--${p.primary_team}` : '',
+                      { 'scorer-picker__chip--selected': scorerPlayerId === p.id }
+                    ]"
+                    @click="scorerPlayerId = p.id"
+                  >
+                    {{ p.name }}
+                  </button>
+                </div>
+              </div>
+            </template>
+          </div>
+        </template>
+
+        <button
+          v-if="!showNewPlayerForm"
+          type="button"
+          class="ds-btn ds-btn--ghost ds-btn--sm scorer-form__newplayer-btn"
+          @click="showNewPlayerForm = true"
+        >
+          + Ny spiller
+        </button>
+
+        <div v-else class="scorer-form__newplayer">
+          <input
+            v-model="newPlayerName"
+            class="ds-input"
+            placeholder="Navn"
+            @keydown.enter="quickAddPlayer"
+          />
+          <div class="scorer-form__team-row">
+            <button
+              v-for="team in ['gronn', 'rod', 'hvit']"
+              :key="team"
+              type="button"
+              :class="[
+                'scorer-picker__chip',
+                `scorer-picker__chip--${team}`,
+                { 'scorer-picker__chip--selected': newPlayerTeam === team }
+              ]"
+              @click="newPlayerTeam = newPlayerTeam === team ? '' : team"
+            >
+              {{ teamLabels[team] }}
+            </button>
+          </div>
+          <div class="scorer-form__newplayer-actions">
+            <button
+              type="button"
+              class="ds-btn ds-btn--secondary ds-btn--sm"
+              @click="showNewPlayerForm = false"
+            >
+              Avbryt
+            </button>
+            <button
+              type="button"
+              class="ds-btn ds-btn--primary ds-btn--sm"
+              :disabled="!newPlayerName.trim()"
+              @click="quickAddPlayer"
+            >
+              Lagre spiller
+            </button>
+          </div>
+        </div>
+
+        <div class="scorer-form__actions">
+          <button
+            v-if="editingGoalId"
+            type="button"
+            class="ds-btn ds-btn--ghost ds-btn--sm scorer-form__delete"
+            @click="deleteScorer"
+          >
+            Slett mål
+          </button>
+          <span class="scorer-form__spacer"></span>
+          <button
+            type="button"
+            class="ds-btn ds-btn--secondary ds-btn--sm"
+            @click="closeScorerSheet"
+          >
+            Avbryt
+          </button>
+          <button
+            type="button"
+            class="ds-btn ds-btn--primary ds-btn--sm"
+            :disabled="!isScorerValid"
+            @click="saveScorer"
+          >
+            Lagre
+          </button>
+        </div>
+      </div>
+    </Sheet>
 
     <Sheet :show="showEditDateTime" title="Endre tidspunkt" @close="cancelEditDateTime">
       <div class="edit-datetime-form">
@@ -1207,5 +1608,307 @@ async function saveDateTime() {
 .referee-pill--selected .hospitant-pill__conflict {
   background: rgba(255, 255, 255, 0.18);
   color: var(--ds-color-warm-bg);
+}
+
+/* ─── Lånespiller-rad (alltid synlig under match-card) ───────────────── */
+.lanespiller-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: calc(100% - 2 * var(--ds-space-lg));
+  margin: 12px var(--ds-space-lg) 0;
+  padding: 10px 12px;
+  border: 1px solid var(--ds-color-border-light);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-bg-elevated);
+  cursor: pointer;
+  font-family: var(--ds-font-body);
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), border-color 0.15s ease;
+}
+
+.lanespiller-row:active {
+  transform: scale(0.99);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .lanespiller-row:hover {
+    border-color: var(--ds-color-border);
+  }
+}
+
+.lanespiller-row__label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+  flex-shrink: 0;
+}
+
+.lanespiller-row__chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+.lanespiller-chip {
+  display: inline-flex;
+  align-items: center;
+  padding: 3px 9px 3px 18px;
+  border-radius: 14px;
+  background: var(--ds-color-bg);
+  border: 1px solid var(--ds-color-border-light);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--ds-color-text-primary);
+  position: relative;
+}
+
+.lanespiller-chip::before {
+  content: '';
+  position: absolute;
+  left: 7px;
+  top: 50%;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: var(--ds-color-text-tertiary);
+}
+
+.lanespiller-chip--gronn::before { background: var(--ds-color-success); }
+.lanespiller-chip--rod::before { background: var(--ds-color-error); }
+.lanespiller-chip--hvit::before {
+  background: var(--ds-color-bg);
+  border: 1px solid var(--ds-color-text-tertiary);
+}
+
+/* ─── Sub-sections inni grupperte disclosures ─────────────────────────── */
+.detail-disclosures {
+  display: flex;
+  flex-direction: column;
+}
+
+.sub-section {
+  padding-top: 16px;
+}
+
+.sub-section:first-child {
+  padding-top: 4px;
+}
+
+.sub-section + .sub-section {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--ds-color-border-light);
+}
+
+.sub-section__label {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+  margin-bottom: 10px;
+}
+
+.sub-section__hint {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ds-color-success, var(--ds-color-text-tertiary));
+  margin-left: auto;
+}
+
+/* ─── Målscorere ──────────────────────────────────────────────────────── */
+.scorer-pills {
+  margin-bottom: 10px;
+}
+
+.scorer-pill {
+  position: relative;
+  padding-left: 18px;
+}
+
+.scorer-pill::before {
+  content: '';
+  position: absolute;
+  left: 6px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: var(--ds-color-text-tertiary);
+}
+
+.scorer-pill--gronn::before { background: var(--ds-color-success); }
+.scorer-pill--rod::before { background: var(--ds-color-error); }
+.scorer-pill--hvit::before {
+  background: var(--ds-color-bg);
+  border: 1px solid var(--ds-color-text-tertiary);
+}
+
+.scorers-block__add {
+  width: 100%;
+  justify-content: center;
+}
+
+.scorers-block__hint {
+  margin-top: 10px;
+  font-size: 0.75rem;
+  color: var(--ds-color-warm-text, var(--ds-color-text-tertiary));
+  font-style: italic;
+}
+
+/* Scorer-Sheet */
+.scorer-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin-top: 12px;
+}
+
+.scorer-form__label {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+}
+
+.scorer-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.scorer-picker__group-label {
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+  margin-bottom: 6px;
+}
+
+.scorer-picker__row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.scorer-picker__chip {
+  padding: 6px 12px;
+  border: 1.5px solid var(--ds-color-border);
+  border-radius: 18px;
+  background: var(--ds-color-bg-elevated);
+  font-family: var(--ds-font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  transition: border-color 0.15s ease, background 0.15s ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  -webkit-tap-highlight-color: transparent;
+  position: relative;
+  padding-left: 22px;
+}
+
+.scorer-picker__chip:active {
+  transform: scale(0.97);
+}
+
+.scorer-picker__chip::before {
+  content: '';
+  position: absolute;
+  left: 8px;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  transform: translateY(-50%);
+  background: var(--ds-color-text-tertiary);
+}
+
+.scorer-picker__chip--gronn::before { background: var(--ds-color-success); }
+.scorer-picker__chip--rod::before { background: var(--ds-color-error); }
+.scorer-picker__chip--hvit::before {
+  background: var(--ds-color-bg);
+  border: 1px solid var(--ds-color-text-tertiary);
+}
+
+.scorer-picker__chip--selected {
+  border-color: var(--ds-color-accent);
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+}
+
+.scorer-form__newplayer-btn {
+  align-self: flex-start;
+  color: var(--ds-color-accent);
+}
+
+.scorer-form__newplayer {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 12px;
+  border: 1px dashed var(--ds-color-border);
+  border-radius: 10px;
+  background: var(--ds-color-bg-elevated);
+}
+
+.scorer-form__team-row {
+  display: flex;
+  gap: 6px;
+}
+
+.scorer-form__newplayer-actions {
+  display: flex;
+  gap: 8px;
+  justify-content: flex-end;
+}
+
+.scorer-form__actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 4px;
+}
+
+.scorer-form__spacer { flex: 1; }
+
+.scorer-form__delete {
+  color: var(--ds-color-error);
+}
+
+/* ─── Kampreferat ─────────────────────────────────────────────────────── */
+.report-textarea {
+  width: 100%;
+  resize: vertical;
+  min-height: 120px;
+  line-height: 1.5;
+  font-family: var(--ds-font-body);
+}
+
+.report-meta {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 8px;
+  font-size: 0.75rem;
+  color: var(--ds-color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.report-meta__saved {
+  color: var(--ds-color-success, var(--ds-color-text-tertiary));
 }
 </style>
