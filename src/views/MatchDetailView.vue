@@ -7,6 +7,7 @@ import { useCoaches } from '../composables/useCoaches'
 import { useReferees } from '../composables/useReferees'
 import { usePlayers } from '../composables/usePlayers'
 import { useMatchGoals } from '../composables/useMatchGoals'
+import { useAuth } from '../stores/auth'
 import { useToast } from '../composables/useToast'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
@@ -23,6 +24,7 @@ const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
 const { players, fetchPlayers, addPlayer, getPlayerById } = usePlayers()
 const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals()
+const { coach: currentCoach } = useAuth()
 const { show: showToast } = useToast()
 
 // Try cache first — instant render when arriving from Dashboard.
@@ -98,9 +100,12 @@ function applySmartOpen() {
   if (isPast) {
     // Spilt eller skulle vært spilt — coach kom sannsynligvis for å se eller logge resultat
     open.value.summary = true
-  } else {
-    // Fremtidig kamp — coach setter dommer/utlegg
+  } else if (isHomeMatch.value) {
+    // Fremtidig hjemmekamp — coach setter dommer/utlegg
     open.value.logistics = true
+  } else {
+    // Fremtidig bortekamp — dommer er ikke vårt ansvar, fokus på lag
+    open.value.team = true
   }
 }
 
@@ -144,6 +149,18 @@ const smsHref = computed(() => {
 async function openVipps() {
   const p = selectedReferee.value?.phone
   if (!p) return
+
+  // Auto-registrer Vipps-tapper som utlegger hvis ingen er satt fra før.
+  // Antagelse: den som åpner Vipps er den som faktisk betaler.
+  if (!expense.value && currentCoach.value?.id && match.value) {
+    await registerExpense(
+      match.value.id,
+      currentCoach.value.id,
+      match.value.fee_amount || 200
+    )
+    showToast(`${currentCoach.value.name} satt som utlegger`, 'success')
+  }
+
   try {
     await navigator.clipboard.writeText(phoneE164(p))
     showToast('Telefonnummer kopiert — lim inn i Vipps', 'success')
@@ -162,6 +179,10 @@ function getColorFromName(name) {
   if (n.includes('hvit')) return 'hvit'
   return ''
 }
+
+const isHomeMatch = computed(() => {
+  return (match.value?.home_team || '').toLowerCase().includes('halsen')
+})
 
 const teamColors = computed(() => {
   if (!match.value) return []
@@ -744,8 +765,9 @@ function focusSummaryGroup() {
     <!-- Action sections — 4 grouped disclosures -->
     <div class="px-lg mt-lg detail-disclosures">
 
-      <!-- Gruppe 1: Dommer & utlegg -->
+      <!-- Gruppe 1: Dommer & utlegg (kun på hjemmekamper — vi har ikke dommer-ansvar borte) -->
       <DisclosureSection
+        v-if="isHomeMatch"
         v-model="open.logistics"
         label="Dommer & utlegg"
         :summary="logisticsSummary"
