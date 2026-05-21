@@ -33,6 +33,7 @@ const loading = ref(!cachedMatch)
 const matchCoachIds = ref([])
 const matchPlayerIds = ref([])
 const showDeleteDialog = ref(false)
+const showMatchMenu = ref(false)
 const customReferee = ref(false)
 const refereeInput = ref('')
 const newPhone = ref('')
@@ -43,9 +44,9 @@ const editDateInput = ref('')
 const editTimeInput = ref('')
 
 // Disclosure open-state — 3 grouped sections.
-// Top group (logistics) er default open; bruker kan toggle resten.
+// Smart-open settes i onMounted basert på kamp-state.
 const open = ref({
-  logistics: true,   // Dommer + Hvem la ut
+  logistics: false,  // Dommer + Hvem la ut
   team: false,       // Lånespillere + Trenere
   summary: false     // Resultat + Scorere + Kampreferat
 })
@@ -79,9 +80,26 @@ onMounted(async () => {
     if (match.value.referee && !referees.value.some(r => r.name === match.value.referee)) {
       customReferee.value = true
     }
+    applySmartOpen()
   }
   loading.value = false
 })
+
+function applySmartOpen() {
+  if (!match.value) return
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const matchDate = new Date((match.value.match_date || '') + 'T12:00:00')
+  const isPast = !Number.isNaN(matchDate.getTime()) && matchDate < today
+
+  if (isPast) {
+    // Spilt eller skulle vært spilt — coach kom sannsynligvis for å se eller logge resultat
+    open.value.summary = true
+  } else {
+    // Fremtidig kamp — coach setter dommer/utlegg
+    open.value.logistics = true
+  }
+}
 
 const selectedReferee = computed(() => {
   if (!match.value?.referee) return null
@@ -658,12 +676,13 @@ function focusSummaryGroup() {
           <button
             type="button"
             class="match-card__edit-btn"
-            aria-label="Endre tidspunkt"
-            @click="openEditDateTime"
+            aria-label="Mer"
+            @click="showMatchMenu = true"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 20h9"/>
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <circle cx="5" cy="12" r="1"/>
+              <circle cx="12" cy="12" r="1"/>
+              <circle cx="19" cy="12" r="1"/>
             </svg>
           </button>
         </div>
@@ -987,16 +1006,38 @@ function focusSummaryGroup() {
       </DisclosureSection>
     </div>
 
-    <!-- Delete Match -->
-    <div class="px-lg mt-lg mb-lg" style="padding-top: var(--ds-space-lg); border-top: 1px solid var(--ds-color-border-light);">
-      <button
-        class="ds-btn ds-btn--ghost ds-btn--sm"
-        style="color: var(--ds-color-error);"
-        @click="showDeleteDialog = true"
-      >
-        Slett kamp
-      </button>
-    </div>
+    <!-- Match-meny (⋯-ikon på match-card) — endre tidspunkt + slett -->
+    <Sheet :show="showMatchMenu" title="Mer" @close="showMatchMenu = false">
+      <div class="match-menu">
+        <button
+          type="button"
+          class="match-menu__item"
+          @click="showMatchMenu = false; openEditDateTime()"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="3" y="4" width="18" height="18" rx="2" />
+            <line x1="16" y1="2" x2="16" y2="6" />
+            <line x1="8" y1="2" x2="8" y2="6" />
+            <line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+          Endre tidspunkt
+        </button>
+        <button
+          type="button"
+          class="match-menu__item match-menu__item--danger"
+          @click="showMatchMenu = false; showDeleteDialog = true"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6" />
+            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+            <path d="M10 11v6" />
+            <path d="M14 11v6" />
+            <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
+          </svg>
+          Slett kamp
+        </button>
+      </div>
+    </Sheet>
 
     <!-- Ny dommer sheet (mounted at root so disclosure-toggle ikke unmounter input-state) -->
     <Sheet :show="customReferee" title="Ny dommer" @close="cancelCustomReferee">
@@ -1671,41 +1712,91 @@ function focusSummaryGroup() {
   color: var(--ds-color-warm-bg);
 }
 
+/* ─── Match-meny (⋯-sheet) ──────────────────────────────────────────── */
+.match-menu {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 4px 0;
+}
+
+.match-menu__item {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 14px 4px;
+  background: transparent;
+  border: none;
+  border-radius: 10px;
+  font-family: var(--ds-font-body);
+  font-size: 0.9375rem;
+  font-weight: 500;
+  color: var(--ds-color-text-primary);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 48px;
+  transition: background 0.15s ease, transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.match-menu__item:active {
+  transform: scale(0.99);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .match-menu__item:hover {
+    background: var(--ds-color-bg-elevated);
+  }
+}
+
+.match-menu__item--danger {
+  color: var(--ds-color-error);
+}
+
+.match-menu__item svg {
+  flex-shrink: 0;
+}
+
 /* ─── Lånespiller-rad (alltid synlig under match-card) ───────────────── */
+/* Subtil info-rad — ikke en card-aktig knapp. */
 .lanespiller-row {
   display: flex;
   align-items: center;
   gap: 10px;
   width: calc(100% - 2 * var(--ds-space-lg));
-  margin: 12px var(--ds-space-lg) 0;
-  padding: 10px 12px;
-  border: 1px solid var(--ds-color-border-light);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-color-bg-elevated);
+  margin: 10px var(--ds-space-lg) 0;
+  padding: 8px 4px;
+  border: none;
+  background: transparent;
   cursor: pointer;
   font-family: var(--ds-font-body);
   text-align: left;
   -webkit-tap-highlight-color: transparent;
-  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), border-color 0.15s ease;
+  border-radius: 8px;
+  transition: background 0.15s ease;
 }
 
 .lanespiller-row:active {
-  transform: scale(0.99);
+  opacity: 0.6;
 }
 
 @media (hover: hover) and (pointer: fine) {
   .lanespiller-row:hover {
-    border-color: var(--ds-color-border);
+    background: var(--ds-color-bg-elevated);
   }
 }
 
 .lanespiller-row__label {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  font-size: 0.75rem;
+  font-weight: 500;
   color: var(--ds-color-text-tertiary);
   flex-shrink: 0;
+}
+
+.lanespiller-row__label::after {
+  content: ':';
+  color: var(--ds-color-text-tertiary);
 }
 
 .lanespiller-row__chips {
@@ -1714,6 +1805,15 @@ function focusSummaryGroup() {
   gap: 6px;
   flex: 1;
   min-width: 0;
+}
+
+.lanespiller-row::after {
+  content: '›';
+  font-size: 1.125rem;
+  color: var(--ds-color-text-tertiary);
+  font-weight: 600;
+  flex-shrink: 0;
+  opacity: 0.5;
 }
 
 .lanespiller-chip {
