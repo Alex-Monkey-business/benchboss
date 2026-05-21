@@ -41,7 +41,16 @@ function toggle() {
 
 <style scoped>
 .disclosure {
-  border-bottom: 1px solid var(--ds-color-border-light);
+  background: var(--ds-color-bg-elevated);
+  border: 1px solid var(--ds-color-border-light);
+  border-radius: 14px;
+  overflow: hidden;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.disclosure--open {
+  border-color: var(--ds-color-border);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 4px 12px rgba(0, 0, 0, 0.04);
 }
 
 .disclosure__header {
@@ -50,19 +59,26 @@ function toggle() {
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: var(--ds-space-md);
-  padding: var(--ds-space-md) 0;
+  padding: 14px 16px;
   background: transparent;
   border: none;
   cursor: pointer;
   text-align: left;
   color: inherit;
   font: inherit;
-  min-height: 52px;
-  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
+  min-height: 56px;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .disclosure__header:active {
   transform: scale(0.99);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .disclosure__header:hover {
+    background: rgba(0, 0, 0, 0.02);
+  }
 }
 
 .disclosure__label {
@@ -118,7 +134,7 @@ function toggle() {
 }
 
 .disclosure--open .disclosure__inner {
-  padding-bottom: var(--ds-space-lg);
+  padding: 4px 16px var(--ds-space-lg);
 }
 
 @media (prefers-reduced-motion: reduce) {

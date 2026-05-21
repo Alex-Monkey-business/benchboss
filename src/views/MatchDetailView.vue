@@ -1852,6 +1852,7 @@ function focusSummaryGroup() {
 .detail-disclosures {
   display: flex;
   flex-direction: column;
+  gap: 12px;
 }
 
 .sub-section {
