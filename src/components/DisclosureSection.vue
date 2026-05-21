@@ -1,4 +1,6 @@
 <script setup>
+import { ref, onMounted } from 'vue'
+
 const props = defineProps({
   label: { type: String, required: true },
   summary: { type: String, default: '' },
@@ -8,13 +10,24 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
+// Aktiver transitions først etter første render — ellers vil komponenter som
+// mountes med modelValue=true animere fra collapsed→open (flash).
+const mounted = ref(false)
+onMounted(() => {
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      mounted.value = true
+    })
+  })
+})
+
 function toggle() {
   emit('update:modelValue', !props.modelValue)
 }
 </script>
 
 <template>
-  <div :class="['disclosure', { 'disclosure--open': modelValue }]">
+  <div :class="['disclosure', { 'disclosure--open': modelValue, 'disclosure--mounted': mounted }]">
     <button
       type="button"
       class="disclosure__header"
@@ -111,6 +124,9 @@ function toggle() {
   align-items: center;
   justify-content: center;
   color: var(--ds-color-text-secondary);
+}
+
+.disclosure--mounted .disclosure__chevron {
   transition: transform 240ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
@@ -121,6 +137,9 @@ function toggle() {
 .disclosure__body {
   display: grid;
   grid-template-rows: 0fr;
+}
+
+.disclosure--mounted .disclosure__body {
   transition: grid-template-rows 240ms cubic-bezier(0.32, 0.72, 0, 1);
 }
 
