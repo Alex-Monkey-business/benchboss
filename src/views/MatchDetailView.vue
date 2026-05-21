@@ -488,10 +488,16 @@ function goalCountForPlayer(playerId) {
   return matchGoals.value.filter(g => g.player_id === playerId).length
 }
 
+// Halsens mål — home_score hvis vi er hjemme, away_score hvis vi er borte
+const halsenGoalCount = computed(() => {
+  if (!match.value) return null
+  return isHomeMatch.value ? match.value.home_score : match.value.away_score
+})
+
 const goalCountMismatch = computed(() => {
-  const home = match.value?.home_score
-  if (home === null || home === undefined) return false
-  return matchGoals.value.length > 0 && matchGoals.value.length !== home
+  const halsen = halsenGoalCount.value
+  if (halsen === null || halsen === undefined) return false
+  return matchGoals.value.length > 0 && matchGoals.value.length !== halsen
 })
 
 function openScorerSheet(preselectPlayerId = '') {
@@ -1013,7 +1019,7 @@ function focusSummaryGroup() {
             + Legg til scorer
           </button>
           <div v-if="goalCountMismatch" class="scorers-block__hint">
-            Antall scorere ({{ matchGoals.length }}) matcher ikke Halsen-mål ({{ match.home_score }}).
+            Antall scorere ({{ matchGoals.length }}) matcher ikke Halsen-mål ({{ halsenGoalCount }}).
           </div>
         </div>
 
