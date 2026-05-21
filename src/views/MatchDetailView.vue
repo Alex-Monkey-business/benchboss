@@ -535,7 +535,17 @@ async function quickAddPlayer() {
   if (!name) return
   const p = await addPlayer(name, newPlayerTeam.value)
   if (p) {
-    // Spiller opprettet i scorer-kontekst → registrer mål med en gang
+    // Hvis spilleren har et lag som ikke er en av Halsens lag i kampen,
+    // er de en lånespiller → registrer dem automatisk slik.
+    if (p.primary_team && !teamColors.value.includes(p.primary_team)) {
+      const currentIds = [...matchPlayerIds.value]
+      if (!currentIds.includes(p.id)) {
+        currentIds.push(p.id)
+        await setMatchPlayers(match.value.id, currentIds)
+        matchPlayerIds.value = currentIds
+      }
+    }
+    // Registrer mål med en gang
     await addGoal(match.value.id, { player_id: p.id })
     lastTappedPlayerId.value = p.id
     showNewPlayerForm.value = false
@@ -545,9 +555,21 @@ async function quickAddPlayer() {
   }
 }
 
+// Eligible scorers: spillere fra Halsen-laget(ene) i denne kampen + lånespillere.
+// Spillere uten lag er alltid inkludert (ukategoriserte kan brukes overalt).
+const eligiblePlayers = computed(() => {
+  const matchTeams = teamColors.value
+  const guestIds = new Set(matchPlayerIds.value)
+  return players.value.filter(p => {
+    if (guestIds.has(p.id)) return true
+    if (!p.primary_team) return true
+    return matchTeams.includes(p.primary_team)
+  })
+})
+
 const playersByTeam = computed(() => {
   const groups = { gronn: [], rod: [], hvit: [], other: [] }
-  for (const p of [...players.value].sort((a, b) => a.name.localeCompare(b.name))) {
+  for (const p of [...eligiblePlayers.value].sort((a, b) => a.name.localeCompare(b.name))) {
     const t = p.primary_team || 'other'
     if (groups[t]) groups[t].push(p)
     else groups.other.push(p)
@@ -1154,6 +1176,10 @@ function focusSummaryGroup() {
       <div class="scorer-form">
         <div v-if="players.length === 0 && !showNewPlayerForm" class="hospitant-empty" style="margin: 0;">
           Ingen spillere i poolen ennå — legg til en spiller for å registrere mål.
+        </div>
+
+        <div v-else-if="!eligiblePlayers.length && !showNewPlayerForm" class="hospitant-empty" style="margin: 0;">
+          Ingen aktuelle spillere for dette laget — opprett en ny spiller eller legg til en lånespiller først.
         </div>
 
         <template v-else>
