@@ -592,6 +592,14 @@ function focusTeamGroup() {
   }, 60)
 }
 
+function focusSummaryGroup() {
+  open.value.summary = true
+  setTimeout(() => {
+    const el = document.querySelector('[data-section="summary"]')
+    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, 60)
+}
+
 </script>
 
 <template>
@@ -645,7 +653,7 @@ function focusTeamGroup() {
               class="match-card__team-tag"
               :class="`match-card__team-tag--${color}`"
             >{{ color === 'gronn' ? 'Grønn' : color === 'rod' ? 'Rød' : 'Hvit' }}</span>
-            {{ formattedDate }}<template v-if="match.match_time && match.match_time.substring(0, 5) !== '00:00'"> · {{ match.match_time.substring(0, 5) }}</template>
+            {{ formattedDate }}<template v-if="match.match_time && match.match_time.substring(0, 5) !== '00:00'"> · {{ match.match_time.substring(0, 5) }}</template><template v-if="match.round"> · Runde {{ match.round }}</template>
           </span>
           <button
             type="button"
@@ -659,16 +667,21 @@ function focusTeamGroup() {
             </svg>
           </button>
         </div>
-        <div class="match-card__teams">
+        <div class="match-card__teams match-detail-teams">
           <span class="match-card__team">{{ match.home_team }}</span>
-          <span class="match-card__vs">vs</span>
+          <button
+            v-if="hasResult"
+            type="button"
+            class="match-detail-score"
+            aria-label="Rediger resultat"
+            @click="focusSummaryGroup"
+          >
+            <span class="match-detail-score__num">{{ match.home_score }}</span>
+            <span class="match-detail-score__dash">—</span>
+            <span class="match-detail-score__num">{{ match.away_score }}</span>
+          </button>
+          <span v-else class="match-card__vs">vs</span>
           <span class="match-card__team">{{ match.away_team }}</span>
-        </div>
-        <div class="match-card__meta" v-if="match.round">
-          <span class="match-card__meta-item">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-            Runde {{ match.round }}
-          </span>
         </div>
       </div>
     </div>
@@ -706,7 +719,6 @@ function focusTeamGroup() {
       >
         <!-- Dommer -->
         <div class="sub-section">
-          <div class="sub-section__label">Dommer</div>
           <div class="referee-pills">
             <button
               v-for="r in referees"
@@ -779,7 +791,7 @@ function focusTeamGroup() {
 
         <!-- Hvem la ut -->
         <div class="sub-section">
-          <div class="sub-section__label">Hvem la ut?</div>
+          <div class="sub-section__label sub-section__label--soft">Hvem la ut?</div>
           <div class="payer-grid">
             <button
               v-for="c in coaches"
@@ -806,7 +818,6 @@ function focusTeamGroup() {
       >
         <!-- Lånespillere -->
         <div class="sub-section">
-          <div class="sub-section__label">Lånespillere</div>
           <div v-if="players.length === 0" class="hospitant-empty" style="margin: 0;">
             Ingen spillere i poolen — legg til under Admin → Spillere
           </div>
@@ -840,7 +851,6 @@ function focusTeamGroup() {
 
         <!-- Trenere -->
         <div class="sub-section">
-          <div class="sub-section__label">Trenere</div>
           <div class="coach-grid">
             <button
               v-for="c in coaches"
@@ -867,6 +877,7 @@ function focusTeamGroup() {
       <!-- Gruppe 3: Resultat, scorere & kampreferat (bunn) -->
       <DisclosureSection
         v-model="open.summary"
+        data-section="summary"
         label="Resultat, scorere & referat"
         :summary="summarySummary"
         empty-text="Ikke spilt"
@@ -1283,6 +1294,7 @@ function focusTeamGroup() {
 /* Override the flex:1 spread — center teams compactly in detail view */
 .match-detail-card .match-card__teams {
   justify-content: center;
+  gap: 14px;
 }
 
 .match-detail-card .match-card__team {
@@ -1291,6 +1303,43 @@ function focusTeamGroup() {
 
 .match-detail-card .match-card__team:last-child {
   text-align: left;
+}
+
+/* Score-blokk på match-card (tappbar — åpner Resultat-seksjonen) */
+.match-detail-score {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 6px 10px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-family: var(--ds-font-body);
+  font-size: 1.75rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-color-text-primary);
+  letter-spacing: -0.01em;
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background 0.15s ease;
+}
+
+.match-detail-score:active {
+  transform: scale(0.96);
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .match-detail-score:hover {
+    background: var(--ds-color-bg-elevated);
+  }
+}
+
+.match-detail-score__dash {
+  font-weight: 500;
+  color: var(--ds-color-text-tertiary);
+  font-size: 1.25rem;
 }
 
 .match-detail-card .match-card__team-tag {
@@ -1714,9 +1763,8 @@ function focusTeamGroup() {
 }
 
 .sub-section + .sub-section {
-  margin-top: 18px;
-  padding-top: 16px;
-  border-top: 1px dashed var(--ds-color-border-light);
+  margin-top: 20px;
+  padding-top: 4px;
 }
 
 .sub-section__label {
@@ -1738,6 +1786,14 @@ function focusTeamGroup() {
   text-transform: none;
   color: var(--ds-color-success, var(--ds-color-text-tertiary));
   margin-left: auto;
+}
+
+.sub-section__label--soft {
+  font-size: 0.6875rem;
+  letter-spacing: 0.06em;
+  font-weight: 500;
+  opacity: 0.7;
+  margin-bottom: 8px;
 }
 
 /* ─── Målscorere ──────────────────────────────────────────────────────── */
