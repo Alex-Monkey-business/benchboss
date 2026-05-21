@@ -58,9 +58,10 @@ const showNewPlayerForm = ref(false)
 const newPlayerName = ref('')
 const newPlayerTeam = ref('')
 
-// Kampreferat — eksplisitt Lagre-knapp
+// Kampreferat — eksplisitt Lagre-knapp + read/edit-modus
 const reportInput = ref('')
 const reportSavedAt = ref(null)
+const isEditingReport = ref(false)
 
 onMounted(async () => {
   await Promise.all([fetchCoaches(), fetchReferees(), fetchPlayers(), fetchAllMatchPlayers()])
@@ -76,6 +77,8 @@ onMounted(async () => {
     homeScoreInput.value = match.value.home_score ?? ''
     awayScoreInput.value = match.value.away_score ?? ''
     reportInput.value = match.value.report || ''
+    // Tomt referat → edit-modus direkte; lagret referat → lese-modus med "Rediger"
+    isEditingReport.value = !match.value.report
     // Show custom input if current referee is not in known list
     if (match.value.referee && !referees.value.some(r => r.name === match.value.referee)) {
       customReferee.value = true
@@ -536,7 +539,19 @@ async function saveReport() {
   await updateMatch(match.value.id, { report: reportInput.value })
   match.value.report = reportInput.value
   reportSavedAt.value = new Date()
+  // Etter lagring: gå til lese-modus hvis det er noe innhold
+  if (reportInput.value.trim()) isEditingReport.value = false
   showToast('Referat lagret', 'success')
+}
+
+function startEditingReport() {
+  isEditingReport.value = true
+}
+
+function cancelEditingReport() {
+  // Tilbakestill input til lagret versjon, gå til lese-modus
+  reportInput.value = match.value.report || ''
+  isEditingReport.value = false
 }
 
 const reportSavedLabel = computed(() => {
@@ -982,26 +997,55 @@ function focusSummaryGroup() {
 
         <!-- Kampreferat -->
         <div class="sub-section">
-          <div class="sub-section__label">Kampreferat</div>
-          <textarea
-            v-model="reportInput"
-            class="ds-input report-textarea"
-            rows="6"
-            maxlength="1000"
-            placeholder="Skriv kort om kampen — taktikk, høydepunkter, læring …"
-          ></textarea>
-          <div class="report-meta">
-            <span class="report-meta__count">{{ reportInput.length }} / 1000</span>
-            <span v-if="reportSavedLabel && !isReportChanged" class="report-meta__saved">{{ reportSavedLabel }}</span>
+          <div class="sub-section__label">
+            Kampreferat
+            <button
+              v-if="!isEditingReport && match.report"
+              type="button"
+              class="report-edit-link"
+              @click="startEditingReport"
+            >
+              Rediger
+            </button>
           </div>
-          <button
-            type="button"
-            class="ds-btn ds-btn--primary ds-btn--sm report-save-btn"
-            :disabled="!isReportChanged"
-            @click="saveReport"
-          >
-            {{ isReportChanged ? 'Lagre referat' : 'Lagret' }}
-          </button>
+
+          <!-- LESE-MODUS: vis lagret referat som tekst -->
+          <div v-if="!isEditingReport && match.report" class="report-read">
+            {{ match.report }}
+          </div>
+
+          <!-- EDIT-MODUS: textarea + Lagre/Avbryt -->
+          <template v-else>
+            <textarea
+              v-model="reportInput"
+              class="ds-input report-textarea"
+              rows="6"
+              maxlength="1000"
+              placeholder="Skriv kort om kampen — taktikk, høydepunkter, læring …"
+            ></textarea>
+            <div class="report-meta">
+              <span class="report-meta__count">{{ reportInput.length }} / 1000</span>
+              <span v-if="reportSavedLabel && !isReportChanged" class="report-meta__saved">{{ reportSavedLabel }}</span>
+            </div>
+            <div class="report-edit-actions">
+              <button
+                v-if="match.report"
+                type="button"
+                class="ds-btn ds-btn--secondary report-cancel-btn"
+                @click="cancelEditingReport"
+              >
+                Avbryt
+              </button>
+              <button
+                type="button"
+                class="ds-btn ds-btn--primary report-save-btn"
+                :disabled="!isReportChanged"
+                @click="saveReport"
+              >
+                {{ isReportChanged ? 'Lagre referat' : 'Lagret' }}
+              </button>
+            </div>
+          </template>
         </div>
       </DisclosureSection>
     </div>
@@ -2211,12 +2255,64 @@ function focusSummaryGroup() {
 }
 
 .report-save-btn {
-  margin-top: 12px;
-  width: 100%;
+  flex: 1;
   min-height: 48px;
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 12px 20px;
   border-radius: 12px;
+}
+
+.report-cancel-btn {
+  min-height: 48px;
+  font-size: 0.9375rem;
+  font-weight: 500;
+  padding: 12px 20px;
+  border-radius: 12px;
+}
+
+.report-edit-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 12px;
+}
+
+.report-edit-link {
+  margin-left: auto;
+  background: transparent;
+  border: none;
+  padding: 4px 8px;
+  font-family: var(--ds-font-body);
+  font-size: 0.75rem;
+  font-weight: 500;
+  color: var(--ds-color-accent);
+  cursor: pointer;
+  letter-spacing: 0;
+  text-transform: none;
+  border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.report-edit-link:active {
+  opacity: 0.6;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .report-edit-link:hover {
+    background: var(--ds-color-bg-elevated);
+  }
+}
+
+.report-read {
+  margin: 0;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: var(--ds-color-bg, var(--ds-color-bg-elevated));
+  border: 1px solid var(--ds-color-border-light);
+  font-size: 0.9375rem;
+  line-height: 1.55;
+  color: var(--ds-color-text-primary);
+  white-space: pre-wrap;
+  word-wrap: break-word;
 }
 </style>
