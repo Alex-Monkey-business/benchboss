@@ -14,6 +14,7 @@ const { squad, fetchCupSquad, teamForPlayer, playerIdsForTeam, setTeam, removeFr
 
 const canEdit = computed(() => !isParent.value)
 const ready = ref(false)
+const editing = ref(false)
 const cupId = computed(() => activeCup.value?.id)
 
 onMounted(async () => {
@@ -26,16 +27,10 @@ const byName = (a, b) => a.name.localeCompare(b.name, 'no')
 const allPlayers = computed(() => [...players.value].sort(byName))
 
 function teamPlayers(slug) {
-  return playerIdsForTeam(slug)
-    .map(id => getPlayerById(id))
-    .filter(Boolean)
-    .sort(byName)
+  return playerIdsForTeam(slug).map(id => getPlayerById(id)).filter(Boolean).sort(byName)
 }
-const counts = computed(() => ({
-  goat: playerIdsForTeam('goat').length,
-  han: playerIdsForTeam('han').length,
-  unplaced: players.value.length - squad.value.length
-}))
+const unplaced = computed(() =>
+  allPlayers.value.filter(p => !teamForPlayer(p.id)))
 
 async function toggle(playerId, team) {
   if (!cupId.value) return
@@ -54,63 +49,81 @@ async function toggle(playerId, team) {
     <div class="px-lg">
       <CupTabs />
 
+      <div v-if="canEdit" class="tropp-actions">
+        <span class="tropp-hint">{{ unplaced.length }} ikke plassert</span>
+        <button type="button" class="tropp-edit" :class="{ 'tropp-edit--active': editing }" @click="editing = !editing">
+          {{ editing ? 'Ferdig' : 'Rediger tropp' }}
+        </button>
+      </div>
+
       <div v-if="!ready" class="cmd-muted">Henter tropp …</div>
 
-      <template v-else>
-        <!-- Trener: tildel hver spiller -->
-        <template v-if="canEdit">
-          <div class="counts">
-            <span>{{ cupTeam('goat').name.replace('Halsen IF ', '') }} <b>{{ counts.goat }}</b></span>
-            <span>{{ cupTeam('han').name.replace('Halsen IF ', '') }} <b>{{ counts.han }}</b></span>
-            <span class="counts__muted">Ikke plassert <b>{{ counts.unplaced }}</b></span>
-          </div>
-          <div v-if="allPlayers.length === 0" class="cmd-muted">Ingen spillere i poolen — legg til under Admin → Spillere.</div>
-          <div class="list">
-            <div v-for="p in allPlayers" :key="p.id" class="prow">
-              <span class="pname">{{ p.name }}</span>
-              <div class="teamseg">
-                <button
-                  v-for="t in CUP_TEAMS"
-                  :key="t.slug"
-                  type="button"
-                  class="teamseg__btn"
-                  :class="{ 'teamseg__btn--active': teamForPlayer(p.id) === t.slug }"
-                  @click="toggle(p.id, t.slug)"
-                >
-                  {{ t.name.replace('Halsen IF ', '') }}
-                </button>
-              </div>
+      <!-- REDIGER: flat liste med lag-bryter per spiller -->
+      <template v-else-if="canEdit && editing">
+        <p class="cmd-muted" style="margin-bottom:var(--ds-space-sm);">Velg lag for hver spiller. Trykk valgt lag igjen for å fjerne.</p>
+        <div v-if="allPlayers.length === 0" class="cmd-muted">Ingen spillere i poolen — legg til under Admin → Spillere.</div>
+        <div class="list">
+          <div v-for="p in allPlayers" :key="p.id" class="prow">
+            <span class="pname">{{ p.name }}</span>
+            <div class="teamseg">
+              <button
+                v-for="t in CUP_TEAMS"
+                :key="t.slug"
+                type="button"
+                class="teamseg__btn"
+                :class="{ 'teamseg__btn--active': teamForPlayer(p.id) === t.slug }"
+                @click="toggle(p.id, t.slug)"
+              >
+                {{ t.name.replace('Halsen IF ', '') }}
+              </button>
             </div>
           </div>
-        </template>
+        </div>
+      </template>
 
-        <!-- Forelder: les troppene -->
-        <template v-else>
-          <section v-for="t in CUP_TEAMS" :key="t.slug" class="team">
-            <div class="teamhead">{{ t.name }} <span class="teamhead__count">{{ teamPlayers(t.slug).length }}</span></div>
-            <div v-if="teamPlayers(t.slug).length === 0" class="cmd-muted">Ingen spillere lagt til ennå.</div>
-            <div v-else class="list">
-              <div v-for="p in teamPlayers(t.slug)" :key="p.id" class="prow prow--read">
-                <span class="pname">{{ p.name }}</span>
-              </div>
+      <!-- VISNING: gruppert per lag + ikke plassert nederst -->
+      <template v-else>
+        <section v-for="t in CUP_TEAMS" :key="t.slug" class="team">
+          <div class="teamhead">{{ t.name }} <span class="teamhead__count">{{ teamPlayers(t.slug).length }}</span></div>
+          <div v-if="teamPlayers(t.slug).length === 0" class="cmd-muted">Ingen spillere lagt til ennå.</div>
+          <div v-else class="list">
+            <div v-for="p in teamPlayers(t.slug)" :key="p.id" class="prow prow--read">
+              <span class="pname">{{ p.name }}</span>
             </div>
-          </section>
-        </template>
+          </div>
+        </section>
+
+        <section v-if="canEdit && unplaced.length" class="team">
+          <div class="teamhead teamhead--muted">Ikke plassert <span class="teamhead__count">{{ unplaced.length }}</span></div>
+          <div class="list">
+            <div v-for="p in unplaced" :key="p.id" class="prow prow--read prow--muted">
+              <span class="pname">{{ p.name }}</span>
+            </div>
+          </div>
+        </section>
       </template>
     </div>
   </div>
 </template>
 
 <style scoped>
-.cmd-muted { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); padding: var(--ds-space-md) 2px; }
+.cmd-muted { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); padding: var(--ds-space-sm) 2px; }
 
-.counts {
-  display: flex; flex-wrap: wrap; gap: var(--ds-space-md);
-  font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
+.tropp-actions {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md);
   margin-bottom: var(--ds-space-md);
 }
-.counts b { color: var(--ds-color-text-primary); }
-.counts__muted { color: var(--ds-color-text-tertiary); }
+.tropp-hint { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); }
+.tropp-edit {
+  appearance: none; font-family: var(--ds-font-body);
+  border: var(--ds-border-width) solid var(--ds-color-border);
+  background: transparent; color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold);
+  padding: 8px 16px; border-radius: var(--ds-radius-full); cursor: pointer;
+  transition: background var(--ds-duration-fast) var(--ds-ease-out), color var(--ds-duration-fast) var(--ds-ease-out), border-color var(--ds-duration-fast) var(--ds-ease-out);
+}
+.tropp-edit:hover { background: var(--ds-color-bg-hover); }
+.tropp-edit--active { background: var(--ds-color-accent); color: var(--ds-color-accent-text); border-color: var(--ds-color-accent); }
 
 .team { margin-top: var(--ds-space-lg); }
 .team:first-of-type { margin-top: 0; }
@@ -122,6 +135,7 @@ async function toggle(playerId, team) {
   color: var(--ds-color-text-primary);
   margin-bottom: var(--ds-space-sm);
 }
+.teamhead--muted { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-md); }
 .teamhead__count { color: var(--ds-color-text-tertiary); font-family: var(--ds-font-body); font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium); }
 
 .list { display: flex; flex-direction: column; gap: var(--ds-space-sm); }
@@ -133,7 +147,9 @@ async function toggle(playerId, team) {
   box-shadow: var(--ds-shadow-xs);
   padding: var(--ds-space-md);
 }
+.prow--muted { background: var(--ds-color-bg-subtle); box-shadow: none; }
 .pname { font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
+.prow--muted .pname { color: var(--ds-color-text-secondary); font-weight: var(--ds-weight-medium); }
 
 .teamseg { display: inline-flex; background: var(--ds-color-bg-sunken); border-radius: var(--ds-radius-full); padding: 2px; flex: 0 0 auto; }
 .teamseg__btn {
