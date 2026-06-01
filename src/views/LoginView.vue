@@ -10,8 +10,12 @@ const router = useRouter()
 const { login } = useAuth()
 const { coaches, fetchCoaches } = useCoaches()
 
-// 'pin' → 'profile'. Single shared PIN unlocks the app,
-// then user picks which coach they are (Netflix-style).
+// Delt foreldre-PIN (kan settes via VITE_PARENT_PIN). Foreldre får ren
+// lesetilgang til cupen – ingen navnevalg, de sendes rett til kampoversikten.
+const PARENT_PIN = import.meta.env.VITE_PARENT_PIN || '2025'
+
+// 'pin' → 'profile'. Trener-PIN viser profilvelgeren; foreldre-PIN logger
+// rett inn som leser.
 const step = ref('pin')
 const pinError = ref(false)
 const pinRef = ref(null)
@@ -34,12 +38,17 @@ onMounted(async () => {
 })
 
 async function onPinComplete(pin) {
-  // Any coach's PIN unlocks — in practice they all share one.
-  const ok = coaches.value.some(c => c.pin === pin)
-  if (ok) {
+  const isCoachPin = coaches.value.some(c => c.pin === pin)
+  const isParentPin = pin === PARENT_PIN
+
+  if (isCoachPin) {
     // Wait up to 700ms for images; usually they're done long before user finishes PIN
     await Promise.race([preloadPromise, new Promise(r => setTimeout(r, 700))])
     step.value = 'profile'
+  } else if (isParentPin) {
+    // Forelder: ren lesetilgang, rett til kampoversikten.
+    login({ id: 'parent', name: 'Forelder', role: 'parent' })
+    router.push('/cup')
   } else {
     pinError.value = true
     setTimeout(() => {
@@ -50,7 +59,7 @@ async function onPinComplete(pin) {
 }
 
 function selectCoach(c) {
-  login({ id: c.id, name: c.name })
+  login({ id: c.id, name: c.name, role: 'coach' })
   const redirect = typeof route.query.redirect === 'string' ? route.query.redirect : '/'
   router.push(redirect)
 }
@@ -64,7 +73,7 @@ function selectCoach(c) {
       <div v-if="step === 'pin'" key="pin" class="login-step">
         <div class="login-step__top">
           <h1 class="login-title">BenchBoss</h1>
-          <p class="login-hint">Skriv inn PIN-kode</p>
+          <p class="login-hint">Skriv inn PIN-kode (trener eller forelder)</p>
         </div>
         <div class="login-pin">
           <PinInput ref="pinRef" :error="pinError" @complete="onPinComplete" />
@@ -74,7 +83,7 @@ function selectCoach(c) {
         </div>
       </div>
 
-      <!-- STEP 2 — Profile picker -->
+      <!-- STEP 2 — Coach profile picker -->
       <div v-else key="profile" class="login-step login-step--profile">
         <h1 class="login-title login-title--profile">Hvem er du?</h1>
         <div class="profile-grid">

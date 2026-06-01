@@ -10,7 +10,8 @@ const routes = [
   {
     path: '/',
     name: 'dashboard',
-    component: () => import('./views/DashboardView.vue')
+    component: () => import('./views/DashboardView.vue'),
+    meta: { coachOnly: true }
   },
   {
     path: '/kamper',
@@ -19,52 +20,81 @@ const routes = [
   {
     path: '/kamp/:id',
     name: 'match',
-    component: () => import('./views/MatchDetailView.vue')
+    component: () => import('./views/MatchDetailView.vue'),
+    meta: { coachOnly: true }
   },
   {
     path: '/statistikk',
     name: 'statistikk',
-    component: () => import('./views/StatistikkView.vue')
+    component: () => import('./views/StatistikkView.vue'),
+    meta: { coachOnly: true }
   },
+  // ---- Cup-modul: kampoversikt (trenere + foreldre, read-only) ----
+  {
+    path: '/cup',
+    name: 'cup',
+    component: () => import('./views/CupKamperView.vue')
+  },
+  {
+    path: '/cup/tropp',
+    name: 'cup-tropp',
+    component: () => import('./views/CupTroppView.vue')
+  },
+  {
+    path: '/cup/kamp/:id',
+    name: 'cup-match',
+    component: () => import('./views/CupMatchDetailView.vue')
+  },
+  // Bakoverkompat for gamle stier
+  { path: '/cup/ansvar', redirect: '/cup' },
+  { path: '/cup/kamper', redirect: '/cup' },
   {
     path: '/admin',
     name: 'admin',
-    component: () => import('./views/AdminView.vue')
+    component: () => import('./views/AdminView.vue'),
+    meta: { coachOnly: true }
   },
   {
     path: '/admin/dommerutlegg',
     name: 'admin-dommerutlegg',
-    component: () => import('./views/SeasonView.vue')
+    component: () => import('./views/SeasonView.vue'),
+    meta: { coachOnly: true }
   },
   {
     path: '/admin/sesong-kamper',
     name: 'admin-sesong-kamper',
-    component: () => import('./views/AdminSesongKamperView.vue')
+    component: () => import('./views/AdminSesongKamperView.vue'),
+    meta: { coachOnly: true }
   },
   {
     path: '/admin/dommere',
     name: 'admin-dommere',
-    component: () => import('./views/AdminDommereView.vue')
+    component: () => import('./views/AdminDommereView.vue'),
+    meta: { coachOnly: true }
   },
   {
     path: '/admin/hospitanter',
     name: 'admin-hospitanter',
-    component: () => import('./views/AdminHospitanterView.vue')
+    component: () => import('./views/AdminHospitanterView.vue'),
+    meta: { coachOnly: true }
   },
   {
     path: '/admin/hospitanter/:id',
     name: 'admin-hospitant-detail',
-    component: () => import('./views/AdminHospitantDetailView.vue')
+    component: () => import('./views/AdminHospitantDetailView.vue'),
+    meta: { coachOnly: true }
   },
   {
     path: '/admin/handbok',
     name: 'admin-handbok',
-    component: () => import('./views/TrainingHandbookView.vue')
+    component: () => import('./views/TrainingHandbookView.vue'),
+    meta: { coachOnly: true }
   },
   {
     path: '/admin/handbok/:slug',
     name: 'admin-handbok-principle',
-    component: () => import('./views/TrainingPrincipleView.vue')
+    component: () => import('./views/TrainingPrincipleView.vue'),
+    meta: { coachOnly: true }
   },
   // Backwards-compat redirects for old paths
   { path: '/sesong', redirect: '/admin/dommerutlegg' },
@@ -77,14 +107,20 @@ export const router = createRouter({
 })
 
 router.beforeEach((to) => {
-  const { isLoggedIn } = useAuth()
+  const { isLoggedIn, isParent } = useAuth()
 
   // Send unauthenticated users to login, remembering where they were heading.
   if (to.name !== 'login' && !isLoggedIn.value) {
     return { name: 'login', query: { redirect: to.fullPath } }
   }
 
+  // Allerede innlogget → bort fra login (trener til kamper, forelder til cup).
   if (to.name === 'login' && isLoggedIn.value) {
-    return { name: 'dashboard' }
+    return isParent.value ? { name: 'cup' } : { name: 'dashboard' }
+  }
+
+  // Foreldre når kun cup-oversikten; alt annet sendes dit.
+  if (isParent.value && to.meta?.coachOnly) {
+    return { name: 'cup' }
   }
 })

@@ -10,9 +10,11 @@ const { coach } = useAuth()
 const { matches, getCoachesForMatch } = useMatches()
 const { getExpenseForMatch } = useExpenses()
 
+// Kun trenere ser bunnmenyen (foreldre har sin egen enkle cup-side).
 const tabs = [
   { name: 'matches', label: 'Kamper', path: '/' },
   { name: 'stats', label: 'Statistikk', path: '/statistikk' },
+  { name: 'cup', label: 'Cup', path: '/cup' },
   { name: 'admin', label: 'Admin', path: '/admin' }
 ]
 
@@ -20,11 +22,11 @@ function isActive(tab) {
   if (tab.name === 'matches') return route.path === '/' || route.path.startsWith('/kamp')
   if (tab.name === 'admin') return route.path === '/admin' || route.path.startsWith('/admin/')
   if (tab.name === 'stats') return route.path === '/statistikk'
+  if (tab.name === 'cup') return route.path.startsWith('/cup')
   return route.path === tab.path
 }
 
 // Pending = past HOME matches where I'm assigned as coach AND no expense logged.
-// Away matches don't have utlegg, so they never count.
 const pendingCount = computed(() => {
   if (!coach.value || !matches.value?.length) return 0
   const today = new Date().toISOString().slice(0, 10)
@@ -45,7 +47,7 @@ const pendingCount = computed(() => {
       :to="tab.path"
       :class="['bottom-nav__item', { 'bottom-nav__item--active': isActive(tab) }]"
     >
-      <!-- Kamper -->
+      <!-- Kamper (serie) -->
       <span v-if="tab.name === 'matches'" class="bottom-nav__icon-wrap">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
           <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -61,6 +63,11 @@ const pendingCount = computed(() => {
         <line x1="12" y1="20" x2="12" y2="4"/>
         <line x1="18" y1="20" x2="18" y2="9"/>
         <line x1="3" y1="20" x2="21" y2="20"/>
+      </svg>
+      <!-- Cup (pokal) -->
+      <svg v-if="tab.name === 'cup'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/>
+        <path d="M17 5h3v2a3 3 0 0 1-3 3M7 5H4v2a3 3 0 0 0 3 3"/>
       </svg>
       <!-- Admin -->
       <svg v-if="tab.name === 'admin'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
