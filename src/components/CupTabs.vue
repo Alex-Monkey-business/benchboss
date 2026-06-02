@@ -1,14 +1,5 @@
 <script setup>
-import { useRouter } from 'vue-router'
-import { useAuth } from '../stores/auth'
-
-const router = useRouter()
-const { isParent, logout } = useAuth()
-
-function doLogout() {
-  logout()
-  router.push('/login')
-}
+// Cup-undernavigasjon (Kamper | Tropp). Logg-ut ligger i den globale BottomNav.
 </script>
 
 <template>
@@ -27,7 +18,6 @@ function doLogout() {
         :class="{ 'cuptabs__tab--active': $route.name === 'cup-tropp' }"
       >Tropp</router-link>
     </div>
-    <button v-if="isParent" type="button" class="ds-btn ds-btn--ghost ds-btn--sm cuptabs__logout" @click="doLogout">Logg ut</button>
   </div>
 </template>
 
@@ -68,5 +58,4 @@ function doLogout() {
   color: var(--ds-color-text-primary);
   border-bottom-color: var(--ds-color-accent);
 }
-.cuptabs__logout { margin-bottom: 6px; }
 </style>

@@ -9,11 +9,11 @@ import SplashOverlay from './components/SplashOverlay.vue'
 import ToastNotification from './components/ToastNotification.vue'
 
 const route = useRoute()
-const { isLoggedIn, isParent } = useAuth()
+const { isLoggedIn } = useAuth()
 const { toasts } = useToast()
 
-// Foreldre har en enkel selvstendig cup-side – ingen bunnmeny.
-const showNav = computed(() => isLoggedIn.value && !isParent.value && route.name !== 'login')
+// Både trenere og foreldre får navigasjonen (BottomNav viser rollebaserte faner).
+const showNav = computed(() => isLoggedIn.value && route.name !== 'login')
 const showDemo = computed(() => !isSupabaseConfigured)
 
 // Splash plays as an overlay on cold load — destination route er allerede

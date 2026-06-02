@@ -141,6 +141,17 @@
   opacity: 1;
 }
 
+/* Logg ut — sekundær handling, dempet så den ikke konkurrerer med målene */
+.bottom-nav__item--quiet {
+  color: var(--ds-color-text-tertiary);
+  opacity: 0.6;
+  font-weight: var(--ds-weight-regular);
+}
+.bottom-nav__item--quiet svg {
+  width: 18px;
+  height: 18px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bottom-nav__item,
   .bottom-nav__item svg,

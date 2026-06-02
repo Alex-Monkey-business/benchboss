@@ -29,6 +29,12 @@ const routes = [
     component: () => import('./views/StatistikkView.vue'),
     meta: { coachOnly: true }
   },
+  // ---- Seriekamper: read-only oversikt for foreldre (trenere bruker dashboard på '/') ----
+  {
+    path: '/serie',
+    name: 'serie',
+    component: () => import('./views/SerieKamperView.vue')
+  },
   // ---- Cup-modul: kampoversikt (trenere + foreldre, read-only) ----
   {
     path: '/cup',
@@ -119,7 +125,7 @@ router.beforeEach((to) => {
     return isParent.value ? { name: 'cup' } : { name: 'dashboard' }
   }
 
-  // Foreldre når kun cup-oversikten; alt annet sendes dit.
+  // Foreldre når kun read-only-sidene (serie + cup); coachOnly-ruter sendes til cup.
   if (isParent.value && to.meta?.coachOnly) {
     return { name: 'cup' }
   }
