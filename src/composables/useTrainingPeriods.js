@@ -6,7 +6,7 @@ const loading = ref(false)
 
 // Demo-perioder (uten Supabase). Erstattes av training_periods i prod.
 const DEMO_PERIODS = [
-  { id: 'dtp-1', title: 'Ukeplan — frem til sommerferien', lead: 'Samme rytme hver uke: Tirsdag ferdigheter, Torsdag dueller, Lørdag spill.', accent: 'sage', start_date: '2026-06-02', end_date: '2026-07-04', position: 0 }
+  { id: 'dtp-1', title: 'Ukeplan — frem til sommerferien', lead: 'Sjef over ballen, grunnferdigheter og spill med mye involvering.', accent: 'sage', start_date: '2026-06-02', end_date: '2026-07-04', position: 0 }
 ]
 
 export function useTrainingPeriods() {

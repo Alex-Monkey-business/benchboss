@@ -26,7 +26,8 @@ CREATE TABLE IF NOT EXISTS training_sessions (
   accent      TEXT NOT NULL DEFAULT 'warm'
               CHECK (accent IN ('warm', 'sage', 'cornflower', 'peach', 'sky', 'olive')),
   focus       TEXT,                          -- fokusområde (ingress i den immersive visningen)
-  -- Øvelser i økta: [{ type:'diff'|'mix'|'none', text, link:{label,url}|null }]
+  illustration TEXT,                         -- filnavn for 3D-illustrasjon (hero-bilde)
+  -- Øvelser i økta: [{ type:'diff'|'mix'|'none', text, tema, laeringsmomenter[], organisering, link:{label,url}|null }]
   drills      JSONB NOT NULL DEFAULT '[]',
   body        TEXT,                          -- legacy fritekst (beholdt for bakoverkompat)
   links       JSONB NOT NULL DEFAULT '[]',   -- legacy lenker på økt-nivå

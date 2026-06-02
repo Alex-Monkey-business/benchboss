@@ -26,6 +26,20 @@ const DRILL_TYPES = [
   { value: 'none', label: '—' }
 ]
 
+const ILLO_BASE = '/illustrations/bench-boss-exercise-illustrations/'
+const ILLUSTRATIONS = [
+  { file: 'tuesday_june_tranparent.png',    label: 'Dribleslalåm' },
+  { file: 'thursday_june_transparent.png',  label: 'Ferdighetssirkel' },
+  { file: 'saturday_june_transparent.png',  label: 'Smålagsspill' },
+  { file: 'pass-and-move-3d.png',        label: 'Pasningsspill' },
+  { file: 'dribbling-slalom-3d.png',     label: 'Dribbleslalåm' },
+  { file: 'finishing-shot-3d.png',       label: 'Avslutning' },
+  { file: 'rondo-possession-3d.png',     label: 'Rondo' },
+  { file: 'one-vs-one-duel-3d.png',      label: '1v1 duell' },
+  { file: 'small-sided-game-3v3-3d.png', label: 'Smålagsspill 3v3' }
+]
+function illoSrc(file) { return file ? ILLO_BASE + file : null }
+
 const periodId = computed(() => route.params.id)
 const oktId = computed(() => route.params.oktId)
 const period = computed(() => getPeriod(periodId.value))
@@ -38,11 +52,11 @@ const form = ref(emptyForm())
 const saving = ref(false)
 
 function emptyDrill() {
-  return { type: 'diff', text: '', link: { label: '', url: '' } }
+  return { type: 'diff', text: '', tema: '', organisering: '', laeringsmomenter: '', link: { label: '', url: '' } }
 }
 
 function emptyForm() {
-  return { title: '', accent: 'warm', focus: '', drills: [emptyDrill()] }
+  return { title: '', accent: 'warm', illustration: '', focus: '', drills: [emptyDrill()] }
 }
 
 function openEdit() {
@@ -50,11 +64,15 @@ function openEdit() {
   const drills = (s.drills || []).map(d => ({
     type: d.type || 'none',
     text: d.text || '',
+    tema: d.tema || '',
+    organisering: d.organisering || '',
+    laeringsmomenter: (d.laeringsmomenter || []).join('\n'),
     link: d.link ? { label: d.link.label || '', url: d.link.url || '' } : { label: '', url: '' }
   }))
   form.value = {
     title: s.title,
     accent: s.accent || 'warm',
+    illustration: s.illustration || '',
     focus: s.focus || '',
     drills: drills.length ? drills : [emptyDrill()]
   }
@@ -71,12 +89,16 @@ async function save() {
     .map(d => ({
       type: d.type,
       text: d.text.trim(),
+      tema: d.tema.trim() || null,
+      organisering: d.organisering.trim() || null,
+      laeringsmomenter: d.laeringsmomenter.split('\n').map(s => s.trim()).filter(Boolean),
       link: d.link.url.trim() ? { label: d.link.label.trim(), url: d.link.url.trim() } : null
     }))
-    .filter(d => d.text || d.link)
+    .filter(d => d.text || d.link || d.tema || d.organisering || d.laeringsmomenter.length)
   await updateSession(oktId.value, {
     title: form.value.title.trim(),
     accent: form.value.accent,
+    illustration: form.value.illustration || null,
     focus: form.value.focus.trim() || null,
     drills
   })
@@ -117,13 +139,18 @@ onMounted(async () => {
       </div>
     </div>
 
-    <!-- Immersiv farget header -->
-    <header class="hero">
-      <span v-if="period" class="hero__eyebrow">{{ period.title }}</span>
-      <h1 class="hero__title">{{ okt.title }}</h1>
-      <p v-if="okt.focus" class="hero__focus">{{ okt.focus }}</p>
-      <span class="hero__meta">{{ drillCount }} {{ drillCount === 1 ? 'øvelse' : 'øvelser' }}</span>
-    </header>
+    <!-- Farget kapittel-panel -->
+    <div class="chapter">
+    <div class="chapter__hero">
+      <img v-if="okt.illustration" :src="illoSrc(okt.illustration)" :alt="okt.title" class="chapter__img" />
+      <div v-if="okt.illustration" class="chapter__scrim"></div>
+      <header class="hero">
+        <h1 class="hero__title">{{ okt.title }}</h1>
+        <p v-if="okt.focus" class="hero__focus">{{ okt.focus }}</p>
+        <span class="hero__meta">{{ drillCount }} {{ drillCount === 1 ? 'øvelse' : 'øvelser' }}</span>
+      </header>
+    </div>
+    <div class="chapter__body">
 
     <!-- Øvelser -->
     <div v-if="drillCount" class="drills">
@@ -133,25 +160,39 @@ onMounted(async () => {
           class="drill__badge"
           :class="`drill__badge--${d.type}`"
         >{{ d.type === 'diff' ? 'Diff' : 'Mix' }}</span>
-        <div class="drill__main">
-          <p v-if="d.text" class="drill__text">{{ d.text }}</p>
-          <a
-            v-if="d.link && d.link.url"
-            :href="d.link.url"
-            target="_blank"
-            rel="noopener"
-            class="drill__link"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-            {{ d.link.label || d.link.url }}
-          </a>
+        <p v-if="d.text" class="drill__text">{{ d.text }}</p>
+        <span v-if="d.tema" class="drill__tema">{{ d.tema }}</span>
+
+        <div v-if="d.laeringsmomenter && d.laeringsmomenter.length" class="drill__section">
+          <span class="drill__label">Læringsmomenter</span>
+          <ul class="drill__points">
+            <li v-for="(p, pi) in d.laeringsmomenter" :key="pi">{{ p }}</li>
+          </ul>
         </div>
+
+        <div v-if="d.organisering" class="drill__section">
+          <span class="drill__label">Organisering</span>
+          <p class="drill__section-text">{{ d.organisering }}</p>
+        </div>
+
+        <a
+          v-if="d.link && d.link.url"
+          :href="d.link.url"
+          target="_blank"
+          rel="noopener"
+          class="drill__link"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+          {{ d.link.label || d.link.url }}
+        </a>
       </div>
     </div>
 
     <div v-else class="okt-view__empty">
       <p>Ingen øvelser ennå.</p>
       <button type="button" class="ds-btn ds-btn--primary" @click="openEdit">Legg til øvelser</button>
+    </div>
+    </div>
     </div>
 
     <!-- Rediger økt -->
@@ -177,6 +218,25 @@ onMounted(async () => {
           </div>
         </div>
         <div class="ds-form-group">
+          <label class="ds-label">Illustrasjon</label>
+          <div class="illo-picker">
+            <button type="button" :class="['illo-opt', 'illo-opt--none', { 'illo-opt--active': !form.illustration }]" @click="form.illustration = ''">
+              Ingen
+            </button>
+            <button
+              v-for="il in ILLUSTRATIONS"
+              :key="il.file"
+              type="button"
+              :class="['illo-opt', { 'illo-opt--active': form.illustration === il.file }]"
+              :title="il.label"
+              :aria-label="il.label"
+              @click="form.illustration = il.file"
+            >
+              <img :src="illoSrc(il.file)" :alt="il.label" />
+            </button>
+          </div>
+        </div>
+        <div class="ds-form-group">
           <label class="ds-label" for="okt-focus">Fokusområde</label>
           <textarea id="okt-focus" v-model="form.focus" class="ds-input" rows="3" placeholder="Hva økta bygger — fokus, hvorfor, hva de skal sitte igjen med."></textarea>
         </div>
@@ -199,7 +259,12 @@ onMounted(async () => {
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
-            <textarea v-model="d.text" class="ds-input" rows="3" placeholder="Hva øvelsen går ut på — oppsett, antall, fokus."></textarea>
+            <textarea v-model="d.text" class="ds-input" rows="2" placeholder="Navn / hva øvelsen er."></textarea>
+            <input v-model="d.tema" class="ds-input" type="text" placeholder="Tema (valgfri) — f.eks. Spille oss fremover" />
+            <span class="drill-edit__sublabel">Læringsmomenter — ett per linje</span>
+            <textarea v-model="d.laeringsmomenter" class="ds-input" rows="3" placeholder="Mykt medtak ut til siden&#10;Løft blikket, finn timing på finta"></textarea>
+            <span class="drill-edit__sublabel">Organisering</span>
+            <textarea v-model="d.organisering" class="ds-input" rows="3" placeholder="Hvordan øvelsen settes opp og kjøres."></textarea>
             <div class="link-row">
               <input v-model="d.link.label" class="ds-input" type="text" placeholder="Lenketekst (valgfri)" />
               <input v-model="d.link.url" class="ds-input" type="url" placeholder="https://… (valgfri)" />
@@ -240,10 +305,55 @@ onMounted(async () => {
 :global([data-theme="dark"]) .okt-view[data-accent="sky"],        :global([data-theme="dark"]) .accent-swatch[data-accent="sky"]        { --accent-bg: #1A222A; --accent-text: #B0C5D8; }
 :global([data-theme="dark"]) .okt-view[data-accent="olive"],      :global([data-theme="dark"]) .accent-swatch[data-accent="olive"]      { --accent-bg: #2A241A; --accent-text: #D9C99E; }
 
+/* Dyp, kinematisk header-palett (VG-aktig) — lik i lyst og mørkt tema */
+.okt-view[data-accent="warm"]       { --hero-bg: #4A1E14; --hero-accent: #E5A488; --hero-fg: #F6EAE3; }
+.okt-view[data-accent="sage"]       { --hero-bg: #233528; --hero-accent: #9CC49A; --hero-fg: #EAF1E7; }
+.okt-view[data-accent="cornflower"] { --hero-bg: #232A4A; --hero-accent: #A6B2E4; --hero-fg: #E9ECF6; }
+.okt-view[data-accent="peach"]      { --hero-bg: #5A241C; --hero-accent: #F0AE97; --hero-fg: #F8ECE6; }
+.okt-view[data-accent="sky"]        { --hero-bg: #1F2E3C; --hero-accent: #9FC2D8; --hero-fg: #E9F1F6; }
+.okt-view[data-accent="olive"]      { --hero-bg: #3E331C; --hero-accent: #D8C189; --hero-fg: #F3EDDE; }
+
 .okt-view {
   max-width: 640px;
   margin: 0 auto;
   padding: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-2xl);
+}
+
+/* Farget kapittel-panel som svever på vanlig bakgrunn */
+.chapter {
+  background: var(--hero-bg);
+  border-radius: var(--ds-radius-lg);
+  box-shadow: var(--ds-shadow-md);
+  overflow: hidden;
+}
+
+/* Bildet fyller toppen og toner ut i panelfargen (VG-scrim) */
+.chapter__hero {
+  position: relative;
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+  padding: var(--ds-space-xl);
+}
+
+.chapter__img {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  object-position: center top;
+}
+
+.chapter__scrim {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(to bottom, rgba(0, 0, 0, 0) 0%, rgba(0, 0, 0, 0) 50%, var(--hero-bg) 88%);
+}
+
+.chapter__body {
+  padding: var(--ds-space-xl) var(--ds-space-xl) var(--ds-space-2xl);
 }
 
 .okt-view__nav {
@@ -289,71 +399,76 @@ onMounted(async () => {
 .okt-view__icon-btn:hover { border-color: var(--ds-color-border-strong); color: var(--ds-color-text-primary); }
 .okt-view__icon-btn--danger:hover { color: var(--ds-color-error); border-color: var(--ds-color-error); }
 
-/* ---- Immersiv header ---- */
+/* ---- Header (over bildet, nederst i hero-sonen) ---- */
 .hero {
-  background: var(--accent-bg);
-  color: var(--accent-text);
-  border-radius: var(--ds-radius-lg);
-  padding: var(--ds-space-2xl) var(--ds-space-xl);
-  margin-bottom: var(--ds-space-2xl);
+  position: relative;
+  z-index: 1;
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-sm);
+  gap: 0;
 }
 
 .hero__eyebrow {
-  font-size: var(--ds-text-xs);
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-wider);
   text-transform: uppercase;
-  opacity: 0.75;
+  color: var(--hero-accent);
 }
 
 .hero__title {
-  font-family: var(--ds-font-display);
-  font-size: clamp(2.4rem, 8vw, 3.4rem);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-tighter);
-  line-height: 1.02;
-  margin: 0;
-  font-variation-settings: var(--ds-font-display-settings);
+  font-family: var(--ds-font-display-sans);
+  font-size: clamp(3rem, 13vw, 4.6rem);
+  font-weight: 800;
+  letter-spacing: -0.02em;
+  line-height: 0.92;
+  text-transform: uppercase;
+  color: var(--hero-fg);
+  margin: 4px 0 0;
 }
 
 .hero__focus {
   font-family: var(--ds-font-display);
   font-size: var(--ds-text-lg);
   font-weight: var(--ds-weight-regular);
-  line-height: 1.4;
+  line-height: 1.45;
   letter-spacing: -0.01em;
-  margin: var(--ds-space-sm) 0 0;
-  max-width: 40ch;
+  color: var(--hero-fg);
+  margin: var(--ds-space-md) 0 0;
+  max-width: 42ch;
 }
 
 .hero__meta {
+  font-family: var(--ds-font-display-sans);
   font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-medium);
+  font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-wider);
   text-transform: uppercase;
-  opacity: 0.7;
-  margin-top: var(--ds-space-sm);
+  color: var(--hero-accent);
+  margin-top: var(--ds-space-md);
 }
 
 /* ---- Øvelser ---- */
 .drills {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-xl);
+  gap: 0;
 }
 
 .drill {
   display: flex;
-  gap: var(--ds-space-md);
+  flex-direction: column;
   align-items: flex-start;
+  padding: var(--ds-space-xl) 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.14);
 }
 
+.drill:first-child { padding-top: 0; border-top: 0; }
+
 .drill__badge {
-  flex-shrink: 0;
-  margin-top: 3px;
+  align-self: flex-start;
+  margin-bottom: var(--ds-space-md);
   padding: 3px 10px;
   border-radius: var(--ds-radius-sm);
   font-family: var(--ds-font-display-sans);
@@ -369,18 +484,10 @@ onMounted(async () => {
 :global([data-theme="dark"]) .drill__badge--diff { background: #1A241D; color: #B5D2B0; }
 :global([data-theme="dark"]) .drill__badge--mix  { background: #2A1E18; color: #F4C4A8; }
 
-.drill__main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-sm);
-}
-
 .drill__text {
   font-size: var(--ds-text-lg);
-  line-height: 1.55;
-  color: var(--ds-color-text-primary);
+  line-height: 1.5;
+  color: var(--hero-fg);
   margin: 0;
   letter-spacing: -0.01em;
   white-space: pre-wrap;
@@ -391,6 +498,7 @@ onMounted(async () => {
   align-items: center;
   gap: var(--ds-space-sm);
   align-self: flex-start;
+  margin-top: var(--ds-space-lg);
   max-width: 100%;
   padding: 8px var(--ds-space-md);
   background: var(--accent-bg);
@@ -406,10 +514,115 @@ onMounted(async () => {
 .drill__link svg { width: 15px; height: 15px; flex-shrink: 0; }
 .drill__link:active { transform: scale(0.98); }
 
+.drill__tema {
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--hero-accent);
+  letter-spacing: -0.005em;
+  margin-top: 6px;
+}
+
+.drill__section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-lg);
+}
+
+.drill__label {
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  color: var(--hero-accent);
+}
+
+.drill__section-text {
+  font-size: var(--ds-text-md);
+  line-height: 1.55;
+  color: var(--hero-fg);
+  opacity: 0.82;
+  margin: 0;
+  letter-spacing: -0.005em;
+  white-space: pre-wrap;
+}
+
+.drill__points {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.drill__points li {
+  position: relative;
+  padding-left: var(--ds-space-lg);
+  font-size: var(--ds-text-md);
+  line-height: 1.45;
+  color: var(--hero-fg);
+  opacity: 0.88;
+  letter-spacing: -0.005em;
+}
+
+.drill__points li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.6em;
+  width: 12px;
+  height: 1px;
+  background: var(--hero-accent);
+}
+
+.drill-edit__sublabel {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-tertiary);
+  letter-spacing: -0.005em;
+}
+
+/* ---- Illustrasjonsvelger ---- */
+.illo-picker {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: var(--ds-space-sm);
+}
+
+.illo-opt {
+  aspect-ratio: 1;
+  border: 2px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  overflow: hidden;
+  cursor: pointer;
+  background: var(--ds-color-bg-subtle);
+  padding: 0;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.illo-opt img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.illo-opt--none {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-tertiary);
+}
+
+.illo-opt--active { border-color: var(--ds-color-accent); }
+
 .okt-view__empty {
   text-align: center;
   padding: var(--ds-space-2xl) 0;
-  color: var(--ds-color-text-tertiary);
+  color: var(--hero-fg);
+  opacity: 0.8;
   display: flex;
   flex-direction: column;
   align-items: center;

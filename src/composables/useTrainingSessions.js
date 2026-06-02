@@ -11,9 +11,21 @@ const DEMO_SESSIONS = [
     id: 'dts-1', period_id: 'dtp-1', position: 0,
     title: 'Tirsdag',
     accent: 'sky',
+    illustration: 'tuesday_june_tranparent.png',
     focus: 'Ferdigheter under press. Bli sjef over ballen i trange rom — medtak, vending og første touch som tar deg ut av presset.',
     drills: [
-      { type: 'diff', text: 'Medtak, dribling, vending og pasning. To baner med 10–12 spillere på hver. Vær sjef over ballen.', link: { label: 'Medtak, dribling, vending, pasning', url: 'https://tiim.no/ovelse/medtak-dribling-vending-pasning' } },
+      {
+        type: 'diff',
+        text: 'Medtak, dribling, vending og pasning. Vær sjef over ballen.',
+        tema: 'Spille oss fremover',
+        laeringsmomenter: [
+          'Mykt medtak ut til siden — fremover på andre touch',
+          'Løft blikket og finn timing på finta',
+          'Finte med tempo og store bevegelser for å passere'
+        ],
+        organisering: 'To og to per stasjon, flere stasjoner ved siden av hverandre. Pasning gjennom en port, retningsbestemt medtak, dribling forbi kjegler, finte mot passivt press, og vending ved siste kjegle. Bytt roller.',
+        link: { label: 'Medtak, dribling, vending, pasning', url: 'https://tiim.no/ovelse/medtak-dribling-vending-pasning' }
+      },
       { type: 'diff', text: '3v3 med press i ryggen. Ni spillere per bane. Spill fremover.', link: null },
       { type: 'mix',  text: 'Vinneren står. Korte 7er-baner, dødballer fra keeper og faste keepere.', link: null }
     ]
@@ -22,7 +34,8 @@ const DEMO_SESSIONS = [
     id: 'dts-2', period_id: 'dtp-1', position: 1,
     title: 'Torsdag',
     accent: 'peach',
-    focus: 'Dueller og mot. Vinn ballen i 1v1, og spill fremover med en gang du har den.',
+    illustration: 'thursday_june_transparent.png',
+    focus: 'Grunnferdigheter og spill. Ferdighetssirkel for å bli sjef over ballen, så smålagsspill 3v3 med mye involvering.',
     drills: [
       { type: 'mix',  text: 'Ferdighetssirkel som avsluttes med press. Vær sjef over ballen.', link: null },
       { type: 'diff', text: '30 minutter med «vinneren står». Tre 3v3-baner på småmål med én fast joker (A-spiller) på hver bane. Spill fremover. Differensiert i nivå A, B og C — tre lag à tre spillere per bane.', link: null }
@@ -32,6 +45,7 @@ const DEMO_SESSIONS = [
     id: 'dts-3', period_id: 'dtp-1', position: 2,
     title: 'Lørdag',
     accent: 'olive',
+    illustration: 'saturday_june_transparent.png',
     focus: 'Spill og mestring. Mye touch, små lag, mange mål — la dem prøve det vi har trent på.',
     drills: [
       { type: 'diff', text: 'Utvidet Barça-oppvarming. Innside, utside, såle, vendinger og finter med begge føtter, rundt kjegler.', link: null },
@@ -70,7 +84,7 @@ export function useTrainingSessions() {
   }
 
   async function createSession(periodId, payload) {
-    const data = { period_id: periodId, position: sessions.value.length, accent: 'warm', focus: null, drills: [], ...payload }
+    const data = { period_id: periodId, position: sessions.value.length, accent: 'warm', illustration: null, focus: null, drills: [], ...payload }
 
     if (!isSupabaseConfigured) {
       const row = { id: 'dts-' + Date.now(), ...data }
