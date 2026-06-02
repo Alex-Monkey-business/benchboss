@@ -13,9 +13,9 @@ const DEMO_SESSIONS = [
     accent: 'sky',
     focus: 'Ferdigheter under press. Bli sjef over ballen i trange rom — medtak, vending og første touch som tar deg ut av presset.',
     drills: [
-      { type: 'diff', text: 'Medtak, dribling, vending, pasning\n2 baner x 10–12 spillere. Sjef over ballen.', link: { label: 'Medtak, dribling, vending, pasning', url: 'https://tiim.no/ovelse/medtak-dribling-vending-pasning' } },
-      { type: 'diff', text: '3v3 med press i rygg, SF. 9 per bane. Spille fremover.', link: null },
-      { type: 'mix',  text: 'Vinneren står, kort 7er, dødballer fra keeper, faste keepere.', link: null }
+      { type: 'diff', text: 'Medtak, dribling, vending og pasning. To baner med 10–12 spillere på hver. Vær sjef over ballen.', link: { label: 'Medtak, dribling, vending, pasning', url: 'https://tiim.no/ovelse/medtak-dribling-vending-pasning' } },
+      { type: 'diff', text: '3v3 med press i ryggen. Ni spillere per bane. Spill fremover.', link: null },
+      { type: 'mix',  text: 'Vinneren står. Korte 7er-baner, dødballer fra keeper og faste keepere.', link: null }
     ]
   },
   {
@@ -24,8 +24,8 @@ const DEMO_SESSIONS = [
     accent: 'peach',
     focus: 'Dueller og mot. Vinn ballen i 1v1, og spill fremover med en gang du har den.',
     drills: [
-      { type: 'mix',  text: 'Ferdighetssirkel med press til slutt. Sjef over ballen.', link: null },
-      { type: 'diff', text: '30 min vinneren står, 3× 3v3-baner på småmål, med faste jokere (A-spiller) per bane, spille fremover. Diff i A, B og C. 3 lag à 3 per bane.', link: null }
+      { type: 'mix',  text: 'Ferdighetssirkel som avsluttes med press. Vær sjef over ballen.', link: null },
+      { type: 'diff', text: '30 minutter med «vinneren står». Tre 3v3-baner på småmål med én fast joker (A-spiller) på hver bane. Spill fremover. Differensiert i nivå A, B og C — tre lag à tre spillere per bane.', link: null }
     ]
   },
   {
@@ -34,10 +34,10 @@ const DEMO_SESSIONS = [
     accent: 'olive',
     focus: 'Spill og mestring. Mye touch, små lag, mange mål — la dem prøve det vi har trent på.',
     drills: [
-      { type: 'diff', text: 'Utvidet barça-oppvarming. Innside/utside/såle/vendinger/finter med begge føtter. Kjegler.', link: null },
-      { type: 'diff', text: 'Eggs, 4v4 / 3v3 / 2v2 ut fra antall.', link: { label: 'Eggs Transition Game – 4v4 til 4v3', url: 'https://tiim.no/ovelse/eggs-transition-game-4v4-til-4v3' } },
-      { type: 'mix',  text: '4v4-turnering, korte baner, helst store mål.', link: null },
-      { type: 'none', text: 'Tverrliggerkonk og killer.', link: null }
+      { type: 'diff', text: 'Utvidet Barça-oppvarming. Innside, utside, såle, vendinger og finter med begge føtter, rundt kjegler.', link: null },
+      { type: 'diff', text: 'Eggs (transition game). 4v4, 3v3 eller 2v2 ut fra hvor mange som er på trening.', link: { label: 'Eggs Transition Game – 4v4 til 4v3', url: 'https://tiim.no/ovelse/eggs-transition-game-4v4-til-4v3' } },
+      { type: 'mix',  text: '4v4-turnering på korte baner, helst med store mål.', link: null },
+      { type: 'none', text: 'Avslutt med tverrliggerkonkurranse og killer.', link: null }
     ]
   }
 ]

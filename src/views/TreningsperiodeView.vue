@@ -9,7 +9,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 const route = useRoute()
 const router = useRouter()
 const { periods, getPeriod, fetchPeriods, updatePeriod, deletePeriod } = useTrainingPeriods()
-const { sessions, fetchSessions, createSession, moveSession } = useTrainingSessions()
+const { sessions, fetchSessions, createSession } = useTrainingSessions()
 
 const ACCENTS = [
   { value: 'warm',       label: 'Varm' },
@@ -123,7 +123,7 @@ onMounted(async () => {
     <!-- Økt-kort -->
     <div class="okt-list">
       <div
-        v-for="(s, i) in sessions"
+        v-for="s in sessions"
         :key="s.id"
         class="okt-card"
         :data-accent="s.accent || 'warm'"
@@ -134,14 +134,6 @@ onMounted(async () => {
           <span class="okt-card__title">{{ s.title }}</span>
           <span v-if="s.focus" class="okt-card__focus">{{ s.focus }}</span>
           <span class="okt-card__meta">{{ drillCount(s) }} {{ drillCount(s) === 1 ? 'øvelse' : 'øvelser' }}</span>
-        </span>
-        <span class="okt-card__controls" @click.stop>
-          <button type="button" class="okt__ctrl" :disabled="i === 0" aria-label="Flytt opp" @click="moveSession(s.id, 'up')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-          </button>
-          <button type="button" class="okt__ctrl" :disabled="i === sessions.length - 1" aria-label="Flytt ned" @click="moveSession(s.id, 'down')">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-          </button>
         </span>
         <svg class="okt-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </div>
@@ -399,33 +391,6 @@ onMounted(async () => {
   color: var(--ds-color-text-tertiary);
   margin-top: 2px;
 }
-
-.okt-card__controls {
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 2px;
-  flex-shrink: 0;
-}
-
-.okt__ctrl {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 24px;
-  border-radius: var(--ds-radius-sm);
-  border: 0;
-  background: transparent;
-  color: var(--ds-color-text-tertiary);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: background-color var(--ds-duration-fast) var(--ds-ease-out), color var(--ds-duration-fast) var(--ds-ease-out);
-}
-
-.okt__ctrl svg { width: 15px; height: 15px; }
-.okt__ctrl:hover:not(:disabled) { background: var(--ds-color-bg-subtle); color: var(--ds-color-text-primary); }
-.okt__ctrl:disabled { opacity: 0.25; cursor: default; }
 
 .okt-card__chevron {
   width: 16px;
