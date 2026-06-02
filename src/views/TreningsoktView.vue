@@ -38,7 +38,9 @@ const ILLUSTRATIONS = [
   { file: 'one-vs-one-duel-3d.png',      label: '1v1 duell' },
   { file: 'small-sided-game-3v3-3d.png', label: 'Smålagsspill 3v3' }
 ]
-function illoSrc(file) { return file ? ILLO_BASE + file : null }
+function illoSrc(file) { return file ? ILLO_BASE + file.replace(/\.png$/, '.webp') : null }
+function illoPng(file) { return file ? ILLO_BASE + file : null }
+const heroLoaded = ref(false)
 
 const periodId = computed(() => route.params.id)
 const oktId = computed(() => route.params.oktId)
@@ -142,7 +144,18 @@ onMounted(async () => {
     <!-- Farget kapittel-panel -->
     <div class="chapter">
     <div class="chapter__hero">
-      <img v-if="okt.illustration" :src="illoSrc(okt.illustration)" :alt="okt.title" class="chapter__img" />
+      <picture v-if="okt.illustration">
+        <source :srcset="illoSrc(okt.illustration)" type="image/webp" />
+        <img
+          :src="illoPng(okt.illustration)"
+          :alt="okt.title"
+          class="chapter__img"
+          :class="{ 'is-loaded': heroLoaded }"
+          decoding="async"
+          fetchpriority="high"
+          @load="heroLoaded = true"
+        />
+      </picture>
       <div v-if="okt.illustration" class="chapter__scrim"></div>
       <header class="hero">
         <h1 class="hero__title">{{ okt.title }}</h1>
@@ -232,7 +245,7 @@ onMounted(async () => {
               :aria-label="il.label"
               @click="form.illustration = il.file"
             >
-              <img :src="illoSrc(il.file)" :alt="il.label" />
+              <img :src="illoSrc(il.file)" :alt="il.label" loading="lazy" decoding="async" />
             </button>
           </div>
         </div>
@@ -344,6 +357,14 @@ onMounted(async () => {
   height: 100%;
   object-fit: contain;
   object-position: center top;
+  opacity: 0;
+  transition: opacity 350ms var(--ds-ease-out);
+}
+
+.chapter__img.is-loaded { opacity: 1; }
+
+@media (prefers-reduced-motion: reduce) {
+  .chapter__img { transition: none; }
 }
 
 .chapter__scrim {
