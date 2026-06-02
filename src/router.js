@@ -97,6 +97,18 @@ const routes = [
     meta: { coachOnly: true }
   },
   {
+    path: '/admin/treningsplan',
+    name: 'admin-treningsplan',
+    component: () => import('./views/TreningsplanView.vue'),
+    meta: { coachOnly: true }
+  },
+  {
+    path: '/admin/treningsplan/:id',
+    name: 'admin-treningsperiode',
+    component: () => import('./views/TreningsperiodeView.vue'),
+    meta: { coachOnly: true }
+  },
+  {
     path: '/admin/handbok/:slug',
     name: 'admin-handbok-principle',
     component: () => import('./views/TrainingPrincipleView.vue'),

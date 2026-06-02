@@ -65,6 +65,23 @@ const HANDBOK_ACCENTS = ['#F8E8E0', '#E2EDDE', '#D6DDEF', '#F8E8E0', '#DDE6EC', 
       </router-link>
     </div>
 
+    <!-- Treningsplan — samme register som håndboken, men redigerbar -->
+    <div class="px-lg" style="margin-bottom: var(--ds-space-lg);">
+      <router-link to="/admin/treningsplan" class="handbok-hero">
+        <span class="handbok-hero__strip" aria-hidden="true">
+          <span v-for="(c, i) in HANDBOK_ACCENTS" :key="i" :style="{ background: c }"></span>
+        </span>
+        <span class="handbok-hero__body">
+          <span class="handbok-hero__eyebrow">Treningsplan</span>
+          <span class="handbok-hero__title">Perioder &amp; økter</span>
+          <span class="handbok-hero__lead">Planen over tid — med øktene og lenkene</span>
+        </span>
+        <svg class="handbok-hero__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </router-link>
+    </div>
+
     <div class="px-lg" style="margin-bottom: 6px;">
       <span class="admin-section-label" style="margin-left: 4px;">Verktøy</span>
     </div>
