@@ -30,8 +30,12 @@ const editingId = ref(null)
 const sessionForm = ref(emptySessionForm())
 const savingSession = ref(false)
 
+function emptyDrill() {
+  return { type: 'diff', text: '', link: { label: '', url: '' } }
+}
+
 function emptySessionForm() {
-  return { title: '', body: '', links: [] }
+  return { title: '', drills: [emptyDrill()] }
 }
 
 function openNewSession() {
@@ -42,32 +46,37 @@ function openNewSession() {
 
 function openEditSession(s) {
   editingId.value = s.id
+  const drills = (s.drills || []).map(d => ({
+    type: d.type || 'none',
+    text: d.text || '',
+    link: d.link ? { label: d.link.label || '', url: d.link.url || '' } : { label: '', url: '' }
+  }))
   sessionForm.value = {
     title: s.title,
-    body: s.body || '',
-    links: (s.links || []).map(l => ({ ...l }))
+    drills: drills.length ? drills : [emptyDrill()]
   }
   showSessionSheet.value = true
 }
 
-function addLinkRow() {
-  sessionForm.value.links.push({ label: '', url: '' })
+function addDrill() {
+  sessionForm.value.drills.push(emptyDrill())
 }
 
-function removeLinkRow(i) {
-  sessionForm.value.links.splice(i, 1)
+function removeDrill(i) {
+  sessionForm.value.drills.splice(i, 1)
 }
 
 async function saveSession() {
   if (!sessionForm.value.title.trim() || savingSession.value) return
   savingSession.value = true
-  const payload = {
-    title: sessionForm.value.title.trim(),
-    body: sessionForm.value.body.trim() || null,
-    links: sessionForm.value.links
-      .map(l => ({ label: l.label.trim(), url: l.url.trim() }))
-      .filter(l => l.url)
-  }
+  const drills = sessionForm.value.drills
+    .map(d => ({
+      type: d.type,
+      text: d.text.trim(),
+      link: d.link.url.trim() ? { label: d.link.label.trim(), url: d.link.url.trim() } : null
+    }))
+    .filter(d => d.text || d.link)
+  const payload = { title: sessionForm.value.title.trim(), drills }
   if (editingId.value) {
     await updateSession(editingId.value, payload)
   } else {
@@ -76,6 +85,12 @@ async function saveSession() {
   savingSession.value = false
   showSessionSheet.value = false
 }
+
+const DRILL_TYPES = [
+  { value: 'diff', label: 'Diff' },
+  { value: 'mix',  label: 'Mix' },
+  { value: 'none', label: '—' }
+]
 
 // ---- Slett økt ----
 const sessionToDelete = ref(null)
@@ -177,20 +192,39 @@ onMounted(async () => {
             </button>
           </div>
         </div>
-        <p v-if="s.body" class="okt__body">{{ s.body }}</p>
-        <div v-if="s.links && s.links.length" class="okt__links">
-          <a
-            v-for="(l, j) in s.links"
-            :key="j"
-            :href="l.url"
-            target="_blank"
-            rel="noopener"
-            class="okt__link"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-            {{ l.label || l.url }}
-          </a>
+        <div v-if="s.drills && s.drills.length" class="drills">
+          <div v-for="(d, di) in s.drills" :key="di" class="drill">
+            <span
+              v-if="d.type && d.type !== 'none'"
+              class="drill__badge"
+              :class="`drill__badge--${d.type}`"
+            >{{ d.type === 'diff' ? 'Diff' : 'Mix' }}</span>
+            <div class="drill__main">
+              <p v-if="d.text" class="drill__text">{{ d.text }}</p>
+              <a
+                v-if="d.link && d.link.url"
+                :href="d.link.url"
+                target="_blank"
+                rel="noopener"
+                class="okt__link drill__link"
+              >
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                {{ d.link.label || d.link.url }}
+              </a>
+            </div>
+          </div>
         </div>
+
+        <!-- Fallback for legacy-økter (før drills-migrering) -->
+        <template v-else>
+          <p v-if="s.body" class="drill__text">{{ s.body }}</p>
+          <div v-if="s.links && s.links.length" class="okt__links">
+            <a v-for="(l, j) in s.links" :key="j" :href="l.url" target="_blank" rel="noopener" class="okt__link">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+              {{ l.label || l.url }}
+            </a>
+          </div>
+        </template>
       </div>
 
       <button type="button" class="ds-btn ds-btn--secondary periode__add" @click="openNewSession">
@@ -206,19 +240,31 @@ onMounted(async () => {
           <input id="okt-title" v-model="sessionForm.title" class="ds-input" type="text" placeholder="F.eks. T1 — Avslutning fra kant" required />
         </div>
         <div class="ds-form-group">
-          <label class="ds-label" for="okt-body">Beskrivelse</label>
-          <textarea id="okt-body" v-model="sessionForm.body" class="ds-input" rows="5" placeholder="Lim inn fra Messenger — hva økta går ut på, oppsett, fokus."></textarea>
-        </div>
-        <div class="ds-form-group">
-          <label class="ds-label">Lenker</label>
-          <div v-for="(l, i) in sessionForm.links" :key="i" class="link-row">
-            <input v-model="l.label" class="ds-input" type="text" placeholder="Tekst (f.eks. YouTube)" />
-            <input v-model="l.url" class="ds-input" type="url" placeholder="https://…" />
-            <button type="button" class="link-row__remove" aria-label="Fjern lenke" @click="removeLinkRow(i)">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
+          <label class="ds-label">Øvelser</label>
+          <div v-for="(d, i) in sessionForm.drills" :key="i" class="drill-edit">
+            <div class="drill-edit__head">
+              <div class="type-toggle" role="radiogroup" aria-label="Type øvelse">
+                <button
+                  v-for="t in DRILL_TYPES"
+                  :key="t.value"
+                  type="button"
+                  role="radio"
+                  :aria-checked="d.type === t.value"
+                  :class="['type-toggle__opt', `type-toggle__opt--${t.value}`, { 'type-toggle__opt--active': d.type === t.value }]"
+                  @click="d.type = t.value"
+                >{{ t.label }}</button>
+              </div>
+              <button type="button" class="link-row__remove" aria-label="Fjern øvelse" @click="removeDrill(i)">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </div>
+            <textarea v-model="d.text" class="ds-input" rows="3" placeholder="Hva øvelsen går ut på — oppsett, antall, fokus."></textarea>
+            <div class="link-row">
+              <input v-model="d.link.label" class="ds-input" type="text" placeholder="Lenketekst (valgfri)" />
+              <input v-model="d.link.url" class="ds-input" type="url" placeholder="https://… (valgfri)" />
+            </div>
           </div>
-          <button type="button" class="ds-btn ds-btn--ghost ds-btn--sm" @click="addLinkRow">+ Lenke</button>
+          <button type="button" class="ds-btn ds-btn--ghost ds-btn--sm" @click="addDrill">+ Øvelse</button>
         </div>
         <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg" :disabled="!sessionForm.title.trim() || savingSession" style="width: 100%; margin-top: var(--ds-space-sm);">
           {{ savingSession ? 'Lagrer…' : (editingId ? 'Lagre endringer' : 'Legg til økt') }}
@@ -493,6 +539,112 @@ onMounted(async () => {
 
 .okt__link svg { width: 15px; height: 15px; flex-shrink: 0; }
 .okt__link:active { transform: scale(0.98); }
+
+/* ---- Øvelser (drills) med Diff/Mix-badge ---- */
+.drills {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-md);
+}
+
+.drill {
+  display: flex;
+  gap: var(--ds-space-sm);
+  align-items: flex-start;
+}
+
+.drill__badge {
+  flex-shrink: 0;
+  margin-top: 2px;
+  padding: 2px 8px;
+  border-radius: var(--ds-radius-sm);
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+}
+
+.drill__badge--diff { background: #E2EDDE; color: #3D5C44; }
+.drill__badge--mix  { background: #F8E8E0; color: #7A3A24; }
+
+:global([data-theme="dark"]) .drill__badge--diff { background: #1A241D; color: #B5D2B0; }
+:global([data-theme="dark"]) .drill__badge--mix  { background: #2A1E18; color: #F4C4A8; }
+
+.drill__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+}
+
+.drill__text {
+  font-size: var(--ds-text-md);
+  line-height: 1.55;
+  color: var(--ds-color-text-secondary);
+  margin: 0;
+  letter-spacing: -0.005em;
+  white-space: pre-wrap;
+}
+
+.drill__link { align-self: flex-start; }
+
+/* ---- Øvelse-editor i skjema ---- */
+.drill-edit {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+  padding: var(--ds-space-md);
+  margin-bottom: var(--ds-space-sm);
+  background: var(--ds-color-bg-subtle);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+}
+
+.drill-edit__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-sm);
+}
+
+.type-toggle {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--ds-color-bg-elevated);
+  border-radius: var(--ds-radius-sm);
+  gap: 2px;
+}
+
+.type-toggle__opt {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 5px 12px;
+  border-radius: calc(var(--ds-radius-sm) - 2px);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--ds-duration-fast) var(--ds-ease-out), color var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.type-toggle__opt:active { transform: scale(0.96); }
+
+.type-toggle__opt--active {
+  font-weight: var(--ds-weight-semibold);
+  box-shadow: var(--ds-shadow-xs);
+}
+
+.type-toggle__opt--diff.type-toggle__opt--active { background: #E2EDDE; color: #3D5C44; }
+.type-toggle__opt--mix.type-toggle__opt--active  { background: #F8E8E0; color: #7A3A24; }
+.type-toggle__opt--none.type-toggle__opt--active { background: var(--ds-color-bg-subtle); color: var(--ds-color-text-primary); }
+
+:global([data-theme="dark"]) .type-toggle__opt--diff.type-toggle__opt--active { background: #1A241D; color: #B5D2B0; }
+:global([data-theme="dark"]) .type-toggle__opt--mix.type-toggle__opt--active  { background: #2A1E18; color: #F4C4A8; }
 
 .periode__add { width: 100%; margin-top: var(--ds-space-lg); }
 

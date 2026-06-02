@@ -23,8 +23,10 @@ CREATE TABLE IF NOT EXISTS training_sessions (
   id          UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   period_id   UUID NOT NULL REFERENCES training_periods(id) ON DELETE CASCADE,
   title       TEXT NOT NULL,
-  body        TEXT,                          -- beskrivelse (limes fra Messenger)
-  links       JSONB NOT NULL DEFAULT '[]',
+  -- Øvelser i økta: [{ type:'diff'|'mix'|'none', text, link:{label,url}|null }]
+  drills      JSONB NOT NULL DEFAULT '[]',
+  body        TEXT,                          -- legacy fritekst (beholdt for bakoverkompat)
+  links       JSONB NOT NULL DEFAULT '[]',   -- legacy lenker på økt-nivå
   position    INTEGER NOT NULL DEFAULT 0,
   created_at  TIMESTAMPTZ DEFAULT now()
 );
