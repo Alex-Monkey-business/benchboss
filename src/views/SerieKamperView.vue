@@ -5,6 +5,7 @@ import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
 import { relativeDateLabel, isToday } from '../lib/dateLabels'
 import TeamFilter from '../components/TeamFilter.vue'
+import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 
 const { activeSeason, fetchSeasons } = useSeasons()
 const { matches, fetchMatches, getCoachesForMatch } = useMatches()
@@ -147,9 +148,7 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
         <TeamFilter v-model="teamFilter" :counts="counts" />
       </div>
 
-      <div v-if="loading" class="ds-empty">
-        <p class="ds-empty__title">Henter kamper …</p>
-      </div>
+      <MatchCardSkeleton v-if="loading" :count="4" />
 
       <div v-else-if="displayedMatches.length === 0" class="ds-empty">
         <h3 class="ds-empty__title">
