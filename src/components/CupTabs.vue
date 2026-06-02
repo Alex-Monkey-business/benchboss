@@ -13,60 +13,60 @@ function doLogout() {
 
 <template>
   <div class="cuptabs">
-    <div class="cuptabs__seg">
-      <router-link to="/cup" class="seg" :class="{ 'seg--active': $route.name === 'cup' }">Kamper</router-link>
-      <router-link to="/cup/tropp" class="seg" :class="{ 'seg--active': $route.name === 'cup-tropp' }">Tropp</router-link>
+    <div class="cuptabs__bar" role="tablist">
+      <router-link
+        to="/cup"
+        role="tab"
+        class="cuptabs__tab"
+        :class="{ 'cuptabs__tab--active': $route.name === 'cup' }"
+      >Kamper</router-link>
+      <router-link
+        to="/cup/tropp"
+        role="tab"
+        class="cuptabs__tab"
+        :class="{ 'cuptabs__tab--active': $route.name === 'cup-tropp' }"
+      >Tropp</router-link>
     </div>
-    <button v-if="isParent" type="button" class="cuptabs__logout" @click="doLogout">Logg ut</button>
+    <button v-if="isParent" type="button" class="ds-btn ds-btn--ghost ds-btn--sm cuptabs__logout" @click="doLogout">Logg ut</button>
   </div>
 </template>
 
 <style scoped>
+/* Samme underline-tab-stil som Kommende/Tidligere på kampoversikten */
 .cuptabs {
   display: flex;
-  flex-wrap: wrap;
-  align-items: center;
+  align-items: flex-end;
   justify-content: space-between;
-  gap: var(--ds-space-sm) var(--ds-space-md);
-  margin-bottom: var(--ds-space-lg);
+  gap: var(--ds-space-md);
+  margin-bottom: var(--ds-space-md);
 }
-.cuptabs__seg {
+.cuptabs__bar {
+  display: flex;
+  gap: 24px;
+  flex: 1;
+  border-bottom: 1px solid var(--ds-color-border-light);
+}
+.cuptabs__tab {
   display: inline-flex;
-  background: var(--ds-color-bg-sunken);
-  border-radius: var(--ds-radius-full);
-  padding: 3px;
-}
-.seg {
-  appearance: none;
-  border: none;
+  align-items: center;
+  padding: 12px 0;
+  border: 0;
+  border-bottom: 2px solid transparent;
   background: transparent;
+  color: var(--ds-color-text-tertiary);
   font-family: var(--ds-font-body);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-secondary);
+  font-size: 0.9375rem;
+  font-weight: 600;
   text-decoration: none;
-  padding: 7px 18px;
-  border-radius: var(--ds-radius-full);
   cursor: pointer;
-  transition: background var(--ds-duration-fast) var(--ds-ease-out), color var(--ds-duration-fast) var(--ds-ease-out);
+  transition: color 0.15s ease, border-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+  margin-bottom: -1px;
 }
-.seg--active {
-  background: var(--ds-color-bg-elevated);
+.cuptabs__tab:hover { color: var(--ds-color-text-primary); }
+.cuptabs__tab--active {
   color: var(--ds-color-text-primary);
-  box-shadow: var(--ds-shadow-xs);
+  border-bottom-color: var(--ds-color-accent);
 }
-.cuptabs__logout {
-  appearance: none;
-  border: var(--ds-border-width) solid var(--ds-color-border);
-  background: transparent;
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  padding: 6px 12px;
-  border-radius: var(--ds-radius-full);
-  cursor: pointer;
-  white-space: nowrap;
-}
-.cuptabs__logout:hover { background: var(--ds-color-bg-hover); }
+.cuptabs__logout { margin-bottom: 6px; }
 </style>

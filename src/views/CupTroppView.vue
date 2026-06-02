@@ -51,7 +51,7 @@ async function toggle(playerId, team) {
 
       <div v-if="canEdit" class="tropp-actions">
         <span class="tropp-hint">{{ unplaced.length }} ikke plassert</span>
-        <button type="button" class="tropp-edit" :class="{ 'tropp-edit--active': editing }" @click="editing = !editing">
+        <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" @click="editing = !editing">
           {{ editing ? 'Ferdig' : 'Rediger tropp' }}
         </button>
       </div>
@@ -65,13 +65,13 @@ async function toggle(playerId, team) {
         <div class="list">
           <div v-for="p in allPlayers" :key="p.id" class="prow">
             <span class="pname">{{ p.name }}</span>
-            <div class="teamseg">
+            <div class="ds-pills">
               <button
                 v-for="t in CUP_TEAMS"
                 :key="t.slug"
                 type="button"
-                class="teamseg__btn"
-                :class="{ 'teamseg__btn--active': teamForPlayer(p.id) === t.slug }"
+                class="ds-pill"
+                :class="{ 'ds-pill--active': teamForPlayer(p.id) === t.slug }"
                 @click="toggle(p.id, t.slug)"
               >
                 {{ t.name.replace('Halsen IF ', '') }}
@@ -114,16 +114,6 @@ async function toggle(playerId, team) {
   margin-bottom: var(--ds-space-md);
 }
 .tropp-hint { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); }
-.tropp-edit {
-  appearance: none; font-family: var(--ds-font-body);
-  border: var(--ds-border-width) solid var(--ds-color-border);
-  background: transparent; color: var(--ds-color-text-secondary);
-  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold);
-  padding: 8px 16px; border-radius: var(--ds-radius-full); cursor: pointer;
-  transition: background var(--ds-duration-fast) var(--ds-ease-out), color var(--ds-duration-fast) var(--ds-ease-out), border-color var(--ds-duration-fast) var(--ds-ease-out);
-}
-.tropp-edit:hover { background: var(--ds-color-bg-hover); }
-.tropp-edit--active { background: var(--ds-color-accent); color: var(--ds-color-accent-text); border-color: var(--ds-color-accent); }
 
 .team { margin-top: var(--ds-space-lg); }
 .team:first-of-type { margin-top: 0; }
@@ -150,13 +140,4 @@ async function toggle(playerId, team) {
 .prow--muted { background: var(--ds-color-bg-subtle); box-shadow: none; }
 .pname { font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
 .prow--muted .pname { color: var(--ds-color-text-secondary); font-weight: var(--ds-weight-medium); }
-
-.teamseg { display: inline-flex; background: var(--ds-color-bg-sunken); border-radius: var(--ds-radius-full); padding: 2px; flex: 0 0 auto; }
-.teamseg__btn {
-  appearance: none; border: none; background: transparent;
-  font-family: var(--ds-font-body); font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-secondary); padding: 6px 12px; border-radius: var(--ds-radius-full); cursor: pointer;
-  transition: background var(--ds-duration-fast) var(--ds-ease-out), color var(--ds-duration-fast) var(--ds-ease-out);
-}
-.teamseg__btn--active { background: var(--ds-color-accent); color: var(--ds-color-accent-text); }
 </style>
