@@ -9,7 +9,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 const route = useRoute()
 const router = useRouter()
 const { periods, getPeriod, fetchPeriods, updatePeriod, deletePeriod } = useTrainingPeriods()
-const { sessions, fetchSessions, createSession, updateSession, removeSession, moveSession } = useTrainingSessions()
+const { sessions, fetchSessions, createSession, moveSession } = useTrainingSessions()
 
 const ACCENTS = [
   { value: 'warm',       label: 'Varm' },
@@ -24,79 +24,17 @@ const periodId = computed(() => route.params.id)
 const period = computed(() => getPeriod(periodId.value))
 const index = computed(() => periods.value.findIndex(p => p.id === periodId.value))
 
-// ---- Økt-skjema (ny + rediger) ----
-const showSessionSheet = ref(false)
-const editingId = ref(null)
-const sessionForm = ref(emptySessionForm())
-const savingSession = ref(false)
-
-function emptyDrill() {
-  return { type: 'diff', text: '', link: { label: '', url: '' } }
+function openOkt(s) {
+  router.push(`/admin/treningsplan/${periodId.value}/okt/${s.id}`)
 }
 
-function emptySessionForm() {
-  return { title: '', drills: [emptyDrill()] }
-}
-
-function openNewSession() {
-  editingId.value = null
-  sessionForm.value = emptySessionForm()
-  showSessionSheet.value = true
-}
-
-function openEditSession(s) {
-  editingId.value = s.id
-  const drills = (s.drills || []).map(d => ({
-    type: d.type || 'none',
-    text: d.text || '',
-    link: d.link ? { label: d.link.label || '', url: d.link.url || '' } : { label: '', url: '' }
-  }))
-  sessionForm.value = {
-    title: s.title,
-    drills: drills.length ? drills : [emptyDrill()]
-  }
-  showSessionSheet.value = true
-}
-
-function addDrill() {
-  sessionForm.value.drills.push(emptyDrill())
-}
-
-function removeDrill(i) {
-  sessionForm.value.drills.splice(i, 1)
-}
-
-async function saveSession() {
-  if (!sessionForm.value.title.trim() || savingSession.value) return
-  savingSession.value = true
-  const drills = sessionForm.value.drills
-    .map(d => ({
-      type: d.type,
-      text: d.text.trim(),
-      link: d.link.url.trim() ? { label: d.link.label.trim(), url: d.link.url.trim() } : null
-    }))
-    .filter(d => d.text || d.link)
-  const payload = { title: sessionForm.value.title.trim(), drills }
-  if (editingId.value) {
-    await updateSession(editingId.value, payload)
-  } else {
-    await createSession(periodId.value, payload)
-  }
-  savingSession.value = false
-  showSessionSheet.value = false
-}
-
-const DRILL_TYPES = [
-  { value: 'diff', label: 'Diff' },
-  { value: 'mix',  label: 'Mix' },
-  { value: 'none', label: '—' }
-]
-
-// ---- Slett økt ----
-const sessionToDelete = ref(null)
-async function confirmDeleteSession() {
-  await removeSession(sessionToDelete.value.id)
-  sessionToDelete.value = null
+const creating = ref(false)
+async function addOkt() {
+  if (creating.value) return
+  creating.value = true
+  const row = await createSession(periodId.value, { title: 'Ny økt', accent: period.value?.accent || 'warm' })
+  creating.value = false
+  if (row) openOkt(row)
 }
 
 // ---- Periode-skjema (rediger) ----
@@ -144,6 +82,14 @@ function dateRange(p) {
   return ''
 }
 
+function abbr(title) {
+  return (title || '').trim().slice(0, 3)
+}
+
+function drillCount(s) {
+  return (s.drills || []).length
+}
+
 onMounted(async () => {
   if (!period.value) await fetchPeriods()
   await fetchSessions(periodId.value)
@@ -167,110 +113,43 @@ onMounted(async () => {
       </div>
     </div>
 
-    <article class="periode__article">
+    <header class="periode__head">
       <span class="periode__number">{{ String(index + 1).padStart(2, '0') }}</span>
       <h1 class="periode__title">{{ period.title }}</h1>
       <p v-if="period.lead" class="periode__lead">{{ period.lead }}</p>
       <span v-if="dateRange(period)" class="periode__dates">{{ dateRange(period) }}</span>
+    </header>
 
-      <!-- Økter -->
-      <div v-for="(s, i) in sessions" :key="s.id" class="okt">
-        <div class="okt__head">
-          <h2 class="okt__title">{{ s.title }}</h2>
-          <div class="okt__controls">
-            <button type="button" class="okt__ctrl" :disabled="i === 0" aria-label="Flytt opp" @click="moveSession(s.id, 'up')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-            </button>
-            <button type="button" class="okt__ctrl" :disabled="i === sessions.length - 1" aria-label="Flytt ned" @click="moveSession(s.id, 'down')">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-            </button>
-            <button type="button" class="okt__ctrl" aria-label="Rediger økt" @click="openEditSession(s)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-            </button>
-            <button type="button" class="okt__ctrl okt__ctrl--danger" aria-label="Slett økt" @click="sessionToDelete = s">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            </button>
-          </div>
-        </div>
-        <div v-if="s.drills && s.drills.length" class="drills">
-          <div v-for="(d, di) in s.drills" :key="di" class="drill">
-            <span
-              v-if="d.type && d.type !== 'none'"
-              class="drill__badge"
-              :class="`drill__badge--${d.type}`"
-            >{{ d.type === 'diff' ? 'Diff' : 'Mix' }}</span>
-            <div class="drill__main">
-              <p v-if="d.text" class="drill__text">{{ d.text }}</p>
-              <a
-                v-if="d.link && d.link.url"
-                :href="d.link.url"
-                target="_blank"
-                rel="noopener"
-                class="okt__link drill__link"
-              >
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-                {{ d.link.label || d.link.url }}
-              </a>
-            </div>
-          </div>
-        </div>
-
-        <!-- Fallback for legacy-økter (før drills-migrering) -->
-        <template v-else>
-          <p v-if="s.body" class="drill__text">{{ s.body }}</p>
-          <div v-if="s.links && s.links.length" class="okt__links">
-            <a v-for="(l, j) in s.links" :key="j" :href="l.url" target="_blank" rel="noopener" class="okt__link">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-              {{ l.label || l.url }}
-            </a>
-          </div>
-        </template>
+    <!-- Økt-kort -->
+    <div class="okt-list">
+      <div
+        v-for="(s, i) in sessions"
+        :key="s.id"
+        class="okt-card"
+        :data-accent="s.accent || 'warm'"
+        @click="openOkt(s)"
+      >
+        <span class="okt-card__color">{{ abbr(s.title) }}</span>
+        <span class="okt-card__body">
+          <span class="okt-card__title">{{ s.title }}</span>
+          <span v-if="s.focus" class="okt-card__focus">{{ s.focus }}</span>
+          <span class="okt-card__meta">{{ drillCount(s) }} {{ drillCount(s) === 1 ? 'øvelse' : 'øvelser' }}</span>
+        </span>
+        <span class="okt-card__controls" @click.stop>
+          <button type="button" class="okt__ctrl" :disabled="i === 0" aria-label="Flytt opp" @click="moveSession(s.id, 'up')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+          </button>
+          <button type="button" class="okt__ctrl" :disabled="i === sessions.length - 1" aria-label="Flytt ned" @click="moveSession(s.id, 'down')">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </button>
+        </span>
+        <svg class="okt-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </div>
+    </div>
 
-      <button type="button" class="ds-btn ds-btn--secondary periode__add" @click="openNewSession">
-        Legg til økt
-      </button>
-    </article>
-
-    <!-- Ny / rediger økt -->
-    <Sheet :show="showSessionSheet" :title="editingId ? 'Rediger økt' : 'Ny økt'" @close="showSessionSheet = false">
-      <form @submit.prevent="saveSession">
-        <div class="ds-form-group">
-          <label class="ds-label" for="okt-title">Tittel</label>
-          <input id="okt-title" v-model="sessionForm.title" class="ds-input" type="text" placeholder="F.eks. T1 — Avslutning fra kant" required />
-        </div>
-        <div class="ds-form-group">
-          <label class="ds-label">Øvelser</label>
-          <div v-for="(d, i) in sessionForm.drills" :key="i" class="drill-edit">
-            <div class="drill-edit__head">
-              <div class="type-toggle" role="radiogroup" aria-label="Type øvelse">
-                <button
-                  v-for="t in DRILL_TYPES"
-                  :key="t.value"
-                  type="button"
-                  role="radio"
-                  :aria-checked="d.type === t.value"
-                  :class="['type-toggle__opt', `type-toggle__opt--${t.value}`, { 'type-toggle__opt--active': d.type === t.value }]"
-                  @click="d.type = t.value"
-                >{{ t.label }}</button>
-              </div>
-              <button type="button" class="link-row__remove" aria-label="Fjern øvelse" @click="removeDrill(i)">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-            <textarea v-model="d.text" class="ds-input" rows="3" placeholder="Hva øvelsen går ut på — oppsett, antall, fokus."></textarea>
-            <div class="link-row">
-              <input v-model="d.link.label" class="ds-input" type="text" placeholder="Lenketekst (valgfri)" />
-              <input v-model="d.link.url" class="ds-input" type="url" placeholder="https://… (valgfri)" />
-            </div>
-          </div>
-          <button type="button" class="ds-btn ds-btn--ghost ds-btn--sm" @click="addDrill">+ Øvelse</button>
-        </div>
-        <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg" :disabled="!sessionForm.title.trim() || savingSession" style="width: 100%; margin-top: var(--ds-space-sm);">
-          {{ savingSession ? 'Lagrer…' : (editingId ? 'Lagre endringer' : 'Legg til økt') }}
-        </button>
-      </form>
-    </Sheet>
+    <button type="button" class="ds-btn ds-btn--secondary periode__add" :disabled="creating" @click="addOkt">
+      {{ creating ? 'Lager…' : 'Legg til økt' }}
+    </button>
 
     <!-- Rediger periode -->
     <Sheet :show="showPeriodSheet" title="Rediger periode" @close="showPeriodSheet = false">
@@ -315,16 +194,6 @@ onMounted(async () => {
     </Sheet>
 
     <ConfirmDialog
-      :show="!!sessionToDelete"
-      title="Slett økt?"
-      :message="`«${sessionToDelete?.title}» blir borte for godt.`"
-      confirm-label="Slett"
-      variant="warning"
-      @confirm="confirmDeleteSession"
-      @cancel="sessionToDelete = null"
-    />
-
-    <ConfirmDialog
       :show="showDeletePeriod"
       title="Slett periode?"
       message="Hele perioden og alle øktene i den blir borte for godt."
@@ -337,19 +206,19 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.periode[data-accent="warm"],       .accent-swatch[data-accent="warm"]       { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
-.periode[data-accent="sage"],       .accent-swatch[data-accent="sage"]       { --accent-bg: #E2EDDE; --accent-text: #3D5C44; }
-.periode[data-accent="cornflower"], .accent-swatch[data-accent="cornflower"] { --accent-bg: #D6DDEF; --accent-text: #3D456B; }
-.periode[data-accent="peach"],      .accent-swatch[data-accent="peach"]      { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
-.periode[data-accent="sky"],        .accent-swatch[data-accent="sky"]        { --accent-bg: #DDE6EC; --accent-text: #3A4C5C; }
-.periode[data-accent="olive"],      .accent-swatch[data-accent="olive"]      { --accent-bg: #F0E7D6; --accent-text: #6B5630; }
+.periode[data-accent="warm"],       .okt-card[data-accent="warm"],       .accent-swatch[data-accent="warm"]       { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
+.periode[data-accent="sage"],       .okt-card[data-accent="sage"],       .accent-swatch[data-accent="sage"]       { --accent-bg: #E2EDDE; --accent-text: #3D5C44; }
+.periode[data-accent="cornflower"], .okt-card[data-accent="cornflower"], .accent-swatch[data-accent="cornflower"] { --accent-bg: #D6DDEF; --accent-text: #3D456B; }
+.periode[data-accent="peach"],      .okt-card[data-accent="peach"],      .accent-swatch[data-accent="peach"]      { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
+.periode[data-accent="sky"],        .okt-card[data-accent="sky"],        .accent-swatch[data-accent="sky"]        { --accent-bg: #DDE6EC; --accent-text: #3A4C5C; }
+.periode[data-accent="olive"],      .okt-card[data-accent="olive"],      .accent-swatch[data-accent="olive"]      { --accent-bg: #F0E7D6; --accent-text: #6B5630; }
 
-:global([data-theme="dark"]) .periode[data-accent="warm"],       :global([data-theme="dark"]) .accent-swatch[data-accent="warm"]       { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
-:global([data-theme="dark"]) .periode[data-accent="sage"],       :global([data-theme="dark"]) .accent-swatch[data-accent="sage"]       { --accent-bg: #1A241D; --accent-text: #B5D2B0; }
-:global([data-theme="dark"]) .periode[data-accent="cornflower"], :global([data-theme="dark"]) .accent-swatch[data-accent="cornflower"] { --accent-bg: #1A1F33; --accent-text: #B9C2E5; }
-:global([data-theme="dark"]) .periode[data-accent="peach"],      :global([data-theme="dark"]) .accent-swatch[data-accent="peach"]      { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
-:global([data-theme="dark"]) .periode[data-accent="sky"],        :global([data-theme="dark"]) .accent-swatch[data-accent="sky"]        { --accent-bg: #1A222A; --accent-text: #B0C5D8; }
-:global([data-theme="dark"]) .periode[data-accent="olive"],      :global([data-theme="dark"]) .accent-swatch[data-accent="olive"]      { --accent-bg: #2A241A; --accent-text: #D9C99E; }
+:global([data-theme="dark"]) .periode[data-accent="warm"],       :global([data-theme="dark"]) .okt-card[data-accent="warm"],       :global([data-theme="dark"]) .accent-swatch[data-accent="warm"]       { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
+:global([data-theme="dark"]) .periode[data-accent="sage"],       :global([data-theme="dark"]) .okt-card[data-accent="sage"],       :global([data-theme="dark"]) .accent-swatch[data-accent="sage"]       { --accent-bg: #1A241D; --accent-text: #B5D2B0; }
+:global([data-theme="dark"]) .periode[data-accent="cornflower"], :global([data-theme="dark"]) .okt-card[data-accent="cornflower"], :global([data-theme="dark"]) .accent-swatch[data-accent="cornflower"] { --accent-bg: #1A1F33; --accent-text: #B9C2E5; }
+:global([data-theme="dark"]) .periode[data-accent="peach"],      :global([data-theme="dark"]) .okt-card[data-accent="peach"],      :global([data-theme="dark"]) .accent-swatch[data-accent="peach"]      { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
+:global([data-theme="dark"]) .periode[data-accent="sky"],        :global([data-theme="dark"]) .okt-card[data-accent="sky"],        :global([data-theme="dark"]) .accent-swatch[data-accent="sky"]        { --accent-bg: #1A222A; --accent-text: #B0C5D8; }
+:global([data-theme="dark"]) .periode[data-accent="olive"],      :global([data-theme="dark"]) .okt-card[data-accent="olive"],      :global([data-theme="dark"]) .accent-swatch[data-accent="olive"]      { --accent-bg: #2A241A; --accent-text: #D9C99E; }
 
 .periode {
   max-width: 640px;
@@ -399,11 +268,7 @@ onMounted(async () => {
 .periode__icon-btn:hover { border-color: var(--ds-color-border-strong); color: var(--ds-color-text-primary); }
 .periode__icon-btn--danger:hover { color: var(--ds-color-error); border-color: var(--ds-color-error); }
 
-.periode__article {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-lg);
-}
+.periode__head { margin-bottom: var(--ds-space-2xl); }
 
 .periode__number {
   display: inline-flex;
@@ -420,7 +285,7 @@ onMounted(async () => {
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
   font-variation-settings: var(--ds-font-display-settings);
-  margin-bottom: var(--ds-space-sm);
+  margin-bottom: var(--ds-space-md);
 }
 
 .periode__title {
@@ -431,7 +296,7 @@ onMounted(async () => {
   line-height: 1.1;
   color: var(--ds-color-text-primary);
   font-variation-settings: var(--ds-font-display-settings);
-  margin: 0;
+  margin: 0 0 var(--ds-space-md);
 }
 
 .periode__lead {
@@ -441,7 +306,7 @@ onMounted(async () => {
   line-height: 1.45;
   letter-spacing: -0.01em;
   color: var(--ds-color-text-primary);
-  margin: 0;
+  margin: 0 0 var(--ds-space-sm);
 }
 
 .periode__dates {
@@ -450,36 +315,95 @@ onMounted(async () => {
   font-variant-numeric: tabular-nums;
 }
 
-/* ---- Økt ---- */
-.okt {
-  margin-top: var(--ds-space-md);
-  padding-top: var(--ds-space-lg);
-  border-top: 1px solid var(--ds-color-border-light);
+/* ---- Økt-kort (VG-aktig liste) ---- */
+.okt-list {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-sm);
+  gap: var(--ds-space-md);
+  margin-bottom: var(--ds-space-lg);
 }
 
-.okt__head {
+.okt-card {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: var(--ds-space-sm);
+  align-items: stretch;
+  gap: var(--ds-space-md);
+  padding: 0 var(--ds-space-md) 0 0;
+  background: var(--ds-color-bg-elevated);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  cursor: pointer;
+  overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--ds-duration-fast) var(--ds-ease-out),
+    border-color var(--ds-duration-fast) var(--ds-ease-out),
+    box-shadow var(--ds-duration-fast) var(--ds-ease-out);
 }
 
-.okt__title {
-  font-family: var(--ds-font-display-sans);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
+@media (hover: hover) and (pointer: fine) {
+  .okt-card:hover {
+    border-color: var(--ds-color-border-strong);
+    box-shadow: var(--ds-shadow-md);
+    transform: translateY(-2px);
+  }
+}
+
+.okt-card:active { transform: scale(0.99); }
+
+.okt-card__color {
+  flex-shrink: 0;
+  width: 84px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--accent-bg);
   color: var(--accent-text);
-  margin: 0;
-  padding-top: 4px;
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-xl);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: -0.01em;
+  text-transform: lowercase;
 }
 
-.okt__controls {
+.okt-card__body {
+  flex: 1;
   display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+  padding: var(--ds-space-md) 0;
+}
+
+.okt-card__title {
+  font-family: var(--ds-font-display);
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-tight);
+  color: var(--ds-color-text-primary);
+  line-height: 1.15;
+}
+
+.okt-card__focus {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+  line-height: 1.45;
+  letter-spacing: -0.005em;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.okt-card__meta {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+  margin-top: 2px;
+}
+
+.okt-card__controls {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
   gap: 2px;
   flex-shrink: 0;
 }
@@ -489,7 +413,7 @@ onMounted(async () => {
   align-items: center;
   justify-content: center;
   width: 28px;
-  height: 28px;
+  height: 24px;
   border-radius: var(--ds-radius-sm);
   border: 0;
   background: transparent;
@@ -501,179 +425,17 @@ onMounted(async () => {
 
 .okt__ctrl svg { width: 15px; height: 15px; }
 .okt__ctrl:hover:not(:disabled) { background: var(--ds-color-bg-subtle); color: var(--ds-color-text-primary); }
-.okt__ctrl--danger:hover:not(:disabled) { color: var(--ds-color-error); }
-.okt__ctrl:disabled { opacity: 0.3; cursor: default; }
+.okt__ctrl:disabled { opacity: 0.25; cursor: default; }
 
-.okt__body {
-  font-size: var(--ds-text-md);
-  line-height: 1.6;
-  color: var(--ds-color-text-secondary);
-  margin: 0;
-  letter-spacing: -0.005em;
-  white-space: pre-wrap;
-}
-
-.okt__links {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-sm);
-  margin-top: 2px;
-}
-
-.okt__link {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ds-space-sm);
-  align-self: flex-start;
-  max-width: 100%;
-  padding: 8px var(--ds-space-md);
-  background: var(--accent-bg);
-  color: var(--accent-text);
-  border-radius: var(--ds-radius-md);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  text-decoration: none;
-  letter-spacing: -0.005em;
-  transition: transform var(--ds-duration-fast) var(--ds-ease-out);
-}
-
-.okt__link svg { width: 15px; height: 15px; flex-shrink: 0; }
-.okt__link:active { transform: scale(0.98); }
-
-/* ---- Øvelser (drills) med Diff/Mix-badge ---- */
-.drills {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-md);
-}
-
-.drill {
-  display: flex;
-  gap: var(--ds-space-sm);
-  align-items: flex-start;
-}
-
-.drill__badge {
-  flex-shrink: 0;
-  margin-top: 2px;
-  padding: 2px 8px;
-  border-radius: var(--ds-radius-sm);
-  font-family: var(--ds-font-display-sans);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
-}
-
-.drill__badge--diff { background: #E2EDDE; color: #3D5C44; }
-.drill__badge--mix  { background: #F8E8E0; color: #7A3A24; }
-
-:global([data-theme="dark"]) .drill__badge--diff { background: #1A241D; color: #B5D2B0; }
-:global([data-theme="dark"]) .drill__badge--mix  { background: #2A1E18; color: #F4C4A8; }
-
-.drill__main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-sm);
-}
-
-.drill__text {
-  font-size: var(--ds-text-md);
-  line-height: 1.55;
-  color: var(--ds-color-text-secondary);
-  margin: 0;
-  letter-spacing: -0.005em;
-  white-space: pre-wrap;
-}
-
-.drill__link { align-self: flex-start; }
-
-/* ---- Øvelse-editor i skjema ---- */
-.drill-edit {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-sm);
-  padding: var(--ds-space-md);
-  margin-bottom: var(--ds-space-sm);
-  background: var(--ds-color-bg-subtle);
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-md);
-}
-
-.drill-edit__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ds-space-sm);
-}
-
-.type-toggle {
-  display: inline-flex;
-  padding: 3px;
-  background: var(--ds-color-bg-elevated);
-  border-radius: var(--ds-radius-sm);
-  gap: 2px;
-}
-
-.type-toggle__opt {
-  appearance: none;
-  border: 0;
-  background: transparent;
-  padding: 5px 12px;
-  border-radius: calc(var(--ds-radius-sm) - 2px);
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: background-color var(--ds-duration-fast) var(--ds-ease-out), color var(--ds-duration-fast) var(--ds-ease-out);
-}
-
-.type-toggle__opt:active { transform: scale(0.96); }
-
-.type-toggle__opt--active {
-  font-weight: var(--ds-weight-semibold);
-  box-shadow: var(--ds-shadow-xs);
-}
-
-.type-toggle__opt--diff.type-toggle__opt--active { background: #E2EDDE; color: #3D5C44; }
-.type-toggle__opt--mix.type-toggle__opt--active  { background: #F8E8E0; color: #7A3A24; }
-.type-toggle__opt--none.type-toggle__opt--active { background: var(--ds-color-bg-subtle); color: var(--ds-color-text-primary); }
-
-:global([data-theme="dark"]) .type-toggle__opt--diff.type-toggle__opt--active { background: #1A241D; color: #B5D2B0; }
-:global([data-theme="dark"]) .type-toggle__opt--mix.type-toggle__opt--active  { background: #2A1E18; color: #F4C4A8; }
-
-.periode__add { width: 100%; margin-top: var(--ds-space-lg); }
-
-/* ---- Lenke-repeater i skjema ---- */
-.link-row {
-  display: flex;
-  gap: var(--ds-space-sm);
-  align-items: center;
-  margin-bottom: var(--ds-space-sm);
-}
-
-.link-row .ds-input:first-child { flex: 0 0 38%; }
-.link-row .ds-input:nth-child(2) { flex: 1; min-width: 0; }
-
-.link-row__remove {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  border-radius: var(--ds-radius-md);
-  border: 1px solid var(--ds-color-border);
-  background: transparent;
+.okt-card__chevron {
+  width: 16px;
+  height: 16px;
+  align-self: center;
   color: var(--ds-color-text-tertiary);
-  cursor: pointer;
+  flex-shrink: 0;
 }
 
-.link-row__remove:hover { color: var(--ds-color-error); border-color: var(--ds-color-error); }
+.periode__add { width: 100%; }
 
 /* ---- Accent-velger ---- */
 .accent-picker { display: flex; gap: var(--ds-space-sm); flex-wrap: wrap; }
