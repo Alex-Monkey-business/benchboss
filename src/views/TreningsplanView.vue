@@ -70,11 +70,7 @@ onMounted(fetchPeriods)
     </div>
 
     <header class="treningsplan__hero">
-      <span class="treningsplan__eyebrow">Treningsplan</span>
-      <h1 class="treningsplan__title">Perioder &amp; økter</h1>
-      <p class="treningsplan__lead">
-        Planen over tid — én periode av gangen, med øktene og lenkene som hører til.
-      </p>
+      <h1 class="treningsplan__title">Treningsøkter</h1>
     </header>
 
     <!-- Lasting -->

@@ -3,13 +3,17 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import { useCoaches } from '../composables/useCoaches'
+import { useTrainingPeriods } from '../composables/useTrainingPeriods'
 import { useTheme } from '../composables/useTheme'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const router = useRouter()
 const { coach, logout } = useAuth()
 const { coaches, fetchCoaches } = useCoaches()
+const { periods: trainingPeriods, fetchPeriods } = useTrainingPeriods()
 const { theme, setTheme } = useTheme()
+
+const currentPeriod = computed(() => trainingPeriods.value[0] || null)
 
 const THEME_OPTIONS = [
   { value: 'light', label: 'Lys' },
@@ -23,6 +27,7 @@ const coachImage = computed(() => coaches.value.find(c => c.name === coach.value
 
 onMounted(async () => {
   await fetchCoaches()
+  await fetchPeriods()
 })
 
 function confirmLogout() {
@@ -72,9 +77,8 @@ const HANDBOK_ACCENTS = ['#F8E8E0', '#E2EDDE', '#D6DDEF', '#F8E8E0', '#DDE6EC', 
           <span v-for="(c, i) in HANDBOK_ACCENTS" :key="i" :style="{ background: c }"></span>
         </span>
         <span class="handbok-hero__body">
-          <span class="handbok-hero__eyebrow">Treningsplan</span>
-          <span class="handbok-hero__title">Perioder &amp; økter</span>
-          <span class="handbok-hero__lead">Planen over tid — med øktene og lenkene</span>
+          <span class="handbok-hero__eyebrow">Treningsøkter</span>
+          <span class="handbok-hero__title">{{ currentPeriod ? currentPeriod.title : 'Treningsøkter' }}</span>
         </span>
         <svg class="handbok-hero__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="9 18 15 12 9 6"/>
