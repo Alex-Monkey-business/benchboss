@@ -26,18 +26,18 @@ const SESSIONS = {
     drills: [
       {
         type: 'diff',
-        text: 'Medtak, dribling, vending og pasning. Vær sjef over ballen.',
+        text: 'Medtak, dribling, vending og pasning',
         tema: 'Spille oss fremover',
         laeringsmomenter: [
           'Mykt medtak ut til siden — fremover på andre touch',
           'Løft blikket og finn timing på finta',
           'Finte med tempo og store bevegelser for å passere'
         ],
-        organisering: 'To og to per stasjon, flere stasjoner ved siden av hverandre. Pasning gjennom en port, retningsbestemt medtak, dribling forbi kjegler, finte mot passivt press, og vending ved siste kjegle. Bytt roller.',
+        organisering: 'To og to per stasjon. Pasning gjennom port, retningsbestemt medtak, dribling forbi kjegler, finte mot passivt press, vending ved siste kjegle. Bytt roller.',
         link: { label: 'Medtak, dribling, vending, pasning', url: 'https://tiim.no/ovelse/medtak-dribling-vending-pasning' }
       },
-      { type: 'diff', text: '3v3 med press i ryggen. Ni spillere per bane. Spill fremover.', link: null },
-      { type: 'mix',  text: 'Vinneren står. Korte 7er-baner, dødballer fra keeper og faste keepere.', link: null }
+      { type: 'diff', text: '3v3 med press i ryggen', tema: 'Fart i angrep, hold overtaket', organisering: 'To baner med småmål. To forsvarere står ved eget mål; den siste starter bak angrepslagets mål og jager i press straks angriperne får ballen fra trener. Variasjon: forsvarslaget forsvarer to mål.', link: null },
+      { type: 'mix',  text: 'Vinneren står', tema: 'Tempo og lite dødtid', organisering: 'To lag spiller kort 7er — ny kamp straks det er mål. De to andre roterer ved siden: ett på styrke, ett på en lettbeint øvelse.', link: null }
     ]
   },
   Torsdag: {
@@ -45,8 +45,8 @@ const SESSIONS = {
     illustration: 'thursday_june_transparent.png',
     focus: 'Grunnferdigheter og spill. Ferdighetssirkel for å bli sjef over ballen, så smålagsspill 3v3 med mye involvering.',
     drills: [
-      { type: 'mix',  text: 'Ferdighetssirkel som avsluttes med press. Vær sjef over ballen.', link: null },
-      { type: 'diff', text: '30 minutter med «vinneren står». Tre 3v3-baner på småmål med én fast joker (A-spiller) på hver bane. Spill fremover. Differensiert i nivå A, B og C — tre lag à tre spillere per bane.', link: null }
+      { type: 'mix',  text: 'Ferdighetssirkel', tema: 'Sjef over ballen', organisering: 'Avsluttes med press.', link: null },
+      { type: 'diff', text: 'Vinneren står — 3v3 på småmål', tema: 'Spille fremover', organisering: '30 min. Tre baner, én fast joker (A-spiller) per bane. Differensiert i nivå A, B og C — tre lag à tre per bane.', link: null }
     ]
   },
   Lørdag: {
@@ -54,10 +54,10 @@ const SESSIONS = {
     illustration: 'saturday_june_transparent.png',
     focus: 'Spill og mestring. Mye touch, små lag, mange mål — la dem prøve det vi har trent på.',
     drills: [
-      { type: 'diff', text: 'Utvidet Barça-oppvarming. Innside, utside, såle, vendinger og finter med begge føtter, rundt kjegler.', link: null },
-      { type: 'diff', text: 'Eggs (transition game). 4v4, 3v3 eller 2v2 ut fra hvor mange som er på trening.', link: { label: 'Eggs Transition Game – 4v4 til 4v3', url: 'https://tiim.no/ovelse/eggs-transition-game-4v4-til-4v3' } },
-      { type: 'mix',  text: '4v4-turnering på korte baner, helst med store mål.', link: null },
-      { type: 'none', text: 'Avslutt med tverrliggerkonkurranse og killer.', link: null }
+      { type: 'diff', text: 'Utvidet Barça-oppvarming', organisering: 'Innside, utside, såle, vendinger og finter med begge føtter, rundt kjegler.', link: null },
+      { type: 'diff', text: 'Eggs (transition game)', organisering: '4v4, 3v3 eller 2v2 ut fra antall.', link: { label: 'Eggs Transition Game – 4v4 til 4v3', url: 'https://tiim.no/ovelse/eggs-transition-game-4v4-til-4v3' } },
+      { type: 'mix',  text: '4v4-turnering', organisering: 'Korte baner, helst med store mål.', link: null },
+      { type: 'none', text: 'Tverrliggerkonkurranse og killer', link: null }
     ]
   }
 }

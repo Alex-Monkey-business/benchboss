@@ -129,7 +129,7 @@ onMounted(async () => {
     <div class="okt-view__nav">
       <router-link :to="`/admin/treningsplan/${periodId}`" class="okt-view__back">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        {{ period ? period.title : 'Tilbake' }}
+        Tilbake
       </router-link>
       <div class="okt-view__nav-actions">
         <button type="button" class="okt-view__icon-btn" aria-label="Rediger økt" @click="openEdit">
@@ -160,7 +160,6 @@ onMounted(async () => {
       <header class="hero">
         <h1 class="hero__title">{{ okt.title }}</h1>
         <p v-if="okt.focus" class="hero__focus">{{ okt.focus }}</p>
-        <span class="hero__meta">{{ drillCount }} {{ drillCount === 1 ? 'øvelse' : 'øvelser' }}</span>
       </header>
     </div>
     <div class="chapter__body">
@@ -168,25 +167,21 @@ onMounted(async () => {
     <!-- Øvelser -->
     <div v-if="drillCount" class="drills">
       <div v-for="(d, di) in okt.drills" :key="di" class="drill">
-        <span
-          v-if="d.type && d.type !== 'none'"
-          class="drill__badge"
-          :class="`drill__badge--${d.type}`"
-        >{{ d.type === 'diff' ? 'Diff' : 'Mix' }}</span>
-        <p v-if="d.text" class="drill__text">{{ d.text }}</p>
-        <span v-if="d.tema" class="drill__tema">{{ d.tema }}</span>
-
-        <div v-if="d.laeringsmomenter && d.laeringsmomenter.length" class="drill__section">
-          <span class="drill__label">Læringsmomenter</span>
-          <ul class="drill__points">
-            <li v-for="(p, pi) in d.laeringsmomenter" :key="pi">{{ p }}</li>
-          </ul>
+        <div class="drill__head">
+          <span
+            v-if="d.type && d.type !== 'none'"
+            class="drill__badge"
+            :class="`drill__badge--${d.type}`"
+          >{{ d.type === 'diff' ? 'Diff' : 'Mix' }}</span>
+          <h3 class="drill__name">{{ d.text }}</h3>
         </div>
+        <p v-if="d.tema" class="drill__focus">{{ d.tema }}</p>
 
-        <div v-if="d.organisering" class="drill__section">
-          <span class="drill__label">Organisering</span>
-          <p class="drill__section-text">{{ d.organisering }}</p>
-        </div>
+        <ul v-if="d.laeringsmomenter && d.laeringsmomenter.length" class="drill__points">
+          <li v-for="(p, pi) in d.laeringsmomenter" :key="pi">{{ p }}</li>
+        </ul>
+
+        <p v-if="d.organisering" class="drill__org"><span class="drill__org-label">Oppsett</span>{{ d.organisering }}</p>
 
         <a
           v-if="d.link && d.link.url"
@@ -272,11 +267,11 @@ onMounted(async () => {
                 <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
               </button>
             </div>
-            <textarea v-model="d.text" class="ds-input" rows="2" placeholder="Navn / hva øvelsen er."></textarea>
-            <input v-model="d.tema" class="ds-input" type="text" placeholder="Tema (valgfri) — f.eks. Spille oss fremover" />
-            <span class="drill-edit__sublabel">Læringsmomenter — ett per linje</span>
+            <textarea v-model="d.text" class="ds-input" rows="2" placeholder="Navn på øvelsen"></textarea>
+            <input v-model="d.tema" class="ds-input" type="text" placeholder="Fokus (valgfri) — f.eks. Spille oss fremover" />
+            <span class="drill-edit__sublabel">Øver på — ett per linje (valgfri)</span>
             <textarea v-model="d.laeringsmomenter" class="ds-input" rows="3" placeholder="Mykt medtak ut til siden&#10;Løft blikket, finn timing på finta"></textarea>
-            <span class="drill-edit__sublabel">Organisering</span>
+            <span class="drill-edit__sublabel">Oppsett (valgfri)</span>
             <textarea v-model="d.organisering" class="ds-input" rows="3" placeholder="Hvordan øvelsen settes opp og kjøres."></textarea>
             <div class="link-row">
               <input v-model="d.link.label" class="ds-input" type="text" placeholder="Lenketekst (valgfri)" />
@@ -478,19 +473,22 @@ onMounted(async () => {
 }
 
 .drill {
-  display: flex;
-  flex-direction: column;
-  align-items: flex-start;
-  padding: var(--ds-space-xl) 0;
+  padding: var(--ds-space-lg) 0;
   border-top: 1px solid rgba(255, 255, 255, 0.14);
 }
 
 .drill:first-child { padding-top: 0; border-top: 0; }
 
+/* Scanne-linja: badge + navn */
+.drill__head {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ds-space-sm);
+}
+
 .drill__badge {
-  align-self: flex-start;
-  margin-bottom: var(--ds-space-md);
-  padding: 3px 10px;
+  flex-shrink: 0;
+  padding: 2px 9px;
   border-radius: var(--ds-radius-sm);
   font-family: var(--ds-font-display-sans);
   font-size: var(--ds-text-xs);
@@ -505,23 +503,85 @@ onMounted(async () => {
 :global([data-theme="dark"]) .drill__badge--diff { background: #1A241D; color: #B5D2B0; }
 :global([data-theme="dark"]) .drill__badge--mix  { background: #2A1E18; color: #F4C4A8; }
 
-.drill__text {
+.drill__name {
+  flex: 1;
+  min-width: 0;
+  margin: 0;
+  font-family: var(--ds-font-display-sans);
   font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-semibold);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--hero-fg);
+}
+
+/* Fokus — det vi øver på, fremhevet i aksent */
+.drill__focus {
+  margin: 6px 0 0;
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-medium);
+  color: var(--hero-accent);
+  letter-spacing: -0.005em;
+}
+
+/* Detalj — dempet, sekundært */
+.drill__points {
+  list-style: none;
+  padding: 0;
+  margin: var(--ds-space-md) 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.drill__points li {
+  position: relative;
+  padding-left: var(--ds-space-md);
+  font-size: var(--ds-text-sm);
+  line-height: 1.45;
+  color: var(--hero-fg);
+  opacity: 0.8;
+  letter-spacing: -0.005em;
+}
+
+.drill__points li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 8px;
+  height: 1px;
+  background: var(--hero-accent);
+  opacity: 0.7;
+}
+
+.drill__org {
+  margin: var(--ds-space-md) 0 0;
+  font-size: var(--ds-text-sm);
   line-height: 1.5;
   color: var(--hero-fg);
-  margin: 0;
-  letter-spacing: -0.01em;
-  white-space: pre-wrap;
+  opacity: 0.72;
+  letter-spacing: -0.005em;
+}
+
+.drill__org-label {
+  margin-right: 6px;
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  color: var(--hero-accent);
 }
 
 .drill__link {
   display: inline-flex;
   align-items: center;
   gap: var(--ds-space-sm);
-  align-self: flex-start;
-  margin-top: var(--ds-space-lg);
+  margin-top: var(--ds-space-md);
   max-width: 100%;
-  padding: 8px var(--ds-space-md);
+  padding: 7px var(--ds-space-md);
   background: var(--accent-bg);
   color: var(--accent-text);
   border-radius: var(--ds-radius-md);
@@ -534,71 +594,6 @@ onMounted(async () => {
 
 .drill__link svg { width: 15px; height: 15px; flex-shrink: 0; }
 .drill__link:active { transform: scale(0.98); }
-
-.drill__tema {
-  font-family: var(--ds-font-display-sans);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--hero-accent);
-  letter-spacing: -0.005em;
-  margin-top: 6px;
-}
-
-.drill__section {
-  width: 100%;
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-sm);
-  margin-top: var(--ds-space-lg);
-}
-
-.drill__label {
-  font-family: var(--ds-font-display-sans);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
-  color: var(--hero-accent);
-}
-
-.drill__section-text {
-  font-size: var(--ds-text-md);
-  line-height: 1.55;
-  color: var(--hero-fg);
-  opacity: 0.82;
-  margin: 0;
-  letter-spacing: -0.005em;
-  white-space: pre-wrap;
-}
-
-.drill__points {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
-
-.drill__points li {
-  position: relative;
-  padding-left: var(--ds-space-lg);
-  font-size: var(--ds-text-md);
-  line-height: 1.45;
-  color: var(--hero-fg);
-  opacity: 0.88;
-  letter-spacing: -0.005em;
-}
-
-.drill__points li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0.6em;
-  width: 12px;
-  height: 1px;
-  background: var(--hero-accent);
-}
 
 .drill-edit__sublabel {
   font-size: var(--ds-text-xs);
