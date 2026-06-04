@@ -532,7 +532,7 @@ function getCoachNamesForMatch(matchId) {
   color: var(--ds-color-text-tertiary);
   background: var(--ds-color-bg-subtle);
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: var(--ds-radius-full);
   font-variant-numeric: tabular-nums;
   min-width: 20px;
   text-align: center;

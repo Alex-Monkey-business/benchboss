@@ -111,7 +111,7 @@ const formattedTime = computed(() => {
 .match-card {
   display: block;
   text-decoration: none;
-  padding: 20px 22px;
+  padding: var(--ds-space-lg);
   transition:
     transform 160ms var(--ds-ease-out),
     border-color 160ms var(--ds-ease-out),
@@ -144,7 +144,7 @@ const formattedTime = computed(() => {
   font-size: 0.6875rem;
   font-weight: 600;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--ds-radius-sm);
   letter-spacing: 0.02em;
   margin-right: 4px;
 }
@@ -170,7 +170,7 @@ const formattedTime = computed(() => {
   font-size: 0.6875rem;
   font-weight: 500;
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--ds-radius-sm);
   letter-spacing: 0.02em;
   margin-right: 4px;
   background: var(--ds-color-bg-subtle);

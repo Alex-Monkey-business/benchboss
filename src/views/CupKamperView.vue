@@ -116,7 +116,7 @@ const groups = computed(() => {
 .cup-mcard {
   display: block;
   text-decoration: none;
-  padding: 20px 22px;
+  padding: var(--ds-space-lg);
   transition: transform 160ms var(--ds-ease-out), border-color 160ms var(--ds-ease-out), box-shadow 160ms var(--ds-ease-out);
 }
 @media (hover: hover) and (pointer: fine) {

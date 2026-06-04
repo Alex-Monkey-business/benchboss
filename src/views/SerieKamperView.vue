@@ -181,7 +181,7 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
 .list { display: flex; flex-direction: column; gap: var(--ds-space-sm); }
 
 /* Read-only kort — ingen lenke, ingen hover-løft */
-.serie-mcard { padding: 20px 22px; }
+.serie-mcard { padding: var(--ds-space-lg); }
 .serie-mcard .match-card__teams { margin-bottom: 10px; }
 .serie-mcard .match-card__meta:empty { display: none; }
 
@@ -191,7 +191,7 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
   font-size: 0.6875rem;
   font-weight: 600;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--ds-radius-sm);
   letter-spacing: 0.02em;
   margin-right: 4px;
 }
@@ -207,7 +207,7 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
   font-size: 0.6875rem;
   font-weight: 500;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--ds-radius-sm);
   letter-spacing: 0.02em;
   background: var(--ds-color-bg-subtle);
   color: var(--ds-color-text-tertiary);
@@ -257,7 +257,7 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
   color: var(--ds-color-text-tertiary);
   background: var(--ds-color-bg-subtle);
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: var(--ds-radius-full);
   font-variant-numeric: tabular-nums;
   min-width: 20px;
   text-align: center;

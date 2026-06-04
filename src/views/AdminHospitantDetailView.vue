@@ -240,7 +240,7 @@ async function confirmDelete() {
   font-size: 0.6875rem;
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--ds-radius-sm);
   letter-spacing: 0.02em;
 }
 

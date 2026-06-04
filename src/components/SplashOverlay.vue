@@ -372,7 +372,7 @@ onBeforeUnmount(() => {
   color: var(--ds-color-text-inverse);
   background: rgba(0, 0, 0, 0.45);
   border: 1px solid rgba(255, 255, 255, 0.25);
-  border-radius: 999px;
+  border-radius: var(--ds-radius-full);
   padding: 8px 14px;
   cursor: pointer;
   opacity: 0;

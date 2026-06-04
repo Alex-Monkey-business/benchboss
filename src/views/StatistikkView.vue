@@ -563,7 +563,7 @@ const hasAnyResult = computed(() => playedMatches.value.length > 0)
   font-weight: 700;
   font-variant-numeric: tabular-nums;
   padding: 2px 10px;
-  border-radius: 999px;
+  border-radius: var(--ds-radius-full);
 }
 
 .stat-card-large__diff--pos {
@@ -693,7 +693,7 @@ const hasAnyResult = computed(() => playedMatches.value.length > 0)
   font-size: 0.75rem;
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-subtle);
   color: var(--ds-color-text-tertiary);
   text-align: center;

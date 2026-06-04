@@ -1441,7 +1441,7 @@ function focusSummaryGroup() {
   font-size: 0.6875rem;
   font-weight: 600;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--ds-radius-sm);
   letter-spacing: 0.02em;
   margin-right: 4px;
 }
@@ -1472,7 +1472,7 @@ function focusSummaryGroup() {
 .referee-pill {
   padding: 6px 14px;
   border: 1.5px solid var(--ds-color-border);
-  border-radius: 20px;
+  border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
   font-family: var(--ds-font-body);
   font-size: 0.8125rem;
@@ -1517,7 +1517,7 @@ function focusSummaryGroup() {
   margin-top: 16px;
   padding: 12px 14px;
   border: 1px solid var(--ds-color-border-light);
-  border-radius: 12px;
+  border-radius: var(--ds-radius-md);
   background: var(--ds-color-bg-elevated);
 }
 
@@ -1591,7 +1591,7 @@ function focusSummaryGroup() {
   align-items: center;
   gap: 6px;
   padding: 8px 14px;
-  border-radius: 10px;
+  border-radius: var(--ds-radius-md);
   font-family: var(--ds-font-body);
   font-size: 0.8125rem;
   font-weight: 600;
@@ -1646,7 +1646,7 @@ function focusSummaryGroup() {
   gap: 8px;
   padding: 9px 14px;
   border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-md);
+  border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
   cursor: pointer;
   transition:
@@ -1816,7 +1816,7 @@ function focusSummaryGroup() {
   display: inline-flex;
   align-items: center;
   padding: 3px 10px;
-  border-radius: 14px;
+  border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg);
   border: 1px solid var(--ds-color-border-light);
   font-size: 0.75rem;
@@ -1840,7 +1840,7 @@ function focusSummaryGroup() {
   display: inline-flex;
   align-items: center;
   padding: 3px 9px 3px 18px;
-  border-radius: 14px;
+  border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg);
   border: 1px solid var(--ds-color-border-light);
   font-size: 0.75rem;
@@ -1941,7 +1941,7 @@ function focusSummaryGroup() {
   gap: 10px;
   padding: 16px 14px;
   border: 1px solid var(--ds-color-border-light);
-  border-radius: 12px;
+  border-radius: var(--ds-radius-md);
   background: var(--ds-color-bg-elevated);
 }
 
@@ -1949,7 +1949,7 @@ function focusSummaryGroup() {
   display: inline-flex;
   align-items: center;
   padding: 4px 10px 4px 22px;
-  border-radius: 14px;
+  border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg);
   border: 1px solid var(--ds-color-border);
   font-size: 0.8125rem;
@@ -2014,7 +2014,7 @@ function focusSummaryGroup() {
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 12px 20px;
-  border-radius: 12px;
+  border-radius: var(--ds-radius-md);
 }
 
 .scorers-block__hint {
@@ -2065,7 +2065,7 @@ function focusSummaryGroup() {
   padding: 10px 16px 10px 26px;
   min-height: 44px;
   border: 1.5px solid var(--ds-color-border);
-  border-radius: 22px;
+  border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
   font-family: var(--ds-font-body);
   font-size: 0.9375rem;
@@ -2159,7 +2159,7 @@ function focusSummaryGroup() {
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 12px 20px;
-  border-radius: 12px;
+  border-radius: var(--ds-radius-md);
   width: 100%;
   color: var(--ds-color-error);
   border-color: var(--ds-color-error-light, var(--ds-color-border));
@@ -2170,7 +2170,7 @@ function focusSummaryGroup() {
   font-size: 1rem;
   font-weight: 600;
   padding: 14px 20px;
-  border-radius: 12px;
+  border-radius: var(--ds-radius-md);
   width: 100%;
 }
 
@@ -2236,7 +2236,7 @@ function focusSummaryGroup() {
   font-size: 0.9375rem;
   font-weight: 600;
   padding: 12px 20px;
-  border-radius: 12px;
+  border-radius: var(--ds-radius-md);
 }
 
 .report-cancel-btn {
@@ -2244,7 +2244,7 @@ function focusSummaryGroup() {
   font-size: 0.9375rem;
   font-weight: 500;
   padding: 12px 20px;
-  border-radius: 12px;
+  border-radius: var(--ds-radius-md);
 }
 
 .report-edit-actions {
@@ -2282,7 +2282,7 @@ function focusSummaryGroup() {
 .report-read {
   margin: 0;
   padding: 14px 16px;
-  border-radius: 12px;
+  border-radius: var(--ds-radius-md);
   background: var(--ds-color-bg, var(--ds-color-bg-elevated));
   border: 1px solid var(--ds-color-border-light);
   font-size: 0.9375rem;

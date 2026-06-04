@@ -180,7 +180,7 @@ async function handleAddPlayer() {
   font-size: 0.6875rem;
   font-weight: 600;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--ds-radius-sm);
   letter-spacing: 0.02em;
   margin-left: 6px;
 }

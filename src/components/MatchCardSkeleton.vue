@@ -35,7 +35,7 @@ defineProps({
 }
 
 .match-skel {
-  padding: 20px 22px;
+  padding: var(--ds-space-lg);
   opacity: 0;
   animation: skel-fade-in 0.35s var(--ds-ease-out) forwards;
 }
