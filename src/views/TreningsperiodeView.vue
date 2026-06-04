@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingPeriods } from '../composables/useTrainingPeriods'
 import { useTrainingSessions } from '../composables/useTrainingSessions'
@@ -8,7 +8,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { periods, getPeriod, fetchPeriods, updatePeriod, deletePeriod } = useTrainingPeriods()
+const { periods, getPeriod, fetchPeriods, createPeriod, updatePeriod, deletePeriod } = useTrainingPeriods()
 const { sessions, fetchSessions, createSession } = useTrainingSessions()
 
 const ACCENTS = [
@@ -27,6 +27,17 @@ const index = computed(() => periods.value.findIndex(p => p.id === periodId.valu
 function openOkt(s) {
   router.push(`/admin/treningsplan/${periodId.value}/okt/${s.id}`)
 }
+
+// ---- Periode-bytter ----
+const showSwitcher = ref(false)
+
+function goToPeriod(id) {
+  showSwitcher.value = false
+  if (id !== periodId.value) router.push(`/admin/treningsplan/${id}`)
+}
+
+// Bytte periode gjenbruker komponenten — hent øktene for den nye perioden.
+watch(periodId, (id) => { if (id) fetchSessions(id) })
 
 const creating = ref(false)
 async function addOkt() {
@@ -67,6 +78,32 @@ async function savePeriod() {
   showPeriodSheet.value = false
 }
 
+// ---- Ny periode (fra bytteren) ----
+const showCreateSheet = ref(false)
+const createForm = ref({ title: '', lead: '', accent: 'warm', start_date: '', end_date: '' })
+const savingCreate = ref(false)
+
+function openCreate() {
+  showSwitcher.value = false
+  createForm.value = { title: '', lead: '', accent: 'warm', start_date: '', end_date: '' }
+  showCreateSheet.value = true
+}
+
+async function saveCreate() {
+  if (!createForm.value.title.trim() || savingCreate.value) return
+  savingCreate.value = true
+  const row = await createPeriod({
+    title: createForm.value.title.trim(),
+    lead: createForm.value.lead.trim() || null,
+    accent: createForm.value.accent,
+    start_date: createForm.value.start_date || null,
+    end_date: createForm.value.end_date || null
+  })
+  savingCreate.value = false
+  showCreateSheet.value = false
+  if (row) router.push(`/admin/treningsplan/${row.id}`)
+}
+
 // ---- Slett periode ----
 const showDeletePeriod = ref(false)
 async function confirmDeletePeriod() {
@@ -99,9 +136,9 @@ onMounted(async () => {
 <template>
   <div v-if="period" class="periode" :data-accent="period.accent">
     <div class="periode__nav">
-      <router-link to="/admin/treningsplan" class="periode__back">
+      <router-link to="/admin" class="periode__back">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Treningsplan
+        Admin
       </router-link>
       <div class="periode__nav-actions">
         <button type="button" class="periode__icon-btn" aria-label="Rediger periode" @click="openEditPeriod">
@@ -115,7 +152,10 @@ onMounted(async () => {
 
     <header class="periode__head">
       <span class="periode__number">{{ String(index + 1).padStart(2, '0') }}</span>
-      <h1 class="periode__title">{{ period.title }}</h1>
+      <button type="button" class="periode__switcher" @click="showSwitcher = true" aria-label="Bytt periode">
+        <h1 class="periode__title">{{ period.title }}</h1>
+        <svg class="periode__switcher-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
       <p v-if="period.lead" class="periode__lead">{{ period.lead }}</p>
       <span v-if="dateRange(period)" class="periode__dates">{{ dateRange(period) }}</span>
     </header>
@@ -181,6 +221,72 @@ onMounted(async () => {
         </div>
         <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg" :disabled="!periodForm.title.trim() || savingPeriod" style="width: 100%; margin-top: var(--ds-space-sm);">
           {{ savingPeriod ? 'Lagrer…' : 'Lagre endringer' }}
+        </button>
+      </form>
+    </Sheet>
+
+    <!-- Periode-bytter -->
+    <Sheet :show="showSwitcher" title="Perioder" @close="showSwitcher = false">
+      <div class="period-switch-list">
+        <button
+          v-for="(p, i) in periods"
+          :key="p.id"
+          type="button"
+          :data-accent="p.accent"
+          :class="['period-switch', { 'period-switch--active': p.id === periodId }]"
+          @click="goToPeriod(p.id)"
+        >
+          <span class="period-switch__num">{{ String(i + 1).padStart(2, '0') }}</span>
+          <span class="period-switch__body">
+            <span class="period-switch__title">{{ p.title }}</span>
+            <span v-if="dateRange(p)" class="period-switch__dates">{{ dateRange(p) }}</span>
+          </span>
+          <svg v-if="p.id === periodId" class="period-switch__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        </button>
+      </div>
+      <button type="button" class="ds-btn ds-btn--secondary period-switch__add" @click="openCreate">
+        + Ny periode
+      </button>
+    </Sheet>
+
+    <!-- Ny periode -->
+    <Sheet :show="showCreateSheet" title="Ny periode" @close="showCreateSheet = false">
+      <form @submit.prevent="saveCreate">
+        <div class="ds-form-group">
+          <label class="ds-label" for="new-title">Tittel</label>
+          <input id="new-title" v-model="createForm.title" class="ds-input" type="text" placeholder="F.eks. Juni — avslutning foran mål" required />
+        </div>
+        <div class="ds-form-group">
+          <label class="ds-label" for="new-lead">Ingress</label>
+          <input id="new-lead" v-model="createForm.lead" class="ds-input" type="text" placeholder="Kort om hva perioden handler om" />
+        </div>
+        <div class="ds-form-group">
+          <label class="ds-label">Farge</label>
+          <div class="accent-picker">
+            <button
+              v-for="a in ACCENTS"
+              :key="a.value"
+              type="button"
+              :data-accent="a.value"
+              :class="['accent-swatch', { 'accent-swatch--active': createForm.accent === a.value }]"
+              :aria-label="a.label"
+              :title="a.label"
+              @click="createForm.accent = a.value"
+            />
+          </div>
+        </div>
+        <div class="ds-form-row">
+          <div class="ds-form-group">
+            <label class="ds-label" for="new-start">Fra</label>
+            <input id="new-start" v-model="createForm.start_date" class="ds-input" type="date" />
+          </div>
+          <div class="ds-form-group">
+            <label class="ds-label" for="new-end">Til</label>
+            <input id="new-end" v-model="createForm.end_date" class="ds-input" type="date" />
+          </div>
+        </div>
+        <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg" :disabled="!createForm.title.trim() || savingCreate" style="width: 100%; margin-top: var(--ds-space-sm);">
+          {{ savingCreate ? 'Lagrer…' : 'Opprett periode' }}
         </button>
       </form>
     </Sheet>
@@ -418,4 +524,99 @@ onMounted(async () => {
 
 .accent-swatch:active { transform: scale(0.94); }
 .accent-swatch--active { border-color: var(--accent-text); }
+
+/* ---- Periode-bytter ---- */
+.periode__switcher {
+  display: inline-flex;
+  align-items: flex-start;
+  gap: 8px;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+  text-align: left;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.periode__switcher-icon {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  margin-top: 0.35em;
+  color: var(--ds-color-text-tertiary);
+  transition: color var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.periode__switcher:active { opacity: 0.7; }
+
+@media (hover: hover) and (pointer: fine) {
+  .periode__switcher:hover .periode__switcher-icon { color: var(--ds-color-text-secondary); }
+}
+
+.period-switch-list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-bottom: var(--ds-space-md);
+}
+
+.period-switch {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  padding: 12px;
+  background: var(--ds-color-bg-elevated);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--ds-font-body);
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color var(--ds-duration-fast) var(--ds-ease-out), transform var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.period-switch:active { transform: scale(0.99); }
+.period-switch--active { border-color: var(--ds-color-text-primary); }
+
+.period-switch__num {
+  flex-shrink: 0;
+  width: 28px;
+  font-family: var(--ds-font-display);
+  font-weight: var(--ds-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  font-size: var(--ds-text-md);
+  color: var(--ds-color-text-tertiary);
+}
+
+.period-switch__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.period-switch__title {
+  font-weight: var(--ds-weight-semibold);
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-primary);
+}
+
+.period-switch__dates {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.period-switch__check {
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  color: var(--ds-color-text-primary);
+}
+
+.period-switch__add { width: 100%; }
 </style>
