@@ -469,12 +469,6 @@ const aggregatedScorers = computed(() => {
   return Array.from(groups.values()).sort((a, b) => a.firstPosition - b.firstPosition)
 })
 
-const scorersLabel = computed(() => {
-  return aggregatedScorers.value
-    .map(s => s.count > 1 ? `${s.player?.name || '?'} ×${s.count}` : (s.player?.name || '?'))
-    .join(', ')
-})
-
 function goalCountForPlayer(playerId) {
   return matchGoals.value.filter(g => g.player_id === playerId).length
 }
@@ -602,13 +596,7 @@ const reportSavedLabel = computed(() => {
   return `Lagret kl ${hh}:${mm}`
 })
 
-// ─── Summary-tekst for collapsed disclosure-headere ───────────────────────────
-const reportSummary = computed(() => {
-  const r = (match.value?.report || '').trim()
-  if (!r) return ''
-  return r.length > 60 ? r.slice(0, 60) + '…' : r
-})
-
+// ─── Summary-chips for collapsed disclosure-headere (lese-modus) ──────────────
 const refereeSummary = computed(() => match.value?.referee || '')
 
 const payerSummary = computed(() => {
@@ -619,50 +607,22 @@ const payerSummary = computed(() => {
   return `${c.name} · ${amt} kr`
 })
 
-const coachesSummary = computed(() => {
-  if (!matchCoachIds.value.length) return ''
-  return matchCoachIds.value
-    .map(id => coaches.value.find(c => c.id === id)?.name)
-    .filter(Boolean)
-    .join(', ')
-})
-
-// Grupperte summaries for de 3 store disclosure-headerne
-const logisticsSummary = computed(() => {
-  const parts = []
-  if (refereeSummary.value) parts.push(refereeSummary.value)
-  if (payerSummary.value) parts.push(payerSummary.value)
-  return parts.join(' · ')
-})
-
-const summarySummary = computed(() => {
-  const parts = []
-  if (hasResult.value) parts.push(`${match.value.home_score} – ${match.value.away_score}`)
-  if (scorersLabel.value) parts.push(scorersLabel.value)
-  if (reportSummary.value) parts.push('Referat skrevet')
-  return parts.join(' · ')
-})
-
-const teamSummary = computed(() => {
-  const parts = []
-  if (matchPlayerIds.value.length) parts.push(`${matchPlayerIds.value.length} lånespiller${matchPlayerIds.value.length === 1 ? '' : 'e'}`)
-  if (coachesSummary.value) parts.push(coachesSummary.value)
-  return parts.join(' · ')
-})
-
-// Synlig chip-rad under match-card
+// Chips i collapsed summary (lese-modus)
 const selectedLanespillere = computed(() => {
   return matchPlayerIds.value
     .map(id => players.value.find(p => p.id === id))
     .filter(Boolean)
 })
 
-function focusTeamGroup() {
-  open.value.team = true
-  setTimeout(() => {
-    const el = document.querySelector('[data-section="team"]')
-    el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
-  }, 60)
+const selectedCoaches = computed(() => {
+  return matchCoachIds.value
+    .map(id => coaches.value.find(c => c.id === id))
+    .filter(Boolean)
+})
+
+// Begrens chip-rader i summary: vis maks `max`, resten som "+N".
+function cappedList(list, max = 3) {
+  return { shown: list.slice(0, max), extra: Math.max(0, list.length - max) }
 }
 
 function focusSummaryGroup() {
@@ -760,28 +720,7 @@ function focusSummaryGroup() {
       </div>
     </div>
 
-    <!-- Lånespiller-rad — synlig under match-card så coach ser hvem som er booket -->
-    <button
-      v-if="selectedLanespillere.length"
-      type="button"
-      class="lanespiller-row"
-      aria-label="Rediger lånespillere"
-      @click="focusTeamGroup"
-    >
-      <span class="lanespiller-row__label">Lånespillere</span>
-      <span class="lanespiller-row__chips">
-        <span
-          v-for="p in selectedLanespillere"
-          :key="p.id"
-          :class="[
-            'lanespiller-chip',
-            p.primary_team ? `lanespiller-chip--${p.primary_team}` : ''
-          ]"
-        >{{ p.name }}</span>
-      </span>
-    </button>
-
-    <!-- Action sections — 4 grouped disclosures -->
+    <!-- Action sections — 3 grouped disclosures (collapsed = lese, expanded = edit) -->
     <div class="px-lg mt-lg detail-disclosures">
 
       <!-- Gruppe 1: Dommer & utlegg (kun på hjemmekamper — vi har ikke dommer-ansvar borte) -->
@@ -790,9 +729,14 @@ function focusSummaryGroup() {
         v-model="open.logistics"
         :style="{ order: sectionOrder.logistics }"
         label="Dommer & utlegg"
-        :summary="logisticsSummary"
         empty-text="Ikke satt"
+        :has-content="!!(refereeSummary || payerSummary)"
       >
+        <template #summary>
+          <span v-if="refereeSummary" class="sum-chip sum-chip--referee">{{ refereeSummary }}</span>
+          <span v-if="payerSummary" class="sum-chip sum-chip--payer">{{ payerSummary }}</span>
+        </template>
+
         <!-- Dommer -->
         <div class="sub-section">
           <div class="referee-pills">
@@ -889,10 +833,31 @@ function focusSummaryGroup() {
         v-model="open.team"
         data-section="team"
         :style="{ order: sectionOrder.team }"
-        label="Lånespillere og trenere"
-        :summary="teamSummary"
+        label="Tropp"
         empty-text="Ingen"
+        :has-content="!!(selectedLanespillere.length || selectedCoaches.length)"
       >
+        <template #summary>
+          <span
+            v-for="p in cappedList(selectedLanespillere, 3).shown"
+            :key="p.id"
+            :class="['lanespiller-chip', p.primary_team ? `lanespiller-chip--${p.primary_team}` : '']"
+          >{{ p.name }}</span>
+          <span v-if="cappedList(selectedLanespillere, 3).extra" class="sum-chip sum-chip--more">+{{ cappedList(selectedLanespillere, 3).extra }}</span>
+          <span v-if="selectedCoaches.length" class="coach-avatar-pile">
+            <span
+              v-for="c in selectedCoaches"
+              :key="c.id"
+              :data-coach="c.name.toLowerCase()"
+              class="coach-face"
+              :title="c.name"
+            >
+              <img v-if="c.image" :src="c.image" :alt="c.name" />
+              <span v-else>{{ c.name.charAt(0) }}</span>
+            </span>
+          </span>
+        </template>
+
         <!-- Lånespillere -->
         <div class="sub-section">
           <div v-if="players.length === 0" class="hospitant-empty" style="margin: 0;">
@@ -928,24 +893,21 @@ function focusSummaryGroup() {
 
         <!-- Trenere -->
         <div class="sub-section">
-          <div class="coach-grid">
+          <div class="sub-section__label sub-section__label--soft">Trenere</div>
+          <div class="coach-pills">
             <button
               v-for="c in coaches"
               :key="c.id"
+              type="button"
               :data-coach="c.name.toLowerCase()"
-              :class="['coach-btn', { 'coach-btn--selected': matchCoachIds.includes(c.id) }]"
+              :class="['coach-pill', { 'coach-pill--selected': matchCoachIds.includes(c.id) }]"
               @click="toggleCoach(c.id)"
             >
-              <div class="coach-btn__avatar">
-                <img v-if="c.image" :src="c.image" :alt="c.name" class="coach-btn__avatar-img" />
-                <span v-else class="coach-btn__initial">{{ c.name.charAt(0) }}</span>
-              </div>
-              <span class="coach-btn__name">{{ c.name }}</span>
-              <span v-if="matchCoachIds.includes(c.id)" class="coach-btn__check" aria-hidden="true">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
-                  <polyline points="20 6 9 17 4 12"/>
-                </svg>
+              <span class="coach-pill__avatar">
+                <img v-if="c.image" :src="c.image" :alt="c.name" />
+                <span v-else>{{ c.name.charAt(0) }}</span>
               </span>
+              <span class="coach-pill__name">{{ c.name }}</span>
             </button>
           </div>
         </div>
@@ -956,10 +918,21 @@ function focusSummaryGroup() {
         v-model="open.summary"
         data-section="summary"
         :style="{ order: sectionOrder.summary }"
-        label="Resultat, scorere & referat"
-        :summary="summarySummary"
+        label="Resultat"
         empty-text="Ikke spilt"
+        :has-content="!!(hasResult || aggregatedScorers.length || match.report)"
       >
+        <template #summary>
+          <span v-if="hasResult" class="sum-chip sum-chip--score">{{ match.home_score }}–{{ match.away_score }}</span>
+          <span
+            v-for="s in cappedList(aggregatedScorers, 3).shown"
+            :key="s.player_id"
+            :class="['lanespiller-chip', s.player?.primary_team ? `lanespiller-chip--${s.player.primary_team}` : '']"
+          >{{ s.player?.name || '?' }}<template v-if="s.count > 1"> ×{{ s.count }}</template></span>
+          <span v-if="cappedList(aggregatedScorers, 3).extra" class="sum-chip sum-chip--more">+{{ cappedList(aggregatedScorers, 3).extra }}</span>
+          <span v-if="match.report && !aggregatedScorers.length && !hasResult" class="sum-chip">Referat</span>
+        </template>
+
         <!-- Resultat -->
         <div class="sub-section">
           <div class="sub-section__label">Resultat</div>
@@ -1844,62 +1817,29 @@ function focusSummaryGroup() {
   flex-shrink: 0;
 }
 
-/* ─── Lånespiller-rad (alltid synlig under match-card) ───────────────── */
-/* Subtil info-rad — ikke en card-aktig knapp. */
-.lanespiller-row {
-  display: flex;
+/* ─── Summary-chips i collapsed disclosure-headere (lese-modus) ───────── */
+.sum-chip {
+  display: inline-flex;
   align-items: center;
-  gap: 10px;
-  width: calc(100% - 2 * var(--ds-space-lg));
-  margin: 10px var(--ds-space-lg) 0;
-  padding: 8px 4px;
-  border: none;
-  background: transparent;
-  cursor: pointer;
-  font-family: var(--ds-font-body);
-  text-align: left;
-  -webkit-tap-highlight-color: transparent;
-  border-radius: 8px;
-  transition: background 0.15s ease;
-}
-
-.lanespiller-row:active {
-  opacity: 0.6;
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .lanespiller-row:hover {
-    background: var(--ds-color-bg-elevated);
-  }
-}
-
-.lanespiller-row__label {
+  padding: 3px 10px;
+  border-radius: 14px;
+  background: var(--ds-color-bg);
+  border: 1px solid var(--ds-color-border-light);
   font-size: 0.75rem;
   font-weight: 500;
-  color: var(--ds-color-text-tertiary);
-  flex-shrink: 0;
+  color: var(--ds-color-text-primary);
+  white-space: nowrap;
 }
 
-.lanespiller-row__label::after {
-  content: ':';
-  color: var(--ds-color-text-tertiary);
+.sum-chip--score {
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.01em;
 }
 
-.lanespiller-row__chips {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px;
-  flex: 1;
-  min-width: 0;
-}
-
-.lanespiller-row::after {
-  content: '›';
-  font-size: 1.125rem;
+.sum-chip--more {
   color: var(--ds-color-text-tertiary);
   font-weight: 600;
-  flex-shrink: 0;
-  opacity: 0.5;
 }
 
 .lanespiller-chip {

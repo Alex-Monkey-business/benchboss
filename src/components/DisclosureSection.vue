@@ -5,7 +5,10 @@ const props = defineProps({
   label: { type: String, required: true },
   summary: { type: String, default: '' },
   emptyText: { type: String, default: 'Ikke valgt' },
-  modelValue: { type: Boolean, default: false }
+  modelValue: { type: Boolean, default: false },
+  // Når et #summary-slot brukes: styrer om slot-innholdet (chips) vises, ellers
+  // faller vi tilbake til empty-text. Tekst-bare bruk er upåvirket.
+  hasContent: { type: Boolean, default: true }
 })
 
 const emit = defineEmits(['update:modelValue'])
@@ -36,6 +39,11 @@ function toggle() {
     >
       <span class="disclosure__label">{{ label }}</span>
       <span
+        v-if="$slots.summary && hasContent"
+        class="disclosure__summary disclosure__summary--rich"
+      ><slot name="summary" /></span>
+      <span
+        v-else
         :class="['disclosure__summary', { 'disclosure__summary--empty': !summary }]"
       >{{ summary || emptyText }}</span>
       <span class="disclosure__chevron" aria-hidden="true">
@@ -117,6 +125,17 @@ function toggle() {
   font-weight: 400;
   font-style: normal;
   opacity: 0.7;
+}
+
+/* Rik summary: høyrejustert chip-rad i headeren (lese-modus). Innholdet er
+   antalls-begrenset av kalleren, så overflow:hidden er bare et sikkerhetsnett. */
+.disclosure__summary--rich {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+  overflow: hidden;
+  white-space: normal;
 }
 
 .disclosure__chevron {
