@@ -55,6 +55,8 @@ export function hasResult(match) {
 // Mangler klokkeslett → kampen regnes spilt når datoen er passert.
 const PLAYED_BUFFER_MS = 90 * 60 * 1000
 export function isPlayed(match, now = Date.now()) {
+  // Resultat lagt inn ⇒ kampen er per definisjon spilt, uansett dato/klokke.
+  if (hasResult(match)) return true
   if (!match?.match_date) return false
   const time = (match.match_time || '').slice(0, 5)
   const hasTime = time && time !== '00:00'
