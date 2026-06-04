@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { isPast, isToday } from '../lib/dateLabels'
+import { isHalsen, teamColorsForMatch, teamLabel } from '../lib/matchMeta'
 
 const props = defineProps({
   match: { type: Object, required: true },
@@ -44,36 +45,8 @@ const status = computed(() => {
   return null
 })
 
-function isHalsen(name) {
-  return (name || '').toLowerCase().includes('halsen')
-}
-
-function colorFromName(name) {
-  const n = (name || '').toLowerCase()
-  if (n.includes('grønn') || n.includes('gronn')) return 'gronn'
-  if (n.includes('rød') || n.includes('rod')) return 'rod'
-  if (n.includes('hvit')) return 'hvit'
-  return ''
-}
-
 // All team colors present in this match (1 or 2 for internal matches)
-const teamColors = computed(() => {
-  const colors = []
-  if (isHalsen(props.match.home_team)) {
-    const c = colorFromName(props.match.home_team)
-    if (c) colors.push(c)
-  }
-  if (isHalsen(props.match.away_team)) {
-    const c = colorFromName(props.match.away_team)
-    if (c && !colors.includes(c)) colors.push(c)
-  }
-  return colors
-})
-
-// Is this an away game for Halsen?
-const isAway = computed(() => {
-  return !isHalsen(props.match.home_team) && isHalsen(props.match.away_team)
-})
+const teamColors = computed(() => teamColorsForMatch(props.match))
 
 const hasResult = computed(() => {
   const m = props.match
@@ -98,7 +71,7 @@ const formattedTime = computed(() => {
           :key="color"
           class="match-card__team-tag"
           :class="`match-card__team-tag--${color}`"
-        >{{ color === 'gronn' ? 'Grønn' : color === 'rod' ? 'Rød' : 'Hvit' }}</span>
+        >{{ teamLabel(color) }}</span>
       </span>
       <span v-if="status" class="match-status" :class="`match-status--${status.tone}`">
         <svg v-if="status.icon === 'check'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">

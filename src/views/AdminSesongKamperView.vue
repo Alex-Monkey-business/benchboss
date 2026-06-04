@@ -9,7 +9,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
 
 const { seasons, activeSeason, fetchSeasons, createSeason, setActiveSeason } = useSeasons()
-const { matches, fetchMatches, bulkAddMatches, addMatch, updateMatch, deleteAllMatches } = useMatches()
+const { matches, fetchMatches, bulkAddMatches, addMatch, updateMatch, deleteAllMatches, backfillDefaultCoaches } = useMatches()
 const { fetchExpenses } = useExpenses()
 const { show: showToast } = useToast()
 
@@ -156,6 +156,21 @@ async function switchSeason(seasonId) {
   await fetchMatches(seasonId)
   await fetchExpenses(matches.value.map(m => m.id))
   showToast(`Byttet til ${activeSeason.value?.name}`, 'success')
+}
+
+const backfilling = ref(false)
+
+async function handleBackfillCoaches() {
+  if (!activeSeason.value || backfilling.value) return
+  backfilling.value = true
+  const updated = await backfillDefaultCoaches(activeSeason.value.id)
+  backfilling.value = false
+  showToast(
+    updated > 0
+      ? `Standardtrenere satt på ${updated} kamp${updated === 1 ? '' : 'er'}`
+      : 'Alle kamper har allerede trenere',
+    'success'
+  )
 }
 
 async function handleAddMatch() {
@@ -355,6 +370,17 @@ function formatMatchDate(dateStr) {
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </span>
         <span class="action-row__label">Legg til kamp manuelt</span>
+        <svg class="action-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
+    </div>
+
+    <!-- ═══ BACKFILL TRENERE ═══ -->
+    <div v-if="matches.length > 0" class="px-lg mb-lg">
+      <button class="action-row" :disabled="backfilling" @click="handleBackfillCoaches">
+        <span class="action-row__icon">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg>
+        </span>
+        <span class="action-row__label">{{ backfilling ? 'Setter trenere…' : 'Sett standardtrenere på kamper uten' }}</span>
         <svg class="action-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
     </div>

@@ -13,7 +13,8 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
 import Skeleton from '../components/Skeleton.vue'
 import DisclosureSection from '../components/DisclosureSection.vue'
-import { relativeDateLabel } from '../lib/dateLabels'
+import { relativeDateLabel, isPast } from '../lib/dateLabels'
+import { colorFromName, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, TEAM_LABELS } from '../lib/matchMeta'
 import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 
 const route = useRoute()
@@ -172,32 +173,22 @@ async function openVipps() {
 
 const expense = computed(() => getExpenseForMatch(route.params.id))
 
-function getColorFromName(name) {
-  const n = (name || '').toLowerCase()
-  if (n.includes('grønn') || n.includes('gronn')) return 'gronn'
-  if (n.includes('rød') || n.includes('rod')) return 'rod'
-  if (n.includes('hvit')) return 'hvit'
-  return ''
-}
+const isHomeMatch = computed(() => computeIsHomeMatch(match.value))
 
-const isHomeMatch = computed(() => {
-  return (match.value?.home_team || '').toLowerCase().includes('halsen')
-})
+const teamColors = computed(() => teamColorsForMatch(match.value))
 
-const teamColors = computed(() => {
-  if (!match.value) return []
-  const colors = []
-  const home = (match.value.home_team || '').toLowerCase()
-  const away = (match.value.away_team || '').toLowerCase()
-  if (home.includes('halsen')) {
-    const c = getColorFromName(match.value.home_team)
-    if (c) colors.push(c)
+// Rekkefølge på de tre seksjonene styres av kampens livssyklus:
+// spilt kamp leder med resultat, kommende leder med prep. Flex-order på
+// .detail-disclosures gjør omrokeringen uten å endre DOM-en.
+const sectionOrder = computed(() => {
+  if (isPast(match.value?.match_date)) {
+    return { summary: 1, team: 2, logistics: 3 }
   }
-  if (away.includes('halsen')) {
-    const c = getColorFromName(match.value.away_team)
-    if (c && !colors.includes(c)) colors.push(c)
+  if (isHomeMatch.value) {
+    return { logistics: 1, team: 2, summary: 3 }
   }
-  return colors
+  // Kommende bortekamp — ingen dommer-ansvar, lag øverst
+  return { team: 1, summary: 2, logistics: 3 }
 })
 
 const formattedDate = computed(() => relativeDateLabel(match.value?.match_date))
@@ -293,7 +284,7 @@ async function togglePlayer(playerId) {
   showToast('Lånespillere oppdatert', 'success')
 }
 
-const teamLabels = { gronn: 'Grønn', rod: 'Rød', hvit: 'Hvit' }
+const teamLabels = TEAM_LABELS
 
 // Detect a same-day conflict for one player. Returns { time, opponent } or null.
 function getConflictForPlayer(p, currentMatchId, currentDate) {
@@ -323,9 +314,9 @@ function getConflictForPlayer(p, currentMatchId, currentDate) {
       if (m.id === currentMatchId) return false
       if (m.match_date !== currentDate) return false
       const homeColor = (m.home_team || '').toLowerCase().includes('halsen')
-        ? getColorFromName(m.home_team) : null
+        ? colorFromName(m.home_team) : null
       const awayColor = (m.away_team || '').toLowerCase().includes('halsen')
-        ? getColorFromName(m.away_team) : null
+        ? colorFromName(m.away_team) : null
       return homeColor === p.primary_team || awayColor === p.primary_team
     })
     if (primaryMatch) return describeMatch(primaryMatch)
@@ -734,7 +725,7 @@ function focusSummaryGroup() {
               :key="color"
               class="match-card__team-tag"
               :class="`match-card__team-tag--${color}`"
-            >{{ color === 'gronn' ? 'Grønn' : color === 'rod' ? 'Rød' : 'Hvit' }}</span>
+            >{{ teamLabels[color] }}</span>
             {{ formattedDate }}<template v-if="match.match_time && match.match_time.substring(0, 5) !== '00:00'"> · {{ match.match_time.substring(0, 5) }}</template><template v-if="match.round"> · Runde {{ match.round }}</template>
           </span>
           <button
@@ -797,6 +788,7 @@ function focusSummaryGroup() {
       <DisclosureSection
         v-if="isHomeMatch"
         v-model="open.logistics"
+        :style="{ order: sectionOrder.logistics }"
         label="Dommer & utlegg"
         :summary="logisticsSummary"
         empty-text="Ikke satt"
@@ -896,6 +888,7 @@ function focusSummaryGroup() {
       <DisclosureSection
         v-model="open.team"
         data-section="team"
+        :style="{ order: sectionOrder.team }"
         label="Lånespillere og trenere"
         :summary="teamSummary"
         empty-text="Ingen"
@@ -962,6 +955,7 @@ function focusSummaryGroup() {
       <DisclosureSection
         v-model="open.summary"
         data-section="summary"
+        :style="{ order: sectionOrder.summary }"
         label="Resultat, scorere & referat"
         :summary="summarySummary"
         empty-text="Ikke spilt"
@@ -978,7 +972,8 @@ function focusSummaryGroup() {
               inputmode="numeric"
               class="ds-input result-input"
               :aria-label="`Mål for ${match.home_team}`"
-              @keydown.enter="saveResult"
+              @blur="saveResult"
+              @keydown.enter="$event.target.blur()"
             />
             <span class="result-dash">–</span>
             <input
@@ -989,16 +984,9 @@ function focusSummaryGroup() {
               inputmode="numeric"
               class="ds-input result-input"
               :aria-label="`Mål for ${match.away_team}`"
-              @keydown.enter="saveResult"
+              @blur="saveResult"
+              @keydown.enter="$event.target.blur()"
             />
-            <button
-              type="button"
-              class="ds-btn ds-btn--primary ds-btn--sm"
-              :disabled="!isResultValid || !isResultChanged"
-              @click="saveResult"
-            >
-              Lagre
-            </button>
           </div>
           <button
             v-if="hasResult"

@@ -4,6 +4,7 @@ import { useSeasons } from '../composables/useSeasons'
 import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
 import { relativeDateLabel, isToday } from '../lib/dateLabels'
+import { teamColorsForMatch as teamColors, isHomeMatch, isHalsenMatch, teamLabel } from '../lib/matchMeta'
 import TeamFilter from '../components/TeamFilter.vue'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 
@@ -24,35 +25,6 @@ onMounted(async () => {
 watch(activeSeason, async (s) => {
   if (s) await fetchMatches(s.id)
 })
-
-// ---- Lag-farge + hjemme/borte (utledet av lagnavn, ingen ekstra data) ----
-function isHalsen(name) {
-  return (name || '').toLowerCase().includes('halsen')
-}
-
-function colorFromName(name) {
-  const n = (name || '').toLowerCase()
-  if (n.includes('grønn') || n.includes('gronn')) return 'gronn'
-  if (n.includes('rød') || n.includes('rod')) return 'rod'
-  if (n.includes('hvit')) return 'hvit'
-  return ''
-}
-
-function teamColors(match) {
-  const colors = []
-  if (isHalsen(match.home_team)) {
-    const c = colorFromName(match.home_team)
-    if (c) colors.push(c)
-  }
-  if (isHalsen(match.away_team)) {
-    const c = colorFromName(match.away_team)
-    if (c && !colors.includes(c)) colors.push(c)
-  }
-  return colors
-}
-
-function isHomeMatch(m) { return isHalsen(m.home_team) }
-function isHalsenMatch(m) { return isHalsen(m.home_team) || isHalsen(m.away_team) }
 
 function hasResult(m) {
   return m.home_score != null && m.away_score != null
@@ -171,7 +143,7 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
                     :key="color"
                     class="match-card__team-tag"
                     :class="`match-card__team-tag--${color}`"
-                  >{{ color === 'gronn' ? 'Grønn' : color === 'rod' ? 'Rød' : 'Hvit' }}</span>
+                  >{{ teamLabel(color) }}</span>
                   <span class="match-card__venue-tag">{{ isHomeMatch(m) ? 'Hjemme' : 'Borte' }}</span>
                 </span>
               </div>

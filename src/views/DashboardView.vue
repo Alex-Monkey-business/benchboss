@@ -10,6 +10,7 @@ import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import TeamFilter from '../components/TeamFilter.vue'
 import { useStaggerOnce } from '../composables/useStaggerOnce'
 import { relativeDateLabel, isToday, shortRelativeDate } from '../lib/dateLabels'
+import { teamColorsForMatch } from '../lib/matchMeta'
 import { useRouter } from 'vue-router'
 
 const router = useRouter()
@@ -129,27 +130,8 @@ function isHalsenTeam(teamName) {
   return (teamName || '').toLowerCase().includes('halsen')
 }
 
-function getColorFromName(name) {
-  const n = (name || '').toLowerCase()
-  if (n.includes('grønn') || n.includes('gronn')) return 'gronn'
-  if (n.includes('rød') || n.includes('rod')) return 'rod'
-  if (n.includes('hvit')) return 'hvit'
-  return ''
-}
-
 // Get all team colors for a match (can be 2 for internal Halsen matches)
-function getTeamColors(match) {
-  const colors = []
-  if (isHalsenTeam(match.home_team)) {
-    const c = getColorFromName(match.home_team)
-    if (c) colors.push(c)
-  }
-  if (isHalsenTeam(match.away_team)) {
-    const c = getColorFromName(match.away_team)
-    if (c && !colors.includes(c)) colors.push(c)
-  }
-  return colors
-}
+const getTeamColors = (match) => teamColorsForMatch(match)
 
 function isHomeMatch(match) {
   return isHalsenTeam(match.home_team)

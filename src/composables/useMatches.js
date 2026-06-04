@@ -1,5 +1,7 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { useCoaches } from './useCoaches'
+import { defaultCoachIdsForMatch } from '../lib/coachTeams'
 
 const matches = ref([])
 const matchCoaches = ref([])
@@ -19,6 +21,8 @@ const DEMO_MATCH_COACHES = []
 const DEMO_MATCH_PLAYERS = []
 
 export function useMatches() {
+  const { coaches, fetchCoaches } = useCoaches()
+
   async function fetchMatches(seasonId) {
     loading.value = true
 
@@ -102,6 +106,7 @@ export function useMatches() {
     if (!isSupabaseConfigured) {
       const newMatch = { id: 'dm-' + Date.now(), ...matchData }
       matches.value.push(newMatch)
+      await assignDefaultCoaches([newMatch])
       return newMatch
     }
 
@@ -111,7 +116,10 @@ export function useMatches() {
       .select()
       .single()
 
-    if (!error && data) matches.value.push(data)
+    if (!error && data) {
+      matches.value.push(data)
+      await assignDefaultCoaches([data])
+    }
     return data
   }
 
@@ -119,6 +127,7 @@ export function useMatches() {
     if (!isSupabaseConfigured) {
       const newMatches = matchDataArray.map((m, i) => ({ id: 'dm-bulk-' + Date.now() + '-' + i, ...m }))
       matches.value.push(...newMatches)
+      await assignDefaultCoaches(newMatches)
       return newMatches
     }
 
@@ -127,8 +136,50 @@ export function useMatches() {
       .insert(matchDataArray)
       .select()
 
-    if (!error && data) matches.value.push(...data)
+    if (!error && data) {
+      matches.value.push(...data)
+      await assignDefaultCoaches(data)
+    }
     return data
+  }
+
+  // Sett standard-trenere på nye kamper ut fra lagfarge. Én samlet insert.
+  // Antar at kampene er nyopprettede (ingen eksisterende trener-koblinger).
+  async function assignDefaultCoaches(newMatches) {
+    await fetchCoaches()
+    const rows = []
+    for (const m of newMatches) {
+      for (const coach_id of defaultCoachIdsForMatch(m, coaches.value)) {
+        rows.push({ match_id: m.id, coach_id })
+      }
+    }
+    if (!rows.length) return
+
+    if (!isSupabaseConfigured) {
+      matchCoaches.value.push(...rows)
+      return
+    }
+
+    const { error } = await supabase.from('match_coaches').insert(rows)
+    if (!error) matchCoaches.value.push(...rows)
+  }
+
+  // Engangs-backfill: sett standard-trenere på kamper i sesongen som mangler
+  // trenere helt. Idempotent — rører ikke kamper som allerede har trenere satt.
+  // Returnerer antall kamper som ble oppdatert.
+  async function backfillDefaultCoaches(seasonId) {
+    await Promise.all([fetchMatches(seasonId), fetchCoaches()])
+    const withCoaches = new Set(matchCoaches.value.map(mc => mc.match_id))
+    const missing = matches.value.filter(m => !withCoaches.has(m.id))
+
+    let updated = 0
+    for (const m of missing) {
+      const ids = defaultCoachIdsForMatch(m, coaches.value)
+      if (!ids.length) continue
+      await setMatchCoaches(m.id, ids)
+      updated++
+    }
+    return updated
   }
 
   async function setMatchCoaches(matchId, coachIds) {
@@ -246,7 +297,7 @@ export function useMatches() {
   return {
     matches, matchCoaches, matchPlayers, loading,
     fetchMatches, getMatch, updateMatch, addMatch, bulkAddMatches,
-    setMatchCoaches, getCoachesForMatch, fetchMatchCoaches,
+    setMatchCoaches, getCoachesForMatch, fetchMatchCoaches, backfillDefaultCoaches,
     setMatchPlayers, getPlayersForMatch, fetchMatchPlayers, fetchAllMatchPlayers,
     deleteMatch, deleteAllMatches
   }
