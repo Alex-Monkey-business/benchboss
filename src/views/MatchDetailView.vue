@@ -920,17 +920,11 @@ function focusSummaryGroup() {
         :style="{ order: sectionOrder.summary }"
         label="Resultat"
         empty-text="Ikke spilt"
-        :has-content="!!(hasResult || aggregatedScorers.length || match.report)"
+        :has-content="!!(hasResult || match.report)"
       >
         <template #summary>
           <span v-if="hasResult" class="sum-chip sum-chip--score">{{ match.home_score }}–{{ match.away_score }}</span>
-          <span
-            v-for="s in cappedList(aggregatedScorers, 3).shown"
-            :key="s.player_id"
-            :class="['lanespiller-chip', s.player?.primary_team ? `lanespiller-chip--${s.player.primary_team}` : '']"
-          >{{ s.player?.name || '?' }}<template v-if="s.count > 1"> ×{{ s.count }}</template></span>
-          <span v-if="cappedList(aggregatedScorers, 3).extra" class="sum-chip sum-chip--more">+{{ cappedList(aggregatedScorers, 3).extra }}</span>
-          <span v-if="match.report && !aggregatedScorers.length && !hasResult" class="sum-chip">Referat</span>
+          <span v-if="match.report" class="sum-chip sum-chip--more">Referat</span>
         </template>
 
         <!-- Resultat -->

@@ -38,14 +38,17 @@ function toggle() {
       @click="toggle"
     >
       <span class="disclosure__label">{{ label }}</span>
+      <!-- Sammendrag vises kun når seksjonen er lukket — åpen = du redigerer
+           innholdet rett under, så headeren skal ikke gjenta det. -->
       <span
-        v-if="$slots.summary && hasContent"
+        v-if="!modelValue && $slots.summary && hasContent"
         class="disclosure__summary disclosure__summary--rich"
       ><slot name="summary" /></span>
       <span
-        v-else
+        v-else-if="!modelValue"
         :class="['disclosure__summary', { 'disclosure__summary--empty': !summary }]"
       >{{ summary || emptyText }}</span>
+      <span v-else></span>
       <span class="disclosure__chevron" aria-hidden="true">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <polyline points="6 9 12 15 18 9"/>
