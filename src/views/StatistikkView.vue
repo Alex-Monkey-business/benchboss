@@ -43,16 +43,37 @@ function colorOf(name) {
   return null
 }
 
-function isPlayed(match) {
+function hasResult(match) {
   return match.home_score !== null && match.home_score !== undefined
     && match.away_score !== null && match.away_score !== undefined
+}
+
+// "Spilt" = avspark + 1,5t har passert (kampen er ferdig, ikke i gang).
+// Mangler klokkeslett → kampen regnes spilt når datoen er passert.
+const PLAYED_BUFFER_MS = 90 * 60 * 1000
+function isPlayed(match) {
+  if (!match.match_date) return false
+  const time = (match.match_time || '').slice(0, 5)
+  const hasTime = time && time !== '00:00'
+  const start = new Date(`${match.match_date}T${hasTime ? time : '23:59'}:00`)
+  if (Number.isNaN(start.getTime())) return false
+  const doneAt = start.getTime() + (hasTime ? PLAYED_BUFFER_MS : 0)
+  return doneAt <= Date.now()
 }
 
 const halsenMatches = computed(() => matches.value.filter(m =>
   isHalsenTeam(m.home_team) || isHalsenTeam(m.away_team)
 ))
 
+// Spilte kamper (tid-basert) — grunnlag for deltakelse. Resultat-avhengig
+// statistikk (tabell/mål) gates i tillegg på hasResult().
 const playedMatches = computed(() => halsenMatches.value.filter(isPlayed))
+const playedMatchIds = computed(() => new Set(playedMatches.value.map(m => m.id)))
+
+// Spilte kamper som mangler resultat — vises som varsel øverst.
+const missingResultCount = computed(() =>
+  playedMatches.value.filter(m => !hasResult(m)).length
+)
 
 // Halsen totalt: ekskluder internkamper (Halsen vs Halsen) for å unngå
 // dobbel-telling — de bidrar bare til per-lag-statistikk.
@@ -63,6 +84,7 @@ const halsenTotal = computed(() => {
     const away = isHalsenTeam(m.away_team)
     if (home && away) return // internkamp
     played++
+    if (!hasResult(m)) return // spilt, men resultat ikke lagt inn enda
     const halsenScore = home ? m.home_score : m.away_score
     const oppScore = home ? m.away_score : m.home_score
     gf += halsenScore
@@ -83,6 +105,7 @@ function statsForColor(color) {
     const onAway = awayColor === color
     if (!onHome && !onAway) return
     played++
+    if (!hasResult(m)) return // spilt, men resultat ikke lagt inn enda
     // Internkamp Halsen vs Halsen der dette laget er på begge sider er umulig.
     const teamScore = onHome ? m.home_score : m.away_score
     const oppScore = onHome ? m.away_score : m.home_score
@@ -102,6 +125,7 @@ function statsForColor(color) {
 // Recent results for form-curve, oldest → newest
 function recentResultsForColor(color, limit = 10) {
   const sorted = [...playedMatches.value]
+    .filter(hasResult)
     .filter(m => !(isHalsenTeam(m.home_team) && isHalsenTeam(m.away_team)))
     .filter(m => {
       const homeColor = isHalsenTeam(m.home_team) ? colorOf(m.home_team) : null
@@ -125,6 +149,7 @@ function recentResultsForColor(color, limit = 10) {
 
 const halsenRecentResults = computed(() => {
   const sorted = [...playedMatches.value]
+    .filter(hasResult)
     .filter(m => !(isHalsenTeam(m.home_team) && isHalsenTeam(m.away_team)))
     .sort((a, b) => a.match_date.localeCompare(b.match_date))
     .slice(-10)
@@ -160,6 +185,7 @@ const teamStats = computed(() =>
 const coachStats = computed(() => {
   const counts = {}
   matchCoaches.value.forEach(mc => {
+    if (!playedMatchIds.value.has(mc.match_id)) return
     counts[mc.coach_id] = (counts[mc.coach_id] || 0) + 1
   })
   return coaches.value
@@ -171,7 +197,7 @@ const coachStats = computed(() => {
 // Dommer-leaderboard — grouper på matches.referee-strengen
 const refereeStats = computed(() => {
   const counts = {}
-  halsenMatches.value.forEach(m => {
+  playedMatches.value.forEach(m => {
     const name = (m.referee || '').trim()
     if (!name) return
     counts[name] = (counts[name] || 0) + 1
@@ -185,6 +211,7 @@ const refereeStats = computed(() => {
 const playerStats = computed(() => {
   const counts = {}
   matchPlayers.value.forEach(mp => {
+    if (!playedMatchIds.value.has(mp.match_id)) return
     counts[mp.player_id] = (counts[mp.player_id] || 0) + 1
   })
   return players.value
@@ -195,10 +222,9 @@ const playerStats = computed(() => {
 
 // Toppscorere — kun mål registrert i denne sesongens kamper
 const topScorers = computed(() => {
-  const seasonMatchIds = new Set(halsenMatches.value.map(m => m.id))
   const counts = {}
   allGoals.value.forEach(g => {
-    if (!seasonMatchIds.has(g.match_id)) return
+    if (!playedMatchIds.value.has(g.match_id)) return
     counts[g.player_id] = (counts[g.player_id] || 0) + 1
   })
   return players.value
@@ -207,7 +233,7 @@ const topScorers = computed(() => {
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
 })
 
-const hasAnyResult = computed(() => playedMatches.value.length > 0)
+const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 </script>
 
 <template>
@@ -244,11 +270,23 @@ const hasAnyResult = computed(() => playedMatches.value.length > 0)
     </div>
 
     <template v-else>
+    <!-- Varsel: spilte kamper uten resultat -->
+    <div v-if="missingResultCount > 0" class="px-lg">
+      <div class="missing-result-note">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/>
+          <line x1="12" y1="8" x2="12" y2="12.5"/>
+          <line x1="12" y1="16" x2="12.01" y2="16"/>
+        </svg>
+        {{ missingResultCount }} spilt{{ missingResultCount === 1 ? ' kamp' : 'e kamper' }} mangler resultat
+      </div>
+    </div>
+
     <!-- Halsen totalt -->
     <div class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-1">
       <div class="stat-section-label">Halsen totalt</div>
       <div class="stat-card-large">
-        <template v-if="hasAnyResult">
+        <template v-if="hasPlayedMatches">
           <div class="stat-card-large__top">
             <div class="stat-card-large__metric">
               <AnimatedNumber class="stat-card-large__value" :value="halsenTotal.played" />
@@ -286,7 +324,7 @@ const hasAnyResult = computed(() => playedMatches.value.length > 0)
     </div>
 
     <!-- Per fargelag -->
-    <div v-if="hasAnyResult" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-2">
+    <div v-if="hasPlayedMatches" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-2">
       <div class="stat-section-label">Per lag</div>
       <div class="standings">
         <div class="standings__header">
@@ -488,6 +526,26 @@ const hasAnyResult = computed(() => playedMatches.value.length > 0)
   color: var(--ds-color-text-tertiary);
   padding: 0 4px;
   margin-bottom: 8px;
+}
+
+.missing-result-note {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: var(--ds-space-lg);
+  padding: 10px 14px;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-warm-bg);
+  color: var(--ds-color-warm-text);
+  border: 1px solid var(--ds-color-warm, transparent);
+  font-size: 0.8125rem;
+  font-weight: 500;
+}
+
+.missing-result-note svg {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
 }
 
 /* Halsen totalt — large card */
