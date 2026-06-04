@@ -927,33 +927,38 @@ function focusSummaryGroup() {
           <span v-if="match.report" class="sum-chip sum-chip--more">Referat</span>
         </template>
 
-        <!-- Resultat -->
+        <!-- Resultat: score + scorere som én enhet -->
         <div class="sub-section">
-          <div class="sub-section__label">Resultat</div>
-          <div class="result-form">
-            <input
-              v-model="homeScoreInput"
-              type="number"
-              min="0"
-              max="99"
-              inputmode="numeric"
-              class="ds-input result-input"
-              :aria-label="`Mål for ${match.home_team}`"
-              @blur="saveResult"
-              @keydown.enter="$event.target.blur()"
-            />
-            <span class="result-dash">–</span>
-            <input
-              v-model="awayScoreInput"
-              type="number"
-              min="0"
-              max="99"
-              inputmode="numeric"
-              class="ds-input result-input"
-              :aria-label="`Mål for ${match.away_team}`"
-              @blur="saveResult"
-              @keydown.enter="$event.target.blur()"
-            />
+          <div class="score-edit">
+            <div class="score-edit__side">
+              <input
+                v-model="homeScoreInput"
+                type="number"
+                min="0"
+                max="99"
+                inputmode="numeric"
+                class="ds-input score-edit__input"
+                :aria-label="`Mål for ${match.home_team}`"
+                @blur="saveResult"
+                @keydown.enter="$event.target.blur()"
+              />
+              <span class="score-edit__team">{{ match.home_team }}</span>
+            </div>
+            <span class="score-edit__dash">–</span>
+            <div class="score-edit__side">
+              <input
+                v-model="awayScoreInput"
+                type="number"
+                min="0"
+                max="99"
+                inputmode="numeric"
+                class="ds-input score-edit__input"
+                :aria-label="`Mål for ${match.away_team}`"
+                @blur="saveResult"
+                @keydown.enter="$event.target.blur()"
+              />
+              <span class="score-edit__team">{{ match.away_team }}</span>
+            </div>
           </div>
           <button
             v-if="hasResult"
@@ -963,15 +968,9 @@ function focusSummaryGroup() {
           >
             Fjern resultat
           </button>
-        </div>
 
-        <!-- Målscorere -->
-        <div class="sub-section">
-          <div class="sub-section__label">Målscorere</div>
-          <div v-if="matchGoals.length === 0" class="hospitant-empty" style="margin: 0;">
-            Ingen scorere registrert ennå.
-          </div>
-          <div v-else class="referee-pills scorer-pills">
+          <div class="sub-section__label scorers-label">Scorere</div>
+          <div class="referee-pills scorer-pills">
             <button
               v-for="s in aggregatedScorers"
               :key="s.player_id"
@@ -987,14 +986,18 @@ function focusSummaryGroup() {
                 class="scorer-pill__count"
               > ×{{ s.count }}</span>
             </button>
+            <button
+              type="button"
+              class="referee-pill referee-pill--other"
+              @click="openScorerSheet()"
+            >
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="12" y1="5" x2="12" y2="19"/>
+                <line x1="5" y1="12" x2="19" y2="12"/>
+              </svg>
+              Scorer
+            </button>
           </div>
-          <button
-            type="button"
-            class="ds-btn ds-btn--secondary ds-btn--sm scorers-block__add"
-            @click="openScorerSheet()"
-          >
-            + Legg til scorer
-          </button>
           <div v-if="goalCountMismatch" class="scorers-block__hint">
             Antall scorere ({{ matchGoals.length }}) matcher ikke Halsen-mål ({{ halsenGoalCount }}).
           </div>
@@ -1687,36 +1690,61 @@ function focusSummaryGroup() {
 }
 
 /* Resultat-form */
-.result-form {
+/* Score som helten — ekko-er kort-scoren, lagnavn som caption */
+.score-edit {
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-top: 12px;
+  align-items: flex-start;
+  justify-content: center;
+  gap: var(--ds-space-md);
+  margin-top: var(--ds-space-xs);
 }
 
-.result-input {
-  width: 64px;
+.score-edit__side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+  flex: 1;
+  max-width: 120px;
+}
+
+.score-edit__input {
+  width: 72px;
+  height: 60px;
+  padding: 0;
   text-align: center;
+  font-family: var(--ds-font-display-sans, var(--ds-font-body));
+  font-size: 1.75rem;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
-  font-weight: 600;
-  font-size: 1rem;
+  letter-spacing: -0.01em;
   -moz-appearance: textfield;
 }
 
-.result-input::-webkit-outer-spin-button,
-.result-input::-webkit-inner-spin-button {
+.score-edit__input::-webkit-outer-spin-button,
+.score-edit__input::-webkit-inner-spin-button {
   -webkit-appearance: none;
   margin: 0;
 }
 
-.result-dash {
-  font-size: 1.125rem;
-  font-weight: 700;
+.score-edit__dash {
+  font-size: 1.5rem;
+  font-weight: 500;
   color: var(--ds-color-text-tertiary);
+  margin-top: 16px;
+}
+
+.score-edit__team {
+  font-size: 0.75rem;
+  color: var(--ds-color-text-tertiary);
+  text-align: center;
+  line-height: 1.25;
 }
 
 .result-clear-btn {
-  margin-top: 8px;
+  display: block;
+  margin: var(--ds-space-sm) auto 0;
   color: var(--ds-color-text-tertiary);
 }
 
@@ -1892,12 +1920,12 @@ function focusSummaryGroup() {
   display: flex;
   align-items: baseline;
   gap: 8px;
-  font-size: 0.75rem;
+  font-size: 0.8125rem;
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--ds-color-text-tertiary);
-  margin-bottom: 10px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ds-color-text-secondary);
+  margin-bottom: 8px;
 }
 
 .sub-section__hint {
@@ -1910,10 +1938,10 @@ function focusSummaryGroup() {
 }
 
 .sub-section__label--soft {
-  font-size: 0.6875rem;
-  letter-spacing: 0.06em;
+  font-size: 0.75rem;
+  letter-spacing: 0;
   font-weight: 500;
-  opacity: 0.7;
+  color: var(--ds-color-text-tertiary);
   margin-bottom: 8px;
 }
 
@@ -2007,14 +2035,8 @@ function focusSummaryGroup() {
   border: 1px solid var(--ds-color-text-tertiary);
 }
 
-.scorers-block__add {
-  width: 100%;
-  justify-content: center;
-  min-height: 48px;
-  font-size: 0.9375rem;
-  font-weight: 600;
-  padding: 12px 20px;
-  border-radius: var(--ds-radius-md);
+.scorers-label {
+  margin-top: var(--ds-space-lg);
 }
 
 .scorers-block__hint {
