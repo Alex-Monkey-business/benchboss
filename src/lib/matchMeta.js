@@ -45,3 +45,21 @@ export function isAwayMatch(match) {
 export function isHalsenMatch(match) {
   return isHalsen(match?.home_team) || isHalsen(match?.away_team)
 }
+
+export function hasResult(match) {
+  return match?.home_score !== null && match?.home_score !== undefined
+    && match?.away_score !== null && match?.away_score !== undefined
+}
+
+// "Spilt" = avspark + 1,5t har passert (kampen er ferdig, ikke i gang).
+// Mangler klokkeslett → kampen regnes spilt når datoen er passert.
+const PLAYED_BUFFER_MS = 90 * 60 * 1000
+export function isPlayed(match, now = Date.now()) {
+  if (!match?.match_date) return false
+  const time = (match.match_time || '').slice(0, 5)
+  const hasTime = time && time !== '00:00'
+  const start = new Date(`${match.match_date}T${hasTime ? time : '23:59'}:00`)
+  if (Number.isNaN(start.getTime())) return false
+  const doneAt = start.getTime() + (hasTime ? PLAYED_BUFFER_MS : 0)
+  return doneAt <= now
+}

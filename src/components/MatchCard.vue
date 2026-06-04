@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { isPast, isToday } from '../lib/dateLabels'
-import { isHalsen, teamColorsForMatch, teamLabel } from '../lib/matchMeta'
+import { isHalsen, teamColorsForMatch, teamLabel, isPlayed, hasResult } from '../lib/matchMeta'
 
 const props = defineProps({
   match: { type: Object, required: true },
@@ -26,18 +26,24 @@ const status = computed(() => {
   const past = isPast(m.match_date)
   const days = daysUntil(m.match_date)
   const upcomingSoon = days >= 0 && days <= 7
+  const played = isPlayed(m)
 
-  // 1. Upcoming home match without dommer — most urgent
-  if (isHome && upcomingSoon && !m.referee) {
+  // 1. Spilt, men resultat ikke lagt inn — viktigst rett etter kamp (alle kamper)
+  if (played && !hasResult(m)) {
+    return { label: 'Mangler resultat', tone: 'warn' }
+  }
+
+  // 2. Kommende hjemmekamp uten dommer
+  if (isHome && !played && upcomingSoon && !m.referee) {
     return { label: 'Trenger dommer', tone: 'warn' }
   }
 
-  // 2. Past home match without utlegg
+  // 3. Spilt hjemmekamp uten utlegg
   if (isHome && past && !props.expense) {
     return { label: 'Mangler utlegg', tone: 'warn' }
   }
 
-  // 3. Past home match with expense → check ✓
+  // 4. Spilt hjemmekamp med utlegg → check ✓
   if (isHome && past && props.expense) {
     return { icon: 'check', tone: 'ok' }
   }
@@ -47,11 +53,6 @@ const status = computed(() => {
 
 // All team colors present in this match (1 or 2 for internal matches)
 const teamColors = computed(() => teamColorsForMatch(props.match))
-
-const hasResult = computed(() => {
-  const m = props.match
-  return m.home_score !== null && m.home_score !== undefined && m.away_score !== null && m.away_score !== undefined
-})
 
 const formattedTime = computed(() => {
   if (!props.match.match_time) return ''
@@ -82,7 +83,7 @@ const formattedTime = computed(() => {
     </div>
     <div class="match-card__teams">
       <span class="match-card__team">{{ match.home_team }}</span>
-      <span v-if="hasResult" class="match-card__score">{{ match.home_score }} – {{ match.away_score }}</span>
+      <span v-if="hasResult(match)" class="match-card__score">{{ match.home_score }} – {{ match.away_score }}</span>
       <span v-else-if="formattedTime" class="match-card__time">{{ formattedTime }}</span>
       <span v-else class="match-card__vs">vs</span>
       <span class="match-card__team">{{ match.away_team }}</span>
