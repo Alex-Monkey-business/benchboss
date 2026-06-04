@@ -53,6 +53,11 @@ const halsenMatches = computed(() => matches.value.filter(m =>
 const playedMatches = computed(() => halsenMatches.value.filter(isPlayed))
 const playedMatchIds = computed(() => new Set(playedMatches.value.map(m => m.id)))
 
+// Kommende (ikke spilte) kamper — for å vise hvor booket en lånespiller alt er.
+const upcomingMatchIds = computed(() => new Set(
+  halsenMatches.value.filter(m => !isPlayed(m)).map(m => m.id)
+))
+
 // Spilte kamper som mangler resultat — vises som varsel øverst.
 const missingResultCount = computed(() =>
   playedMatches.value.filter(m => !hasResult(m)).length
@@ -193,14 +198,22 @@ const refereeStats = computed(() => {
 // Hospitant-leaderboard
 const playerStats = computed(() => {
   const counts = {}
+  const upcoming = {}
   matchPlayers.value.forEach(mp => {
-    if (!playedMatchIds.value.has(mp.match_id)) return
-    counts[mp.player_id] = (counts[mp.player_id] || 0) + 1
+    if (playedMatchIds.value.has(mp.match_id)) {
+      counts[mp.player_id] = (counts[mp.player_id] || 0) + 1
+    } else if (upcomingMatchIds.value.has(mp.match_id)) {
+      upcoming[mp.player_id] = (upcoming[mp.player_id] || 0) + 1
+    }
   })
   return players.value
-    .map(p => ({ id: p.id, name: p.name, primary_team: p.primary_team, count: counts[p.id] || 0 }))
-    .filter(p => p.count > 0)
-    .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
+    .map(p => ({
+      id: p.id, name: p.name, primary_team: p.primary_team,
+      count: counts[p.id] || 0,
+      upcoming: upcoming[p.id] || 0
+    }))
+    .filter(p => p.count > 0 || p.upcoming > 0)
+    .sort((a, b) => b.count - a.count || b.upcoming - a.upcoming || a.name.localeCompare(b.name))
 })
 
 // Toppscorere — kun mål registrert i denne sesongens kamper
@@ -374,13 +387,20 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
     <div v-if="playerStats.length > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-3">
       <div class="stat-section-label">Lånespillere</div>
       <div class="leaderboard ds-anim-stagger-list">
+        <div class="leaderboard__head">
+          <span class="leaderboard__rank" aria-hidden="true"></span>
+          <span class="leaderboard__name"></span>
+          <span class="leaderboard__metric leaderboard__metric--head">Ekstra</span>
+          <span class="leaderboard__metric leaderboard__metric--head">Kommende</span>
+        </div>
         <div v-for="(item, i) in playerStats" :key="item.id" class="leaderboard__row">
           <span class="leaderboard__rank">{{ i + 1 }}</span>
           <span class="leaderboard__name">
             {{ item.name }}
             <span v-if="item.primary_team" :class="['leaderboard__tag', `leaderboard__tag--${item.primary_team}`]">{{ TEAM_LABELS[item.primary_team] }}</span>
           </span>
-          <span class="leaderboard__count">{{ item.count }} ekstra</span>
+          <span class="leaderboard__metric">{{ item.count || '–' }}</span>
+          <span class="leaderboard__metric leaderboard__metric--upcoming">{{ item.upcoming || '–' }}</span>
         </div>
       </div>
     </div>
@@ -814,6 +834,37 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   font-size: 0.8125rem;
   color: var(--ds-color-text-secondary);
   font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Aligned numeric columns for lånespiller-leaderboardet */
+.leaderboard__head {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--ds-color-border-light);
+}
+
+.leaderboard__metric {
+  width: 64px;
+  flex-shrink: 0;
+  text-align: right;
+  font-size: 0.8125rem;
+  color: var(--ds-color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
+.leaderboard__metric--upcoming {
+  color: var(--ds-color-text-tertiary);
+}
+
+.leaderboard__metric--head {
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ds-color-text-tertiary);
 }
 
 .leaderboard__tag {
