@@ -1450,19 +1450,19 @@ function focusSummaryGroup() {
 }
 
 .match-detail-card .match-card__team-tag--gronn {
-  background: var(--ds-color-success-light);
-  color: var(--ds-color-success);
+  background: var(--ds-team-gronn-bg);
+  color: var(--ds-team-gronn);
 }
 
 .match-detail-card .match-card__team-tag--rod {
-  background: var(--ds-color-error-light);
-  color: var(--ds-color-error);
+  background: var(--ds-team-rod-bg);
+  color: var(--ds-team-rod);
 }
 
 .match-detail-card .match-card__team-tag--hvit {
-  background: var(--ds-color-bg-elevated);
-  color: var(--ds-color-text-tertiary);
-  border: 1px solid var(--ds-color-border-light);
+  background: var(--ds-team-hvit-bg);
+  color: var(--ds-team-hvit);
+  border: 1px solid var(--ds-team-hvit-border);
 }
 
 /* Referee pill buttons - compact horizontal chips */
@@ -1889,11 +1889,11 @@ function focusSummaryGroup() {
   background: var(--ds-color-text-tertiary);
 }
 
-.lanespiller-chip--gronn::before { background: var(--ds-color-success); }
-.lanespiller-chip--rod::before { background: var(--ds-color-error); }
+.lanespiller-chip--gronn::before { background: var(--ds-team-gronn); }
+.lanespiller-chip--rod::before { background: var(--ds-team-rod); }
 .lanespiller-chip--hvit::before {
-  background: var(--ds-color-bg);
-  border: 1px solid var(--ds-color-text-tertiary);
+  background: var(--ds-team-hvit-bg);
+  border: 1px solid var(--ds-team-hvit-border);
 }
 
 /* ─── Sub-sections inni grupperte disclosures ─────────────────────────── */
@@ -1998,11 +1998,11 @@ function focusSummaryGroup() {
   background: var(--ds-color-text-tertiary);
 }
 
-.scorer-edit-summary__chip.scorer-picker__chip--gronn::before { background: var(--ds-color-success); }
-.scorer-edit-summary__chip.scorer-picker__chip--rod::before { background: var(--ds-color-error); }
+.scorer-edit-summary__chip.scorer-picker__chip--gronn::before { background: var(--ds-team-gronn); }
+.scorer-edit-summary__chip.scorer-picker__chip--rod::before { background: var(--ds-team-rod); }
 .scorer-edit-summary__chip.scorer-picker__chip--hvit::before {
-  background: var(--ds-color-bg);
-  border: 1px solid var(--ds-color-text-tertiary);
+  background: var(--ds-team-hvit-bg);
+  border: 1px solid var(--ds-team-hvit-border);
 }
 
 .scorer-edit-summary__text {
@@ -2028,11 +2028,11 @@ function focusSummaryGroup() {
   background: var(--ds-color-text-tertiary);
 }
 
-.scorer-pill--gronn::before { background: var(--ds-color-success); }
-.scorer-pill--rod::before { background: var(--ds-color-error); }
+.scorer-pill--gronn::before { background: var(--ds-team-gronn); }
+.scorer-pill--rod::before { background: var(--ds-team-rod); }
 .scorer-pill--hvit::before {
-  background: var(--ds-color-bg);
-  border: 1px solid var(--ds-color-text-tertiary);
+  background: var(--ds-team-hvit-bg);
+  border: 1px solid var(--ds-team-hvit-border);
 }
 
 .scorers-label {
@@ -2139,11 +2139,11 @@ function focusSummaryGroup() {
   background: var(--ds-color-text-tertiary);
 }
 
-.scorer-picker__chip--gronn::before { background: var(--ds-color-success); }
-.scorer-picker__chip--rod::before { background: var(--ds-color-error); }
+.scorer-picker__chip--gronn::before { background: var(--ds-team-gronn); }
+.scorer-picker__chip--rod::before { background: var(--ds-team-rod); }
 .scorer-picker__chip--hvit::before {
-  background: var(--ds-color-bg);
-  border: 1px solid var(--ds-color-text-tertiary);
+  background: var(--ds-team-hvit-bg);
+  border: 1px solid var(--ds-team-hvit-border);
 }
 
 .scorer-picker__chip--selected {

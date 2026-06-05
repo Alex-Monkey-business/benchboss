@@ -717,16 +717,16 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .standings__dot--gronn {
-  background: var(--ds-color-success);
+  background: var(--ds-team-gronn);
 }
 
 .standings__dot--rod {
-  background: var(--ds-color-error);
+  background: var(--ds-team-rod);
 }
 
 .standings__dot--hvit {
-  background: var(--ds-color-bg);
-  border: 1px solid var(--ds-color-border-strong);
+  background: var(--ds-team-hvit-bg);
+  border: 1px solid var(--ds-team-hvit-border);
 }
 
 .standings__num {
@@ -876,19 +876,19 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .leaderboard__tag--gronn {
-  background: var(--ds-color-success-light);
-  color: var(--ds-color-success);
+  background: var(--ds-team-gronn-bg);
+  color: var(--ds-team-gronn);
 }
 
 .leaderboard__tag--rod {
-  background: var(--ds-color-error-light);
-  color: var(--ds-color-error);
+  background: var(--ds-team-rod-bg);
+  color: var(--ds-team-rod);
 }
 
 .leaderboard__tag--hvit {
-  background: var(--ds-color-bg-subtle);
-  color: var(--ds-color-text-tertiary);
-  border: 1px solid var(--ds-color-border-light);
+  background: var(--ds-team-hvit-bg);
+  color: var(--ds-team-hvit);
+  border: 1px solid var(--ds-team-hvit-border);
 }
 
 @media (max-width: 400px) {

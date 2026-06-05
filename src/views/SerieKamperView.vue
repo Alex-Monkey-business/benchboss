@@ -195,12 +195,12 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
   letter-spacing: 0.02em;
   margin-right: 4px;
 }
-.match-card__team-tag--gronn { background: var(--ds-color-success-light); color: var(--ds-color-success); }
-.match-card__team-tag--rod { background: var(--ds-color-error-light); color: var(--ds-color-error); }
+.match-card__team-tag--gronn { background: var(--ds-team-gronn-bg); color: var(--ds-team-gronn); }
+.match-card__team-tag--rod { background: var(--ds-team-rod-bg); color: var(--ds-team-rod); }
 .match-card__team-tag--hvit {
-  background: var(--ds-color-bg-elevated);
-  color: var(--ds-color-text-tertiary);
-  border: 1px solid var(--ds-color-border-light);
+  background: var(--ds-team-hvit-bg);
+  color: var(--ds-team-hvit);
+  border: 1px solid var(--ds-team-hvit-border);
 }
 .match-card__venue-tag {
   display: inline-block;

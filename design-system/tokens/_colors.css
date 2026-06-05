@@ -61,6 +61,16 @@
   --ds-color-info:            #1A1A1A;
   --ds-color-info-light:      #F1F1EF;
 
+  /* ---- Lagfarger (Halsen Grønn/Rød/Hvit) — tonal palett, ikke status-farger ----
+     -bg = tonet flate, base = mettet tekst/prikk, -border til hvit-flaten */
+  --ds-team-gronn:        #3D5C44;
+  --ds-team-gronn-bg:     #E2EDDE;
+  --ds-team-rod:          #7A3A24;
+  --ds-team-rod-bg:       #F8E8E0;
+  --ds-team-hvit:         #5C5C57;
+  --ds-team-hvit-bg:      var(--ds-color-bg-elevated);
+  --ds-team-hvit-border:  var(--ds-color-border-strong);
+
   /* ---- Overlay ---- */
   --ds-color-overlay:         rgba(15, 15, 15, 0.32);
 }
@@ -120,6 +130,15 @@
 
   --ds-color-info:            #F5F5F2;
   --ds-color-info-light:      #1F1F1E;
+
+  /* ---- Lagfarger (dark) ---- */
+  --ds-team-gronn:        #B5D2B0;
+  --ds-team-gronn-bg:     #1A241D;
+  --ds-team-rod:          #EFB99E;
+  --ds-team-rod-bg:       #2C201A;
+  --ds-team-hvit:         #B8B8B2;
+  --ds-team-hvit-bg:      var(--ds-color-bg-elevated);
+  --ds-team-hvit-border:  var(--ds-color-border-strong);
 
   /* ---- Overlay ---- */
   --ds-color-overlay:         rgba(0, 0, 0, 0.6);
