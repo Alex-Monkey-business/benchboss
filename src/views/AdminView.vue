@@ -40,7 +40,7 @@ const links = [
   { to: '/admin/dommerutlegg', label: 'Sesongoppgjør', icon: 'vipps' },
   { to: '/admin/sesong-kamper', label: 'Sesong & kampprogram', icon: 'calendar' },
   { to: '/admin/dommere', label: 'Dommere', icon: 'whistle' },
-  { to: '/admin/hospitanter', label: 'Spillere', icon: 'kid' }
+  { to: '/serie/tropp', label: 'Spillere & tropp', icon: 'jersey' }
 ]
 
 // Same palette as principle cards — used in the hero strip on AdminView
@@ -120,6 +120,9 @@ const HANDBOK_ACCENTS = ['#F8E8E0', '#E2EDDE', '#D6DDEF', '#F8E8E0', '#DDE6EC', 
           <svg v-else-if="link.icon === 'book'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M4 4.5A2.5 2.5 0 016.5 2H20v18H6.5A2.5 2.5 0 014 17.5z"/>
             <path d="M4 17.5A2.5 2.5 0 016.5 15H20"/>
+          </svg>
+          <svg v-else-if="link.icon === 'jersey'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M8.5 3 4 5.5 5.8 9l1.7-.8V21h9V8.2l1.7.8L20 5.5 15.5 3a3.5 3.5 0 0 1-7 0z"/>
           </svg>
         </span>
         <span class="admin-row__label">{{ link.label }}</span>

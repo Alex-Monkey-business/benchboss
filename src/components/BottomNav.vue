@@ -21,6 +21,7 @@ const COACH_TABS = [
 ]
 const PARENT_TABS = [
   { name: 'serie', label: 'Kamper', path: '/serie' },
+  { name: 'tropp', label: 'Tropp', path: '/serie/tropp' },
   { name: 'cup', label: 'Cup', path: '/cup' },
   { name: 'logout', label: 'Logg ut', action: 'logout' }
 ]
@@ -28,7 +29,8 @@ const tabs = computed(() => (isParent.value ? PARENT_TABS : COACH_TABS))
 
 function isActive(tab) {
   if (tab.name === 'matches') return route.path === '/' || route.path.startsWith('/kamp')
-  if (tab.name === 'serie') return route.path.startsWith('/serie')
+  if (tab.name === 'tropp') return route.path.startsWith('/serie/tropp')
+  if (tab.name === 'serie') return route.path === '/serie'
   if (tab.name === 'admin') return route.path === '/admin' || route.path.startsWith('/admin/')
   if (tab.name === 'stats') return route.path === '/statistikk'
   if (tab.name === 'cup') return route.path.startsWith('/cup')
@@ -76,6 +78,10 @@ const pendingCount = computed(() => {
         </svg>
         <span v-if="tab.name === 'matches' && pendingCount > 0" class="bottom-nav__badge" aria-label="venter på handling"></span>
       </span>
+      <!-- Tropp (drakt) -->
+      <svg v-if="tab.name === 'tropp'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M8.5 3 4 5.5 5.8 9l1.7-.8V21h9V8.2l1.7.8L20 5.5 15.5 3a3.5 3.5 0 0 1-7 0z"/>
+      </svg>
       <!-- Statistikk -->
       <svg v-if="tab.name === 'stats'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <line x1="6" y1="20" x2="6" y2="13"/>

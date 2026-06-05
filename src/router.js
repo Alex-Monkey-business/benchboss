@@ -35,6 +35,11 @@ const routes = [
     name: 'serie',
     component: () => import('./views/SerieKamperView.vue')
   },
+  {
+    path: '/serie/tropp',
+    name: 'serie-tropp',
+    component: () => import('./views/SerieTroppView.vue')
+  },
   // ---- Cup-modul: kampoversikt (trenere + foreldre, read-only) ----
   {
     path: '/cup',
@@ -78,18 +83,9 @@ const routes = [
     component: () => import('./views/AdminDommereView.vue'),
     meta: { coachOnly: true }
   },
-  {
-    path: '/admin/hospitanter',
-    name: 'admin-hospitanter',
-    component: () => import('./views/AdminHospitanterView.vue'),
-    meta: { coachOnly: true }
-  },
-  {
-    path: '/admin/hospitanter/:id',
-    name: 'admin-hospitant-detail',
-    component: () => import('./views/AdminHospitantDetailView.vue'),
-    meta: { coachOnly: true }
-  },
+  // Spilleradministrasjon er flyttet inn i Tropp (/serie/tropp).
+  { path: '/admin/hospitanter', redirect: '/serie/tropp' },
+  { path: '/admin/hospitanter/:id', redirect: '/serie/tropp' },
   {
     path: '/admin/handbok',
     name: 'admin-handbok',
