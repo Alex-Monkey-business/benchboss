@@ -1,19 +1,23 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import { useMatches } from '../composables/useMatches'
 import { useExpenses } from '../composables/useExpenses'
+import { useCups } from '../composables/useCups'
 
 const route = useRoute()
 const router = useRouter()
 const { coach, isParent, logout } = useAuth()
 const { matches, getCoachesForMatch } = useMatches()
 const { getExpenseForMatch } = useExpenses()
+const { activeCup, fetchCups } = useCups()
+
+onMounted(() => { fetchCups() })
 
 // Trenere får full meny; foreldre får read-only-sidene + logg ut.
 // Samme komponent → bunnmeny på mobil, toppmeny på desktop (se app.css).
-const COACH_TABS = [
+const ALL_COACH_TABS = [
   { name: 'matches', label: 'Kamper', path: '/' },
   { name: 'stats', label: 'Statistikk', path: '/statistikk' },
   { name: 'cup', label: 'Cup', path: '/cup' },
@@ -25,7 +29,11 @@ const PARENT_TABS = [
   { name: 'cup', label: 'Cup', path: '/cup' },
   { name: 'logout', label: 'Logg ut', action: 'logout' }
 ]
-const tabs = computed(() => (isParent.value ? PARENT_TABS : COACH_TABS))
+// Cup-fanen vises kun for trenere når det finnes en aktiv cup.
+const coachTabs = computed(() =>
+  ALL_COACH_TABS.filter(t => t.name !== 'cup' || activeCup.value)
+)
+const tabs = computed(() => (isParent.value ? PARENT_TABS : coachTabs.value))
 
 function isActive(tab) {
   if (tab.name === 'matches') return route.path === '/' || route.path.startsWith('/kamp')
