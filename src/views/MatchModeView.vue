@@ -275,6 +275,12 @@ function goalMinute(g) {
   return g.clock_seconds != null ? Math.floor(g.clock_seconds / 60) : null
 }
 
+// Nullstill skal være tilgjengelig så lenge det finnes noe å nullstille —
+// også i oppsett-fasen hvis resultat/scorere henger igjen fra en tidligere økt.
+const canReset = computed(() =>
+  phase.value !== 'setup' || halsenScore.value > 0 || oppScore.value > 0 || matchGoals.value.length > 0
+)
+
 async function setScore(halsen, opp) {
   const updates = isHome.value
     ? { home_score: halsen, away_score: opp }
@@ -323,7 +329,7 @@ const summary = computed(() =>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
       <span class="mm__title" v-if="match">{{ match.home_team }} – {{ match.away_team }}</span>
-      <button v-if="phase !== 'setup'" type="button" class="mm__reset" @click="showReset = true">Nullstill</button>
+      <button v-if="canReset" type="button" class="mm__reset" @click="showReset = true">Nullstill</button>
     </div>
 
     <div v-if="loading" class="mm__loading">Laster …</div>
