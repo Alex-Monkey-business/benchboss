@@ -843,7 +843,7 @@ function focusSummaryGroup() {
         v-model="open.team"
         data-section="team"
         :style="{ order: sectionOrder.team }"
-        label="Lånespillere & trenere"
+        label="Lånespillere"
         empty-text="Ingen"
         :has-content="!!(selectedLanespillere.length || selectedCoaches.length)"
       >
