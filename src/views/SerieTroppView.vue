@@ -111,7 +111,6 @@ async function confirmDelete() {
 
       <!-- Samme layout i lese- og edit-modus: lag-kort med chips -->
       <template v-else>
-        <p v-if="editing" class="edit-hint">Trykk × for å ta av laget. Trykk en farge for å plassere.</p>
         <p v-if="hasEligible" class="star-legend"><span class="chip__star">★</span> = egnet som lånespiller</p>
 
         <section v-for="t in SEASON_TEAMS" :key="t.slug" class="teamcard" :data-accent="t.accent">
@@ -197,7 +196,6 @@ async function confirmDelete() {
         <span class="loan-toggle__star">★</span>
         <span class="loan-toggle__text">
           <span class="loan-toggle__title">Egnet som lånespiller</span>
-          <span class="loan-toggle__sub">Anbefales på andre lag når de trenger spillere</span>
         </span>
         <span class="loan-toggle__switch" :class="{ 'loan-toggle__switch--on': editLoanEligible }"></span>
       </button>

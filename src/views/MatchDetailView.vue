@@ -947,7 +947,7 @@ function focusSummaryGroup() {
         <div class="sub-section">
           <div class="sub-section__label sub-section__label--soft">Lånespillere</div>
           <div v-if="players.length === 0" class="hospitant-empty" style="margin: 0;">
-            Ingen spillere i poolen — legg til under Tropp.
+            Ingen spillere i poolen.
           </div>
           <template v-else>
             <!-- Anbefalt -->
@@ -998,9 +998,6 @@ function focusSummaryGroup() {
             <div v-if="!availablePlayers.length" class="hospitant-empty" style="margin: 0;">
               Ingen tilgjengelige lånespillere for denne kampen.
             </div>
-            <p v-else-if="!recommendedLoans.length" class="loan-hint">
-              Marker spillere som «egnet som lånespiller» under Tropp for å få dem anbefalt her.
-            </p>
           </template>
         </div>
 

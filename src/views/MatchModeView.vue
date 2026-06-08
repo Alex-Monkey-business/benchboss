@@ -243,7 +243,6 @@ const summary = computed(() =>
     <div v-else-if="phase === 'setup'" class="mm__wrap">
       <div class="mm__setup-head">
         <h1 class="mm__h1">Sett opp laget</h1>
-        <p class="mm__sub">Trykk en posisjon på banen og velg spiller. 2-3-1.</p>
       </div>
 
       <div class="pitch">
@@ -277,9 +276,7 @@ const summary = computed(() =>
       <div v-if="unassigned.length" class="mm__poolnote">
         Ikke plassert: <span class="mm__poolnames">{{ unassigned.map(p => firstName(p.name)).join(', ') }}</span>
       </div>
-      <div v-if="!squad.length" class="mm__empty">
-        Ingen spillere i troppen for dette laget. Legg til under Tropp eller som lånespiller på kampen.
-      </div>
+      <div v-if="!squad.length" class="mm__empty">Ingen spillere i troppen for dette laget.</div>
 
       <button type="button" class="mm__start" :disabled="!lineupComplete" @click="handleStart">
         {{ lineupComplete ? 'Start kamp' : `Plasser ${FORMATION.length - Object.keys(assignments).length} til` }}
@@ -295,8 +292,6 @@ const summary = computed(() =>
           <button type="button" class="mm__ctrl mm__ctrl--end" @click="showFinish = true">Avslutt</button>
         </div>
       </div>
-      <div v-if="!isRunning" class="mm__paused-hint">Pauset — klokka står</div>
-
       <div class="pitch">
         <div class="pitch__turf" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
         <div class="pitch__lines" aria-hidden="true">
@@ -330,10 +325,7 @@ const summary = computed(() =>
         </button>
       </div>
 
-      <div class="mm__section-label">
-        Benk
-        <span v-if="armedBenchId" class="mm__armed-hint">— trykk en spiller på banen for å bytte inn</span>
-      </div>
+      <div class="mm__section-label">Benk</div>
       <div class="mm__bench">
         <button
           v-for="p in bench"
