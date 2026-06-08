@@ -5,9 +5,28 @@ const players = ref([])
 const loaded = ref(false)
 
 const DEMO_PLAYERS = [
-  { id: 'p-1', name: 'Mads', primary_team: 'gronn' },
-  { id: 'p-2', name: 'Lukas', primary_team: 'rod' },
-  { id: 'p-3', name: 'Erik', primary_team: 'hvit' }
+  // Rød — full tropp for demo-kampen Halsen Rød vs Sem Gul
+  { id: 'p-1', name: 'Lukas', primary_team: 'rod' },
+  { id: 'p-2', name: 'Oliver', primary_team: 'rod' },
+  { id: 'p-3', name: 'Filip', primary_team: 'rod' },
+  { id: 'p-4', name: 'Noah', primary_team: 'rod' },
+  { id: 'p-5', name: 'Aksel', primary_team: 'rod' },
+  { id: 'p-6', name: 'Emil', primary_team: 'rod' },
+  { id: 'p-7', name: 'Jakob', primary_team: 'rod' },
+  { id: 'p-8', name: 'Theo', primary_team: 'rod' },
+  { id: 'p-9', name: 'Henrik', primary_team: 'rod' },
+  // Grønn — full tropp for Halsen Grønn vs Borre
+  { id: 'p-10', name: 'Mads', primary_team: 'gronn' },
+  { id: 'p-11', name: 'William', primary_team: 'gronn' },
+  { id: 'p-12', name: 'Liam', primary_team: 'gronn' },
+  { id: 'p-13', name: 'Sander', primary_team: 'gronn' },
+  { id: 'p-14', name: 'Tobias', primary_team: 'gronn' },
+  { id: 'p-15', name: 'Isak', primary_team: 'gronn' },
+  { id: 'p-16', name: 'Elias', primary_team: 'gronn' },
+  { id: 'p-17', name: 'Kasper', primary_team: 'gronn' },
+  // Hvit + uplassert
+  { id: 'p-18', name: 'Erik', primary_team: 'hvit' },
+  { id: 'p-19', name: 'Storm', primary_team: null }
 ]
 
 export function usePlayers() {

@@ -24,6 +24,12 @@ const routes = [
     meta: { coachOnly: true }
   },
   {
+    path: '/kamp/:id/live',
+    name: 'match-mode',
+    component: () => import('./views/MatchModeView.vue'),
+    meta: { coachOnly: true }
+  },
+  {
     path: '/statistikk',
     name: 'statistikk',
     component: () => import('./views/StatistikkView.vue'),

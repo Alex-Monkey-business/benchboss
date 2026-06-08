@@ -6,6 +6,7 @@ import { useCoaches } from '../composables/useCoaches'
 import { useReferees } from '../composables/useReferees'
 import { usePlayers } from '../composables/usePlayers'
 import { useMatchGoals } from '../composables/useMatchGoals'
+import { useMatchMode } from '../composables/useMatchMode'
 import AnimatedNumber from '../components/AnimatedNumber.vue'
 import Skeleton from '../components/Skeleton.vue'
 import FormCurve from '../components/FormCurve.vue'
@@ -17,12 +18,13 @@ const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees } = useReferees()
 const { players, fetchPlayers } = usePlayers()
 const { goals: allGoals, fetchAllGoals } = useMatchGoals()
+const { stints, fetchAllStints } = useMatchMode()
 
 // Skeleton only on the very first load. Data persists across navigation.
 const loading = ref(matches.value.length === 0)
 
 onMounted(async () => {
-  await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchAllGoals()])
+  await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchAllGoals(), fetchAllStints()])
   if (activeSeason.value) {
     await fetchMatches(activeSeason.value.id)
   }
@@ -229,6 +231,44 @@ const topScorers = computed(() => {
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
 })
 
+// Spilletid — akkumulert per spiller over sesongens kamper (fra match mode).
+// Summerer kun lukkede stints; pågående kamp (åpne stints) telles ikke ennå.
+const playtimeAsc = ref(false)
+const playtimeStats = computed(() => {
+  const seasonIds = new Set(matches.value.map(m => m.id))
+  const fieldSec = {}, keeperSec = {}, gamesByPlayer = {}
+  stints.value.forEach(s => {
+    if (!seasonIds.has(s.match_id)) return
+    if (s.off_clock == null) return
+    const dur = Math.max(0, s.off_clock - s.on_clock)
+    if (s.role === 'keeper') keeperSec[s.player_id] = (keeperSec[s.player_id] || 0) + dur
+    else fieldSec[s.player_id] = (fieldSec[s.player_id] || 0) + dur
+    ;(gamesByPlayer[s.player_id] || (gamesByPlayer[s.player_id] = new Set())).add(s.match_id)
+  })
+  const rows = players.value
+    .map(p => {
+      const f = fieldSec[p.id] || 0
+      const k = keeperSec[p.id] || 0
+      const total = f + k
+      const games = gamesByPlayer[p.id]?.size || 0
+      return {
+        id: p.id, name: p.name, primary_team: p.primary_team,
+        fieldSec: f, keeperSec: k, totalSec: total, games,
+        avgSec: games ? Math.round(total / games) : 0
+      }
+    })
+    .filter(p => p.totalSec > 0)
+  return rows.sort((a, b) =>
+    (playtimeAsc.value ? a.totalSec - b.totalSec : b.totalSec - a.totalSec) ||
+    a.name.localeCompare(b.name)
+  )
+})
+
+function fmtMinSec(sec) {
+  const s = Math.max(0, Math.round(sec || 0))
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
+
 const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 </script>
 
@@ -383,6 +423,34 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
       </div>
     </div>
 
+    <!-- Spilletid — fra match mode -->
+    <div v-if="playtimeStats.length > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-3">
+      <div class="stat-section-label playtime-label">
+        Spilletid
+        <button type="button" class="playtime-sort" @click="playtimeAsc = !playtimeAsc">
+          {{ playtimeAsc ? 'Minst først' : 'Mest først' }}
+        </button>
+      </div>
+      <div class="leaderboard ds-anim-stagger-list">
+        <div class="leaderboard__head">
+          <span class="leaderboard__rank" aria-hidden="true"></span>
+          <span class="leaderboard__name"></span>
+          <span class="leaderboard__metric leaderboard__metric--head">Snitt</span>
+          <span class="leaderboard__metric leaderboard__metric--head">Total</span>
+        </div>
+        <div v-for="(item, i) in playtimeStats" :key="item.id" class="leaderboard__row">
+          <span class="leaderboard__rank">{{ i + 1 }}</span>
+          <span class="leaderboard__name">
+            {{ item.name }}
+            <span v-if="item.primary_team" :class="['leaderboard__tag', `leaderboard__tag--${item.primary_team}`]">{{ TEAM_LABELS[item.primary_team] }}</span>
+            <span v-if="item.keeperSec > 0" class="playtime-keeper">keeper {{ fmtMinSec(item.keeperSec) }}</span>
+          </span>
+          <span class="leaderboard__metric">{{ fmtMinSec(item.avgSec) }}</span>
+          <span class="leaderboard__metric leaderboard__metric--total">{{ fmtMinSec(item.totalSec) }}</span>
+        </div>
+      </div>
+    </div>
+
     <!-- Lånespiller-leaderboard -->
     <div v-if="playerStats.length > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-3">
       <div class="stat-section-label">Lånespillere</div>
@@ -433,6 +501,35 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 </template>
 
 <style scoped>
+.playtime-label {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.playtime-sort {
+  border: none;
+  background: transparent;
+  color: var(--ds-color-accent);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  cursor: pointer;
+  text-transform: none;
+  letter-spacing: 0;
+}
+.playtime-keeper {
+  display: inline-block;
+  margin-left: 6px;
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-warning);
+}
+.leaderboard__metric--total {
+  font-variant-numeric: tabular-nums;
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-color-text-primary);
+}
+
 .stat-card-large__form {
   margin-top: var(--ds-space-sm);
   padding-top: var(--ds-space-sm);

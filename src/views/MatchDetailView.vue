@@ -720,6 +720,16 @@ function focusSummaryGroup() {
       </div>
     </div>
 
+    <!-- Match mode — live spilletid & bytter -->
+    <div class="px-lg mt-lg">
+      <button type="button" class="match-mode-cta" @click="router.push(`/kamp/${match.id}/live`)">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>
+        </svg>
+        Match mode
+      </button>
+    </div>
+
     <!-- Action sections — 3 grouped disclosures (collapsed = lese, expanded = edit) -->
     <div class="px-lg mt-lg detail-disclosures">
 
@@ -1327,6 +1337,35 @@ function focusSummaryGroup() {
 /* Match detail card — reuses global .match-card classes, adds team tag locally */
 .match-detail-card {
   padding: var(--ds-space-lg);
+}
+
+/* Match mode CTA */
+.match-mode-cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 14px;
+  border: 1.5px solid var(--ds-color-accent);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-bold);
+  cursor: pointer;
+  transition: transform 160ms var(--ds-ease-pop, ease), filter 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.match-mode-cta svg {
+  width: 18px;
+  height: 18px;
+}
+
+.match-mode-cta:active {
+  transform: scale(0.98);
 }
 
 .match-detail-card .match-card__top {
