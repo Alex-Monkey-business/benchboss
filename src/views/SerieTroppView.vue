@@ -32,6 +32,7 @@ function teamPlayers(slug) {
 }
 const unplaced = computed(() =>
   [...players.value].filter(p => !p.primary_team).sort(byName))
+const hasEligible = computed(() => players.value.some(p => p.loan_eligible))
 
 // Hurtig lag-bytte (chip-prikkene / ×)
 async function assign(playerId, team) {
@@ -111,6 +112,7 @@ async function confirmDelete() {
       <!-- Samme layout i lese- og edit-modus: lag-kort med chips -->
       <template v-else>
         <p v-if="editing" class="edit-hint">Trykk × for å ta av laget. Trykk en farge for å plassere.</p>
+        <p v-if="hasEligible" class="star-legend"><span class="chip__star">★</span> = egnet som lånespiller</p>
 
         <section v-for="t in SEASON_TEAMS" :key="t.slug" class="teamcard" :data-accent="t.accent">
           <header class="teamcard__head">
@@ -371,6 +373,13 @@ async function confirmDelete() {
 .loan-toggle__switch--on::after { transform: translateX(16px); }
 
 .chip__star { color: var(--ds-color-warning); font-size: 11px; margin: 0 -2px 0 1px; }
+
+.star-legend {
+  display: inline-flex; align-items: center; gap: 5px;
+  margin: 0 0 var(--ds-space-md);
+  font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary);
+}
+.star-legend .chip__star { font-size: 12px; margin: 0; }
 
 /* Sheet-handlinger (ny/rediger spiller) */
 .sheet-actions {
