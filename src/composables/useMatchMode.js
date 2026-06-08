@@ -172,6 +172,21 @@ export function useMatchMode() {
     await writeSession(matchId, { status: 'running', running_since: nowIso() })
   }
 
+  // Auto-pause ved omgangsslutt — frys klokka eksakt på grensen.
+  async function endHalfAt(matchId, seconds) {
+    if (session.value?.status !== 'running') return
+    await writeSession(matchId, { status: 'paused', clock_base_seconds: seconds, running_since: null })
+  }
+
+  // Start neste omgang — fortsett klokka og tell opp periode.
+  async function startNextHalf(matchId) {
+    await writeSession(matchId, {
+      status: 'running',
+      running_since: nowIso(),
+      period: (session.value?.period || 1) + 1
+    })
+  }
+
   // Bytte: lukk utgående spillers stint, åpne ny for innbytter
   // (arver rolle OG formasjons-slot).
   async function substitute(matchId, { outPlayerId, inPlayerId }) {
@@ -286,7 +301,7 @@ export function useMatchMode() {
     session, stints, currentClock, isRunning,
     startClockTick, stopClockTick,
     fetchSession, fetchStints, fetchAllStints,
-    startMatch, pauseClock, resumeClock, substitute, swapKeeper, finishMatch, resetMatch,
+    startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, finishMatch, resetMatch,
     matchStints, isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer
   }
 }

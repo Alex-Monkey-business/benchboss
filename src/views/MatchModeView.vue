@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMatches } from '../composables/useMatches'
 import { usePlayers } from '../composables/usePlayers'
@@ -19,7 +19,7 @@ const {
   session, currentClock, isRunning,
   startClockTick, stopClockTick,
   fetchSession, fetchStints,
-  startMatch, pauseClock, resumeClock, substitute, swapKeeper, finishMatch, resetMatch,
+  startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, finishMatch, resetMatch,
   isOnField, roleOf, playerAtPosition, playingTimeByPlayer
 } = useMatchMode()
 const { show: showToast } = useToast()
@@ -230,12 +230,46 @@ async function makeKeeperFromSheet() {
   } catch (e) { reportError(e) }
 }
 
-async function togglePause() {
+// ── Omganger ───────────────────────────────────────────────────────────────
+const HALF_SECONDS = 30 * 60
+const PERIODS = 2
+const period = computed(() => session.value?.period || 1)
+// Pauset eksakt på omgangsgrensen, og det er flere omganger igjen → halvtid.
+const atHalfBreak = computed(() =>
+  session.value?.status === 'paused' &&
+  session.value?.clock_base_seconds === period.value * HALF_SECONDS &&
+  period.value < PERIODS
+)
+const phaseLabel = computed(() => {
+  if (atHalfBreak.value) return 'Halvtid'
+  if (session.value?.status === 'paused') {
+    return (session.value?.clock_base_seconds || 0) >= PERIODS * HALF_SECONDS ? 'Full tid' : 'Pauset'
+  }
+  return `${period.value}. omgang`
+})
+const clockBtnLabel = computed(() => {
+  if (atHalfBreak.value) return `Start ${period.value + 1}. omgang`
+  return isRunning.value ? 'Pause' : 'Fortsett'
+})
+async function clockAction() {
   try {
-    if (isRunning.value) await pauseClock(matchId)
+    if (atHalfBreak.value) await startNextHalf(matchId)
+    else if (isRunning.value) await pauseClock(matchId)
     else await resumeClock(matchId)
   } catch (e) { reportError(e) }
 }
+
+// Auto-pause når klokka når omgangsslutt (30/60 min). Guard mot dobbel-trigging.
+let halfEnding = false
+watch(currentClock, async (c) => {
+  if (halfEnding || !isRunning.value) return
+  if (c >= period.value * HALF_SECONDS) {
+    halfEnding = true
+    try { await endHalfAt(matchId, period.value * HALF_SECONDS) }
+    catch (e) { reportError(e) }
+    finally { halfEnding = false }
+  }
+})
 async function handleFinish() {
   showFinish.value = false
   try {
@@ -383,9 +417,12 @@ const summary = computed(() =>
     <!-- ── LIVE ─────────────────────────────────────────────── -->
     <div v-else-if="phase === 'live'" class="mm__wrap">
       <div class="mm__clockrow">
-        <div class="mm__clock" :class="{ 'mm__clock--paused': !isRunning }">{{ fmt(currentClock) }}</div>
+        <div class="mm__clockwrap">
+          <div class="mm__clock" :class="{ 'mm__clock--paused': !isRunning }">{{ fmt(currentClock) }}</div>
+          <div class="mm__phase" :class="{ 'mm__phase--break': atHalfBreak }">{{ phaseLabel }}</div>
+        </div>
         <div class="mm__controls">
-          <button type="button" class="mm__ctrl" @click="togglePause">{{ isRunning ? 'Pause' : 'Fortsett' }}</button>
+          <button type="button" class="mm__ctrl" :class="{ 'mm__ctrl--go': atHalfBreak }" @click="clockAction">{{ clockBtnLabel }}</button>
           <button type="button" class="mm__ctrl mm__ctrl--end" @click="showFinish = true">Avslutt</button>
         </div>
       </div>
@@ -709,6 +746,10 @@ const summary = computed(() =>
 
 /* ── Klokke / kontroller ── */
 .mm__clockrow { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md); }
+.mm__clockwrap { display: flex; flex-direction: column; }
+.mm__phase { font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-tertiary); margin-top: 2px; }
+.mm__phase--break { color: var(--ds-color-warning); }
+.mm__ctrl--go { border-color: var(--ds-color-accent); background: var(--ds-color-accent); color: var(--ds-color-accent-text); }
 .mm__clock { font-family: var(--ds-font-heading); font-variant-numeric: tabular-nums; font-size: 3.25rem; font-weight: var(--ds-weight-bold); line-height: 1; color: var(--ds-color-text-primary); letter-spacing: -0.02em; }
 .mm__clock--paused { color: var(--ds-color-text-tertiary); }
 .mm__controls { display: flex; gap: var(--ds-space-sm); }
