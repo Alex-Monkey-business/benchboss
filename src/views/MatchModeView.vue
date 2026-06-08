@@ -11,7 +11,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { getMatch, fetchMatchPlayers } = useMatches()
+const { getMatch, fetchMatchPlayers, fetchMatchAbsences } = useMatches()
 const { players, fetchPlayers } = usePlayers()
 const {
   session, currentClock, isRunning,
@@ -25,6 +25,7 @@ const { show: showToast } = useToast()
 const matchId = route.params.id
 const match = ref(null)
 const matchPlayerIds = ref([])
+const matchAbsenceIds = ref([])
 const loading = ref(true)
 
 // 7er-formasjon 2-3-1. y måles fra topp; vi angriper oppover (spiss øverst).
@@ -55,6 +56,7 @@ onMounted(async () => {
   match.value = await getMatch(matchId)
   if (match.value) {
     matchPlayerIds.value = await fetchMatchPlayers(matchId)
+    matchAbsenceIds.value = await fetchMatchAbsences(matchId)
     await Promise.all([fetchSession(matchId), fetchStints(matchId)])
   }
   loading.value = false
@@ -91,12 +93,14 @@ function reportError(e) {
 
 // ── Pool ───────────────────────────────────────────────────────────────────────
 const matchColors = computed(() => teamColorsForMatch(match.value))
-// Poolen = spillere på kampens Halsen-lag + de som er valgt som lånespillere.
-// Spillere uten fast lag kommer KUN med hvis de er lagt til som lånespiller.
+// Poolen = (laget − frafall) + lånespillere. Spillere uten fast lag kommer
+// KUN med hvis de er lagt til som lånespiller. Frafall ekskluderes helt.
 const squad = computed(() => {
   const guest = new Set(matchPlayerIds.value)
+  const out = new Set(matchAbsenceIds.value)
   return players.value
     .filter(p => guest.has(p.id) || (p.primary_team && matchColors.value.includes(p.primary_team)))
+    .filter(p => !out.has(p.id))
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name, 'no'))
 })

@@ -62,16 +62,18 @@ async function handleAdd() {
 const editTarget = ref(null)
 const editName = ref('')
 const editTeam = ref('')
+const editLoanEligible = ref(false)
 const toDelete = ref(null)
 function openEdit(p) {
   editTarget.value = p
   editName.value = p.name
   editTeam.value = p.primary_team || ''
+  editLoanEligible.value = !!p.loan_eligible
 }
 async function saveEdit() {
   const name = editName.value.trim()
   if (!name || !editTarget.value) return
-  await updatePlayer(editTarget.value.id, { name, primary_team: editTeam.value })
+  await updatePlayer(editTarget.value.id, { name, primary_team: editTeam.value, loan_eligible: editLoanEligible.value })
   showToast('Spiller oppdatert', 'success')
   editTarget.value = null
 }
@@ -122,6 +124,7 @@ async function confirmDelete() {
             <span v-for="p in teamPlayers(t.slug)" :key="p.id" class="chip chip--team">
               <button v-if="editing" type="button" class="chip__name" @click="openEdit(p)">{{ p.name }}</button>
               <template v-else>{{ p.name }}</template>
+              <span v-if="p.loan_eligible" class="chip__star" title="Egnet som lånespiller">★</span>
               <button v-if="editing" type="button" class="chip__x" :aria-label="`Ta ${p.name} av laget`" @click="remove(p.id)">×</button>
             </span>
           </div>
@@ -136,6 +139,7 @@ async function confirmDelete() {
             <span v-for="p in unplaced" :key="p.id" class="chip chip--muted">
               <button v-if="editing" type="button" class="chip__name" @click="openEdit(p)">{{ p.name }}</button>
               <template v-else>{{ p.name }}</template>
+              <span v-if="p.loan_eligible" class="chip__star" title="Egnet som lånespiller">★</span>
               <span v-if="editing" class="chip__assign">
                 <button
                   v-for="t in SEASON_TEAMS"
@@ -182,6 +186,19 @@ async function confirmDelete() {
           <option v-for="opt in TEAM_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
         </select>
       </div>
+      <button
+        type="button"
+        class="loan-toggle"
+        :class="{ 'loan-toggle--on': editLoanEligible }"
+        @click="editLoanEligible = !editLoanEligible"
+      >
+        <span class="loan-toggle__star">★</span>
+        <span class="loan-toggle__text">
+          <span class="loan-toggle__title">Egnet som lånespiller</span>
+          <span class="loan-toggle__sub">Anbefales på andre lag når de trenger spillere</span>
+        </span>
+        <span class="loan-toggle__switch" :class="{ 'loan-toggle__switch--on': editLoanEligible }"></span>
+      </button>
       <div class="sheet-actions sheet-actions--with-delete">
         <button class="sheet-actions__delete" @click="toDelete = editTarget" aria-label="Slett spiller">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
@@ -324,6 +341,36 @@ async function confirmDelete() {
   box-shadow: 0 0 0 1px var(--ds-color-border-light);
 }
 .chip__dot:hover { transform: scale(1.15); }
+
+/* Egnet-som-lånespiller toggle (rediger-sheet) */
+.loan-toggle {
+  display: flex; align-items: center; gap: var(--ds-space-md);
+  width: 100%; text-align: left; cursor: pointer;
+  padding: var(--ds-space-md);
+  margin-top: var(--ds-space-xs);
+  border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-md);
+  background: var(--ds-color-bg-elevated); transition: border-color .15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.loan-toggle--on { border-color: var(--ds-color-warning); }
+.loan-toggle__star { font-size: 18px; color: var(--ds-color-border-strong); flex: none; }
+.loan-toggle--on .loan-toggle__star { color: var(--ds-color-warning); }
+.loan-toggle__text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
+.loan-toggle__title { font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); font-size: var(--ds-text-sm); }
+.loan-toggle__sub { font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary); }
+.loan-toggle__switch {
+  flex: none; width: 40px; height: 24px; border-radius: var(--ds-radius-full);
+  background: var(--ds-color-border); position: relative; transition: background .15s ease;
+}
+.loan-toggle__switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 20px; height: 20px; border-radius: 50%; background: #fff;
+  transition: transform .15s ease; box-shadow: var(--ds-shadow-xs);
+}
+.loan-toggle__switch--on { background: var(--ds-color-warning); }
+.loan-toggle__switch--on::after { transform: translateX(16px); }
+
+.chip__star { color: var(--ds-color-warning); font-size: 11px; margin: 0 -2px 0 1px; }
 
 /* Sheet-handlinger (ny/rediger spiller) */
 .sheet-actions {

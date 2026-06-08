@@ -6,6 +6,7 @@ import { defaultCoachIdsForMatch } from '../lib/coachTeams'
 const matches = ref([])
 const matchCoaches = ref([])
 const matchPlayers = ref([])
+const matchAbsences = ref([])
 const loading = ref(false)
 
 const DEMO_MATCHES = [
@@ -272,6 +273,57 @@ export function useMatches() {
     return matchPlayers.value
   }
 
+  // ─── Frafall (match_absences) ───────────────────────────────────────────────
+  // Spillere fra laget som er ute av en kamp. Speiler match_players-mønsteret.
+  async function fetchAllMatchAbsences() {
+    if (!isSupabaseConfigured) return matchAbsences.value
+    const { data } = await supabase.from('match_absences').select('match_id, player_id')
+    if (data) matchAbsences.value = data
+    return matchAbsences.value
+  }
+
+  async function fetchMatchAbsences(matchId) {
+    if (!isSupabaseConfigured) {
+      return matchAbsences.value.filter(a => a.match_id === matchId).map(a => a.player_id)
+    }
+    const { data } = await supabase
+      .from('match_absences')
+      .select('player_id')
+      .eq('match_id', matchId)
+    if (data) {
+      matchAbsences.value = matchAbsences.value.filter(a => a.match_id !== matchId)
+      data.forEach(a => matchAbsences.value.push({ match_id: matchId, player_id: a.player_id }))
+    }
+    return data ? data.map(a => a.player_id) : []
+  }
+
+  function getAbsencesForMatch(matchId) {
+    return matchAbsences.value.filter(a => a.match_id === matchId).map(a => a.player_id)
+  }
+
+  // Veksle frafall for én spiller på én kamp.
+  async function toggleAbsence(matchId, playerId) {
+    const isOut = matchAbsences.value.some(a => a.match_id === matchId && a.player_id === playerId)
+
+    if (!isSupabaseConfigured) {
+      if (isOut) {
+        matchAbsences.value = matchAbsences.value.filter(a => !(a.match_id === matchId && a.player_id === playerId))
+      } else {
+        matchAbsences.value.push({ match_id: matchId, player_id: playerId })
+      }
+      return !isOut
+    }
+
+    if (isOut) {
+      await supabase.from('match_absences').delete().eq('match_id', matchId).eq('player_id', playerId)
+      matchAbsences.value = matchAbsences.value.filter(a => !(a.match_id === matchId && a.player_id === playerId))
+    } else {
+      await supabase.from('match_absences').insert({ match_id: matchId, player_id: playerId })
+      matchAbsences.value.push({ match_id: matchId, player_id: playerId })
+    }
+    return !isOut
+  }
+
   async function deleteMatch(matchId) {
     if (!isSupabaseConfigured) {
       matches.value = matches.value.filter(m => m.id !== matchId)
@@ -295,10 +347,11 @@ export function useMatches() {
   }
 
   return {
-    matches, matchCoaches, matchPlayers, loading,
+    matches, matchCoaches, matchPlayers, matchAbsences, loading,
     fetchMatches, getMatch, updateMatch, addMatch, bulkAddMatches,
     setMatchCoaches, getCoachesForMatch, fetchMatchCoaches, backfillDefaultCoaches,
     setMatchPlayers, getPlayersForMatch, fetchMatchPlayers, fetchAllMatchPlayers,
+    fetchAllMatchAbsences, fetchMatchAbsences, getAbsencesForMatch, toggleAbsence,
     deleteMatch, deleteAllMatches
   }
 }

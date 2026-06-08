@@ -14,12 +14,12 @@ import Sheet from '../components/Sheet.vue'
 import Skeleton from '../components/Skeleton.vue'
 import DisclosureSection from '../components/DisclosureSection.vue'
 import { relativeDateLabel, isPast } from '../lib/dateLabels'
-import { colorFromName, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, TEAM_LABELS } from '../lib/matchMeta'
+import { colorFromName, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, isPlayed, TEAM_LABELS } from '../lib/matchMeta'
 import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 
 const route = useRoute()
 const router = useRouter()
-const { matches, matchPlayers, getMatch, updateMatch, setMatchCoaches, fetchMatchCoaches, setMatchPlayers, fetchMatchPlayers, fetchAllMatchPlayers, deleteMatch } = useMatches()
+const { matches, matchPlayers, getMatch, updateMatch, setMatchCoaches, fetchMatchCoaches, setMatchPlayers, fetchMatchPlayers, fetchAllMatchPlayers, fetchMatchAbsences, toggleAbsence, deleteMatch } = useMatches()
 const { expenses, fetchExpenses, registerExpense, getExpenseForMatch, removeExpense } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
@@ -35,6 +35,7 @@ const match = ref(cachedMatch || null)
 const loading = ref(!cachedMatch)
 const matchCoachIds = ref([])
 const matchPlayerIds = ref([])
+const matchAbsenceIds = ref([])
 const showDeleteDialog = ref(false)
 const showMatchMenu = ref(false)
 const customReferee = ref(false)
@@ -77,6 +78,7 @@ onMounted(async () => {
     refereeInput.value = match.value.referee || ''
     matchCoachIds.value = await fetchMatchCoaches(match.value.id)
     matchPlayerIds.value = await fetchMatchPlayers(match.value.id)
+    matchAbsenceIds.value = await fetchMatchAbsences(match.value.id)
     homeScoreInput.value = match.value.home_score ?? ''
     awayScoreInput.value = match.value.away_score ?? ''
     reportInput.value = match.value.report || ''
@@ -283,6 +285,57 @@ async function togglePlayer(playerId) {
   matchPlayerIds.value = current
   showToast('Lånespillere oppdatert', 'success')
 }
+
+// ─── Laget: basistropp for kampens Halsen-lag, med frafall ────────────────────
+// Spillere med primary_team ∈ kampens lagfarger utgjør laget. Frafall (absences)
+// tar dem ut av kamptroppen uten å slette dem.
+const teamSquad = computed(() => {
+  const colors = teamColors.value
+  return players.value
+    .filter(p => p.primary_team && colors.includes(p.primary_team))
+    .slice()
+    .sort((a, b) => a.name.localeCompare(b.name, 'no'))
+})
+const availableCount = computed(() =>
+  teamSquad.value.filter(p => !matchAbsenceIds.value.includes(p.id)).length
+)
+
+async function handleToggleAbsence(playerId) {
+  await toggleAbsence(match.value.id, playerId)
+  matchAbsenceIds.value = matchAbsenceIds.value.includes(playerId)
+    ? matchAbsenceIds.value.filter(id => id !== playerId)
+    : [...matchAbsenceIds.value, playerId]
+}
+
+// ─── Ekstra-kamper per spiller (rettferdighetshint på lånespillere) ────────────
+const playedMatchIds = computed(() => {
+  const ids = new Set()
+  for (const m of matches.value) if (isPlayed(m)) ids.add(m.id)
+  return ids
+})
+const extraCountByPlayer = computed(() => {
+  const counts = {}
+  for (const mp of matchPlayers.value) {
+    if (playedMatchIds.value.has(mp.match_id)) {
+      counts[mp.player_id] = (counts[mp.player_id] || 0) + 1
+    }
+  }
+  return counts
+})
+function extraCount(playerId) {
+  return extraCountByPlayer.value[playerId] || 0
+}
+
+// Lånespillere delt i Anbefalt (egnet, uten konflikt, færrest ekstra først) og Andre.
+const recommendedLoans = computed(() =>
+  availablePlayers.value
+    .filter(p => p.loan_eligible && !playerConflicts.value[p.id])
+    .sort((a, b) => extraCount(a.id) - extraCount(b.id) || a.name.localeCompare(b.name, 'no'))
+)
+const otherLoans = computed(() => {
+  const rec = new Set(recommendedLoans.value.map(p => p.id))
+  return availablePlayers.value.filter(p => !rec.has(p.id))
+})
 
 const teamLabels = TEAM_LABELS
 
@@ -838,22 +891,23 @@ function focusSummaryGroup() {
         </div>
       </DisclosureSection>
 
-      <!-- Gruppe 2: Lånespillere og trenere (lånespillere først — viktigst) -->
+      <!-- Gruppe 2: Kamptropp — laget, lånespillere og trenere -->
       <DisclosureSection
         v-model="open.team"
         data-section="team"
         :style="{ order: sectionOrder.team }"
-        label="Lånespillere"
+        label="Tropp"
         empty-text="Ingen"
-        :has-content="!!(selectedLanespillere.length || selectedCoaches.length)"
+        :has-content="!!(teamSquad.length || selectedLanespillere.length || selectedCoaches.length)"
       >
         <template #summary>
+          <span v-if="teamSquad.length" class="sum-chip sum-chip--squad">{{ availableCount }} på laget</span>
           <span
-            v-for="p in cappedList(selectedLanespillere, 3).shown"
+            v-for="p in cappedList(selectedLanespillere, 2).shown"
             :key="p.id"
             :class="['lanespiller-chip', p.primary_team ? `lanespiller-chip--${p.primary_team}` : '']"
           >{{ p.name }}</span>
-          <span v-if="cappedList(selectedLanespillere, 3).extra" class="sum-chip sum-chip--more">+{{ cappedList(selectedLanespillere, 3).extra }}</span>
+          <span v-if="cappedList(selectedLanespillere, 2).extra" class="sum-chip sum-chip--more">+{{ cappedList(selectedLanespillere, 2).extra }} lån</span>
           <span v-if="selectedCoaches.length" class="coach-avatar-pile">
             <span
               v-for="c in selectedCoaches"
@@ -868,37 +922,85 @@ function focusSummaryGroup() {
           </span>
         </template>
 
-        <!-- Lånespillere -->
-        <div class="sub-section">
-          <div v-if="players.length === 0" class="hospitant-empty" style="margin: 0;">
-            Ingen spillere i poolen — legg til under Admin → Spillere
+        <!-- Laget — basistropp med frafall -->
+        <div v-if="teamSquad.length" class="sub-section">
+          <div class="sub-section__label">
+            Laget
+            <span class="sub-section__count">{{ availableCount }} av {{ teamSquad.length }} tilgjengelig</span>
           </div>
-          <div v-else-if="availablePlayers.length === 0" class="hospitant-empty" style="margin: 0;">
-            Ingen tilgjengelige lånespillere for denne kampen.
-          </div>
-          <div v-else class="referee-pills">
+          <div class="referee-pills">
             <button
-              v-for="p in availablePlayers"
+              v-for="p in teamSquad"
               :key="p.id"
-              :class="[
-                'referee-pill',
-                {
-                  'referee-pill--selected': matchPlayerIds.includes(p.id),
-                  'referee-pill--conflict': playerConflicts[p.id]
-                }
-              ]"
-              @click="togglePlayer(p.id)"
+              :class="['referee-pill squad-pill', { 'squad-pill--out': matchAbsenceIds.includes(p.id) }]"
+              :title="matchAbsenceIds.includes(p.id) ? 'Frafall — trykk for å ta tilbake' : 'Trykk for å melde frafall'"
+              @click="handleToggleAbsence(p.id)"
             >
-              {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabels[p.primary_team] }}</span>
-              <span v-if="playerConflicts[p.id]" class="hospitant-pill__conflict" :title="`Også kamp ${playerConflicts[p.id].time || 'samme dag'} mot ${playerConflicts[p.id].opponent}`">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                  <circle cx="12" cy="12" r="9"/>
-                  <polyline points="12 7 12 12 15 14"/>
-                </svg>
-                {{ playerConflicts[p.id].time || 'samme dag' }}
-              </span>
+              {{ p.name }}
+              <span v-if="matchAbsenceIds.includes(p.id)" class="squad-pill__out-tag">ute</span>
             </button>
           </div>
+        </div>
+
+        <!-- Lånespillere -->
+        <div class="sub-section">
+          <div class="sub-section__label sub-section__label--soft">Lånespillere</div>
+          <div v-if="players.length === 0" class="hospitant-empty" style="margin: 0;">
+            Ingen spillere i poolen — legg til under Tropp.
+          </div>
+          <template v-else>
+            <!-- Anbefalt -->
+            <div v-if="recommendedLoans.length" class="loan-group">
+              <div class="loan-group__label"><span class="loan-group__star">★</span> Anbefalt</div>
+              <div class="referee-pills">
+                <button
+                  v-for="p in recommendedLoans"
+                  :key="p.id"
+                  :class="['referee-pill loan-pill', { 'referee-pill--selected': matchPlayerIds.includes(p.id) }]"
+                  @click="togglePlayer(p.id)"
+                >
+                  {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabels[p.primary_team] }}</span>
+                  <span class="extra-badge" :class="{ 'extra-badge--zero': !extraCount(p.id) }" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
+                </button>
+              </div>
+            </div>
+
+            <!-- Andre -->
+            <div v-if="otherLoans.length" class="loan-group">
+              <div v-if="recommendedLoans.length" class="loan-group__label loan-group__label--muted">Andre</div>
+              <div class="referee-pills">
+                <button
+                  v-for="p in otherLoans"
+                  :key="p.id"
+                  :class="[
+                    'referee-pill loan-pill',
+                    {
+                      'referee-pill--selected': matchPlayerIds.includes(p.id),
+                      'referee-pill--conflict': playerConflicts[p.id]
+                    }
+                  ]"
+                  @click="togglePlayer(p.id)"
+                >
+                  {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabels[p.primary_team] }}</span>
+                  <span v-if="!playerConflicts[p.id]" class="extra-badge" :class="{ 'extra-badge--zero': !extraCount(p.id) }" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
+                  <span v-if="playerConflicts[p.id]" class="hospitant-pill__conflict" :title="`Også kamp ${playerConflicts[p.id].time || 'samme dag'} mot ${playerConflicts[p.id].opponent}`">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                      <circle cx="12" cy="12" r="9"/>
+                      <polyline points="12 7 12 12 15 14"/>
+                    </svg>
+                    {{ playerConflicts[p.id].time || 'samme dag' }}
+                  </span>
+                </button>
+              </div>
+            </div>
+
+            <div v-if="!availablePlayers.length" class="hospitant-empty" style="margin: 0;">
+              Ingen tilgjengelige lånespillere for denne kampen.
+            </div>
+            <p v-else-if="!recommendedLoans.length" class="loan-hint">
+              Marker spillere som «egnet som lånespiller» under Tropp for å få dem anbefalt her.
+            </p>
+          </template>
         </div>
 
         <!-- Trenere -->
@@ -1830,6 +1932,64 @@ function focusSummaryGroup() {
 .referee-pill--selected .hospitant-pill__conflict {
   background: rgba(255, 255, 255, 0.18);
   color: var(--ds-color-warm-bg);
+}
+
+/* ─── Kamptropp: laget (frafall) + lånespiller-grupper ──────────────── */
+.sub-section__count {
+  margin-left: 8px;
+  font-weight: var(--ds-weight-regular);
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+}
+
+/* Laget-chips — trykk veksler frafall */
+.squad-pill { display: inline-flex; align-items: center; gap: 6px; }
+.squad-pill--out {
+  text-decoration: line-through;
+  opacity: 0.5;
+  border-style: dashed;
+}
+.squad-pill__out-tag {
+  text-decoration: none;
+  font-size: 0.625rem;
+  font-weight: var(--ds-weight-bold);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ds-color-error);
+}
+
+/* Lånespiller-grupper */
+.loan-group { margin-top: var(--ds-space-sm); }
+.loan-group:first-child { margin-top: 0; }
+.loan-group__label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-secondary);
+  margin-bottom: var(--ds-space-sm);
+}
+.loan-group__label--muted { color: var(--ds-color-text-tertiary); }
+.loan-group__star { color: var(--ds-color-warning); font-size: 12px; }
+
+/* Ekstra-kamper-badge på lånespiller-chip */
+.extra-badge {
+  display: inline-grid; place-items: center;
+  min-width: 18px; height: 18px; padding: 0 5px; margin-left: 2px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-subtle); color: var(--ds-color-text-secondary);
+  font-size: 0.6875rem; font-weight: var(--ds-weight-bold); font-variant-numeric: tabular-nums;
+}
+.extra-badge--zero { opacity: 0.5; }
+.referee-pill--selected .extra-badge { background: rgba(255,255,255,0.22); color: #fff; }
+
+.loan-hint {
+  margin: var(--ds-space-sm) 0 0;
+  font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary);
+}
+
+.sum-chip--squad {
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-secondary);
+  font-weight: var(--ds-weight-semibold);
 }
 
 /* ─── Match-meny (⋯-sheet) ──────────────────────────────────────────── */
