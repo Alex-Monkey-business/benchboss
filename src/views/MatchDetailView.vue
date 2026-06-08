@@ -932,7 +932,8 @@ function focusSummaryGroup() {
             <button
               v-for="p in teamSquad"
               :key="p.id"
-              :class="['referee-pill squad-pill', { 'squad-pill--out': matchAbsenceIds.includes(p.id) }]"
+              :data-team="p.primary_team"
+              :class="['squad-pill', { 'squad-pill--out': matchAbsenceIds.includes(p.id) }]"
               :title="matchAbsenceIds.includes(p.id) ? 'Frafall — trykk for å ta tilbake' : 'Trykk for å melde frafall'"
               @click="handleToggleAbsence(p.id)"
             >
@@ -1942,12 +1943,24 @@ function focusSummaryGroup() {
   color: var(--ds-color-text-tertiary);
 }
 
-/* Laget-chips — trykk veksler frafall */
-.squad-pill { display: inline-flex; align-items: center; gap: 6px; }
+/* Laget-chips — lagfarget (egen tropp), trykk veksler frafall */
+.squad-pill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 6px 14px;
+  border: 1.5px solid transparent; border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-subtle); color: var(--ds-color-text-secondary);
+  font-family: var(--ds-font-body); font-size: 0.8125rem; font-weight: var(--ds-weight-semibold);
+  cursor: pointer; transition: all 0.15s ease; -webkit-tap-highlight-color: transparent;
+}
+.squad-pill[data-team="gronn"] { background: var(--ds-team-gronn-bg); color: var(--ds-team-gronn); }
+.squad-pill[data-team="rod"]   { background: var(--ds-team-rod-bg);   color: var(--ds-team-rod); }
+.squad-pill[data-team="hvit"]  { background: var(--ds-team-hvit-bg);  color: var(--ds-team-hvit); border-color: var(--ds-team-hvit-border); }
 .squad-pill--out {
   text-decoration: line-through;
-  opacity: 0.5;
+  opacity: 0.45;
   border-style: dashed;
+  background: var(--ds-color-bg-subtle) !important;
+  color: var(--ds-color-text-tertiary) !important;
 }
 .squad-pill__out-tag {
   text-decoration: none;
