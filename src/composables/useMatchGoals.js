@@ -54,7 +54,7 @@ export function useMatchGoals() {
       .sort((a, b) => a.position - b.position)
   }
 
-  async function addGoal(matchId, { player_id }) {
+  async function addGoal(matchId, { player_id, clock_seconds = null }) {
     const existing = goals.value.filter(g => g.match_id === matchId)
     const nextPosition = existing.length === 0
       ? 0
@@ -65,7 +65,8 @@ export function useMatchGoals() {
         id: 'mg-' + Date.now(),
         match_id: matchId,
         player_id,
-        position: nextPosition
+        position: nextPosition,
+        clock_seconds
       }
       goals.value.push(newGoal)
       return newGoal
@@ -73,7 +74,7 @@ export function useMatchGoals() {
 
     const { data, error } = await supabase
       .from('match_goals')
-      .insert({ match_id: matchId, player_id, position: nextPosition })
+      .insert({ match_id: matchId, player_id, position: nextPosition, clock_seconds })
       .select()
       .single()
 

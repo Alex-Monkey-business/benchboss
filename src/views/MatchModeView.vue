@@ -4,14 +4,16 @@ import { useRoute, useRouter } from 'vue-router'
 import { useMatches } from '../composables/useMatches'
 import { usePlayers } from '../composables/usePlayers'
 import { useMatchMode } from '../composables/useMatchMode'
+import { useMatchGoals } from '../composables/useMatchGoals'
 import { useToast } from '../composables/useToast'
-import { teamColorsForMatch, TEAM_LABELS } from '../lib/matchMeta'
+import { teamColorsForMatch, isHomeMatch, TEAM_LABELS } from '../lib/matchMeta'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { getMatch, fetchMatchPlayers, fetchMatchAbsences } = useMatches()
+const { getMatch, updateMatch, fetchMatchPlayers, fetchMatchAbsences } = useMatches()
+const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals()
 const { players, fetchPlayers } = usePlayers()
 const {
   session, currentClock, isRunning,
@@ -48,6 +50,7 @@ const armedBenchId = ref(null)
 const actionPlayer = ref(null)
 const showFinish = ref(false)
 const showReset = ref(false)
+const showScorer = ref(false)
 
 let wakeLock = null
 
@@ -57,7 +60,7 @@ onMounted(async () => {
   if (match.value) {
     matchPlayerIds.value = await fetchMatchPlayers(matchId)
     matchAbsenceIds.value = await fetchMatchAbsences(matchId)
-    await Promise.all([fetchSession(matchId), fetchStints(matchId)])
+    await Promise.all([fetchSession(matchId), fetchStints(matchId), fetchMatchGoals(matchId)])
   }
   loading.value = false
   startClockTick()
@@ -218,6 +221,50 @@ async function handleReset() {
   } catch (e) { reportError(e) }
 }
 
+// ── Resultat & scorere (live) ──────────────────────────────────────────────
+const isHome = computed(() => isHomeMatch(match.value))
+const halsenScore = computed(() => (isHome.value ? match.value?.home_score : match.value?.away_score) || 0)
+const oppScore = computed(() => (isHome.value ? match.value?.away_score : match.value?.home_score) || 0)
+const halsenName = computed(() => isHome.value ? match.value?.home_team : match.value?.away_team)
+const oppName = computed(() => isHome.value ? match.value?.away_team : match.value?.home_team)
+
+const matchGoals = computed(() =>
+  allGoals.value
+    .filter(g => g.match_id === matchId)
+    .slice()
+    .sort((a, b) => (a.clock_seconds ?? a.position * 1e9) - (b.clock_seconds ?? b.position * 1e9))
+)
+function goalMinute(g) {
+  return g.clock_seconds != null ? Math.floor(g.clock_seconds / 60) : null
+}
+
+async function setScore(halsen, opp) {
+  const updates = isHome.value
+    ? { home_score: halsen, away_score: opp }
+    : { away_score: halsen, home_score: opp }
+  await updateMatch(matchId, updates)
+  if (match.value) Object.assign(match.value, updates)
+}
+async function halsenGoalPlus() {
+  await setScore(halsenScore.value + 1, oppScore.value)
+  showScorer.value = true
+}
+async function halsenGoalMinus() {
+  if (halsenScore.value <= 0) return
+  await setScore(halsenScore.value - 1, oppScore.value)
+  const last = matchGoals.value[matchGoals.value.length - 1]
+  if (last && matchGoals.value.length > halsenScore.value) await removeGoal(last.id)
+}
+async function oppGoalPlus() { await setScore(halsenScore.value, oppScore.value + 1) }
+async function oppGoalMinus() { if (oppScore.value > 0) await setScore(halsenScore.value, oppScore.value - 1) }
+
+async function pickScorer(playerId) {
+  const min = Math.floor(currentClock.value / 60)
+  await addGoal(matchId, { player_id: playerId, clock_seconds: currentClock.value })
+  showScorer.value = false
+  showToast(`Mål: ${firstName(playerById(playerId)?.name)} ${min}′`, 'success')
+}
+
 // Done — sammendrag
 const summary = computed(() =>
   squad.value
@@ -292,6 +339,33 @@ const summary = computed(() =>
           <button type="button" class="mm__ctrl mm__ctrl--end" @click="showFinish = true">Avslutt</button>
         </div>
       </div>
+
+      <div class="mm__score">
+        <div class="mm__score-side">
+          <span class="mm__score-team">{{ halsenName }}</span>
+          <div class="mm__score-ctrl">
+            <button type="button" class="mm__score-btn" :disabled="halsenScore === 0" @click="halsenGoalMinus">−</button>
+            <span class="mm__score-num">{{ halsenScore }}</span>
+            <button type="button" class="mm__score-btn mm__score-btn--plus" @click="halsenGoalPlus">+</button>
+          </div>
+        </div>
+        <span class="mm__score-dash">–</span>
+        <div class="mm__score-side">
+          <span class="mm__score-team">{{ oppName }}</span>
+          <div class="mm__score-ctrl">
+            <button type="button" class="mm__score-btn" :disabled="oppScore === 0" @click="oppGoalMinus">−</button>
+            <span class="mm__score-num">{{ oppScore }}</span>
+            <button type="button" class="mm__score-btn mm__score-btn--plus" @click="oppGoalPlus">+</button>
+          </div>
+        </div>
+      </div>
+      <div v-if="matchGoals.length" class="mm__scorers">
+        <span v-for="g in matchGoals" :key="g.id" class="mm__scorer">
+          <span v-if="goalMinute(g) != null" class="mm__scorer-min">{{ goalMinute(g) }}′</span>
+          {{ firstName(playerById(g.player_id)?.name) || 'Ukjent' }}
+        </span>
+      </div>
+
       <div class="pitch">
         <div class="pitch__turf" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
         <div class="pitch__lines" aria-hidden="true">
@@ -388,6 +462,28 @@ const summary = computed(() =>
             <span v-if="p.primary_team" class="mm__btag">{{ TEAM_LABELS[p.primary_team] }}</span>
           </button>
           <div v-if="!unassigned.length && !(pickerSlot && playerInSlot(pickerSlot.id))" class="mm__empty mm__empty--inline">Alle er plassert</div>
+        </div>
+      </div>
+    </Sheet>
+
+    <!-- Live: hvem scoret -->
+    <Sheet :show="showScorer" title="Hvem scoret?" @close="showScorer = false">
+      <div class="mm__sheet">
+        <div v-if="onField.length" class="mm__scorer-group">
+          <div class="mm__sheet-label">På banen</div>
+          <div class="mm__bench">
+            <button v-for="p in onField" :key="p.id" type="button" class="mm__bchip" @click="pickScorer(p.id)">
+              <span class="mm__bname">{{ firstName(p.name) }}</span>
+            </button>
+          </div>
+        </div>
+        <div v-if="bench.length" class="mm__scorer-group">
+          <div class="mm__sheet-label">Benk</div>
+          <div class="mm__bench">
+            <button v-for="p in bench" :key="p.id" type="button" class="mm__bchip" @click="pickScorer(p.id)">
+              <span class="mm__bname">{{ firstName(p.name) }}</span>
+            </button>
+          </div>
         </div>
       </div>
     </Sheet>
@@ -551,6 +647,37 @@ const summary = computed(() =>
 .mm__ctrl { padding: 12px 16px; border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-md); background: var(--ds-color-bg-elevated); font-family: var(--ds-font-body); font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); cursor: pointer; -webkit-tap-highlight-color: transparent; }
 .mm__ctrl--end { border-color: var(--ds-color-error); color: var(--ds-color-error); }
 .mm__paused-hint { color: var(--ds-color-warning); font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium); margin-top: 6px; }
+
+/* Mål-stripe */
+.mm__score {
+  display: flex; align-items: flex-start; justify-content: center; gap: var(--ds-space-lg);
+  margin-top: var(--ds-space-md);
+  padding: var(--ds-space-md);
+  background: var(--ds-color-bg-elevated);
+  border: 1px solid var(--ds-color-border-light);
+  border-radius: var(--ds-radius-lg);
+}
+.mm__score-side { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; min-width: 0; }
+.mm__score-team {
+  font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-tertiary);
+  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.mm__score-ctrl { display: flex; align-items: center; gap: 10px; }
+.mm__score-num { font-family: var(--ds-font-heading); font-size: 2rem; font-weight: var(--ds-weight-bold); font-variant-numeric: tabular-nums; color: var(--ds-color-text-primary); min-width: 24px; text-align: center; }
+.mm__score-dash { align-self: center; padding-top: 22px; color: var(--ds-color-text-tertiary); font-size: 1.25rem; }
+.mm__score-btn {
+  display: grid; place-items: center; width: 34px; height: 34px; padding: 0;
+  border: 1.5px solid var(--ds-color-border); border-radius: 50%;
+  background: var(--ds-color-bg); color: var(--ds-color-text-secondary);
+  font-size: 20px; line-height: 1; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.mm__score-btn:disabled { opacity: .35; cursor: default; }
+.mm__score-btn--plus { border-color: var(--ds-color-accent); background: var(--ds-color-accent); color: var(--ds-color-accent-text); }
+
+.mm__scorers { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); margin-top: var(--ds-space-sm); }
+.mm__scorer { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+.mm__scorer-min { font-variant-numeric: tabular-nums; font-weight: var(--ds-weight-bold); color: var(--ds-color-text-tertiary); margin-right: 2px; }
+.mm__scorer-group + .mm__scorer-group { margin-top: var(--ds-space-md); }
 
 .mm__section-label { margin: var(--ds-space-md) 0 var(--ds-space-sm); font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-tertiary); text-transform: uppercase; letter-spacing: .04em; }
 .mm__armed-hint { text-transform: none; letter-spacing: 0; color: var(--ds-color-accent); font-weight: var(--ds-weight-medium); }
