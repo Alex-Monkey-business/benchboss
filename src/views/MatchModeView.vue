@@ -559,12 +559,6 @@ const summary = computed(() =>
     <!-- Live: banespiller-handling -->
     <Sheet :show="!!actionPlayer" :title="actionPlayer ? `Bytt ${firstName(actionPlayer.name)}` : ''" @close="actionPlayer = null">
       <div class="mm__sheet">
-        <button
-          v-if="actionPlayer && roleOf(actionPlayer.id) !== 'keeper'"
-          type="button"
-          class="mm__sheet-action"
-          @click="makeKeeperFromSheet"
-        >Sett som keeper</button>
         <div class="mm__sheet-label">Inn for {{ firstName(actionPlayer?.name) }}</div>
         <div class="mm__bench">
           <button v-for="p in bench" :key="p.id" type="button" class="mm__bchip" @click="subFromSheet(p.id)">
@@ -573,6 +567,12 @@ const summary = computed(() =>
           </button>
           <div v-if="!bench.length" class="mm__empty mm__empty--inline">Ingen på benken</div>
         </div>
+        <button
+          v-if="actionPlayer && roleOf(actionPlayer.id) !== 'keeper'"
+          type="button"
+          class="mm__keeper-link"
+          @click="makeKeeperFromSheet"
+        >Sett som keeper</button>
       </div>
     </Sheet>
 
@@ -798,7 +798,13 @@ const summary = computed(() =>
 
 /* ── Sheet ── */
 .mm__sheet { padding-top: var(--ds-space-sm); }
-.mm__sheet-action { width: 100%; padding: 14px; margin-bottom: var(--ds-space-md); border: 1.5px solid var(--ds-color-warning); border-radius: var(--ds-radius-md); background: var(--ds-color-bg-elevated); color: var(--ds-color-warning); font-family: var(--ds-font-body); font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); cursor: pointer; }
+.mm__keeper-link {
+  display: block; margin: var(--ds-space-md) auto 0; padding: 6px;
+  border: none; background: transparent; color: var(--ds-color-text-tertiary);
+  font-family: var(--ds-font-body); font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium);
+  text-decoration: underline; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.mm__keeper-link:hover { color: var(--ds-color-text-secondary); }
 .mm__sheet-label { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); margin-bottom: var(--ds-space-sm); }
 .mm__remove-btn {
   display: flex; align-items: center; justify-content: center; gap: 6px;
