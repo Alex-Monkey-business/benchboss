@@ -161,6 +161,12 @@ const bench = computed(() =>
     .map(p => ({ ...p, sec: timeFor(p.id) }))
     .sort((a, b) => a.sec - b.sec || a.name.localeCompare(b.name, 'no'))
 )
+// Spillere på banen nå — scorer-velgeren prioriterer disse.
+const onField = computed(() =>
+  squad.value
+    .filter(p => isOnField(p.id))
+    .sort((a, b) => a.name.localeCompare(b.name, 'no'))
+)
 
 function armBench(id) { armedBenchId.value = armedBenchId.value === id ? null : id }
 
