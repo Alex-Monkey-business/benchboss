@@ -77,7 +77,7 @@ export function useMatches() {
       .from('matches')
       .select('*')
       .eq('id', matchId)
-      .single()
+      .maybeSingle()
 
     return data
   }
@@ -315,11 +315,11 @@ export function useMatches() {
     }
 
     if (isOut) {
-      await supabase.from('match_absences').delete().eq('match_id', matchId).eq('player_id', playerId)
-      matchAbsences.value = matchAbsences.value.filter(a => !(a.match_id === matchId && a.player_id === playerId))
+      const { error } = await supabase.from('match_absences').delete().eq('match_id', matchId).eq('player_id', playerId)
+      if (!error) matchAbsences.value = matchAbsences.value.filter(a => !(a.match_id === matchId && a.player_id === playerId))
     } else {
-      await supabase.from('match_absences').insert({ match_id: matchId, player_id: playerId })
-      matchAbsences.value.push({ match_id: matchId, player_id: playerId })
+      const { error } = await supabase.from('match_absences').insert({ match_id: matchId, player_id: playerId })
+      if (!error) matchAbsences.value.push({ match_id: matchId, player_id: playerId })
     }
     return !isOut
   }

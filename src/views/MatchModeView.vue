@@ -220,6 +220,10 @@ async function handleReset() {
   showReset.value = false
   try {
     await resetMatch(matchId)
+    // Blanke ark: fjern også resultat + scorere logget i match mode.
+    await updateMatch(matchId, { home_score: null, away_score: null })
+    if (match.value) { match.value.home_score = null; match.value.away_score = null }
+    for (const g of matchGoals.value.slice()) await removeGoal(g.id)
     assignments.value = {}
     armedBenchId.value = null
     actionPlayer.value = null
@@ -258,8 +262,13 @@ async function halsenGoalPlus() {
 async function halsenGoalMinus() {
   if (halsenScore.value <= 0) return
   await setScore(halsenScore.value - 1, oppScore.value)
-  const last = matchGoals.value[matchGoals.value.length - 1]
-  if (last && matchGoals.value.length > halsenScore.value) await removeGoal(last.id)
+  // Fjern sist LAGT TIL scorer (høyest position), kun hvis vi nå har flere
+  // scorere enn mål — så et hoppet-over mål ikke feilaktig sletter en scorer.
+  const mine = matchGoals.value
+  if (mine.length > halsenScore.value) {
+    const lastAdded = mine.reduce((a, b) => (b.position > a.position ? b : a))
+    await removeGoal(lastAdded.id)
+  }
 }
 async function oppGoalPlus() { await setScore(halsenScore.value, oppScore.value + 1) }
 async function oppGoalMinus() { if (oppScore.value > 0) await setScore(halsenScore.value, oppScore.value - 1) }
@@ -291,6 +300,8 @@ const summary = computed(() =>
     </div>
 
     <div v-if="loading" class="mm__loading">Laster …</div>
+
+    <div v-else-if="!match" class="mm__empty">Fant ikke kampen.</div>
 
     <!-- ── SETUP ────────────────────────────────────────────── -->
     <div v-else-if="phase === 'setup'" class="mm__wrap">
@@ -527,7 +538,7 @@ const summary = computed(() =>
     <ConfirmDialog
       :show="showReset"
       title="Nullstille kampen?"
-      message="Klokke, oppstilling og all spilletid for denne kampen slettes. Du starter med blanke ark."
+      message="Klokke, oppstilling, resultat og spilletid for denne kampen slettes. Du starter med blanke ark."
       confirm-label="Nullstill"
       variant="warning"
       @confirm="handleReset"
