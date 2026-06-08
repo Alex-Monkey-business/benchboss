@@ -19,7 +19,7 @@ import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 
 const route = useRoute()
 const router = useRouter()
-const { matches, matchPlayers, getMatch, updateMatch, setMatchCoaches, fetchMatchCoaches, setMatchPlayers, fetchMatchPlayers, fetchAllMatchPlayers, fetchMatchAbsences, toggleAbsence, deleteMatch } = useMatches()
+const { matches, matchPlayers, getMatch, fetchMatches, updateMatch, setMatchCoaches, fetchMatchCoaches, setMatchPlayers, fetchMatchPlayers, fetchAllMatchPlayers, fetchMatchAbsences, toggleAbsence, deleteMatch } = useMatches()
 const { expenses, fetchExpenses, registerExpense, getExpenseForMatch, removeExpense } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
@@ -71,6 +71,8 @@ onMounted(async () => {
   await Promise.all([fetchCoaches(), fetchReferees(), fetchPlayers(), fetchAllMatchPlayers()])
   match.value = await getMatch(route.params.id)
   if (match.value) {
+    // Hent sesongens kamper — grunnlag for ekstra-kamp-tall og konflikt-/uke-sjekk.
+    if (match.value.season_id) await fetchMatches(match.value.season_id)
     await Promise.all([
       fetchExpenses([match.value.id]),
       fetchMatchGoals(match.value.id)
@@ -326,15 +328,45 @@ function extraCount(playerId) {
   return extraCountByPlayer.value[playerId] || 0
 }
 
-// Lånespillere delt i Anbefalt (egnet, uten konflikt, færrest ekstra først) og Andre.
+// Spillere som allerede er lånt ut i en ANNEN kamp samme uke — skal ikke
+// anbefales på nytt (sprer ekstra-kamper i stedet for å belaste de samme).
+function mondayOf(dateStr) {
+  const d = new Date(dateStr + 'T12:00:00')
+  const day = (d.getDay() + 6) % 7 // 0 = mandag
+  d.setDate(d.getDate() - day)
+  return d.toISOString().slice(0, 10)
+}
+const loanedElsewhereThisWeek = computed(() => {
+  const out = new Set()
+  const date = match.value?.match_date
+  if (!date) return out
+  const wk = mondayOf(date)
+  for (const mp of matchPlayers.value) {
+    if (mp.match_id === match.value.id) continue
+    const m = matches.value.find(x => x.id === mp.match_id)
+    if (m?.match_date && mondayOf(m.match_date) === wk) out.add(mp.player_id)
+  }
+  return out
+})
+
+// Lånespillere i tre grupper: Valgt (allerede på kampen), Anbefalt (egnet,
+// uten konflikt, ikke allerede lånt denne uka — færrest ekstra først), Andre.
+const selectedLoans = computed(() =>
+  availablePlayers.value.filter(p => matchPlayerIds.value.includes(p.id))
+)
 const recommendedLoans = computed(() =>
   availablePlayers.value
-    .filter(p => p.loan_eligible && !playerConflicts.value[p.id])
+    .filter(p =>
+      !matchPlayerIds.value.includes(p.id) &&
+      p.loan_eligible &&
+      !playerConflicts.value[p.id] &&
+      !loanedElsewhereThisWeek.value.has(p.id)
+    )
     .sort((a, b) => extraCount(a.id) - extraCount(b.id) || a.name.localeCompare(b.name, 'no'))
 )
 const otherLoans = computed(() => {
-  const rec = new Set(recommendedLoans.value.map(p => p.id))
-  return availablePlayers.value.filter(p => !rec.has(p.id))
+  const shown = new Set([...selectedLoans.value, ...recommendedLoans.value].map(p => p.id))
+  return availablePlayers.value.filter(p => !shown.has(p.id))
 })
 
 const teamLabels = TEAM_LABELS
@@ -950,6 +982,22 @@ function focusSummaryGroup() {
             Ingen spillere i poolen.
           </div>
           <template v-else>
+            <!-- Valgt -->
+            <div v-if="selectedLoans.length" class="loan-group">
+              <div class="loan-group__label">Valgt</div>
+              <div class="referee-pills">
+                <button
+                  v-for="p in selectedLoans"
+                  :key="p.id"
+                  class="referee-pill loan-pill referee-pill--selected"
+                  @click="togglePlayer(p.id)"
+                >
+                  {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabels[p.primary_team] }}</span>
+                  <span class="extra-badge" :class="{ 'extra-badge--zero': !extraCount(p.id) }" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
+                </button>
+              </div>
+            </div>
+
             <!-- Anbefalt -->
             <div v-if="recommendedLoans.length" class="loan-group">
               <div class="loan-group__label"><span class="loan-group__star">★</span> Anbefalt</div>
@@ -968,7 +1016,7 @@ function focusSummaryGroup() {
 
             <!-- Andre -->
             <div v-if="otherLoans.length" class="loan-group">
-              <div v-if="recommendedLoans.length" class="loan-group__label loan-group__label--muted">Andre</div>
+              <div v-if="selectedLoans.length || recommendedLoans.length" class="loan-group__label loan-group__label--muted">Andre</div>
               <div class="referee-pills">
                 <button
                   v-for="p in otherLoans"
