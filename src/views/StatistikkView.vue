@@ -264,9 +264,9 @@ const playtimeStats = computed(() => {
   )
 })
 
-function fmtMinSec(sec) {
-  const s = Math.max(0, Math.round(sec || 0))
-  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+// Hele minutter, avrundet — sesongtall trenger ikke sekunder.
+function minutes(sec) {
+  return Math.round((sec || 0) / 60)
 }
 
 const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
@@ -443,10 +443,10 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
           <span class="leaderboard__name">
             {{ item.name }}
             <span v-if="item.primary_team" :class="['leaderboard__tag', `leaderboard__tag--${item.primary_team}`]">{{ TEAM_LABELS[item.primary_team] }}</span>
-            <span v-if="item.keeperSec > 0" class="playtime-keeper">keeper {{ fmtMinSec(item.keeperSec) }}</span>
+            <span v-if="item.keeperSec > 0" class="playtime-keeper">keeper {{ minutes(item.keeperSec) }} min</span>
           </span>
-          <span class="leaderboard__metric">{{ fmtMinSec(item.avgSec) }}</span>
-          <span class="leaderboard__metric leaderboard__metric--total">{{ fmtMinSec(item.totalSec) }}</span>
+          <span class="leaderboard__metric">{{ minutes(item.avgSec) }} min</span>
+          <span class="leaderboard__metric leaderboard__metric--total">{{ minutes(item.totalSec) }} min</span>
         </div>
       </div>
     </div>
