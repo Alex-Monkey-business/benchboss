@@ -16,7 +16,6 @@ const { getExpenseForMatch } = useExpenses()
 const COACH_TABS = [
   { name: 'matches', label: 'Kamper', path: '/' },
   { name: 'stats', label: 'Statistikk', path: '/statistikk' },
-  { name: 'cup', label: 'Cup', path: '/cup' },
   { name: 'admin', label: 'Admin', path: '/admin' }
 ]
 const PARENT_TABS = [
@@ -31,7 +30,7 @@ function isActive(tab) {
   if (tab.name === 'matches') return route.path === '/' || route.path.startsWith('/kamp')
   if (tab.name === 'tropp') return route.path.startsWith('/serie/tropp')
   if (tab.name === 'serie') return route.path === '/serie'
-  if (tab.name === 'admin') return route.path === '/admin' || route.path.startsWith('/admin/')
+  if (tab.name === 'admin') return route.path === '/admin' || route.path.startsWith('/admin/') || route.path.startsWith('/cup')
   if (tab.name === 'stats') return route.path === '/statistikk'
   if (tab.name === 'cup') return route.path.startsWith('/cup')
   return false
