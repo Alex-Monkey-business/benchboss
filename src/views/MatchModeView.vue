@@ -131,15 +131,42 @@ function playerInSlot(slotId) { return playerById(assignments.value[slotId]) }
 const lineupComplete = computed(() => FORMATION.every(s => assignments.value[s.id]))
 
 function openPicker(slot) { pickerSlot.value = slot }
-function assignToSlot(playerId) {
-  if (!pickerSlot.value) return
-  // fjern spilleren fra evt. annen slot
-  for (const k of Object.keys(assignments.value)) {
-    if (assignments.value[k] === playerId) delete assignments.value[k]
+const pickerTitle = computed(() =>
+  pickerSlot.value && playerInSlot(pickerSlot.value.id) ? 'Bytt spiller' : 'Velg spiller'
+)
+
+// Velg spiller til slot. Står spilleren allerede et annet sted, bytter de
+// plass (ett trykk); ellers plasseres de (og en evt. spiller her går ut).
+function pickForSlot(playerId) {
+  const target = pickerSlot.value
+  if (!target) return
+  const current = assignments.value[target.id] || null
+  const fromSlot = Object.keys(assignments.value).find(k => assignments.value[k] === playerId)
+  if (fromSlot && fromSlot !== target.id) {
+    if (current) assignments.value[fromSlot] = current
+    else delete assignments.value[fromSlot]
   }
-  assignments.value[pickerSlot.value.id] = playerId
+  assignments.value[target.id] = playerId
   pickerSlot.value = null
 }
+
+// Spillere som allerede står i en annen slot — for ett-trykks plassbytte.
+const placedElsewhere = computed(() => {
+  if (!pickerSlot.value) return []
+  return Object.entries(assignments.value)
+    .filter(([slotId]) => slotId !== pickerSlot.value.id)
+    .map(([slotId, pid]) => ({ player: playerById(pid), slotId }))
+    .filter(x => x.player)
+    .sort((a, b) => a.player.name.localeCompare(b.player.name, 'no'))
+})
+function posLabel(slotId) {
+  if (slotId === 'gk') return 'Keeper'
+  if (slotId.startsWith('d')) return 'Forsvar'
+  if (slotId.startsWith('m')) return 'Midtbane'
+  if (slotId.startsWith('f')) return 'Angrep'
+  return ''
+}
+
 function clearSlot(slotId) {
   delete assignments.value[slotId]
   pickerSlot.value = null
@@ -465,7 +492,7 @@ const summary = computed(() =>
     </div>
 
     <!-- Setup: velg spiller til slot -->
-    <Sheet :show="!!pickerSlot" title="Velg spiller" @close="pickerSlot = null">
+    <Sheet :show="!!pickerSlot" :title="pickerTitle" @close="pickerSlot = null">
       <div class="mm__sheet">
         <button
           v-if="pickerSlot && playerInSlot(pickerSlot.id)"
@@ -476,13 +503,28 @@ const summary = computed(() =>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
           Fjern {{ firstName(playerInSlot(pickerSlot.id).name) }}
         </button>
-        <div class="mm__bench">
-          <button v-for="p in unassigned" :key="p.id" type="button" class="mm__bchip" @click="assignToSlot(p.id)">
-            <span class="mm__bname">{{ firstName(p.name) }}</span>
-            <span v-if="p.primary_team" class="mm__btag">{{ TEAM_LABELS[p.primary_team] }}</span>
-          </button>
-          <div v-if="!unassigned.length && !(pickerSlot && playerInSlot(pickerSlot.id))" class="mm__empty mm__empty--inline">Alle er plassert</div>
+
+        <div v-if="unassigned.length" class="mm__scorer-group">
+          <div class="mm__sheet-label">Ikke plassert</div>
+          <div class="mm__bench">
+            <button v-for="p in unassigned" :key="p.id" type="button" class="mm__bchip" @click="pickForSlot(p.id)">
+              <span class="mm__bname">{{ firstName(p.name) }}</span>
+              <span v-if="p.primary_team" class="mm__btag">{{ TEAM_LABELS[p.primary_team] }}</span>
+            </button>
+          </div>
         </div>
+
+        <div v-if="placedElsewhere.length" class="mm__scorer-group">
+          <div class="mm__sheet-label">Bytt plass</div>
+          <div class="mm__bench">
+            <button v-for="x in placedElsewhere" :key="x.player.id" type="button" class="mm__bchip" @click="pickForSlot(x.player.id)">
+              <span class="mm__bname">{{ firstName(x.player.name) }}</span>
+              <span class="mm__btag">{{ posLabel(x.slotId) }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="!unassigned.length && !placedElsewhere.length" class="mm__empty mm__empty--inline">Ingen andre spillere</div>
       </div>
     </Sheet>
 
