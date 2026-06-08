@@ -467,13 +467,16 @@ const summary = computed(() =>
     <!-- Setup: velg spiller til slot -->
     <Sheet :show="!!pickerSlot" title="Velg spiller" @close="pickerSlot = null">
       <div class="mm__sheet">
+        <button
+          v-if="pickerSlot && playerInSlot(pickerSlot.id)"
+          type="button"
+          class="mm__remove-btn"
+          @click="clearSlot(pickerSlot.id)"
+        >
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
+          Fjern {{ firstName(playerInSlot(pickerSlot.id).name) }}
+        </button>
         <div class="mm__bench">
-          <button
-            v-if="pickerSlot && playerInSlot(pickerSlot.id)"
-            type="button"
-            class="mm__bchip"
-            @click="clearSlot(pickerSlot.id)"
-          >Fjern {{ firstName(playerInSlot(pickerSlot.id).name) }}</button>
           <button v-for="p in unassigned" :key="p.id" type="button" class="mm__bchip" @click="assignToSlot(p.id)">
             <span class="mm__bname">{{ firstName(p.name) }}</span>
             <span v-if="p.primary_team" class="mm__btag">{{ TEAM_LABELS[p.primary_team] }}</span>
@@ -749,4 +752,14 @@ const summary = computed(() =>
 .mm__sheet { padding-top: var(--ds-space-sm); }
 .mm__sheet-action { width: 100%; padding: 14px; margin-bottom: var(--ds-space-md); border: 1.5px solid var(--ds-color-warning); border-radius: var(--ds-radius-md); background: var(--ds-color-bg-elevated); color: var(--ds-color-warning); font-family: var(--ds-font-body); font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); cursor: pointer; }
 .mm__sheet-label { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); margin-bottom: var(--ds-space-sm); }
+.mm__remove-btn {
+  display: flex; align-items: center; justify-content: center; gap: 6px;
+  width: 100%; padding: 12px; margin-bottom: var(--ds-space-md);
+  border: 1.5px solid var(--ds-color-error); border-radius: var(--ds-radius-md);
+  background: transparent; color: var(--ds-color-error);
+  font-family: var(--ds-font-body); font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.mm__remove-btn svg { width: 16px; height: 16px; }
+.mm__remove-btn:active { background: var(--ds-color-error-light, rgba(220,38,38,.08)); }
 </style>
