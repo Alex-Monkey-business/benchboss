@@ -91,10 +91,12 @@ function reportError(e) {
 
 // ── Pool ───────────────────────────────────────────────────────────────────────
 const matchColors = computed(() => teamColorsForMatch(match.value))
+// Poolen = spillere på kampens Halsen-lag + de som er valgt som lånespillere.
+// Spillere uten fast lag kommer KUN med hvis de er lagt til som lånespiller.
 const squad = computed(() => {
   const guest = new Set(matchPlayerIds.value)
   return players.value
-    .filter(p => guest.has(p.id) || !p.primary_team || matchColors.value.includes(p.primary_team))
+    .filter(p => guest.has(p.id) || (p.primary_team && matchColors.value.includes(p.primary_team)))
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name, 'no'))
 })
