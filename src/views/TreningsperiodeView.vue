@@ -25,7 +25,7 @@ const period = computed(() => getPeriod(periodId.value))
 const index = computed(() => periods.value.findIndex(p => p.id === periodId.value))
 
 function openOkt(s) {
-  router.push(`/admin/treningsplan/${periodId.value}/okt/${s.id}`)
+  router.push(`/trening/${periodId.value}/okt/${s.id}`)
 }
 
 // ---- Periode-bytter ----
@@ -33,7 +33,7 @@ const showSwitcher = ref(false)
 
 function goToPeriod(id) {
   showSwitcher.value = false
-  if (id !== periodId.value) router.push(`/admin/treningsplan/${id}`)
+  if (id !== periodId.value) router.push(`/trening/${id}`)
 }
 
 // Bytte periode gjenbruker komponenten — hent øktene for den nye perioden.
@@ -101,7 +101,7 @@ async function saveCreate() {
   })
   savingCreate.value = false
   showCreateSheet.value = false
-  if (row) router.push(`/admin/treningsplan/${row.id}`)
+  if (row) router.push(`/trening/${row.id}`)
 }
 
 // ---- Slett periode ----
@@ -109,7 +109,7 @@ const showDeletePeriod = ref(false)
 async function confirmDeletePeriod() {
   await deletePeriod(periodId.value)
   showDeletePeriod.value = false
-  router.push('/admin/treningsplan')
+  router.push('/trening')
 }
 
 function dateRange(p) {
@@ -136,10 +136,6 @@ onMounted(async () => {
 <template>
   <div v-if="period" class="periode" :data-accent="period.accent">
     <div class="periode__nav">
-      <router-link to="/admin" class="periode__back">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Admin
-      </router-link>
       <div class="periode__nav-actions">
         <button type="button" class="periode__icon-btn" aria-label="Rediger periode" @click="openEditPeriod">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
@@ -326,24 +322,10 @@ onMounted(async () => {
 
 .periode__nav {
   display: flex;
-  justify-content: space-between;
+  justify-content: flex-end;
   align-items: center;
   margin-bottom: var(--ds-space-2xl);
 }
-
-.periode__back {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  text-decoration: none;
-  letter-spacing: -0.005em;
-}
-
-.periode__back svg { width: 14px; height: 14px; }
-.periode__back:hover { color: var(--ds-color-text-primary); }
 
 .periode__nav-actions { display: flex; gap: var(--ds-space-sm); }
 

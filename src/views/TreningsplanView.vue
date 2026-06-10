@@ -60,26 +60,19 @@ async function save() {
   const row = await createPeriod(payload)
   saving.value = false
   showSheet.value = false
-  if (row) router.replace(`/admin/treningsplan/${row.id}`)
+  if (row) router.replace(`/trening/${row.id}`)
 }
 
 onMounted(async () => {
   await fetchPeriods()
   const current = pickCurrentPeriod()
-  if (current) router.replace(`/admin/treningsplan/${current.id}`)
+  if (current) router.replace(`/trening/${current.id}`)
   else deciding.value = false
 })
 </script>
 
 <template>
   <div class="treningsplan">
-    <div class="treningsplan__back-wrap">
-      <router-link to="/admin" class="treningsplan__back">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Admin
-      </router-link>
-    </div>
-
     <!-- Avgjør hvilken periode vi lander på -->
     <div v-if="deciding" class="treningsplan__list">
       <Skeleton v-for="n in 3" :key="n" height="76px" radius="var(--ds-radius-lg)" />
@@ -156,22 +149,6 @@ onMounted(async () => {
   margin: 0 auto;
   padding: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-2xl);
 }
-
-.treningsplan__back-wrap { margin-bottom: var(--ds-space-xl); }
-
-.treningsplan__back {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  text-decoration: none;
-  letter-spacing: -0.005em;
-}
-
-.treningsplan__back svg { width: 14px; height: 14px; }
-.treningsplan__back:hover { color: var(--ds-color-text-primary); }
 
 .treningsplan__list {
   display: flex;

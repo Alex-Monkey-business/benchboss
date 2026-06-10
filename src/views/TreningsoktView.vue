@@ -113,7 +113,7 @@ const showDelete = ref(false)
 async function confirmDelete() {
   await removeSession(oktId.value)
   showDelete.value = false
-  router.push(`/admin/treningsplan/${periodId.value}`)
+  router.push(`/trening/${periodId.value}`)
 }
 
 onMounted(async () => {
@@ -127,7 +127,7 @@ onMounted(async () => {
 <template>
   <div v-if="okt" class="okt-view" :data-accent="okt.accent || 'warm'">
     <div class="okt-view__nav">
-      <router-link :to="`/admin/treningsplan/${periodId}`" class="okt-view__back">
+      <router-link :to="`/trening/${periodId}`" class="okt-view__back">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         Tilbake
       </router-link>

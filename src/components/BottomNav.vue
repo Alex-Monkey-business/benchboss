@@ -15,6 +15,7 @@ const { getExpenseForMatch } = useExpenses()
 // Samme komponent → bunnmeny på mobil, toppmeny på desktop (se app.css).
 const COACH_TABS = [
   { name: 'matches', label: 'Kamper', path: '/' },
+  { name: 'trening', label: 'Trening', path: '/trening' },
   { name: 'stats', label: 'Statistikk', path: '/statistikk' },
   { name: 'admin', label: 'Admin', path: '/admin' }
 ]
@@ -28,6 +29,7 @@ const tabs = computed(() => (isParent.value ? PARENT_TABS : COACH_TABS))
 
 function isActive(tab) {
   if (tab.name === 'matches') return route.path === '/' || route.path.startsWith('/kamp')
+  if (tab.name === 'trening') return route.path.startsWith('/trening')
   if (tab.name === 'tropp') return route.path.startsWith('/serie/tropp')
   if (tab.name === 'serie') return route.path === '/serie'
   if (tab.name === 'admin') return route.path === '/admin' || route.path.startsWith('/admin/') || route.path.startsWith('/cup')
@@ -80,6 +82,12 @@ const pendingCount = computed(() => {
       <!-- Tropp (drakt) -->
       <svg v-if="tab.name === 'tropp'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M8.5 3 4 5.5 5.8 9l1.7-.8V21h9V8.2l1.7.8L20 5.5 15.5 3a3.5 3.5 0 0 1-7 0z"/>
+      </svg>
+      <!-- Trening (kjegle) -->
+      <svg v-if="tab.name === 'trening'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M9.8 4h4.4l3.6 13.5H6.2L9.8 4z"/>
+        <line x1="8.3" y1="9.5" x2="15.7" y2="9.5"/>
+        <line x1="3.5" y1="20.5" x2="20.5" y2="20.5"/>
       </svg>
       <!-- Statistikk -->
       <svg v-if="tab.name === 'stats'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">

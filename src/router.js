@@ -98,24 +98,29 @@ const routes = [
     component: () => import('./views/TrainingHandbookView.vue'),
     meta: { coachOnly: true }
   },
+  // ---- Treningsplan: egen toppnivå-seksjon (egen fane i bunnmenyen) ----
   {
-    path: '/admin/treningsplan',
-    name: 'admin-treningsplan',
+    path: '/trening',
+    name: 'trening',
     component: () => import('./views/TreningsplanView.vue'),
     meta: { coachOnly: true }
   },
   {
-    path: '/admin/treningsplan/:id',
-    name: 'admin-treningsperiode',
+    path: '/trening/:id',
+    name: 'treningsperiode',
     component: () => import('./views/TreningsperiodeView.vue'),
     meta: { coachOnly: true }
   },
   {
-    path: '/admin/treningsplan/:id/okt/:oktId',
-    name: 'admin-treningsokt',
+    path: '/trening/:id/okt/:oktId',
+    name: 'treningsokt',
     component: () => import('./views/TreningsoktView.vue'),
     meta: { coachOnly: true }
   },
+  // Bakoverkompat: treningsplan lå tidligere under /admin
+  { path: '/admin/treningsplan', redirect: '/trening' },
+  { path: '/admin/treningsplan/:id', redirect: to => `/trening/${to.params.id}` },
+  { path: '/admin/treningsplan/:id/okt/:oktId', redirect: to => `/trening/${to.params.id}/okt/${to.params.oktId}` },
   {
     path: '/admin/handbok/:slug',
     name: 'admin-handbok-principle',
