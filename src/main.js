@@ -4,6 +4,8 @@ import { router } from './router'
 import { startVersionCheck } from './composables/useVersionCheck'
 // Side-effect import: applies stored theme to <html> before first paint
 import './composables/useTheme'
+// Side-effect import: registers PWA install listeners at boot (catches early beforeinstallprompt)
+import './composables/usePwaInstall'
 import '../design-system/index.css'
 import './assets/app.css'
 

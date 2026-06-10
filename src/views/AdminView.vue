@@ -6,6 +6,7 @@ import { useCoaches } from '../composables/useCoaches'
 import { useTrainingPeriods } from '../composables/useTrainingPeriods'
 import { useTheme } from '../composables/useTheme'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import InstallAppCard from '../components/InstallAppCard.vue'
 
 const router = useRouter()
 const { coach, logout } = useAuth()
@@ -123,6 +124,8 @@ const HANDBOK_ACCENTS = ['#F8E8E0', '#E2EDDE', '#D6DDEF', '#F8E8E0', '#DDE6EC', 
         <svg class="admin-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </router-link>
     </div>
+
+    <InstallAppCard />
 
     <div class="px-lg" style="margin-top: var(--ds-space-xl);">
       <div class="admin-section-label">Utseende</div>
