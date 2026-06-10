@@ -20,13 +20,3 @@ if ('serviceWorker' in navigator) {
 }
 
 createApp(App).use(router).mount('#app')
-
-// Fade out the launch splash once the app is mounted (standalone launches only).
-// Hold until the layered assembly (~1.16s) has settled, then cross-fade to the app.
-const splash = document.getElementById('app-splash')
-if (splash) {
-  setTimeout(() => {
-    splash.classList.add('is-hiding')
-    splash.addEventListener('transitionend', () => splash.remove(), { once: true })
-  }, 1300)
-}
