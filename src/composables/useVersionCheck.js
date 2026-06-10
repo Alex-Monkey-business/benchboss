@@ -19,13 +19,23 @@ async function unregisterOldServiceWorkers() {
   if (!('serviceWorker' in navigator)) return
   try {
     const regs = await navigator.serviceWorker.getRegistrations()
-    const hasOldWorkbox = regs.some((r) => r.active?.scriptURL?.endsWith('/sw.js'))
-    for (const reg of regs) await reg.unregister()
-    if ('caches' in window) {
-      const keys = await caches.keys()
-      await Promise.all(keys.map((k) => caches.delete(k)))
+    // Only kill the legacy workbox SW (/sw.js) that cached stale bundles.
+    // Leave the network-only /pwa-sw.js alone — it never caches and is what
+    // keeps the app installable on Android.
+    let removedOldWorkbox = false
+    for (const reg of regs) {
+      if (reg.active?.scriptURL?.endsWith('/sw.js')) {
+        await reg.unregister()
+        removedOldWorkbox = true
+      }
     }
-    if (hasOldWorkbox) window.location.reload()
+    if (removedOldWorkbox) {
+      if ('caches' in window) {
+        const keys = await caches.keys()
+        await Promise.all(keys.map((k) => caches.delete(k)))
+      }
+      window.location.reload()
+    }
   } catch {}
 }
 

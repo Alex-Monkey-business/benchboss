@@ -10,4 +10,13 @@ import '../design-system/index.css'
 import './assets/app.css'
 
 startVersionCheck()
+
+// Register the network-only service worker so the app is installable (Android).
+// It caches nothing — see public/pwa-sw.js.
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('/pwa-sw.js').catch(() => {})
+  })
+}
+
 createApp(App).use(router).mount('#app')
