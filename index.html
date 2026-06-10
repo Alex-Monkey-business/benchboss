@@ -20,10 +20,52 @@
     <link rel="preload" as="image" href="/coaches/jacob.png" />
     <link rel="preload" as="image" href="/coaches/simon.png" />
     <link rel="preload" as="image" href="/coaches/trond.png" />
+    <link rel="preload" as="image" href="/icons/icon-192.png" />
     <title>BenchBoss</title>
     <meta name="description" content="Built for the beautiful chaos of grassroots football" />
+    <style>
+      /* Launch splash — bridges the OS splash on standalone launch.
+         Same icon + same #FAF9F7 as the native splash, so the two read as one. */
+      #app-splash {
+        position: fixed;
+        inset: 0;
+        z-index: 2147483647;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        background: #FAF9F7;
+        opacity: 1;
+        transition: opacity 0.38s ease;
+      }
+      #app-splash.is-hiding {
+        opacity: 0;
+        pointer-events: none;
+      }
+      #app-splash img {
+        width: 92px;
+        height: 92px;
+        animation: app-splash-pop 0.72s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+      }
+      @keyframes app-splash-pop {
+        0%   { opacity: 0; transform: translateY(-18px) scale(0.72); }
+        55%  { opacity: 1; }
+        100% { opacity: 1; transform: translateY(0) scale(1); }
+      }
+      @media (prefers-reduced-motion: reduce) {
+        #app-splash img { animation: none; opacity: 1; }
+      }
+    </style>
   </head>
   <body>
+    <div id="app-splash" aria-hidden="true"><img src="/icons/icon-192.png" alt="" /></div>
+    <script>
+      // Only bridge the launch splash when opened as an installed app —
+      // in a normal browser tab we want straight-to-app, no splash.
+      if (!(window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone)) {
+        var s = document.getElementById('app-splash')
+        if (s) s.remove()
+      }
+    </script>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
   </body>
