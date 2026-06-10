@@ -19,7 +19,7 @@ const {
   session, currentClock, isRunning,
   startClockTick, stopClockTick,
   fetchSession, fetchStints,
-  startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, finishMatch, resetMatch,
+  saveLineup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, finishMatch, resetMatch,
   isOnField, roleOf, playerAtPosition, playingTimeByPlayer
 } = useMatchMode()
 const { show: showToast } = useToast()
@@ -61,6 +61,7 @@ onMounted(async () => {
     matchPlayerIds.value = await fetchMatchPlayers(matchId)
     matchAbsenceIds.value = await fetchMatchAbsences(matchId)
     await Promise.all([fetchSession(matchId), fetchStints(matchId), fetchMatchGoals(matchId)])
+    hydrateLineup()
   }
   loading.value = false
   startClockTick()
@@ -68,10 +69,48 @@ onMounted(async () => {
   document.addEventListener('visibilitychange', onVisibility)
 })
 onUnmounted(() => {
+  flushLineupSave()
   stopClockTick()
   releaseWakeLock()
   document.removeEventListener('visibilitychange', onVisibility)
 })
+
+// ── Lagret oppstilling (setup) ───────────────────────────────────────────────
+// Hver endring autolagres (debounced) til sesjonsraden, så oppstillingen kan
+// gjøres klar lenge før avspark. Spillere som har fått frafall siden sist
+// filtreres bort ved innlasting.
+let lineupTimer = null
+let lineupDirty = false
+let skipLineupSave = false
+
+function hydrateLineup() {
+  if (session.value?.status !== 'setup' || !session.value.lineup) return
+  const valid = new Set(squad.value.map(p => p.id))
+  skipLineupSave = true
+  assignments.value = Object.fromEntries(
+    Object.entries(session.value.lineup).filter(([, pid]) => valid.has(pid))
+  )
+}
+
+function flushLineupSave() {
+  clearTimeout(lineupTimer)
+  if (!lineupDirty) return
+  lineupDirty = false
+  saveLineup(matchId, { ...assignments.value }).catch(() => { /* best effort */ })
+}
+
+watch(assignments, () => {
+  if (skipLineupSave) { skipLineupSave = false; return }
+  if (phase.value !== 'setup') return
+  // Nullstilt og tom — ikke gjenopprett sesjonsraden bare for å lagre {}.
+  if (!session.value && !Object.keys(assignments.value).length) return
+  lineupDirty = true
+  clearTimeout(lineupTimer)
+  lineupTimer = setTimeout(() => {
+    lineupDirty = false
+    saveLineup(matchId, { ...assignments.value }).catch(reportError)
+  }, 600)
+}, { deep: true })
 
 async function requestWakeLock() {
   try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen') } catch { /* ok */ }
@@ -279,6 +318,8 @@ async function handleFinish() {
 }
 async function handleReset() {
   showReset.value = false
+  clearTimeout(lineupTimer)
+  lineupDirty = false
   try {
     await resetMatch(matchId)
     // Blanke ark: fjern også resultat + scorere logget i match mode.
@@ -745,7 +786,18 @@ const summary = computed(() =>
 .mm__start:disabled { opacity: .45; cursor: default; }
 
 /* ── Klokke / kontroller ── */
-.mm__clockrow { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md); }
+/* Fastlåst under topplinja (34px knapp + 2×md padding + 1px border) så
+   klokke, Pause og Avslutt alltid er synlige — også nede ved benken. */
+.mm__clockrow {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md);
+  position: sticky;
+  top: calc(34px + 2 * var(--ds-space-md) + 1px);
+  z-index: calc(var(--ds-z-sticky) - 1);
+  background: var(--ds-color-bg);
+  margin: calc(-1 * var(--ds-space-lg)) calc(-1 * var(--ds-space-lg)) 0;
+  padding: var(--ds-space-sm) var(--ds-space-lg);
+  border-bottom: 1px solid var(--ds-color-border-light);
+}
 .mm__clockwrap { display: flex; flex-direction: column; }
 .mm__phase { font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-tertiary); margin-top: 2px; }
 .mm__phase--break { color: var(--ds-color-warning); }

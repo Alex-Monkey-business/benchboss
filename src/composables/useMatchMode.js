@@ -135,6 +135,13 @@ export function useMatchMode() {
     )
   }
 
+  // Lagre oppstillingen i setup-fasen ({ slotId: playerId }) — overlever
+  // refresh og deles mellom trenere. Rører aldri en kamp som er i gang.
+  async function saveLineup(matchId, lineup) {
+    if (session.value && session.value.status !== 'setup') return
+    await writeSession(matchId, { status: 'setup', lineup })
+  }
+
   // ── Kamphandlinger ───────────────────────────────────────────────────────────
   // Avspark fra setup: start klokka og åpne stints for de som starter.
   // lineup = [{ playerId, role, position }] — én per slot i formasjonen.
@@ -301,7 +308,7 @@ export function useMatchMode() {
     session, stints, currentClock, isRunning,
     startClockTick, stopClockTick,
     fetchSession, fetchStints, fetchAllStints,
-    startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, finishMatch, resetMatch,
+    saveLineup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, finishMatch, resetMatch,
     matchStints, isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer
   }
 }
