@@ -7,6 +7,7 @@ import { isSupabaseConfigured } from './supabase'
 import BottomNav from './components/BottomNav.vue'
 import SplashOverlay from './components/SplashOverlay.vue'
 import ToastNotification from './components/ToastNotification.vue'
+import IosInstallBanner from './components/IosInstallBanner.vue'
 
 const route = useRoute()
 const { isLoggedIn } = useAuth()
@@ -70,6 +71,7 @@ function handleSplashDone() {
       </router-view>
     </main>
     <ToastNotification :toasts="toasts" />
+    <IosInstallBanner v-if="!showSplash" :above-nav="showNav" />
     <SplashOverlay v-if="showSplash" @done="handleSplashDone" />
   </div>
 </template>
