@@ -1,0 +1,82 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024" fill="none">
+  <defs>
+    <linearGradient id="bgGradient" x1="174" y1="92" x2="850" y2="932" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#2B2B28"/>
+      <stop offset="1" stop-color="#0E0E0D"/>
+    </linearGradient>
+    <linearGradient id="creamGradient" x1="254" y1="340" x2="770" y2="784" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF8E8"/>
+      <stop offset="1" stop-color="#D7C8AA"/>
+    </linearGradient>
+    <linearGradient id="orangeGradient" x1="358" y1="120" x2="666" y2="318" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#F29A62"/>
+      <stop offset="1" stop-color="#B9603F"/>
+    </linearGradient>
+    <linearGradient id="grassGradient" x1="252" y1="794" x2="772" y2="876" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#6E8448"/>
+      <stop offset="1" stop-color="#3E4A2C"/>
+    </linearGradient>
+    <linearGradient id="ballCream" x1="410" y1="675" x2="614" y2="870" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#FFF7E7"/>
+      <stop offset="1" stop-color="#D9C9AA"/>
+    </linearGradient>
+  </defs>
+
+  <g id="app-icon">
+    <g id="background">
+      <rect id="app-icon-rounded-square" x="24" y="24" width="976" height="976" rx="202" fill="url(#bgGradient)"/>
+      <rect id="subtle-inner-vignette" x="72" y="76" width="880" height="864" rx="166" fill="#050505" opacity="0.10"/>
+    </g>
+
+    <g id="cone-crown">
+      <path id="left-cone" d="M354 317L403 160C408 144 430 144 436 160L485 317H354Z" fill="url(#orangeGradient)"/>
+      <path id="center-cone" d="M456 310L503 96C507 77 534 77 539 96L586 310H456Z" fill="url(#orangeGradient)"/>
+      <path id="right-cone" d="M539 317L588 160C593 144 615 144 621 160L670 317H539Z" fill="url(#orangeGradient)"/>
+      <path id="left-cone-base" d="M336 315C336 302 346 292 359 292H488C501 292 512 302 512 315C512 328 501 338 488 338H359C346 338 336 328 336 315Z" fill="#D87542"/>
+      <path id="center-cone-base" d="M440 305C440 292 451 281 464 281H578C591 281 602 292 602 305C602 318 591 329 578 329H464C451 329 440 318 440 305Z" fill="#E08866"/>
+      <path id="right-cone-base" d="M512 315C512 302 523 292 536 292H665C678 292 688 302 688 315C688 328 678 338 665 338H536C523 338 512 328 512 315Z" fill="#D87542"/>
+      <path id="crown-arc" d="M341 365C448 330 574 330 683 365" stroke="#B9603F" stroke-width="26" stroke-linecap="round"/>
+      <path id="crown-highlight" d="M455 298C487 292 551 292 585 298" stroke="#F0B089" stroke-width="8" stroke-linecap="round" opacity="0.55"/>
+    </g>
+
+    <g id="bench-frame">
+      <path id="bench-arch" d="M247 793V432C247 368 299 316 363 316H661C725 316 777 368 777 432V793H701V445C701 423 683 405 661 405H363C341 405 323 423 323 445V793H247Z" fill="url(#creamGradient)"/>
+      <path id="bench-arch-inner-shadow" d="M331 448C331 421 353 399 380 399H644C671 399 693 421 693 448V767H654V468C654 451 641 438 624 438H400C383 438 370 451 370 468V767H331V448Z" fill="#0C0C0B" opacity="0.42"/>
+      <rect id="bench-seat" x="303" y="705" width="418" height="45" rx="13" fill="url(#creamGradient)"/>
+      <rect id="bench-left-leg" x="323" y="735" width="42" height="108" rx="10" fill="#CDBE9F"/>
+      <rect id="bench-right-leg" x="659" y="735" width="42" height="108" rx="10" fill="#CDBE9F"/>
+    </g>
+
+    <g id="bb-seat-mark">
+      <g id="left-b">
+        <rect x="338" y="492" width="54" height="178" rx="26" fill="url(#creamGradient)"/>
+        <path d="M374 492H448C493 492 520 518 520 553C520 590 493 613 449 613H374V492Z" fill="url(#creamGradient)"/>
+        <path d="M374 581H458C506 581 535 608 535 645C535 684 506 709 458 709H374V581Z" fill="url(#creamGradient)"/>
+        <path d="M405 533H446C464 533 476 542 476 556C476 571 464 580 446 580H405V533Z" fill="#151512"/>
+        <path d="M405 622H456C475 622 488 633 488 648C488 664 475 674 456 674H405V622Z" fill="#151512"/>
+      </g>
+      <g id="right-b">
+        <rect x="508" y="492" width="54" height="178" rx="26" fill="url(#creamGradient)"/>
+        <path d="M544 492H618C663 492 690 518 690 553C690 590 663 613 619 613H544V492Z" fill="url(#creamGradient)"/>
+        <path d="M544 581H628C676 581 705 608 705 645C705 684 676 709 628 709H544V581Z" fill="url(#creamGradient)"/>
+        <path d="M575 533H616C634 533 646 542 646 556C646 571 634 580 616 580H575V533Z" fill="#151512"/>
+        <path d="M575 622H626C645 622 658 633 658 648C658 664 645 674 626 674H575V622Z" fill="#151512"/>
+      </g>
+    </g>
+
+    <g id="grass-base">
+      <path id="grass-oval" d="M166 846C166 799 321 761 512 761C703 761 858 799 858 846C858 893 703 914 512 914C321 914 166 893 166 846Z" fill="url(#grassGradient)"/>
+      <path id="grass-highlight" d="M242 829C316 806 413 794 512 794C612 794 708 806 783 829" stroke="#82925A" stroke-width="10" stroke-linecap="round" opacity="0.35"/>
+    </g>
+
+    <g id="football">
+      <circle id="ball-base" cx="512" cy="794" r="97" fill="url(#ballCream)"/>
+      <path id="ball-top-patch" d="M512 704L556 735L539 783H485L468 735L512 704Z" fill="#151515"/>
+      <path id="ball-center-patch" d="M512 760L561 795L542 853H482L463 795L512 760Z" fill="#151515"/>
+      <path id="ball-left-patch" d="M421 768L463 795L451 849L405 835C394 807 399 786 421 768Z" fill="#151515"/>
+      <path id="ball-right-patch" d="M603 768L561 795L573 849L619 835C630 807 625 786 603 768Z" fill="#151515"/>
+      <path id="ball-lines" d="M468 735L421 768M556 735L603 768M485 783L463 795M539 783L561 795M482 853L451 849M542 853L573 849" stroke="#8D806A" stroke-width="5" stroke-linecap="round"/>
+      <circle id="ball-outline" cx="512" cy="794" r="97" stroke="#B7AA91" stroke-width="6"/>
+    </g>
+  </g>
+</svg>
