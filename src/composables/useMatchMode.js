@@ -135,22 +135,25 @@ export function useMatchMode() {
     )
   }
 
-  // Lagre oppstillingen i setup-fasen ({ slotId: playerId }) — overlever
-  // refresh og deles mellom trenere. Rører aldri en kamp som er i gang.
-  async function saveLineup(matchId, lineup) {
+  // Lagre setup-tilstand (oppstilling { slotId: playerId } + kamplengde) —
+  // overlever refresh og deles mellom trenere. Rører aldri en kamp i gang.
+  async function saveSetup(matchId, patch) {
     if (session.value && session.value.status !== 'setup') return
-    await writeSession(matchId, { status: 'setup', lineup })
+    await writeSession(matchId, { status: 'setup', ...patch })
   }
 
   // ── Kamphandlinger ───────────────────────────────────────────────────────────
   // Avspark fra setup: start klokka og åpne stints for de som starter.
   // lineup = [{ playerId, role, position }] — én per slot i formasjonen.
-  async function startMatch(matchId, lineup) {
+  // config = { period_count, period_minutes } — skrives atomisk med starten
+  // så en ventende debounced setup-lagring aldri kan rase med avsparket.
+  async function startMatch(matchId, lineup, config = {}) {
     await writeSession(matchId, {
       status: 'running',
       clock_base_seconds: 0,
       running_since: nowIso(),
-      period: 1
+      period: 1,
+      ...config
     })
     const rows = lineup.map(p => ({
       match_id: matchId,
@@ -308,7 +311,7 @@ export function useMatchMode() {
     session, stints, currentClock, isRunning,
     startClockTick, stopClockTick,
     fetchSession, fetchStints, fetchAllStints,
-    saveLineup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, finishMatch, resetMatch,
+    saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, finishMatch, resetMatch,
     matchStints, isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer
   }
 }
