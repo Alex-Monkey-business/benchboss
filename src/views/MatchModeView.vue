@@ -83,6 +83,15 @@ let lineupTimer = null
 let lineupDirty = false
 let skipLineupSave = false
 
+// Stille kvittering etter autolagring — vises kort, ellers usynlig.
+const lineupSaved = ref(false)
+let savedTimer = null
+function markSaved() {
+  lineupSaved.value = true
+  clearTimeout(savedTimer)
+  savedTimer = setTimeout(() => { lineupSaved.value = false }, 2000)
+}
+
 function hydrateLineup() {
   if (session.value?.status !== 'setup' || !session.value.lineup) return
   const valid = new Set(squad.value.map(p => p.id))
@@ -108,7 +117,7 @@ watch(assignments, () => {
   clearTimeout(lineupTimer)
   lineupTimer = setTimeout(() => {
     lineupDirty = false
-    saveLineup(matchId, { ...assignments.value }).catch(reportError)
+    saveLineup(matchId, { ...assignments.value }).then(markSaved).catch(reportError)
   }, 600)
 }, { deep: true })
 
@@ -121,6 +130,8 @@ function releaseWakeLock() {
 }
 function onVisibility() {
   if (document.visibilityState === 'visible' && !wakeLock) requestWakeLock()
+  // Appen går i bakgrunnen — få ut en evt. ventende oppstillings-lagring nå.
+  if (document.visibilityState === 'hidden') flushLineupSave()
 }
 
 // Feil mot databasen (typisk: migrasjon ikke kjørt) — én tydelig melding.
@@ -415,6 +426,12 @@ const summary = computed(() =>
     <div v-else-if="phase === 'setup'" class="mm__wrap">
       <div class="mm__setup-head">
         <h1 class="mm__h1">Sett opp laget</h1>
+        <transition name="mm-saved">
+          <span v-if="lineupSaved" class="mm__saved">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+            Lagret
+          </span>
+        </transition>
       </div>
 
       <div class="pitch">
@@ -698,7 +715,15 @@ const summary = computed(() =>
 
 .mm__h1 { font-family: var(--ds-font-heading); font-size: var(--ds-text-2xl); font-weight: var(--ds-weight-bold); color: var(--ds-color-text-primary); margin: 0; }
 .mm__sub { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); margin: 4px 0 0; }
-.mm__setup-head { margin-bottom: var(--ds-space-md); }
+.mm__setup-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--ds-space-md); }
+.mm__saved {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-tertiary);
+}
+.mm__saved svg { width: 14px; height: 14px; }
+.mm-saved-enter-active, .mm-saved-leave-active { transition: opacity .25s ease; }
+.mm-saved-enter-from, .mm-saved-leave-to { opacity: 0; }
 
 /* ── Banen ── */
 .pitch {
