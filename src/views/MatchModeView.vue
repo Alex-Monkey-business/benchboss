@@ -75,13 +75,10 @@ onUnmounted(() => {
   document.removeEventListener('visibilitychange', onVisibility)
 })
 
-// ── Lagret setup (oppstilling + kamplengde) ─────────────────────────────────
-// Hver endring autolagres (debounced) til sesjonsraden, så alt kan gjøres
-// klart lenge før avspark. Spillere som har fått frafall siden sist
+// ── Lagret oppstilling (setup) ───────────────────────────────────────────────
+// Hver endring autolagres (debounced) til sesjonsraden, så oppstillingen kan
+// gjøres klar lenge før avspark. Spillere som har fått frafall siden sist
 // filtreres bort ved innlasting.
-const periodCountLocal = ref(2)
-const periodMinutesLocal = ref(30)
-
 let lineupTimer = null
 let lineupDirty = false
 let skipLineupSave = false
@@ -96,18 +93,11 @@ function markSaved() {
 }
 
 function setupPatch() {
-  return {
-    lineup: { ...assignments.value },
-    period_count: periodCountLocal.value,
-    period_minutes: periodMinutesLocal.value
-  }
+  return { lineup: { ...assignments.value } }
 }
 
 function hydrateLineup() {
-  if (session.value?.status !== 'setup') return
-  periodCountLocal.value = session.value.period_count || 2
-  periodMinutesLocal.value = session.value.period_minutes || 30
-  if (!session.value.lineup) return
+  if (session.value?.status !== 'setup' || !session.value.lineup) return
   const valid = new Set(squad.value.map(p => p.id))
   skipLineupSave = true
   assignments.value = Object.fromEntries(
@@ -139,16 +129,6 @@ watch(assignments, () => {
   scheduleSetupSave()
 }, { deep: true })
 
-watch([periodCountLocal, periodMinutesLocal], ([c, m]) => {
-  if (phase.value !== 'setup') return
-  // Hydrering setter locals = lagrede verdier — ikke lagre det tilbake.
-  if (session.value && session.value.period_count === c && session.value.period_minutes === m) return
-  scheduleSetupSave()
-})
-
-function bumpMinutes(delta) {
-  periodMinutesLocal.value = Math.min(45, Math.max(5, periodMinutesLocal.value + delta))
-}
 
 async function requestWakeLock() {
   try { if ('wakeLock' in navigator) wakeLock = await navigator.wakeLock.request('screen') } catch { /* ok */ }
@@ -254,15 +234,10 @@ function clearSlot(slotId) {
 async function handleStart() {
   if (!lineupComplete.value) return
   const lineup = FORMATION.map(s => ({ playerId: assignments.value[s.id], role: s.role, position: s.id }))
-  // Config skrives atomisk med avsparket — en ventende debounced lagring
-  // kan ikke rase med starten.
   clearTimeout(lineupTimer)
   lineupDirty = false
   try {
-    await startMatch(matchId, lineup, {
-      period_count: periodCountLocal.value,
-      period_minutes: periodMinutesLocal.value
-    })
+    await startMatch(matchId, lineup)
     showToast('Kampen er i gang', 'success')
   } catch (e) { reportError(e) }
 }
@@ -504,28 +479,6 @@ const summary = computed(() =>
         Ikke plassert: <span class="mm__poolnames">{{ unassigned.map(p => firstName(p.name)).join(', ') }}</span>
       </div>
       <div v-if="!squad.length" class="mm__empty">Ingen spillere i troppen for dette laget.</div>
-
-      <div class="mm__config">
-        <span class="mm__config-label">Kamplengde</span>
-        <div class="mm__config-ctrl">
-          <div class="mm__seg" role="group" aria-label="Antall omganger">
-            <button
-              v-for="n in 3"
-              :key="n"
-              type="button"
-              :class="{ 'mm__seg-btn--active': periodCountLocal === n }"
-              class="mm__seg-btn"
-              @click="periodCountLocal = n"
-            >{{ n }}</button>
-          </div>
-          <span class="mm__config-x">×</span>
-          <div class="mm__stepper">
-            <button type="button" class="mm__stepper-btn" :disabled="periodMinutesLocal <= 5" aria-label="Færre minutter" @click="bumpMinutes(-5)">−</button>
-            <span class="mm__stepper-val">{{ periodMinutesLocal }} min</span>
-            <button type="button" class="mm__stepper-btn" :disabled="periodMinutesLocal >= 45" aria-label="Flere minutter" @click="bumpMinutes(5)">+</button>
-          </div>
-        </div>
-      </div>
 
       <button type="button" class="mm__start" :disabled="!lineupComplete" @click="handleStart">
         {{ lineupComplete ? 'Start kamp' : `Plasser ${FORMATION.length - Object.keys(assignments).length} til` }}
@@ -859,42 +812,6 @@ const summary = computed(() =>
 
 .mm__poolnote { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); margin-top: 4px; }
 .mm__poolnames { color: var(--ds-color-text-secondary); }
-
-/* ── Kamplengde (setup) ── */
-.mm__config {
-  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
-  gap: var(--ds-space-sm) var(--ds-space-md);
-  margin-top: var(--ds-space-md);
-  padding: 12px var(--ds-space-md);
-  background: var(--ds-color-bg-elevated);
-  border: 1px solid var(--ds-color-border-light);
-  border-radius: var(--ds-radius-lg);
-}
-.mm__config-label { font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-secondary); }
-.mm__config-ctrl { display: flex; align-items: center; gap: 8px; }
-.mm__config-x { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); }
-
-.mm__seg { display: inline-flex; border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-md); overflow: hidden; }
-.mm__seg-btn {
-  width: 36px; height: 34px; border: none; background: var(--ds-color-bg);
-  font-family: var(--ds-font-body); font-size: var(--ds-text-md); font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary); cursor: pointer; -webkit-tap-highlight-color: transparent;
-}
-.mm__seg-btn + .mm__seg-btn { border-left: 1px solid var(--ds-color-border); }
-.mm__seg-btn--active { background: var(--ds-color-accent); color: var(--ds-color-accent-text); font-weight: var(--ds-weight-bold); }
-
-.mm__stepper { display: inline-flex; align-items: center; border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-md); background: var(--ds-color-bg); }
-.mm__stepper-btn {
-  width: 34px; height: 34px; border: none; background: transparent;
-  font-size: 18px; line-height: 1; color: var(--ds-color-text-secondary);
-  cursor: pointer; -webkit-tap-highlight-color: transparent;
-}
-.mm__stepper-btn:disabled { opacity: .35; cursor: default; }
-.mm__stepper-val {
-  min-width: 56px; text-align: center;
-  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold);
-  font-variant-numeric: tabular-nums; color: var(--ds-color-text-primary);
-}
 
 /* ── Start-knapp ── */
 .mm__start {
