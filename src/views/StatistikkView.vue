@@ -231,10 +231,10 @@ const topScorers = computed(() => {
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
 })
 
-// Spilletid — akkumulert per spiller over sesongens kamper (fra match mode).
-// Summerer kun lukkede stints; pågående kamp (åpne stints) telles ikke ennå.
-const playtimeAsc = ref(false)
-const playtimeStats = computed(() => {
+// Spilletid — akkumulert per spiller fra match mode, gruppert per lag.
+// Spilletid sammenlignes kun INNAD i laget (på tvers av lag er det meningsløst);
+// barene er relative til lagets toppspiller. Kun lukkede stints telles.
+const playtimeByTeam = computed(() => {
   const seasonIds = new Set(matches.value.map(m => m.id))
   const fieldSec = {}, keeperSec = {}, gamesByPlayer = {}
   stints.value.forEach(s => {
@@ -253,15 +253,38 @@ const playtimeStats = computed(() => {
       const games = gamesByPlayer[p.id]?.size || 0
       return {
         id: p.id, name: p.name, primary_team: p.primary_team,
-        fieldSec: f, keeperSec: k, totalSec: total, games,
+        keeperSec: k, totalSec: total, games,
         avgSec: games ? Math.round(total / games) : 0
       }
     })
     .filter(p => p.totalSec > 0)
-  return rows.sort((a, b) =>
-    (playtimeAsc.value ? a.totalSec - b.totalSec : b.totalSec - a.totalSec) ||
-    a.name.localeCompare(b.name)
-  )
+
+  const groups = TEAM_KEYS
+    .map(key => {
+      const teamRows = rows
+        .filter(r => r.primary_team === key)
+        .sort((a, b) => b.totalSec - a.totalSec || a.name.localeCompare(b.name))
+      return { key, label: TEAM_LABELS[key], max: teamRows[0]?.totalSec || 0, rows: teamRows }
+    })
+    .filter(g => g.rows.length > 0)
+
+  const rest = rows
+    .filter(r => !TEAM_KEYS.includes(r.primary_team))
+    .sort((a, b) => b.totalSec - a.totalSec || a.name.localeCompare(b.name))
+  if (rest.length > 0) {
+    groups.push({ key: 'annet', label: 'Uten lag', max: rest[0].totalSec, rows: rest })
+  }
+  return groups
+})
+
+// Antall kamper med spilletidsdata — setter forventning mens match mode tas i bruk.
+const playtimeCoverage = computed(() => {
+  const seasonIds = new Set(matches.value.map(m => m.id))
+  const withData = new Set()
+  stints.value.forEach(s => {
+    if (seasonIds.has(s.match_id) && s.off_clock != null) withData.add(s.match_id)
+  })
+  return withData.size
 })
 
 // Hele minutter, avrundet — sesongtall trenger ikke sekunder.
@@ -423,30 +446,32 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
       </div>
     </div>
 
-    <!-- Spilletid — fra match mode -->
-    <div v-if="playtimeStats.length > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-3">
-      <div class="stat-section-label playtime-label">
-        Spilletid
-        <button type="button" class="playtime-sort" @click="playtimeAsc = !playtimeAsc">
-          {{ playtimeAsc ? 'Minst først' : 'Mest først' }}
-        </button>
+    <!-- Spilletid — fra match mode, per lag -->
+    <div v-if="playtimeByTeam.length > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-3">
+      <div class="stat-section-label">Spilletid</div>
+      <div class="playtime-note">
+        Basert på {{ playtimeCoverage }} {{ playtimeCoverage === 1 ? 'kamp' : 'kamper' }} i kampmodus
       </div>
-      <div class="leaderboard ds-anim-stagger-list">
-        <div class="leaderboard__head">
-          <span class="leaderboard__rank" aria-hidden="true"></span>
-          <span class="leaderboard__name"></span>
-          <span class="leaderboard__metric leaderboard__metric--head">Snitt</span>
-          <span class="leaderboard__metric leaderboard__metric--head">Total</span>
+      <div v-for="group in playtimeByTeam" :key="group.key" class="playtime-group">
+        <div class="playtime-group__head">
+          <span v-if="group.key !== 'annet'" :class="['standings__dot', `standings__dot--${group.key}`]" aria-hidden="true"></span>
+          {{ group.label }}
         </div>
-        <div v-for="(item, i) in playtimeStats" :key="item.id" class="leaderboard__row">
-          <span class="leaderboard__rank">{{ i + 1 }}</span>
-          <span class="leaderboard__name">
+        <div v-for="item in group.rows" :key="item.id" class="playtime-row">
+          <span class="playtime-row__name">
             {{ item.name }}
-            <span v-if="item.primary_team" :class="['leaderboard__tag', `leaderboard__tag--${item.primary_team}`]">{{ TEAM_LABELS[item.primary_team] }}</span>
             <span v-if="item.keeperSec > 0" class="playtime-keeper">keeper {{ minutes(item.keeperSec) }} min</span>
           </span>
-          <span class="leaderboard__metric">{{ minutes(item.avgSec) }} min</span>
-          <span class="leaderboard__metric leaderboard__metric--total">{{ minutes(item.totalSec) }} min</span>
+          <span class="playtime-row__bar-track">
+            <span
+              :class="['playtime-row__bar', `playtime-row__bar--${group.key}`]"
+              :style="{ width: group.max ? Math.max(4, Math.round(item.totalSec / group.max * 100)) + '%' : '0%' }"
+            ></span>
+          </span>
+          <span class="playtime-row__nums">
+            <span class="playtime-row__total">{{ minutes(item.totalSec) }} min</span>
+            <span class="playtime-row__avg">snitt {{ minutes(item.avgSec) }}</span>
+          </span>
         </div>
       </div>
     </div>
@@ -501,33 +526,104 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 </template>
 
 <style scoped>
-.playtime-label {
+/* Spilletid per lag — barer er relative til lagets toppspiller */
+.playtime-note {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+  padding: 0 4px;
+  margin: -4px 0 10px;
+}
+
+.playtime-group {
+  background: var(--ds-color-bg-elevated);
+  border: var(--ds-border-width) solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  overflow: hidden;
+  margin-bottom: var(--ds-space-sm);
+}
+
+.playtime-group:last-child {
+  margin-bottom: 0;
+}
+
+.playtime-group__head {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 14px;
+  background: var(--ds-color-bg-subtle);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ds-color-text-secondary);
 }
-.playtime-sort {
-  border: none;
-  background: transparent;
-  color: var(--ds-color-accent);
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  cursor: pointer;
-  text-transform: none;
-  letter-spacing: 0;
+
+.playtime-row {
+  display: grid;
+  grid-template-columns: minmax(72px, auto) 1fr auto;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--ds-color-border-light);
 }
+
+.playtime-row__name {
+  font-size: 0.875rem;
+  font-weight: 500;
+  color: var(--ds-color-text-primary);
+  white-space: nowrap;
+}
+
 .playtime-keeper {
   display: inline-block;
   margin-left: 6px;
-  font-size: var(--ds-text-xs);
+  font-size: 0.6875rem;
   font-weight: var(--ds-weight-medium);
   color: var(--ds-color-warning);
 }
-.leaderboard__metric--total {
-  font-variant-numeric: tabular-nums;
+
+.playtime-row__bar-track {
+  display: block;
+  height: 6px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-subtle);
+  overflow: hidden;
+}
+
+.playtime-row__bar {
+  display: block;
+  height: 100%;
+  border-radius: var(--ds-radius-full);
+  transition: width 400ms var(--ds-ease-out);
+}
+
+.playtime-row__bar--gronn { background: var(--ds-team-gronn); }
+.playtime-row__bar--rod   { background: var(--ds-team-rod); }
+.playtime-row__bar--hvit  { background: var(--ds-team-hvit-bg); border: 1px solid var(--ds-team-hvit-border); }
+.playtime-row__bar--annet { background: var(--ds-color-text-tertiary); }
+
+.playtime-row__nums {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  min-width: 56px;
+}
+
+.playtime-row__total {
+  font-size: 0.8125rem;
   font-weight: var(--ds-weight-bold);
   color: var(--ds-color-text-primary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.playtime-row__avg {
+  font-size: 0.625rem;
+  color: var(--ds-color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
 }
 
 .stat-card-large__form {

@@ -74,8 +74,22 @@ export function useMatchMode() {
   }
 
   // Alle stints på tvers av kamper — sesongstatistikk.
+  // Demo: et lite sett lukkede stints fra dm-1 (Rød) og dm-2 (Grønn) så
+  // spilletid per lag er synlig på statistikksiden uten Supabase.
   async function fetchAllStints() {
-    if (!isSupabaseConfigured) return stints.value
+    if (!isSupabaseConfigured) {
+      if (stints.value.length === 0) stints.value = [
+        { id: 'ds-1', match_id: 'dm-1', player_id: 'p-1', role: 'keeper', position: 'gk', on_clock: 0, off_clock: 3600 },
+        { id: 'ds-2', match_id: 'dm-1', player_id: 'p-2', role: 'field', position: 'd1', on_clock: 0, off_clock: 3300 },
+        { id: 'ds-3', match_id: 'dm-1', player_id: 'p-3', role: 'field', position: 'd2', on_clock: 0, off_clock: 2700 },
+        { id: 'ds-4', match_id: 'dm-1', player_id: 'p-4', role: 'field', position: 'm1', on_clock: 600, off_clock: 3600 },
+        { id: 'ds-5', match_id: 'dm-1', player_id: 'p-5', role: 'field', position: 'f1', on_clock: 1800, off_clock: 3600 },
+        { id: 'ds-6', match_id: 'dm-2', player_id: 'p-10', role: 'field', position: 'm1', on_clock: 0, off_clock: 3600 },
+        { id: 'ds-7', match_id: 'dm-2', player_id: 'p-12', role: 'field', position: 'd1', on_clock: 0, off_clock: 2400 },
+        { id: 'ds-8', match_id: 'dm-2', player_id: 'p-14', role: 'field', position: 'f1', on_clock: 900, off_clock: 3600 },
+      ]
+      return stints.value
+    }
     const { data } = await supabase.from('match_stints').select('*')
     if (data) stints.value = data
     return stints.value
