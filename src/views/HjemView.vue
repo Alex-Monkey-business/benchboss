@@ -1,0 +1,135 @@
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useToday } from '../composables/useToday'
+import { useMatches } from '../composables/useMatches'
+import { useCoaches } from '../composables/useCoaches'
+import TodayMatchCard from '../components/today/TodayMatchCard.vue'
+import TodayCupCard from '../components/today/TodayCupCard.vue'
+import TodayTrainingCard from '../components/today/TodayTrainingCard.vue'
+import ReminderList from '../components/today/ReminderList.vue'
+import NextEventCard from '../components/today/NextEventCard.vue'
+import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
+
+const {
+  loading, refresh, greeting,
+  todayMatches, todayCupMatches, todayTraining,
+  prepFor, reminders, nextEvent
+} = useToday()
+
+const { getCoachesForMatch } = useMatches()
+const { coaches } = useCoaches()
+
+const ready = ref(false)
+
+onMounted(async () => {
+  await refresh()
+  ready.value = true
+})
+
+const dateLine = computed(() => {
+  const s = new Date().toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' })
+  return s.charAt(0).toUpperCase() + s.slice(1)
+})
+
+const hasToday = computed(() =>
+  todayMatches.value.length > 0 || todayCupMatches.value.length > 0 || !!todayTraining.value
+)
+
+const showEmpty = computed(() =>
+  ready.value && !loading.value && !hasToday.value && !nextEvent.value && reminders.value.length === 0
+)
+
+function coachNamesForMatch(matchId) {
+  return getCoachesForMatch(matchId)
+    .map(id => coaches.value.find(c => c.id === id)?.name)
+    .filter(Boolean)
+    .join(', ')
+}
+</script>
+
+<template>
+  <div class="desktop-container">
+    <header class="hjem-hero px-lg ds-anim-fade-up">
+      <h1 class="hjem-hero__greeting">{{ greeting }}</h1>
+      <p class="hjem-hero__date">{{ dateLine }}</p>
+    </header>
+
+    <div v-if="loading" class="px-lg">
+      <MatchCardSkeleton :count="2" />
+    </div>
+
+    <div v-else class="px-lg hjem-stack">
+      <!-- Dagens hovedhendelser: kamp slår trening, men begge vises ved kollisjon -->
+      <TodayMatchCard
+        v-for="match in todayMatches"
+        :key="match.id"
+        :match="match"
+        :prep="prepFor(match.id)"
+        :coach-names="coachNamesForMatch(match.id)"
+        class="ds-anim-fade-up ds-anim-delay-1"
+      />
+
+      <TodayCupCard
+        v-for="match in todayCupMatches"
+        :key="match.id"
+        :match="match"
+        class="ds-anim-fade-up ds-anim-delay-1"
+      />
+
+      <TodayTrainingCard
+        v-if="todayTraining"
+        :period="todayTraining.period"
+        :session="todayTraining.session"
+        class="ds-anim-fade-up ds-anim-delay-2"
+      />
+
+      <!-- Tom dag: pek fremover i stedet for å vise en død flate -->
+      <NextEventCard
+        v-if="!hasToday && nextEvent"
+        :event="nextEvent"
+        class="ds-anim-fade-up ds-anim-delay-1"
+      />
+
+      <ReminderList
+        v-if="reminders.length"
+        :reminders="reminders"
+        class="ds-anim-fade-up ds-anim-delay-3"
+      />
+
+      <div v-if="showEmpty" class="ds-empty ds-anim-fade-up ds-anim-delay-1">
+        <h3 class="ds-empty__title">Ingenting på planen</h3>
+        <p class="ds-empty__description">Ingen kamper eller treninger fremover — nyt friheten.</p>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style scoped>
+.hjem-hero {
+  padding-top: var(--ds-space-xl);
+  padding-bottom: var(--ds-space-lg);
+}
+
+.hjem-hero__greeting {
+  margin: 0;
+  font-family: var(--ds-font-heading);
+  font-size: 2rem;
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: -0.02em;
+  line-height: 1.15;
+  color: var(--ds-color-text-primary);
+}
+
+.hjem-hero__date {
+  margin: 6px 0 0;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-tertiary);
+}
+
+.hjem-stack {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-md);
+  padding-bottom: var(--ds-space-2xl);
+}
+</style>

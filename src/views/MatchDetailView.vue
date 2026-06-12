@@ -487,7 +487,7 @@ async function handleDelete() {
   showDeleteDialog.value = false
   await deleteMatch(match.value.id)
   showToast('Kamp slettet', 'success')
-  router.push('/')
+  router.push('/kamper')
 }
 
 function openEditDateTime() {

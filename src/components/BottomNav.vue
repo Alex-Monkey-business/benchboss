@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import { useMatches } from '../composables/useMatches'
 import { useExpenses } from '../composables/useExpenses'
+import { localISODate } from '../lib/dateLabels'
 
 const route = useRoute()
 const router = useRouter()
@@ -14,7 +15,8 @@ const { getExpenseForMatch } = useExpenses()
 // Trenere får full meny; foreldre får read-only-sidene + logg ut.
 // Samme komponent → bunnmeny på mobil, toppmeny på desktop (se app.css).
 const COACH_TABS = [
-  { name: 'matches', label: 'Kamper', path: '/' },
+  { name: 'hjem', label: 'Hjem', path: '/' },
+  { name: 'matches', label: 'Kamper', path: '/kamper' },
   { name: 'trening', label: 'Trening', path: '/trening' },
   { name: 'stats', label: 'Statistikk', path: '/statistikk' },
   { name: 'admin', label: 'Admin', path: '/admin' }
@@ -28,7 +30,8 @@ const PARENT_TABS = [
 const tabs = computed(() => (isParent.value ? PARENT_TABS : COACH_TABS))
 
 function isActive(tab) {
-  if (tab.name === 'matches') return route.path === '/' || route.path.startsWith('/kamp')
+  if (tab.name === 'hjem') return route.path === '/'
+  if (tab.name === 'matches') return route.path === '/kamper' || route.path.startsWith('/kamp/')
   if (tab.name === 'trening') return route.path.startsWith('/trening')
   if (tab.name === 'tropp') return route.path.startsWith('/serie/tropp')
   if (tab.name === 'serie') return route.path === '/serie'
@@ -48,7 +51,7 @@ function onTabClick(tab) {
 // Pending = past HOME matches where I'm assigned as coach AND no expense logged.
 const pendingCount = computed(() => {
   if (!coach.value || !matches.value?.length) return 0
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localISODate()
   return matches.value.filter(m =>
     (m.home_team || '').toLowerCase().includes('halsen') &&
     m.match_date < today &&
@@ -69,16 +72,22 @@ const pendingCount = computed(() => {
       :class="['bottom-nav__item', { 'bottom-nav__item--active': isActive(tab), 'bottom-nav__item--quiet': tab.action === 'logout' }]"
       @click="tab.action && onTabClick(tab)"
     >
-      <!-- Kamper (serie) -->
-      <span v-if="tab.name === 'matches' || tab.name === 'serie'" class="bottom-nav__icon-wrap">
+      <!-- Hjem (hus) -->
+      <span v-if="tab.name === 'hjem'" class="bottom-nav__icon-wrap">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
-          <line x1="16" y1="2" x2="16" y2="6"/>
-          <line x1="8" y1="2" x2="8" y2="6"/>
-          <line x1="3" y1="10" x2="21" y2="10"/>
+          <path d="M3 10.5 12 3l9 7.5"/>
+          <path d="M5.5 9.5V21h13V9.5"/>
+          <path d="M9.5 21v-6h5v6"/>
         </svg>
-        <span v-if="tab.name === 'matches' && pendingCount > 0" class="bottom-nav__badge" aria-label="venter på handling"></span>
+        <span v-if="pendingCount > 0" class="bottom-nav__badge" aria-label="venter på handling"></span>
       </span>
+      <!-- Kamper (serie) -->
+      <svg v-if="tab.name === 'matches' || tab.name === 'serie'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+        <line x1="16" y1="2" x2="16" y2="6"/>
+        <line x1="8" y1="2" x2="8" y2="6"/>
+        <line x1="3" y1="10" x2="21" y2="10"/>
+      </svg>
       <!-- Tropp (drakt) -->
       <svg v-if="tab.name === 'tropp'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <path d="M8.5 3 4 5.5 5.8 9l1.7-.8V21h9V8.2l1.7.8L20 5.5 15.5 3a3.5 3.5 0 0 1-7 0z"/>

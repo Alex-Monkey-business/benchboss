@@ -77,6 +77,29 @@ export function shortRelativeDate(isoDate, now = new Date()) {
   return d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' }).replace('.', '')
 }
 
+// Local ISO date (YYYY-MM-DD). Bruk denne, ikke toISOString().slice(0,10) —
+// toISOString gir UTC og bommer på dagen mellom midnatt og 01/02 norsk tid.
+export function localISODate(d = new Date()) {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+// ISO-ukedag: 1 = mandag … 7 = søndag (JS getDay() har søndag = 0).
+export function isoWeekday(d = new Date()) {
+  return ((d.getDay() + 6) % 7) + 1
+}
+
+// Indeks = isoWeekday - 1.
+export const WEEKDAY_LABELS = ['Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag']
+
+// Hele dager frem til en ISO-dato (negativt for fortid).
+export function daysUntil(isoDate, now = new Date()) {
+  if (!isoDate) return 0
+  return daysBetween(new Date(isoDate + 'T12:00:00'), now)
+}
+
 // Is this date today?
 export function isToday(isoDate, now = new Date()) {
   if (!isoDate) return false

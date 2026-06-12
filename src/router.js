@@ -9,13 +9,15 @@ const routes = [
   },
   {
     path: '/',
-    name: 'dashboard',
-    component: () => import('./views/DashboardView.vue'),
+    name: 'hjem',
+    component: () => import('./views/HjemView.vue'),
     meta: { coachOnly: true }
   },
   {
     path: '/kamper',
-    redirect: '/'
+    name: 'kamper',
+    component: () => import('./views/DashboardView.vue'),
+    meta: { coachOnly: true }
   },
   {
     path: '/kamp/:id',
@@ -35,7 +37,7 @@ const routes = [
     component: () => import('./views/StatistikkView.vue'),
     meta: { coachOnly: true }
   },
-  // ---- Seriekamper: read-only oversikt for foreldre (trenere bruker dashboard på '/') ----
+  // ---- Seriekamper: read-only oversikt for foreldre (trenere bruker kamplisten på '/kamper') ----
   {
     path: '/serie',
     name: 'serie',
@@ -147,7 +149,7 @@ router.beforeEach((to) => {
 
   // Allerede innlogget → bort fra login (trener til kamper, forelder til cup).
   if (to.name === 'login' && isLoggedIn.value) {
-    return isParent.value ? { name: 'cup' } : { name: 'dashboard' }
+    return isParent.value ? { name: 'cup' } : { name: 'hjem' }
   }
 
   // Foreldre når kun read-only-sidene (serie + cup); coachOnly-ruter sendes til cup.

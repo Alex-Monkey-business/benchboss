@@ -5,6 +5,7 @@ import { useTrainingPeriods } from '../composables/useTrainingPeriods'
 import { useTrainingSessions } from '../composables/useTrainingSessions'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { WEEKDAY_LABELS } from '../lib/dateLabels'
 
 const route = useRoute()
 const router = useRouter()
@@ -58,7 +59,15 @@ function emptyDrill() {
 }
 
 function emptyForm() {
-  return { title: '', accent: 'warm', illustration: '', focus: '', drills: [emptyDrill()] }
+  return { title: '', accent: 'warm', illustration: '', focus: '', weekday: null, drills: [emptyDrill()] }
+}
+
+// Auto-foreslå ukedag når tittelen er et ukedagsnavn og ingen er valgt.
+function suggestWeekdayFromTitle() {
+  if (form.value.weekday) return
+  const t = form.value.title.trim().toLowerCase()
+  const idx = WEEKDAY_LABELS.findIndex(label => t.startsWith(label.toLowerCase()))
+  if (idx > -1) form.value.weekday = idx + 1
 }
 
 function openEdit() {
@@ -76,6 +85,7 @@ function openEdit() {
     accent: s.accent || 'warm',
     illustration: s.illustration || '',
     focus: s.focus || '',
+    weekday: s.weekday ?? null,
     drills: drills.length ? drills : [emptyDrill()]
   }
   showSheet.value = true
@@ -102,6 +112,7 @@ async function save() {
     accent: form.value.accent,
     illustration: form.value.illustration || null,
     focus: form.value.focus.trim() || null,
+    weekday: form.value.weekday,
     drills
   })
   saving.value = false
@@ -208,7 +219,22 @@ onMounted(async () => {
       <form @submit.prevent="save">
         <div class="ds-form-group">
           <label class="ds-label" for="okt-title">Dag / tittel</label>
-          <input id="okt-title" v-model="form.title" class="ds-input" type="text" placeholder="F.eks. Tirsdag" required />
+          <input id="okt-title" v-model="form.title" class="ds-input" type="text" placeholder="F.eks. Tirsdag" required @blur="suggestWeekdayFromTitle" />
+        </div>
+        <div class="ds-form-group">
+          <label class="ds-label">Ukedag</label>
+          <div class="weekday-picker">
+            <button
+              v-for="(label, i) in WEEKDAY_LABELS"
+              :key="label"
+              type="button"
+              :class="['weekday-pill', { 'weekday-pill--active': form.weekday === i + 1 }]"
+              :aria-pressed="form.weekday === i + 1"
+              @click="form.weekday = form.weekday === i + 1 ? null : i + 1"
+            >
+              {{ label.slice(0, 3) }}
+            </button>
+          </div>
         </div>
         <div class="ds-form-group">
           <label class="ds-label">Farge</label>
@@ -723,6 +749,30 @@ onMounted(async () => {
 
 /* ---- Accent-velger ---- */
 .accent-picker { display: flex; gap: var(--ds-space-sm); flex-wrap: wrap; }
+
+.weekday-picker { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.weekday-pill {
+  padding: 7px 10px;
+  border-radius: var(--ds-radius-full);
+  border: 1px solid var(--ds-color-border);
+  background: var(--ds-color-surface);
+  color: var(--ds-color-text-secondary);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  cursor: pointer;
+  transition:
+    background var(--ds-duration-fast) var(--ds-ease-out),
+    color var(--ds-duration-fast) var(--ds-ease-out),
+    border-color var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.weekday-pill--active {
+  background: var(--ds-color-accent);
+  border-color: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+}
 
 .accent-swatch {
   width: 36px;

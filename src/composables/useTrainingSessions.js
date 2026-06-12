@@ -9,7 +9,7 @@ const loadedPeriod = ref(null)
 const DEMO_SESSIONS = [
   {
     id: 'dts-1', period_id: 'dtp-1', position: 0,
-    title: 'Tirsdag',
+    title: 'Tirsdag', weekday: 2,
     accent: 'sky',
     illustration: 'tuesday_june_tranparent.png',
     focus: 'Ferdigheter under press. Bli sjef over ballen i trange rom — medtak, vending og første touch som tar deg ut av presset.',
@@ -32,7 +32,7 @@ const DEMO_SESSIONS = [
   },
   {
     id: 'dts-2', period_id: 'dtp-1', position: 1,
-    title: 'Torsdag',
+    title: 'Torsdag', weekday: 4,
     accent: 'peach',
     illustration: 'thursday_june_transparent.png',
     focus: 'Grunnferdigheter og spill. Ferdighetssirkel for å bli sjef over ballen, så smålagsspill 3v3 med mye involvering.',
@@ -43,7 +43,7 @@ const DEMO_SESSIONS = [
   },
   {
     id: 'dts-3', period_id: 'dtp-1', position: 2,
-    title: 'Lørdag',
+    title: 'Lørdag', weekday: 6,
     accent: 'olive',
     illustration: 'saturday_june_transparent.png',
     focus: 'Spill og mestring. Mye touch, små lag, mange mål — la dem prøve det vi har trent på.',
@@ -84,7 +84,7 @@ export function useTrainingSessions() {
   }
 
   async function createSession(periodId, payload) {
-    const data = { period_id: periodId, position: sessions.value.length, accent: 'warm', illustration: null, focus: null, drills: [], ...payload }
+    const data = { period_id: periodId, position: sessions.value.length, accent: 'warm', illustration: null, focus: null, drills: [], weekday: null, ...payload }
 
     if (!isSupabaseConfigured) {
       const row = { id: 'dts-' + Date.now(), ...data }
