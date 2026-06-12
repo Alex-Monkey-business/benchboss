@@ -428,20 +428,24 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
       </div>
     </div>
 
-    <!-- Toppscorere — vises alltid (med empty state) for å gjøre feature synlig -->
-    <div class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-3">
-      <div class="stat-section-label">Toppscorere</div>
-      <div v-if="topScorers.length === 0" class="leaderboard-empty">
-        Ingen mål registrert ennå. Legg til scorere på en kamp under «Resultat & referat».
-      </div>
-      <div v-else class="leaderboard ds-anim-stagger-list">
-        <div v-for="(item, i) in topScorers" :key="item.id" class="leaderboard__row">
+    <!-- Lånespiller-leaderboard — styringsdata, derfor høyt oppe -->
+    <div v-if="playerStats.length > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-3">
+      <div class="stat-section-label">Lånespillere</div>
+      <div class="leaderboard ds-anim-stagger-list">
+        <div class="leaderboard__head">
+          <span class="leaderboard__rank" aria-hidden="true"></span>
+          <span class="leaderboard__name"></span>
+          <span class="leaderboard__metric leaderboard__metric--head">Ekstra</span>
+          <span class="leaderboard__metric leaderboard__metric--head">Kommende</span>
+        </div>
+        <div v-for="(item, i) in playerStats" :key="item.id" class="leaderboard__row">
           <span class="leaderboard__rank">{{ i + 1 }}</span>
           <span class="leaderboard__name">
             {{ item.name }}
             <span v-if="item.primary_team" :class="['leaderboard__tag', `leaderboard__tag--${item.primary_team}`]">{{ TEAM_LABELS[item.primary_team] }}</span>
           </span>
-          <span class="leaderboard__count">{{ item.count }} mål</span>
+          <span class="leaderboard__metric">{{ item.count || '–' }}</span>
+          <span class="leaderboard__metric leaderboard__metric--upcoming">{{ item.upcoming || '–' }}</span>
         </div>
       </div>
     </div>
@@ -476,24 +480,20 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
       </div>
     </div>
 
-    <!-- Lånespiller-leaderboard -->
-    <div v-if="playerStats.length > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-3">
-      <div class="stat-section-label">Lånespillere</div>
-      <div class="leaderboard ds-anim-stagger-list">
-        <div class="leaderboard__head">
-          <span class="leaderboard__rank" aria-hidden="true"></span>
-          <span class="leaderboard__name"></span>
-          <span class="leaderboard__metric leaderboard__metric--head">Ekstra</span>
-          <span class="leaderboard__metric leaderboard__metric--head">Kommende</span>
-        </div>
-        <div v-for="(item, i) in playerStats" :key="item.id" class="leaderboard__row">
+    <!-- Toppscorere — bare for gøy, derfor under styringsdataene -->
+    <div class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-3">
+      <div class="stat-section-label">Toppscorere</div>
+      <div v-if="topScorers.length === 0" class="leaderboard-empty">
+        Ingen mål registrert ennå. Legg til scorere på en kamp under «Resultat & referat».
+      </div>
+      <div v-else class="leaderboard ds-anim-stagger-list">
+        <div v-for="(item, i) in topScorers" :key="item.id" class="leaderboard__row">
           <span class="leaderboard__rank">{{ i + 1 }}</span>
           <span class="leaderboard__name">
             {{ item.name }}
             <span v-if="item.primary_team" :class="['leaderboard__tag', `leaderboard__tag--${item.primary_team}`]">{{ TEAM_LABELS[item.primary_team] }}</span>
           </span>
-          <span class="leaderboard__metric">{{ item.count || '–' }}</span>
-          <span class="leaderboard__metric leaderboard__metric--upcoming">{{ item.upcoming || '–' }}</span>
+          <span class="leaderboard__count">{{ item.count }} mål</span>
         </div>
       </div>
     </div>
