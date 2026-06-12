@@ -218,7 +218,10 @@ const playerStats = computed(() => {
     .sort((a, b) => b.count - a.count || b.upcoming - a.upcoming || a.name.localeCompare(b.name))
 })
 
-// Toppscorere — kun mål registrert i denne sesongens kamper
+// Toppscorere — kun mål registrert i denne sesongens kamper.
+// Vises kollapset (topp 5) som standard — listen er for gøy, ikke styring.
+const SCORER_LIMIT = 5
+const showAllScorers = ref(false)
 const topScorers = computed(() => {
   const counts = {}
   allGoals.value.forEach(g => {
@@ -230,6 +233,10 @@ const topScorers = computed(() => {
     .filter(p => p.count > 0)
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
 })
+
+const visibleScorers = computed(() =>
+  showAllScorers.value ? topScorers.value : topScorers.value.slice(0, SCORER_LIMIT)
+)
 
 // Spilletid — akkumulert per spiller fra match mode, gruppert per lag.
 // Spilletid sammenlignes kun INNAD i laget (på tvers av lag er det meningsløst);
@@ -487,7 +494,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
         Ingen mål registrert ennå. Legg til scorere på en kamp under «Resultat & referat».
       </div>
       <div v-else class="leaderboard ds-anim-stagger-list">
-        <div v-for="(item, i) in topScorers" :key="item.id" class="leaderboard__row">
+        <div v-for="(item, i) in visibleScorers" :key="item.id" class="leaderboard__row">
           <span class="leaderboard__rank">{{ i + 1 }}</span>
           <span class="leaderboard__name">
             {{ item.name }}
@@ -495,6 +502,14 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
           </span>
           <span class="leaderboard__count">{{ item.count }} mål</span>
         </div>
+        <button
+          v-if="topScorers.length > SCORER_LIMIT"
+          type="button"
+          class="leaderboard__toggle"
+          @click="showAllScorers = !showAllScorers"
+        >
+          {{ showAllScorers ? 'Vis færre' : `Vis alle (${topScorers.length})` }}
+        </button>
       </div>
     </div>
 
@@ -980,6 +995,24 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   border: var(--ds-border-width) solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
   overflow: hidden;
+}
+
+.leaderboard__toggle {
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-top: 1px solid var(--ds-color-border-light);
+  background: transparent;
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.leaderboard__toggle:active {
+  background: var(--ds-color-bg-subtle);
 }
 
 .leaderboard-empty {
