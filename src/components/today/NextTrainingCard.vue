@@ -14,7 +14,7 @@ const illoSrc = computed(() => props.session.illustration ? ILLO_BASE + props.se
 const illoPng = computed(() => props.session.illustration ? ILLO_BASE + props.session.illustration : null)
 
 const when = computed(() => relativeDateLabel(props.date))
-const drills = computed(() => (props.session.drills || []).map(d => d.text).filter(Boolean))
+const drillLine = computed(() => (props.session.drills || []).map(d => d.text).filter(Boolean).join(' · '))
 </script>
 
 <template>
@@ -37,9 +37,7 @@ const drills = computed(() => (props.session.drills || []).map(d => d.text).filt
       </picture>
     </div>
 
-    <ul v-if="drills.length" class="next-training__drills">
-      <li v-for="drill in drills" :key="drill">{{ drill }}</li>
-    </ul>
+    <p v-if="drillLine" class="next-training__drills">{{ drillLine }}</p>
   </router-link>
 </template>
 
@@ -93,17 +91,22 @@ const drills = computed(() => (props.session.drills || []).map(d => d.text).filt
   gap: var(--ds-space-md);
 }
 
+/* Skannbart glimt, ikke hele økten: fokus klippes til to linjer. */
 .next-training__focus {
   margin: 0;
   font-family: var(--ds-font-heading);
-  font-size: var(--ds-text-xl);
-  line-height: 1.3;
+  font-size: var(--ds-text-base);
+  line-height: 1.4;
   letter-spacing: -0.01em;
   color: var(--ds-color-text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .next-training__illo {
-  width: 96px;
+  width: 64px;
   flex-shrink: 0;
 }
 
@@ -119,31 +122,15 @@ const drills = computed(() => (props.session.drills || []).map(d => d.text).filt
   }
 }
 
+/* Øvelsene som én kompakt linje — maks to ved mange øvelser. */
 .next-training__drills {
-  list-style: none;
   margin: 0;
-  padding: var(--ds-space-sm) 0 0;
-  border-top: 1px solid rgba(0, 0, 0, 0.08);
-  display: flex;
-  flex-direction: column;
-  gap: 5px;
-}
-
-.next-training__drills li {
-  position: relative;
-  padding-left: 14px;
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-secondary);
-}
-
-.next-training__drills li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0.55em;
-  width: 5px;
-  height: 5px;
-  border-radius: 50%;
-  background: var(--accent-text);
+  font-size: var(--ds-text-xs);
+  line-height: 1.5;
+  color: var(--accent-text);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 </style>
