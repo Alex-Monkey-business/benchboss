@@ -13,7 +13,7 @@ import { useTrainingPeriods } from './useTrainingPeriods'
 import { useTrainingSessions } from './useTrainingSessions'
 import { useMatchMode } from './useMatchMode'
 import { localISODate, isoWeekday } from '../lib/dateLabels'
-import { isHalsenMatch, isHomeMatch, teamColorsForMatch, teamLabel } from '../lib/matchMeta'
+import { isHalsenMatch, isHomeMatch, teamColorsForMatch } from '../lib/matchMeta'
 import { buildReminders } from '../lib/reminders'
 import { cupTeam } from '../lib/cupTeams'
 
@@ -109,71 +109,55 @@ export function useToday() {
     return null
   }
 
-  // Teaser når dagen er tom: tidligste av neste seriekamp, cupkamp og treningsøkt.
-  const nextEvent = computed(() => {
+  // Neste treningsøkt: nærmeste forekomst av en økt med ukedag i aktiv periode.
+  const nextTraining = computed(() => {
     const today = localISODate()
-    const candidates = []
+    const period = activePeriod.value
+    if (!period) return null
+    const candidates = sessions.value
+      .filter(s => s.period_id === period.id && s.weekday)
+      .map(s => ({ session: s, date: nextDateForWeekday(s.weekday, today, period.end_date) }))
+      .filter(x => x.date)
+      .sort((a, b) => a.date.localeCompare(b.date))
+    if (!candidates.length) return null
+    return { period, session: candidates[0].session, date: candidates[0].date }
+  })
 
-    // Neste kamp = MIN neste kamp (laget jeg er trener for). Fallback til alle
-    // Halsen-kamper hvis trener-tilordning mangler — bedre enn tom teaser.
+  // Neste kamp = MIN neste kamp (laget jeg er trener for), serie eller cup —
+  // tidligste vinner. Fallback til alle Halsen-kamper hvis tilordning mangler.
+  const nextMatch = computed(() => {
+    const today = localISODate()
     const byDateTime = (a, b) => a.match_date.localeCompare(b.match_date) || (a.match_time || '').localeCompare(b.match_time || '')
+
     const upcoming = matches.value.filter(m => isHalsenMatch(m) && m.match_date > today)
     const mineUpcoming = upcoming.filter(m => getCoachesForMatch(m.id).includes(coach.value?.id))
-    const nextMatch = (mineUpcoming.length ? mineUpcoming : upcoming).sort(byDateTime)[0]
-    if (nextMatch) {
-      const opponent = isHomeMatch(nextMatch) ? nextMatch.away_team : nextMatch.home_team
-      const teams = teamColorsForMatch(nextMatch).map(teamLabel).join(' + ')
-      candidates.push({
+    const league = (mineUpcoming.length ? mineUpcoming : upcoming).sort(byDateTime)[0]
+    const cup = cupMatches.value.filter(m => m.match_date > today).sort(byDateTime)[0]
+
+    if (league && (!cup || league.match_date <= cup.match_date)) {
+      return {
         type: 'match',
-        date: nextMatch.match_date,
-        time: nextMatch.match_time || '',
-        label: `Kamp mot ${opponent}`,
-        sublabel: [teams, isHomeMatch(nextMatch) ? 'hjemme' : 'borte'].filter(Boolean).join(', '),
-        to: `/kamp/${nextMatch.id}`
-      })
-    }
-
-    const nextCup = cupMatches.value
-      .filter(m => m.match_date > today)
-      .sort((a, b) => a.match_date.localeCompare(b.match_date) || (a.match_time || '').localeCompare(b.match_time || ''))[0]
-    if (nextCup) {
-      const team = cupTeam(nextCup.our_team)
-      candidates.push({
-        type: 'cup',
-        date: nextCup.match_date,
-        time: nextCup.match_time || '',
-        label: `Cupkamp mot ${nextCup.opponent}`,
-        sublabel: team?.name || '',
-        to: `/cup/kamp/${nextCup.id}`
-      })
-    }
-
-    const period = activePeriod.value
-    if (period) {
-      const trainingDates = sessions.value
-        .filter(s => s.period_id === period.id && s.weekday)
-        .map(s => ({ s, date: nextDateForWeekday(s.weekday, today, period.end_date) }))
-        .filter(x => x.date)
-        .sort((a, b) => a.date.localeCompare(b.date))
-      if (trainingDates.length > 0) {
-        const { s, date } = trainingDates[0]
-        candidates.push({
-          type: 'training',
-          date,
-          time: '',
-          label: `Trening — ${s.title}`,
-          sublabel: '',
-          focus: s.focus || '',
-          drills: (s.drills || []).map(d => d.text).filter(Boolean),
-          to: `/trening/${period.id}/okt/${s.id}`
-        })
+        date: league.match_date,
+        time: league.match_time || '',
+        opponent: isHomeMatch(league) ? league.away_team : league.home_team,
+        teams: teamColorsForMatch(league),
+        isHome: isHomeMatch(league),
+        to: `/kamp/${league.id}`
       }
     }
-
-    // Samme dag: kamp slår cup slår trening — dagens viktigste hendelse vinner.
-    const TYPE_RANK = { match: 0, cup: 1, training: 2 }
-    candidates.sort((a, b) => a.date.localeCompare(b.date) || TYPE_RANK[a.type] - TYPE_RANK[b.type])
-    return candidates[0] || null
+    if (cup) {
+      return {
+        type: 'cup',
+        date: cup.match_date,
+        time: cup.match_time || '',
+        opponent: cup.opponent,
+        teamName: cupTeam(cup.our_team)?.name || '',
+        pitch: cup.pitch || '',
+        round: cup.round || '',
+        to: `/cup/kamp/${cup.id}`
+      }
+    }
+    return null
   })
 
   async function fetchPrepSessions(matchIds) {
@@ -216,6 +200,6 @@ export function useToday() {
   return {
     loading, refresh, greeting,
     todayMatches, todayCupMatches, todayTraining,
-    prepFor, reminders, nextEvent
+    prepFor, reminders, nextTraining, nextMatch
   }
 }

@@ -7,13 +7,14 @@ import TodayMatchCard from '../components/today/TodayMatchCard.vue'
 import TodayCupCard from '../components/today/TodayCupCard.vue'
 import TodayTrainingCard from '../components/today/TodayTrainingCard.vue'
 import ReminderList from '../components/today/ReminderList.vue'
-import NextEventCard from '../components/today/NextEventCard.vue'
+import NextTrainingCard from '../components/today/NextTrainingCard.vue'
+import NextMatchCard from '../components/today/NextMatchCard.vue'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 
 const {
   loading, refresh, greeting,
   todayMatches, todayCupMatches, todayTraining,
-  prepFor, reminders, nextEvent
+  prepFor, reminders, nextTraining, nextMatch
 } = useToday()
 
 const { getCoachesForMatch } = useMatches()
@@ -35,8 +36,19 @@ const hasToday = computed(() =>
   todayMatches.value.length > 0 || todayCupMatches.value.length > 0 || !!todayTraining.value
 )
 
+const matchToday = computed(() => todayMatches.value.length > 0 || todayCupMatches.value.length > 0)
+
+// Det som kommer: neste trening (på rolige dager) og neste kamp (når det ikke
+// er kampdag) — sortert så det nærmeste står øverst.
+const upNext = computed(() => {
+  const items = []
+  if (!hasToday.value && nextTraining.value) items.push({ kind: 'training', date: nextTraining.value.date })
+  if (!matchToday.value && nextMatch.value) items.push({ kind: 'match', date: nextMatch.value.date })
+  return items.sort((a, b) => a.date.localeCompare(b.date))
+})
+
 const showEmpty = computed(() =>
-  ready.value && !loading.value && !hasToday.value && !nextEvent.value && reminders.value.length === 0
+  ready.value && !loading.value && !hasToday.value && upNext.value.length === 0 && reminders.value.length === 0
 )
 
 function coachNamesForMatch(matchId) {
@@ -83,18 +95,26 @@ function coachNamesForMatch(matchId) {
         class="ds-anim-fade-up ds-anim-delay-2"
       />
 
-      <!-- Tom dag: pek fremover i stedet for å vise en død flate -->
-      <NextEventCard
-        v-if="!hasToday && nextEvent"
-        :event="nextEvent"
-        class="ds-anim-fade-up ds-anim-delay-1"
-      />
+      <!-- Det som kommer: nærmeste hendelse øverst -->
+      <template v-for="item in upNext" :key="item.kind">
+        <NextTrainingCard
+          v-if="item.kind === 'training'"
+          :period="nextTraining.period"
+          :session="nextTraining.session"
+          :date="nextTraining.date"
+          class="ds-anim-fade-up ds-anim-delay-1"
+        />
+        <NextMatchCard
+          v-else
+          :event="nextMatch"
+          class="ds-anim-fade-up ds-anim-delay-2"
+        />
+      </template>
 
-      <ReminderList
-        v-if="reminders.length"
-        :reminders="reminders"
-        class="ds-anim-fade-up ds-anim-delay-3"
-      />
+      <section v-if="reminders.length" class="ds-anim-fade-up ds-anim-delay-3">
+        <h2 class="hjem-section-kicker">Å ordne</h2>
+        <ReminderList :reminders="reminders" />
+      </section>
 
       <div v-if="showEmpty" class="ds-empty ds-anim-fade-up ds-anim-delay-1">
         <h3 class="ds-empty__title">Ingenting på planen</h3>
@@ -131,5 +151,15 @@ function coachNamesForMatch(matchId) {
   flex-direction: column;
   gap: var(--ds-space-md);
   padding-bottom: var(--ds-space-2xl);
+}
+
+.hjem-section-kicker {
+  margin: var(--ds-space-sm) 0 var(--ds-space-sm);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
 }
 </style>
