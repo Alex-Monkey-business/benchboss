@@ -23,7 +23,8 @@ const kickoff = computed(() => {
   <router-link :to="event.to" class="ds-card ds-card--interactive next-event">
     <span class="next-event__kicker">Neste</span>
     <span class="next-event__label">{{ event.label }}</span>
-    <span class="next-event__sub">
+    <!-- Trening: ukedagen står i tittelen, fokus/øvelser er innholdet — ingen meta-linje. -->
+    <span v-if="event.type !== 'training'" class="next-event__sub">
       {{ countdown }}<template v-if="event.sublabel"> — {{ event.sublabel }}</template><template v-if="kickoff"> kl. {{ kickoff }}</template>
     </span>
     <p v-if="event.focus" class="next-event__focus">{{ event.focus }}</p>

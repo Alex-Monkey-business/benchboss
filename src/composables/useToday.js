@@ -13,7 +13,7 @@ import { useTrainingPeriods } from './useTrainingPeriods'
 import { useTrainingSessions } from './useTrainingSessions'
 import { useMatchMode } from './useMatchMode'
 import { localISODate, isoWeekday } from '../lib/dateLabels'
-import { isHalsenMatch, isHomeMatch } from '../lib/matchMeta'
+import { isHalsenMatch, isHomeMatch, teamColorsForMatch, teamLabel } from '../lib/matchMeta'
 import { buildReminders } from '../lib/reminders'
 import { cupTeam } from '../lib/cupTeams'
 
@@ -114,17 +114,21 @@ export function useToday() {
     const today = localISODate()
     const candidates = []
 
-    const nextMatch = matches.value
-      .filter(m => isHalsenMatch(m) && m.match_date > today)
-      .sort((a, b) => a.match_date.localeCompare(b.match_date) || (a.match_time || '').localeCompare(b.match_time || ''))[0]
+    // Neste kamp = MIN neste kamp (laget jeg er trener for). Fallback til alle
+    // Halsen-kamper hvis trener-tilordning mangler — bedre enn tom teaser.
+    const byDateTime = (a, b) => a.match_date.localeCompare(b.match_date) || (a.match_time || '').localeCompare(b.match_time || '')
+    const upcoming = matches.value.filter(m => isHalsenMatch(m) && m.match_date > today)
+    const mineUpcoming = upcoming.filter(m => getCoachesForMatch(m.id).includes(coach.value?.id))
+    const nextMatch = (mineUpcoming.length ? mineUpcoming : upcoming).sort(byDateTime)[0]
     if (nextMatch) {
       const opponent = isHomeMatch(nextMatch) ? nextMatch.away_team : nextMatch.home_team
+      const teams = teamColorsForMatch(nextMatch).map(teamLabel).join(' + ')
       candidates.push({
         type: 'match',
         date: nextMatch.match_date,
         time: nextMatch.match_time || '',
         label: `Kamp mot ${opponent}`,
-        sublabel: isHomeMatch(nextMatch) ? 'Hjemme' : 'Borte',
+        sublabel: [teams, isHomeMatch(nextMatch) ? 'hjemme' : 'borte'].filter(Boolean).join(', '),
         to: `/kamp/${nextMatch.id}`
       })
     }
@@ -158,7 +162,7 @@ export function useToday() {
           date,
           time: '',
           label: `Trening — ${s.title}`,
-          sublabel: period.title || '',
+          sublabel: '',
           focus: s.focus || '',
           drills: (s.drills || []).map(d => d.text).filter(Boolean),
           to: `/trening/${period.id}/okt/${s.id}`
