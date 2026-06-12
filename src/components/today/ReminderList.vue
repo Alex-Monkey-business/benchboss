@@ -84,22 +84,19 @@ function open(reminder) {
   min-width: 0;
 }
 
+/* Full tekst skal alltid være lesbar — bryt linjer, ikke klipp med ellipsis. */
 .reminder__title {
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
   color: var(--ds-color-text-primary);
   letter-spacing: -0.005em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.35;
 }
 
 .reminder__sub {
   font-size: var(--ds-text-xs);
   color: var(--ds-color-warm-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  line-height: 1.4;
 }
 
 .reminder__chevron {

@@ -159,12 +159,16 @@ export function useToday() {
           time: '',
           label: `Trening — ${s.title}`,
           sublabel: period.title || '',
+          focus: s.focus || '',
+          drills: (s.drills || []).map(d => d.text).filter(Boolean),
           to: `/trening/${period.id}/okt/${s.id}`
         })
       }
     }
 
-    candidates.sort((a, b) => a.date.localeCompare(b.date) || a.time.localeCompare(b.time))
+    // Samme dag: kamp slår cup slår trening — dagens viktigste hendelse vinner.
+    const TYPE_RANK = { match: 0, cup: 1, training: 2 }
+    candidates.sort((a, b) => a.date.localeCompare(b.date) || TYPE_RANK[a.type] - TYPE_RANK[b.type])
     return candidates[0] || null
   })
 

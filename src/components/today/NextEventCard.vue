@@ -26,6 +26,10 @@ const kickoff = computed(() => {
     <span class="next-event__sub">
       {{ countdown }}<template v-if="event.sublabel"> — {{ event.sublabel }}</template><template v-if="kickoff"> kl. {{ kickoff }}</template>
     </span>
+    <p v-if="event.focus" class="next-event__focus">{{ event.focus }}</p>
+    <ul v-if="event.drills?.length" class="next-event__drills">
+      <li v-for="drill in event.drills" :key="drill">{{ drill }}</li>
+    </ul>
   </router-link>
 </template>
 
@@ -56,5 +60,40 @@ const kickoff = computed(() => {
 .next-event__sub {
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
+}
+
+.next-event__focus {
+  margin: var(--ds-space-xs) 0 0;
+  font-family: var(--ds-font-heading);
+  font-size: var(--ds-text-base);
+  line-height: 1.45;
+  color: var(--ds-color-text-primary);
+}
+
+.next-event__drills {
+  list-style: none;
+  margin: var(--ds-space-xs) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.next-event__drills li {
+  position: relative;
+  padding-left: 14px;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+}
+
+.next-event__drills li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.55em;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--ds-color-text-tertiary);
 }
 </style>

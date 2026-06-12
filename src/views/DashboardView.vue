@@ -95,8 +95,8 @@ const smartPrompt = computed(() => {
   if (refLessSoon) {
     return {
       kind: 'no-ref',
-      title: `Mangler dommer ${shortRelativeDate(refLessSoon.match_date).toLowerCase()}`,
-      body: `${refLessSoon.away_team} hjemme — ordne dommer før kampstart.`,
+      title: `Dommer mangler til kampen mot ${refLessSoon.away_team}`,
+      body: `Hjemmekamp ${relativeDateLabel(refLessSoon.match_date).toLowerCase()} — ordne dommer før avspark.`,
       action: 'Sett opp',
       matchId: refLessSoon.id
     }

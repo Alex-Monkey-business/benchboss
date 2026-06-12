@@ -1,7 +1,7 @@
 // Påminnelser for hjem-skjermen — rene funksjoner, ingen state.
 // Rangert etter hastegrad: dommer (tidskritisk) → resultat → utlegg.
 
-import { shortRelativeDate, localISODate } from './dateLabels'
+import { shortRelativeDate, relativeDateLabel, localISODate } from './dateLabels'
 import { isHomeMatch, isHalsenMatch, isPlayed, hasResult } from './matchMeta'
 
 const MAX_REMINDERS = 3
@@ -36,10 +36,12 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
     .sort((a, b) => a.match_date.localeCompare(b.match_date))
   if (refLess.length > 0) {
     const m = refLess[0]
+    const time = (m.match_time || '').slice(0, 5)
+    const when = relativeDateLabel(m.match_date).toLowerCase()
     reminders.push({
       kind: 'no-ref',
-      title: `Mangler dommer ${shortRelativeDate(m.match_date).toLowerCase()}`,
-      body: `${m.away_team} hjemme — ordne dommer før kampstart.`,
+      title: `Dommer mangler til kampen mot ${m.away_team}`,
+      body: `Hjemmekamp ${when}${time && time !== '00:00' ? ` kl. ${time}` : ''} — ordne dommer før avspark.`,
       matchId: m.id
     })
   }
@@ -62,10 +64,10 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
     reminders.push({
       kind: 'no-result',
       title: resultLess.length === 1
-        ? `Resultat mangler mot ${opponent}`
+        ? `Resultat mangler fra kampen mot ${opponent}`
         : `${resultLess.length} kamper mangler resultat`,
       body: resultLess.length === 1
-        ? `Kampen ${shortRelativeDate(m.match_date).toLowerCase()} er ikke ført.`
+        ? `Spilt ${relativeDateLabel(m.match_date).toLowerCase()} — legg inn sluttresultatet.`
         : `Den siste er mot ${opponent}, ${shortRelativeDate(m.match_date).toLowerCase()}.`,
       matchId: m.id
     })
