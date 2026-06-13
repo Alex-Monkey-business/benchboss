@@ -4,8 +4,31 @@
 
 export const principles = [
   {
-    slug: 'mange-touch',
+    slug: 'glede-og-kreativitet',
     number: 1,
+    accent: 'sky',
+    title: 'Det skal være gøy',
+    lead: 'En unge som har det gøy, kommer tilbake — og tør å prøve mer.',
+    sections: [
+      {
+        heading: 'Hvorfor',
+        body: 'En som koser seg på trening, tør å finte, prøve og bomme. En som kjeder seg, slutter — ofte før han fyller 14. Ronaldinho spilte alltid med et smil, og det er ikke tilfeldig at han ble så god.'
+      },
+      {
+        heading: 'Slik gjør vi det',
+        items: [
+          'La dem prøve finter og tricks — en bomma dribling er lov',
+          'Aldri kjeft når noen prøver noe som ikke går',
+          'Spill mer, stå i kø mindre',
+          'Spør hva som var gøyest når de går av banen'
+        ]
+      }
+    ],
+    quote: 'Den som har det gøy, slutter ikke.'
+  },
+  {
+    slug: 'mange-touch',
+    number: 2,
     accent: 'warm',
     title: 'Alle skal røre ballen mye',
     lead: 'Hvis en spiller står i kø, lærer han ingenting. Målet er at alle har ball nesten hele tida.',
@@ -28,7 +51,7 @@ export const principles = [
   },
   {
     slug: 'nivadel-uten-a-si-det',
-    number: 2,
+    number: 3,
     accent: 'sage',
     title: 'Nivådel, uten å si nivå',
     lead: 'Det høres rettferdig ut å blande alle hele tida. I praksis betyr det at de svakeste rører ballen minst.',
@@ -51,7 +74,7 @@ export const principles = [
   },
   {
     slug: 'smaspill-er-gull',
-    number: 3,
+    number: 4,
     accent: 'cornflower',
     title: 'Småspill er gull',
     lead: '2v2 og 3v3 gir mer utvikling per minutt enn nesten alt annet vi kan gjøre.',
@@ -74,7 +97,7 @@ export const principles = [
   },
   {
     slug: 'mikroseire',
-    number: 4,
+    number: 5,
     accent: 'peach',
     title: 'De svakeste trenger små seire',
     lead: 'De svakeste er ofte redde for å feile. Da må de få lykkes ofte nok til å tørre mer.',
@@ -97,7 +120,7 @@ export const principles = [
   },
   {
     slug: 'korte-cues',
-    number: 5,
+    number: 6,
     accent: 'sky',
     title: 'Si det kort. Vis det heller.',
     lead: 'Ikke "orienter deg og skap bredde". Si "se opp før du sentrer".',
@@ -120,7 +143,7 @@ export const principles = [
   },
   {
     slug: 'involvering-over-prestasjon',
-    number: 6,
+    number: 7,
     accent: 'olive',
     title: 'Alle skal være med',
     lead: 'Vi prøver ikke å gjøre alle like gode. Vi prøver å få alle til å tørre mer.',

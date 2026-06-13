@@ -156,6 +156,15 @@ onMounted(async () => {
       <span v-if="dateRange(period)" class="periode__dates">{{ dateRange(period) }}</span>
     </header>
 
+    <!-- Filosofien bak planen — håndboka, som rammer inn øktene under. -->
+    <router-link to="/trening/handbok" class="handbok-link">
+      <span class="handbok-link__body">
+        <span class="handbok-link__eyebrow">Trener-håndbok</span>
+        <span class="handbok-link__title">Slik trener vi</span>
+      </span>
+      <svg class="handbok-link__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    </router-link>
+
     <!-- Økt-kort -->
     <div class="okt-list">
       <div
@@ -489,6 +498,59 @@ onMounted(async () => {
 }
 
 .periode__add { width: 100%; }
+
+/* Håndbok-lenke — rammer inn øktene, lettere vekt enn økt-kortene. */
+.handbok-link {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-md);
+  margin-bottom: var(--ds-space-lg);
+  padding: 14px var(--ds-space-md);
+  background: var(--ds-color-bg-elevated);
+  border: 1px solid var(--ds-color-border-light);
+  border-radius: var(--ds-radius-lg);
+  text-decoration: none;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--ds-duration-fast) var(--ds-ease-out),
+    border-color var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.handbok-link:active { transform: scale(0.99); }
+
+@media (hover: hover) and (pointer: fine) {
+  .handbok-link:hover { border-color: var(--ds-color-border); }
+}
+
+.handbok-link__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.handbok-link__eyebrow {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+}
+
+.handbok-link__title {
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-primary);
+}
+
+.handbok-link__chevron {
+  width: 18px;
+  height: 18px;
+  color: var(--ds-color-text-tertiary);
+  flex-shrink: 0;
+}
 
 /* ---- Accent-velger ---- */
 .accent-picker { display: flex; gap: var(--ds-space-sm); flex-wrap: wrap; }

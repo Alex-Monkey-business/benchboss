@@ -12,14 +12,14 @@ const next = computed(() => principles[index.value + 1] || null)
 const prev = computed(() => principles[index.value - 1] || null)
 
 function goTo(slug) {
-  router.push(`/admin/handbok/${slug}`)
+  router.push(`/trening/handbok/${slug}`)
 }
 </script>
 
 <template>
   <div v-if="principle" class="principle" :data-accent="principle.accent">
     <div class="principle__nav">
-      <router-link to="/admin/handbok" class="principle__back">
+      <router-link to="/trening/handbok" class="principle__back">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         Håndboken
       </router-link>

@@ -5,16 +5,16 @@ import { principles } from '../content/principles'
 const router = useRouter()
 
 function open(slug) {
-  router.push(`/admin/handbok/${slug}`)
+  router.push(`/trening/handbok/${slug}`)
 }
 </script>
 
 <template>
   <div class="handbook">
     <div class="handbook__back-wrap">
-      <router-link to="/admin" class="handbook__back">
+      <router-link to="/trening" class="handbook__back">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Admin
+        Trening
       </router-link>
     </div>
 
@@ -22,7 +22,7 @@ function open(slug) {
       <span class="handbook__eyebrow">Trener-håndbok</span>
       <h1 class="handbook__title">Slik trener vi&nbsp;G2015</h1>
       <p class="handbook__lead">
-        Seks prinsipper som gjør at alle 24 utvikler seg —
+        Sju prinsipper som gjør at alle 24 utvikler seg —
         ikke bare de elleve som allerede er fremme.
       </p>
     </header>
@@ -47,25 +47,6 @@ function open(slug) {
         </svg>
       </button>
     </div>
-
-    <section class="coming">
-      <span class="coming__eyebrow">Snart i håndboken</span>
-      <h2 class="coming__title">Mer på vei</h2>
-      <ul class="coming__list">
-        <li class="coming__item">
-          <span class="coming__item-title">Øvelsesbibliotek</span>
-          <span class="coming__item-body">Konkrete øvelser med video, oppsett og hva de skal bygge.</span>
-        </li>
-        <li class="coming__item">
-          <span class="coming__item-title">Ukentlig treningsoppsett</span>
-          <span class="coming__item-body">T1 teknikk · T2 dueller · T3 spill. Ferdig 90-min struktur du kan ta med på banen.</span>
-        </li>
-        <li class="coming__item">
-          <span class="coming__item-title">Inspirasjon</span>
-          <span class="coming__item-body">YouTube-klipp, infografikk og lenker fra tiim.no og andre vi stoler på.</span>
-        </li>
-      </ul>
-    </section>
 
     <footer class="handbook__footer">
       <p>Skrevet for oss fem, basert på det vi har lært. Endrer seg etter hvert som vi gjør det.</p>
@@ -246,71 +227,6 @@ function open(slug) {
   align-self: center;
   color: var(--ds-color-text-tertiary);
   flex-shrink: 0;
-}
-
-/* ---- Coming soon ---- */
-.coming {
-  margin: var(--ds-space-2xl) 0;
-  padding: var(--ds-space-xl) var(--ds-space-lg);
-  background: var(--ds-color-bg-subtle);
-  border-radius: var(--ds-radius-lg);
-}
-
-.coming__eyebrow {
-  display: block;
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-medium);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
-  color: var(--ds-color-text-tertiary);
-  margin-bottom: var(--ds-space-sm);
-}
-
-.coming__title {
-  font-family: var(--ds-font-display);
-  font-size: var(--ds-text-xl);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-tight);
-  color: var(--ds-color-text-primary);
-  line-height: 1.15;
-  margin: 0 0 var(--ds-space-lg);
-  font-variation-settings: var(--ds-font-display-settings);
-}
-
-.coming__list {
-  list-style: none;
-  padding: 0;
-  margin: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.coming__item {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: var(--ds-space-md) 0;
-  border-top: 1px solid var(--ds-color-border-light);
-}
-
-.coming__item:first-child {
-  padding-top: 0;
-  border-top: 0;
-}
-
-.coming__item-title {
-  font-family: var(--ds-font-display-sans);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: -0.005em;
-  color: var(--ds-color-text-primary);
-}
-
-.coming__item-body {
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-secondary);
-  line-height: 1.45;
-  letter-spacing: -0.005em;
 }
 
 /* ---- Footer ---- */

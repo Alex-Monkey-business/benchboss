@@ -94,10 +94,17 @@ const routes = [
   // Spilleradministrasjon er flyttet inn i Tropp (/serie/tropp).
   { path: '/admin/hospitanter', redirect: '/serie/tropp' },
   { path: '/admin/hospitanter/:id', redirect: '/serie/tropp' },
+  // Trener-håndboka bor under Trening (filosofien bak planen), ikke admin.
   {
-    path: '/admin/handbok',
-    name: 'admin-handbok',
+    path: '/trening/handbok',
+    name: 'handbok',
     component: () => import('./views/TrainingHandbookView.vue'),
+    meta: { coachOnly: true }
+  },
+  {
+    path: '/trening/handbok/:slug',
+    name: 'handbok-principle',
+    component: () => import('./views/TrainingPrincipleView.vue'),
     meta: { coachOnly: true }
   },
   // ---- Treningsplan: egen toppnivå-seksjon (egen fane i bunnmenyen) ----
@@ -119,16 +126,12 @@ const routes = [
     component: () => import('./views/TreningsoktView.vue'),
     meta: { coachOnly: true }
   },
-  // Bakoverkompat: treningsplan lå tidligere under /admin
+  // Bakoverkompat: treningsplan + håndbok lå tidligere under /admin
   { path: '/admin/treningsplan', redirect: '/trening' },
   { path: '/admin/treningsplan/:id', redirect: to => `/trening/${to.params.id}` },
   { path: '/admin/treningsplan/:id/okt/:oktId', redirect: to => `/trening/${to.params.id}/okt/${to.params.oktId}` },
-  {
-    path: '/admin/handbok/:slug',
-    name: 'admin-handbok-principle',
-    component: () => import('./views/TrainingPrincipleView.vue'),
-    meta: { coachOnly: true }
-  },
+  { path: '/admin/handbok', redirect: '/trening/handbok' },
+  { path: '/admin/handbok/:slug', redirect: to => `/trening/handbok/${to.params.slug}` },
   // Backwards-compat redirects for old paths
   { path: '/sesong', redirect: '/admin/dommerutlegg' },
   { path: '/mer', redirect: '/admin' }
