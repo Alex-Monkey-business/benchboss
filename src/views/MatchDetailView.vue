@@ -39,6 +39,8 @@ const matchAbsenceIds = ref([])
 const showDeleteDialog = ref(false)
 const showMatchMenu = ref(false)
 const customReferee = ref(false)
+const showRefereePicker = ref(false)
+const showPayerPicker = ref(false)
 const refereeInput = ref('')
 const newPhone = ref('')
 const homeScoreInput = ref('')
@@ -209,6 +211,7 @@ async function selectReferee(name) {
     await updateMatch(match.value.id, { referee: name })
     match.value.referee = name
     refereeInput.value = name
+    showRefereePicker.value = false
     showToast('Dommer oppdatert', 'success')
   }
 }
@@ -246,6 +249,7 @@ async function saveCustomReferee() {
     match.value.referee = name
   }
   customReferee.value = false
+  showRefereePicker.value = false
   refereeInput.value = name
   newPhone.value = ''
   showToast('Dommer lagret', 'success')
@@ -258,6 +262,7 @@ async function selectPayer(coachId) {
   } else {
     await registerExpense(match.value.id, coachId, match.value.fee_amount || 200)
     const name = coaches.value.find(c => c.id === coachId)?.name
+    showPayerPicker.value = false
     showToast(`${name} la ut ${match.value.fee_amount || 200} kr`, 'success')
   }
 }
@@ -834,7 +839,16 @@ function focusSummaryGroup() {
 
         <!-- Dommer -->
         <div class="sub-section">
-          <div class="referee-pills">
+          <!-- Valgt dommer — kompakt, med kontakt under -->
+          <template v-if="match.referee && !showRefereePicker">
+            <button type="button" class="picker-result" @click="showRefereePicker = true">
+              <span class="picker-result__name">{{ match.referee }}</span>
+              <span class="picker-result__change">Bytt</span>
+            </button>
+          </template>
+
+          <!-- Picker åpen — velg blant dommere -->
+          <div v-else-if="showRefereePicker" class="referee-pills">
             <button
               v-for="r in referees"
               :key="r.id"
@@ -855,7 +869,16 @@ function focusSummaryGroup() {
             </button>
           </div>
 
-          <div v-if="selectedReferee" class="referee-contact">
+          <!-- Mangler dommer — én knapp -->
+          <button v-else type="button" class="picker-trigger" @click="showRefereePicker = true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Velg dommer
+          </button>
+
+          <div v-if="selectedReferee && !showRefereePicker" class="referee-contact">
             <template v-if="selectedReferee.phone">
               <div class="referee-contact__phone">{{ formatPhone(selectedReferee.phone) }}</div>
               <div class="referee-contact__actions">
@@ -907,7 +930,20 @@ function focusSummaryGroup() {
         <!-- Hvem la ut -->
         <div class="sub-section">
           <div class="sub-section__label sub-section__label--soft">Hvem la ut?</div>
-          <div class="payer-grid">
+
+          <!-- Valgt utlegger — kompakt -->
+          <button
+            v-if="expense && !showPayerPicker"
+            type="button"
+            class="picker-result"
+            @click="showPayerPicker = true"
+          >
+            <span class="picker-result__name">{{ payerSummary }}</span>
+            <span class="picker-result__change">Bytt</span>
+          </button>
+
+          <!-- Picker åpen — velg trener -->
+          <div v-else-if="showPayerPicker" class="payer-grid">
             <button
               v-for="c in coaches"
               :key="c.id"
@@ -920,6 +956,15 @@ function focusSummaryGroup() {
               </svg>
             </button>
           </div>
+
+          <!-- Ingen utlegger — én knapp -->
+          <button v-else type="button" class="picker-trigger" @click="showPayerPicker = true">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Velg hvem som la ut
+          </button>
         </div>
       </DisclosureSection>
 
@@ -1700,6 +1745,67 @@ function focusSummaryGroup() {
 .referee-pill--other svg {
   width: 14px;
   height: 14px;
+}
+
+/* Progressive picker — trigger-knapp når tomt, kompakt resultat når valgt */
+.picker-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1.5px dashed var(--ds-color-border);
+  border-radius: var(--ds-radius-full);
+  background: transparent;
+  font-family: var(--ds-font-body);
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  transition: all 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.picker-trigger:hover {
+  border-color: var(--ds-color-text-tertiary);
+  color: var(--ds-color-text-primary);
+}
+
+.picker-trigger svg {
+  width: 14px;
+  height: 14px;
+}
+
+.picker-result {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 8px 7px 14px;
+  border: 1px solid var(--ds-color-border-light);
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-elevated);
+  font-family: var(--ds-font-body);
+  cursor: pointer;
+  transition: border-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.picker-result:hover {
+  border-color: var(--ds-color-text-tertiary);
+}
+
+.picker-result__name {
+  font-size: 0.875rem;
+  font-weight: 600;
+  color: var(--ds-color-text-primary);
+}
+
+.picker-result__change {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--ds-color-text-tertiary);
+  padding: 4px 10px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-subtle, var(--ds-color-border-light));
 }
 
 /* Referee contact block (phone + Ring/SMS/Vipps) */
