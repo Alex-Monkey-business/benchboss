@@ -16,7 +16,7 @@ function isoDaysFrom(today, days) {
 
 // Returnerer maks 3 påminnelser: { kind, title, body, matchId }.
 // excludeMatchIds: dagens kamper — de dekkes av kampkortets egen sjekkliste.
-export function buildReminders({ matches, coachId, getCoachesForMatch, getExpenseForMatch, today = localISODate(), excludeMatchIds = [] }) {
+export function buildReminders({ matches, coachId, getCoachesForMatch, getExpenseForMatch, today = localISODate(), excludeMatchIds = [], dismissedKeys = new Set() }) {
   if (!coachId) return []
   const excluded = new Set(excludeMatchIds)
   const mine = (m) => getCoachesForMatch(m.id).includes(coachId)
@@ -40,6 +40,8 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
     const when = relativeDateLabel(m.match_date).toLowerCase()
     reminders.push({
       kind: 'no-ref',
+      tone: 'urgent',
+      dismissable: false,
       title: `Dommer mangler til kampen mot ${m.away_team}`,
       body: `Hjemmekamp ${when}${time && time !== '00:00' ? ` kl. ${time}` : ''} — ordne dommer før avspark.`,
       matchId: m.id
@@ -63,6 +65,8 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
     const opponent = isHomeMatch(m) ? m.away_team : m.home_team
     reminders.push({
       kind: 'no-result',
+      tone: 'urgent',
+      dismissable: false,
       title: resultLess.length === 1
         ? `Resultat mangler fra kampen mot ${opponent}`
         : `${resultLess.length} kamper mangler resultat`,
@@ -87,6 +91,8 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
     const m = pendingExpense[0]
     reminders.push({
       kind: 'pending-expense',
+      tone: 'soft',
+      dismissable: true,
       title: pendingExpense.length === 1
         ? `Utlegg venter fra kampen mot ${m.away_team}`
         : `${pendingExpense.length} kamper venter på utlegg`,
@@ -116,6 +122,8 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
     const opponent = isHomeMatch(m) ? m.away_team : m.home_team
     reminders.push({
       kind: 'no-report',
+      tone: 'soft',
+      dismissable: true,
       title: reportLess.length === 1
         ? `Referat mangler fra kampen mot ${opponent}`
         : `${reportLess.length} kamper mangler referat`,
@@ -126,5 +134,7 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
     })
   }
 
-  return reminders.slice(0, MAX_REMINDERS)
+  return reminders
+    .filter(r => !dismissedKeys.has(`${r.kind}:${r.matchId}`))
+    .slice(0, MAX_REMINDERS)
 }

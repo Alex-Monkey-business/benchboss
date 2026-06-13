@@ -13,6 +13,16 @@ const illoPng = computed(() => props.session.illustration ? ILLO_BASE + props.se
 
 const drillCount = computed(() => (props.session.drills || []).length)
 const drillLabel = computed(() => drillCount.value === 1 ? '1 øvelse' : `${drillCount.value} øvelser`)
+
+// Focus er skrevet som «[Kort tema]. [Detalj].» — splitt så temaet blir hero
+// og detaljen dempet støttetekst. Skannbart i ett blikk, ikke en vegg.
+const focusParts = computed(() => {
+  const f = (props.session.focus || '').trim()
+  if (!f) return { lead: props.session.title || '', detail: '' }
+  const m = f.match(/^(.+?[.!?])\s+(.+)$/s)
+  if (m && m[1].length <= 48) return { lead: m[1], detail: m[2] }
+  return { lead: f, detail: '' }
+})
 </script>
 
 <template>
@@ -22,9 +32,9 @@ const drillLabel = computed(() => drillCount.value === 1 ? '1 øvelse' : `${dril
     :data-accent="session.accent || 'warm'"
   >
     <div class="today-training__content">
-      <span class="today-training__kicker">Trening i dag — dagens fokus</span>
-      <p v-if="session.focus" class="today-training__focus">{{ session.focus }}</p>
-      <p v-else class="today-training__focus today-training__focus--empty">{{ session.title }}</p>
+      <span class="today-training__kicker">Trening i dag</span>
+      <p class="today-training__title">{{ focusParts.lead }}</p>
+      <p v-if="focusParts.detail" class="today-training__focus">{{ focusParts.detail }}</p>
       <span v-if="drillCount" class="today-training__meta">{{ drillLabel }}</span>
     </div>
     <picture v-if="session.illustration" class="today-training__illo">
@@ -69,17 +79,31 @@ const drillLabel = computed(() => drillCount.value === 1 ? '1 øvelse' : `${dril
   color: var(--accent-text, var(--ds-color-text-secondary));
 }
 
-.today-training__focus {
+/* Hero: det korte temaet — punchy, skannbart, maks to linjer. */
+.today-training__title {
   margin: 0;
   font-family: var(--ds-font-heading);
-  font-size: var(--ds-text-xl);
-  line-height: 1.3;
+  font-size: var(--ds-text-lg);
+  line-height: 1.2;
   letter-spacing: -0.01em;
   color: var(--ds-color-text-primary);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
-.today-training__focus--empty {
-  font-size: var(--ds-text-lg);
+/* Detalj: dempet støttetekst under temaet, klemt til to linjer. */
+.today-training__focus {
+  margin: 0;
+  font-size: var(--ds-text-sm);
+  line-height: 1.4;
+  color: var(--accent-text, var(--ds-color-text-secondary));
+  opacity: 0.85;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
 }
 
 .today-training__meta {

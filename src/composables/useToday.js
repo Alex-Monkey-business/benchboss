@@ -15,6 +15,7 @@ import { useMatchMode } from './useMatchMode'
 import { localISODate, isoWeekday } from '../lib/dateLabels'
 import { isHalsenMatch, isHomeMatch, teamColorsForMatch } from '../lib/matchMeta'
 import { buildReminders } from '../lib/reminders'
+import { useDismissedReminders } from './useDismissedReminders'
 import { cupTeam } from '../lib/cupTeams'
 
 // Egen modul-state. NB: ikke gjenbruk useMatchMode.fetchSession her —
@@ -24,6 +25,7 @@ const loading = ref(false)
 
 export function useToday() {
   const { coach } = useAuth()
+  const { dismissed } = useDismissedReminders()
   const { activeSeason, fetchSeasons } = useSeasons()
   const { matches, fetchMatches, getCoachesForMatch, getPlayersForMatch } = useMatches()
   const { fetchCoaches } = useCoaches()
@@ -93,7 +95,8 @@ export function useToday() {
     coachId: coach.value?.id,
     getCoachesForMatch,
     getExpenseForMatch,
-    excludeMatchIds: todayMatches.value.map(m => m.id)
+    excludeMatchIds: todayMatches.value.map(m => m.id),
+    dismissedKeys: dismissed.value
   }))
 
   // Neste forekomst av en ukedag etter `after`, klippet til periodens slutt.
