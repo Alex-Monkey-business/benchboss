@@ -7,6 +7,7 @@ import { useCoaches } from '../composables/useCoaches'
 import { useReferees } from '../composables/useReferees'
 import { usePlayers } from '../composables/usePlayers'
 import { useMatchGoals } from '../composables/useMatchGoals'
+import { useMatchMode } from '../composables/useMatchMode'
 import { useAuth } from '../stores/auth'
 import { useToast } from '../composables/useToast'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -25,6 +26,7 @@ const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
 const { players, fetchPlayers, addPlayer, getPlayerById } = usePlayers()
 const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals()
+const { session: mmSession, fetchSession: fetchMmSession } = useMatchMode()
 const { coach: currentCoach } = useAuth()
 const { show: showToast } = useToast()
 
@@ -77,7 +79,8 @@ onMounted(async () => {
     if (match.value.season_id) await fetchMatches(match.value.season_id)
     await Promise.all([
       fetchExpenses([match.value.id]),
-      fetchMatchGoals(match.value.id)
+      fetchMatchGoals(match.value.id),
+      fetchMmSession(match.value.id)
     ])
     refereeInput.value = match.value.referee || ''
     matchCoachIds.value = await fetchMatchCoaches(match.value.id)
@@ -453,6 +456,43 @@ const hasResult = computed(() => {
     && match.value?.away_score !== null && match.value?.away_score !== undefined
 })
 
+// ─── Match mode-CTA: label + tone følger kampens livsløp ──────────────────────
+// Knappen skal speile neste meningsfulle handling, ikke alltid skrike «start nå».
+const hasLineup = computed(() => {
+  const l = mmSession.value?.lineup
+  return !!l && Object.keys(l).length > 0
+})
+
+const minutesToKickoff = computed(() => {
+  if (!match.value?.match_date) return null
+  const t = (match.value.match_time || '').slice(0, 5)
+  const time = t && t !== '00:00' ? t : '12:00'
+  const d = new Date(`${match.value.match_date}T${time}:00`)
+  if (Number.isNaN(d.getTime())) return null
+  return Math.round((d.getTime() - Date.now()) / 60000)
+})
+
+// tone: 'live' | 'start' | 'prep' | 'quiet' — styrer både ordlyd og visuell tyngde
+const matchModeCta = computed(() => {
+  const status = mmSession.value?.status
+  if (status === 'finished' || hasResult.value) {
+    return { label: 'Se spilletid', tone: 'quiet', icon: 'bars' }
+  }
+  if (status === 'running' || status === 'paused') {
+    return { label: 'Tilbake til kampen', tone: 'live', icon: 'live' }
+  }
+  const mins = minutesToKickoff.value
+  if (mins !== null && mins <= 60) {
+    return { label: 'Start kamp', tone: 'start', icon: 'play' }
+  }
+  if (mins !== null && mins <= 180) {
+    return { label: 'Gjør klart til kamp', tone: 'prep', icon: 'clock' }
+  }
+  return hasLineup.value
+    ? { label: 'Se laget', tone: 'quiet', icon: 'grid' }
+    : { label: 'Sett opp lag', tone: 'prep', icon: 'grid' }
+})
+
 function isValidScore(v) {
   if (v === '' || v === null || v === undefined) return false
   const n = Number(v)
@@ -810,18 +850,33 @@ function focusSummaryGroup() {
       </div>
     </div>
 
-    <!-- Match mode — live spilletid & bytter -->
+    <!-- Match mode — label + tyngde følger kampens livsløp -->
     <div class="px-lg mt-lg">
-      <button type="button" class="match-mode-cta" @click="router.push(`/kamp/${match.id}/live`)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <button
+        type="button"
+        class="match-mode-cta"
+        :class="`match-mode-cta--${matchModeCta.tone}`"
+        @click="router.push(`/kamp/${match.id}/live`)"
+      >
+        <span v-if="matchModeCta.icon === 'live'" class="match-mode-cta__dot" aria-hidden="true"></span>
+        <svg v-else-if="matchModeCta.icon === 'play'" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+          <polygon points="6 4 20 12 6 20 6 4"/>
+        </svg>
+        <svg v-else-if="matchModeCta.icon === 'clock'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>
         </svg>
-        Match mode
+        <svg v-else-if="matchModeCta.icon === 'grid'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/>
+        </svg>
+        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="8"/><line x1="18" y1="20" x2="18" y2="11"/>
+        </svg>
+        {{ matchModeCta.label }}
       </button>
     </div>
 
     <!-- Action sections — 3 grouped disclosures (collapsed = lese, expanded = edit) -->
-    <div class="px-lg mt-lg detail-disclosures">
+    <div class="mt-lg detail-disclosures">
 
       <!-- Gruppe 1: Dommer & utlegg (kun på hjemmekamper — vi har ikke dommer-ansvar borte) -->
       <DisclosureSection
@@ -1561,6 +1616,33 @@ function focusSummaryGroup() {
   transform: scale(0.98);
 }
 
+/* Tone: live + start = full tyngde (arver accent). prep = outline. quiet = nøytral. */
+.match-mode-cta--prep {
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-accent);
+}
+
+.match-mode-cta--quiet {
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-secondary);
+  border-color: transparent;
+  font-weight: var(--ds-weight-semibold);
+}
+
+.match-mode-cta__dot {
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  background: currentColor;
+  animation: cta-dot-pulse 1.5s ease-out infinite;
+}
+
+@keyframes cta-dot-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0.55); }
+  70% { box-shadow: 0 0 0 7px rgba(255, 255, 255, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
+}
+
 .match-detail-card .match-card__top {
   display: flex;
   align-items: center;
@@ -1761,13 +1843,18 @@ function focusSummaryGroup() {
   font-weight: 500;
   color: var(--ds-color-text-secondary);
   cursor: pointer;
-  transition: all 0.15s ease;
+  transition: border-color 0.15s ease, color 0.15s ease, transform 0.13s cubic-bezier(0.23, 1, 0.32, 1);
   -webkit-tap-highlight-color: transparent;
 }
 
 .picker-trigger:hover {
   border-color: var(--ds-color-text-tertiary);
   color: var(--ds-color-text-primary);
+}
+
+.picker-trigger:active,
+.picker-result:active {
+  transform: scale(0.97);
 }
 
 .picker-trigger svg {
@@ -1785,7 +1872,7 @@ function focusSummaryGroup() {
   background: var(--ds-color-bg-elevated);
   font-family: var(--ds-font-body);
   cursor: pointer;
-  transition: border-color 0.15s ease;
+  transition: border-color 0.15s ease, transform 0.13s cubic-bezier(0.23, 1, 0.32, 1);
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -2260,10 +2347,48 @@ function focusSummaryGroup() {
 }
 
 /* ─── Sub-sections inni grupperte disclosures ─────────────────────────── */
+/* Samlet detaljliste: tre seksjoner som ÉN overflate med hårfine skillelinjer,
+   så kamp-kort + CTA over står som egne høyder. Chipsene bærer fargen. */
 .detail-disclosures {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 0;
+  /* Kortet sitter i samme side-gutter som kamp-kort/CTA over. Intern padding
+     kommer fra disclosure-radene selv, så px-lg her ville fullbleede kanten. */
+  margin-left: var(--ds-space-lg);
+  margin-right: var(--ds-space-lg);
+  background: var(--ds-color-bg-elevated);
+  border: 1px solid var(--ds-color-border-light);
+  border-radius: 14px;
+  overflow: hidden;
+}
+
+/* Disclosurene mister egen kort-chrome inne i den samlede flaten. */
+.detail-disclosures :deep(.disclosure) {
+  border: none;
+  border-radius: 0;
+  background: transparent;
+  box-shadow: none;
+  /* Skillelinje mellom seksjoner; -1px kollapser toppen mot container-rammen
+     uansett flex-order, så ingen dobbel strek i topp/bunn. */
+  border-top: 1px solid var(--ds-color-border-light);
+  margin-top: -1px;
+}
+
+/* Åpen seksjon blir værende på den hvite flaten — ingen grå fyll, ingen
+   skygge. Skillelinja holdes hårfin (ikke den mørkere åpen-borderen). */
+.detail-disclosures :deep(.disclosure--open) {
+  border-top-color: var(--ds-color-border-light);
+  box-shadow: none;
+  background: transparent;
+}
+
+/* Skarpere seksjons-eyebrow: mindre, mer tracking, ankrer hierarkiet uten
+   å konkurrere med chips/innhold. */
+.detail-disclosures :deep(.disclosure__label) {
+  font-size: 12px;
+  letter-spacing: 0.06em;
+  color: var(--ds-color-text-tertiary);
 }
 
 .sub-section {

@@ -476,7 +476,7 @@ const summary = computed(() =>
       </div>
 
       <div v-if="unassigned.length" class="mm__poolnote">
-        Ikke plassert: <span class="mm__poolnames">{{ unassigned.map(p => firstName(p.name)).join(', ') }}</span>
+        {{ lineupComplete ? 'På benken' : 'Ikke plassert' }}: <span class="mm__poolnames">{{ unassigned.map(p => firstName(p.name)).join(', ') }}</span>
       </div>
       <div v-if="!squad.length" class="mm__empty">Ingen spillere i troppen for dette laget.</div>
 
@@ -486,7 +486,8 @@ const summary = computed(() =>
     </div>
 
     <!-- ── LIVE ─────────────────────────────────────────────── -->
-    <div v-else-if="phase === 'live'" class="mm__wrap">
+    <div v-else-if="phase === 'live'" class="mm__live">
+      <div class="mm__cockpit-top">
       <div class="mm__clockrow">
         <div class="mm__clockwrap">
           <div class="mm__clock" :class="{ 'mm__clock--paused': !isRunning }">{{ fmt(currentClock) }}</div>
@@ -523,8 +524,10 @@ const summary = computed(() =>
           {{ firstName(playerById(g.player_id)?.name) || 'Ukjent' }}
         </span>
       </div>
+      </div>
 
-      <div class="pitch">
+      <div class="mm__pitch-area">
+      <div class="pitch pitch--live">
         <div class="pitch__turf" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
         <div class="pitch__lines" aria-hidden="true">
           <span class="pitch__circle"></span>
@@ -556,9 +559,11 @@ const summary = computed(() =>
           </span>
         </button>
       </div>
+      </div>
 
-      <div class="mm__section-label">Benk</div>
-      <div class="mm__bench">
+      <div class="mm__cockpit-bottom">
+        <div v-if="armedBenchId" class="mm__sub-hint">Tapp spilleren som skal ut</div>
+        <div class="mm__bench mm__bench--bar">
         <button
           v-for="p in bench"
           :key="p.id"
@@ -571,6 +576,7 @@ const summary = computed(() =>
           <span class="mm__btime">{{ fmt(p.sec) }}</span>
         </button>
         <div v-if="!bench.length" class="mm__empty mm__empty--inline">Ingen på benken</div>
+        </div>
       </div>
     </div>
 
@@ -709,6 +715,95 @@ const summary = computed(() =>
 <style scoped>
 .mm { min-height: 100vh; background: var(--ds-color-bg); padding-bottom: var(--ds-space-2xl); }
 .mm__wrap { padding: var(--ds-space-lg); max-width: 560px; margin: 0 auto; }
+
+/* ── Live cockpit: låst til viewport, null scroll for treneren på sidelinja.
+   Kompakt topp (klokke+kontroller+score) → banen flekser inn i midten →
+   benken som bunn-bar. ── */
+.mm:has(.mm__live) {
+  height: 100dvh;
+  min-height: 0;
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.mm__live {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 560px;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  padding: var(--ds-space-md) var(--ds-space-lg) 0;
+  box-sizing: border-box;
+}
+.mm__cockpit-top { flex: none; }
+.mm__pitch-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ds-space-sm) 0;
+}
+.pitch--live {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  margin: 0;
+}
+.mm__cockpit-bottom {
+  flex: none;
+  border-top: 1px solid var(--ds-color-border-light);
+  margin: 0 calc(-1 * var(--ds-space-lg));
+  padding: var(--ds-space-sm) var(--ds-space-lg) max(var(--ds-space-sm), env(safe-area-inset-bottom));
+}
+
+/* Kompaktere topp i cockpit — klokkerad mister sticky + breakout */
+.mm__live .mm__clockrow {
+  position: static;
+  margin: 0;
+  padding: 0;
+  border-bottom: none;
+  top: auto;
+  background: transparent;
+}
+.mm__live .mm__clock { font-size: 2.5rem; }
+.mm__live .mm__score {
+  margin-top: var(--ds-space-sm);
+  padding: var(--ds-space-sm) var(--ds-space-md);
+}
+.mm__live .mm__score-dash { padding-top: 16px; }
+
+/* Scorere på én linje (horisontal scroll, ingen scrollbar) */
+.mm__live .mm__scorers {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  margin-top: var(--ds-space-sm);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.mm__live .mm__scorers::-webkit-scrollbar { display: none; }
+.mm__live .mm__scorer { white-space: nowrap; }
+
+/* Benk som bunn-bar */
+.mm__bench--bar {
+  flex-wrap: nowrap;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  padding-bottom: 2px;
+}
+.mm__bench--bar::-webkit-scrollbar { display: none; }
+.mm__bench--bar .mm__bchip { flex: none; }
+
+.mm__sub-hint {
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-accent);
+  margin-bottom: var(--ds-space-sm);
+}
 
 .mm__bar {
   display: flex; align-items: center; gap: var(--ds-space-sm);

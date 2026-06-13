@@ -1,5 +1,5 @@
 // Påminnelser for hjem-skjermen — rene funksjoner, ingen state.
-// Rangert etter hastegrad: dommer (tidskritisk) → resultat → utlegg.
+// Rangert etter hastegrad: dommer (tidskritisk) → resultat → utlegg → referat.
 
 import { shortRelativeDate, relativeDateLabel, localISODate } from './dateLabels'
 import { isHomeMatch, isHalsenMatch, isPlayed, hasResult } from './matchMeta'
@@ -93,6 +93,35 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
       body: pendingExpense.length === 1
         ? 'Registrer Vipps-utlegget når du har et øyeblikk.'
         : `Den siste er mot ${m.away_team}, ${shortRelativeDate(m.match_date).toLowerCase()}.`,
+      matchId: m.id
+    })
+  }
+
+  // 4. Referat mangler på nylig spilt kamp der resultatet er inne (lavest hast —
+  //    først når tallene finnes; ellers dekker «resultat mangler» kampen alt).
+  const reportFloor = isoDaysFrom(today, -RESULT_LOOKBACK_DAYS)
+  const reportLess = matches
+    .filter(m =>
+      isHalsenMatch(m) &&
+      !excluded.has(m.id) &&
+      m.match_date >= reportFloor &&
+      m.match_date <= today &&
+      isPlayed(m) &&
+      hasResult(m) &&
+      !(m.report || '').trim()
+    )
+    .sort((a, b) => b.match_date.localeCompare(a.match_date))
+  if (reportLess.length > 0) {
+    const m = reportLess[0]
+    const opponent = isHomeMatch(m) ? m.away_team : m.home_team
+    reminders.push({
+      kind: 'no-report',
+      title: reportLess.length === 1
+        ? `Referat mangler fra kampen mot ${opponent}`
+        : `${reportLess.length} kamper mangler referat`,
+      body: reportLess.length === 1
+        ? 'Resultatet er inne — skriv noen ord mens kampen er fersk.'
+        : `Den siste er mot ${opponent}, ${shortRelativeDate(m.match_date).toLowerCase()}.`,
       matchId: m.id
     })
   }
