@@ -114,7 +114,8 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
       m.match_date <= today &&
       isPlayed(m) &&
       hasResult(m) &&
-      !(m.report || '').trim()
+      !(m.report || '').trim() &&
+      mine(m)
     )
     .sort((a, b) => b.match_date.localeCompare(a.match_date))
   if (reportLess.length > 0) {

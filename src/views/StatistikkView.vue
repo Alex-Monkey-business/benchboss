@@ -222,6 +222,8 @@ const playerStats = computed(() => {
 // Vises kollapset (topp 5) som standard — listen er for gøy, ikke styring.
 const SCORER_LIMIT = 5
 const showAllScorers = ref(false)
+// Spilletid er sparsom til match mode er ordentlig i bruk — kollapset som default.
+const showPlaytime = ref(false)
 const topScorers = computed(() => {
   const counts = {}
   allGoals.value.forEach(g => {
@@ -457,36 +459,6 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
       </div>
     </div>
 
-    <!-- Spilletid — fra match mode, per lag -->
-    <div v-if="playtimeByTeam.length > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-3">
-      <div class="stat-section-label">Spilletid</div>
-      <div class="playtime-note">
-        Basert på {{ playtimeCoverage }} {{ playtimeCoverage === 1 ? 'kamp' : 'kamper' }} i kampmodus
-      </div>
-      <div v-for="group in playtimeByTeam" :key="group.key" class="playtime-group">
-        <div class="playtime-group__head">
-          <span v-if="group.key !== 'annet'" :class="['standings__dot', `standings__dot--${group.key}`]" aria-hidden="true"></span>
-          {{ group.label }}
-        </div>
-        <div v-for="item in group.rows" :key="item.id" class="playtime-row">
-          <span class="playtime-row__name">
-            {{ item.name }}
-            <span v-if="item.keeperSec > 0" class="playtime-keeper">keeper {{ minutes(item.keeperSec) }} min</span>
-          </span>
-          <span class="playtime-row__bar-track">
-            <span
-              :class="['playtime-row__bar', `playtime-row__bar--${group.key}`]"
-              :style="{ width: group.max ? Math.max(4, Math.round(item.totalSec / group.max * 100)) + '%' : '0%' }"
-            ></span>
-          </span>
-          <span class="playtime-row__nums">
-            <span class="playtime-row__total">{{ minutes(item.totalSec) }} min</span>
-            <span class="playtime-row__avg">snitt {{ minutes(item.avgSec) }}</span>
-          </span>
-        </div>
-      </div>
-    </div>
-
     <!-- Toppscorere — bare for gøy, derfor under styringsdataene -->
     <div class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-3">
       <div class="stat-section-label">Toppscorere</div>
@@ -510,6 +482,45 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
         >
           {{ showAllScorers ? 'Vis færre' : `Vis alle (${topScorers.length})` }}
         </button>
+      </div>
+    </div>
+
+    <!-- Spilletid — fra match mode. Sparsom til kampmodus er i bruk, derfor
+         kollapset som default, under toppscorere. -->
+    <div v-if="playtimeByTeam.length > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-4">
+      <button
+        type="button"
+        class="stat-collapse-head"
+        :aria-expanded="showPlaytime"
+        @click="showPlaytime = !showPlaytime"
+      >
+        <span class="stat-section-label stat-section-label--bare">Spilletid</span>
+        <span class="stat-collapse-head__meta">{{ playtimeCoverage }} {{ playtimeCoverage === 1 ? 'kamp' : 'kamper' }}</span>
+        <svg class="stat-collapse-head__chevron" :class="{ 'stat-collapse-head__chevron--open': showPlaytime }" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div v-if="showPlaytime" class="stat-collapse-body ds-anim-fade-up">
+        <div v-for="group in playtimeByTeam" :key="group.key" class="playtime-group">
+          <div class="playtime-group__head">
+            <span v-if="group.key !== 'annet'" :class="['standings__dot', `standings__dot--${group.key}`]" aria-hidden="true"></span>
+            {{ group.label }}
+          </div>
+          <div v-for="item in group.rows" :key="item.id" class="playtime-row">
+            <span class="playtime-row__name">
+              {{ item.name }}
+              <span v-if="item.keeperSec > 0" class="playtime-keeper">keeper {{ minutes(item.keeperSec) }} min</span>
+            </span>
+            <span class="playtime-row__bar-track">
+              <span
+                :class="['playtime-row__bar', `playtime-row__bar--${group.key}`]"
+                :style="{ width: group.max ? Math.max(4, Math.round(item.totalSec / group.max * 100)) + '%' : '0%' }"
+              ></span>
+            </span>
+            <span class="playtime-row__nums">
+              <span class="playtime-row__total">{{ minutes(item.totalSec) }} min</span>
+              <span class="playtime-row__avg">snitt {{ minutes(item.avgSec) }}</span>
+            </span>
+          </div>
+        </div>
       </div>
     </div>
 
@@ -542,13 +553,6 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 
 <style scoped>
 /* Spilletid per lag — barer er relative til lagets toppspiller */
-.playtime-note {
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-tertiary);
-  padding: 0 4px;
-  margin: -4px 0 10px;
-}
-
 .playtime-group {
   background: var(--ds-color-bg-elevated);
   border: var(--ds-border-width) solid var(--ds-color-border);
@@ -738,6 +742,43 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   padding: 0 4px;
   margin-bottom: 8px;
 }
+
+/* Kollapsbar seksjon (Spilletid) — header som toggler, summary til høyre. */
+.stat-section-label--bare {
+  margin-bottom: 0;
+  padding: 0;
+}
+
+.stat-collapse-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 6px 4px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-family: var(--ds-font-body);
+  text-align: left;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.stat-collapse-head:active { transform: scale(0.99); }
+
+.stat-collapse-head__meta {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+  margin-left: auto;
+}
+
+.stat-collapse-head__chevron {
+  color: var(--ds-color-text-tertiary);
+  transition: transform 240ms cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.stat-collapse-head__chevron--open { transform: rotate(180deg); }
+
+.stat-collapse-body { padding-top: 12px; }
 
 .missing-result-note {
   display: flex;
