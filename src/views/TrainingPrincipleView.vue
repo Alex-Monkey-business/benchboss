@@ -42,6 +42,14 @@ function goTo(slug) {
       <blockquote v-if="principle.quote" class="principle__quote">
         {{ principle.quote }}
       </blockquote>
+
+      <img
+        v-if="principle.illustration"
+        class="principle__illo"
+        :src="`/illustrations/bench-boss-transparent-library/${principle.illustration}`"
+        alt=""
+        loading="lazy"
+      />
     </article>
 
     <nav class="principle__pager">
@@ -225,6 +233,13 @@ function goTo(slug) {
   font-weight: var(--ds-weight-regular);
   line-height: 1.4;
   letter-spacing: -0.01em;
+}
+
+.principle__illo {
+  display: block;
+  width: 168px;
+  height: auto;
+  margin: var(--ds-space-xl) auto 0;
 }
 
 /* ---- Pager ---- */

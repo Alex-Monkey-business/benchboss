@@ -19,6 +19,7 @@ function open(slug) {
     </div>
 
     <header class="handbook__hero">
+      <img class="handbook__icon" src="/illustrations/bench-boss-feature-icons/512/training-handbook-transparent.png" alt="" />
       <span class="handbook__eyebrow">Trener-håndbok</span>
       <h1 class="handbook__title">Slik trener vi&nbsp;G2015</h1>
       <p class="handbook__lead">
@@ -103,6 +104,13 @@ function open(slug) {
 /* ---- Hero ---- */
 .handbook__hero {
   margin-bottom: var(--ds-space-2xl);
+}
+
+.handbook__icon {
+  width: 104px;
+  height: auto;
+  display: block;
+  margin-bottom: var(--ds-space-md);
 }
 
 .handbook__eyebrow {
