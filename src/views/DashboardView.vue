@@ -332,6 +332,7 @@ function getCoachNamesForMatch(matchId) {
     <div v-else>
       <div v-if="displayedCount === 0" class="px-lg">
         <div class="ds-empty">
+          <img src="/illustrations/bench-boss-feature-icons/512/matches-transparent.png" alt="" class="ds-empty__illo" />
           <h3 class="ds-empty__title">
             {{ timeFilter === 'past' ? 'Ingen tidligere kamper' : 'Ingen kommende kamper' }}
           </h3>
