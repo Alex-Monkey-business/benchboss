@@ -80,6 +80,7 @@ onMounted(async () => {
 
     <!-- Tom tilstand — ingen perioder ennå -->
     <div v-else class="ds-empty">
+      <img src="/illustrations/bench-boss-feature-icons/512/training-plan-transparent.png" alt="" class="ds-empty__illo" />
       <div class="ds-empty__title">Ingen perioder ennå</div>
       <div class="ds-empty__description">Lag den første perioden og legg inn øktene fra Messenger.</div>
       <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="openSheet">Ny periode</button>

@@ -22,6 +22,14 @@
   color: var(--ds-color-text-tertiary);
 }
 
+/* Clay-illustrasjon — varmt anker på fullsides tomme skjermer. Full farge,
+   beskjeden størrelse: vennlig, ikke utvasket som det gamle __image. */
+.ds-empty__illo {
+  width: 112px;
+  height: auto;
+  margin-bottom: var(--ds-space-lg);
+}
+
 /* Legacy image support — kept but pushed back visually */
 .ds-empty__image {
   width: 88px;

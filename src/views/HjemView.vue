@@ -117,6 +117,7 @@ function coachNamesForMatch(matchId) {
       </section>
 
       <div v-if="showEmpty" class="ds-empty ds-anim-fade-up ds-anim-delay-1">
+        <img src="/illustrations/bench-boss-feature-icons/512/dashboard-home-transparent.png" alt="" class="ds-empty__illo" />
         <h3 class="ds-empty__title">Ingenting på planen</h3>
         <p class="ds-empty__description">Ingen kamper eller treninger fremover — nyt friheten.</p>
       </div>

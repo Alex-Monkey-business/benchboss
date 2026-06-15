@@ -323,7 +323,7 @@ function getCoachNamesForMatch(matchId) {
 
     <div v-else-if="filteredMatches.length === 0" class="px-lg ds-anim-fade-up ds-anim-delay-3">
       <div class="ds-empty">
-        <img src="/illustrations/calendar.png" alt="" class="empty-illustration" />
+        <img src="/illustrations/bench-boss-feature-icons/512/matches-transparent.png" alt="" class="ds-empty__illo" />
         <h3 class="ds-empty__title">Ingen kamper enda</h3>
         <p class="ds-empty__description">Last opp kampprogram fra Mer-fanen</p>
       </div>
