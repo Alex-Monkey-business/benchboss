@@ -589,7 +589,7 @@ const summary = computed(() =>
     <div v-else-if="!match" class="mm__empty">Fant ikke kampen.</div>
 
     <!-- ── SETUP ────────────────────────────────────────────── -->
-    <div v-else-if="phase === 'setup'" class="mm__wrap">
+    <div v-else-if="phase === 'setup'" class="mm__setup">
       <div class="mm__setup-head">
         <h1 class="mm__h1">Sett opp laget</h1>
         <transition name="mm-saved">
@@ -600,6 +600,7 @@ const summary = computed(() =>
         </transition>
       </div>
 
+      <div class="mm__setup-pitch">
       <div ref="pitchEl" class="pitch">
         <div class="pitch__turf" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
         <div class="pitch__lines" aria-hidden="true">
@@ -649,18 +650,21 @@ const summary = computed(() =>
           <span class="marker__circle">{{ initial(playerById(dragId)?.name) }}</span>
         </div>
       </div>
-
-      <div v-if="dragId" class="mm__draghint">Slipp på en spiller for å bytte plass</div>
-      <div v-else-if="assignedIds.size" class="mm__draghint mm__draghint--tip">Hold inne og dra for å bytte plass</div>
-
-      <div v-if="unassigned.length" class="mm__poolnote">
-        {{ lineupComplete ? 'På benken' : 'Ikke plassert' }}: <span class="mm__poolnames">{{ unassigned.map(p => firstName(p.name)).join(', ') }}</span>
       </div>
-      <div v-if="!squad.length" class="mm__empty">Ingen spillere i troppen for dette laget.</div>
 
-      <button type="button" class="mm__start" :disabled="!lineupComplete" @click="handleStart">
-        {{ lineupComplete ? 'Start kamp' : `Plasser ${FORMATION.length - Object.keys(assignments).length} til` }}
-      </button>
+      <div class="mm__setup-bottom">
+        <div v-if="dragId" class="mm__draghint">Slipp på en spiller for å bytte plass</div>
+        <div v-else-if="assignedIds.size" class="mm__draghint mm__draghint--tip">Hold inne og dra for å bytte plass</div>
+
+        <div v-if="unassigned.length" class="mm__poolnote">
+          {{ lineupComplete ? 'På benken' : 'Ikke plassert' }}: <span class="mm__poolnames">{{ unassigned.map(p => firstName(p.name)).join(', ') }}</span>
+        </div>
+        <div v-if="!squad.length" class="mm__empty mm__empty--inline">Ingen spillere i troppen for dette laget.</div>
+
+        <button type="button" class="mm__start" :disabled="!lineupComplete" @click="handleStart">
+          {{ lineupComplete ? 'Start kamp' : `Plasser ${FORMATION.length - Object.keys(assignments).length} til` }}
+        </button>
+      </div>
     </div>
 
     <!-- ── LIVE ─────────────────────────────────────────────── -->
@@ -913,6 +917,50 @@ const summary = computed(() =>
 <style scoped>
 .mm { min-height: 100vh; background: var(--ds-color-bg); padding-bottom: var(--ds-space-2xl); }
 .mm__wrap { padding: var(--ds-space-lg); max-width: 560px; margin: 0 auto; }
+
+/* ── Oppsett: låst til viewport som live — banen flekser i midten, «Start kamp»
+   pinnes nederst så den alltid er synlig uten scroll (klarerer bunnmenyen). ── */
+.mm:has(.mm__setup) {
+  height: 100dvh;
+  min-height: 0;
+  padding-bottom: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+.mm__setup {
+  flex: 1;
+  min-height: 0;
+  width: 100%;
+  max-width: 560px;
+  align-self: center;
+  display: flex;
+  flex-direction: column;
+  padding: var(--ds-space-md) var(--ds-space-lg) 0;
+  box-sizing: border-box;
+}
+.mm__setup .mm__setup-head { flex: none; margin-bottom: var(--ds-space-xs); }
+.mm__setup .mm__h1 { font-size: var(--ds-text-xl); }
+.mm__setup-pitch {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: var(--ds-space-sm) 0;
+}
+.mm__setup-pitch .pitch {
+  height: 100%;
+  width: auto;
+  max-width: 100%;
+  margin: 0;
+}
+.mm__setup-bottom {
+  flex: none;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+}
+.mm__setup-bottom .mm__draghint:first-child { margin-top: 0; }
+.mm__setup-bottom .mm__start { margin-top: var(--ds-space-md); }
 
 /* ── Live cockpit: låst til viewport, null scroll for treneren på sidelinja.
    Kompakt topp (klokke+kontroller+score) → banen flekser inn i midten →
