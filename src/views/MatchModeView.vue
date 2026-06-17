@@ -67,6 +67,8 @@ onMounted(async () => {
   startClockTick()
   requestWakeLock()
   document.addEventListener('visibilitychange', onVisibility)
+  // Ikke-passiv så vi kan stoppe scroll KUN mens et dra er i gang (se drag-blokk).
+  window.addEventListener('touchmove', preventScrollWhileDragging, { passive: false })
 })
 onUnmounted(() => {
   flushLineupSave()
@@ -74,6 +76,7 @@ onUnmounted(() => {
   stopClockTick()
   releaseWakeLock()
   document.removeEventListener('visibilitychange', onVisibility)
+  window.removeEventListener('touchmove', preventScrollWhileDragging)
 })
 
 // ── Lagret oppstilling (setup) ───────────────────────────────────────────────
@@ -296,6 +299,13 @@ async function makeKeeperFromSheet() {
 // Tapp = som før (oppsett: åpne velgeren · live: innbytte-arket). Hold inne og
 // dra en spiller oppå en annen for å bytte plass. I oppsett bytter/flytter vi i
 // `assignments`; live bytter formasjons-slot (og hansker om keeperen er med).
+//
+// Scroll: siden går helt normalt å scrolle. Vi blokkerer scroll KUN mens et dra
+// faktisk pågår, via en ikke-passiv touchmove-lytter (ingen touch-action: none,
+// så et fingertrykk på en spiller stjeler aldri scrollen før long-press slår inn).
+function preventScrollWhileDragging(e) {
+  if (dragId.value && e.cancelable) e.preventDefault()
+}
 const LONG_PRESS_MS = 280
 const MOVE_CANCEL_PX = 12
 const pitchEl = ref(null)
@@ -1050,7 +1060,7 @@ const summary = computed(() =>
   display: flex; flex-direction: column; align-items: center; gap: 5px;
   width: 80px; padding: 0; border: none; background: transparent;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
-  touch-action: none; user-select: none; -webkit-user-select: none;
+  user-select: none; -webkit-user-select: none;
   --jersey-bg: var(--ds-color-accent); --jersey-fg: #fff;
 }
 .marker__circle {
