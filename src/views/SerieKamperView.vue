@@ -3,7 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useSeasons } from '../composables/useSeasons'
 import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
-import { relativeDateLabel, isToday } from '../lib/dateLabels'
+import { relativeDateLabel, isToday, localISODate } from '../lib/dateLabels'
 import { teamColorsForMatch as teamColors, isHomeMatch, isHalsenMatch, teamLabel } from '../lib/matchMeta'
 import TeamFilter from '../components/TeamFilter.vue'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
@@ -45,7 +45,7 @@ function coachNamesForMatch(matchId) {
 // Kun Halsen-kamper (filtrer bort irrelevante rader fra Excel-importen).
 const halsenMatches = computed(() => matches.value.filter(isHalsenMatch))
 
-const today = computed(() => new Date().toISOString().split('T')[0])
+const today = computed(() => localISODate())
 
 const counts = computed(() => {
   const list = halsenMatches.value.filter(m =>

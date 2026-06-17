@@ -9,7 +9,7 @@ import MatchCard from '../components/MatchCard.vue'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import TeamFilter from '../components/TeamFilter.vue'
 import { useStaggerOnce } from '../composables/useStaggerOnce'
-import { relativeDateLabel, isToday, shortRelativeDate } from '../lib/dateLabels'
+import { relativeDateLabel, isToday, shortRelativeDate, localISODate } from '../lib/dateLabels'
 import { teamColorsForMatch } from '../lib/matchMeta'
 import { useRouter } from 'vue-router'
 
@@ -50,7 +50,7 @@ watch(activeSeason, async (s) => {
 // based on current state. Returns null if nothing's actionable.
 const smartPrompt = computed(() => {
   if (!coach.value || loading.value) return null
-  const todayStr = new Date().toISOString().slice(0, 10)
+  const todayStr = localISODate()
 
   // Past HOME matches where I was the assigned coach but no expense logged.
   // (Away matches don't have utlegg.)
@@ -90,7 +90,7 @@ const smartPrompt = computed(() => {
       getCoachesForMatch(m.id).includes(coach.value.id)
     )
     .sort((a, b) => a.match_date.localeCompare(b.match_date))
-  const days7 = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const days7 = localISODate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
   const refLessSoon = refLess.find(m => m.match_date <= days7)
   if (refLessSoon) {
     return {
@@ -167,7 +167,7 @@ const filteredMatches = computed(() => {
   return result
 })
 
-const today = computed(() => new Date().toISOString().split('T')[0])
+const today = computed(() => localISODate())
 
 function isInCurrentTimeFilter(match) {
   if (timeFilter.value === 'past') return match.match_date < today.value

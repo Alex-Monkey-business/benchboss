@@ -2,6 +2,7 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTrainingPeriods } from '../composables/useTrainingPeriods'
+import { localISODate } from '../lib/dateLabels'
 import Sheet from '../components/Sheet.vue'
 import Skeleton from '../components/Skeleton.vue'
 
@@ -31,7 +32,7 @@ function emptyForm() {
 function pickCurrentPeriod() {
   const ps = periods.value
   if (!ps.length) return null
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localISODate()
   const inRange = ps.find(p => p.start_date && p.end_date && p.start_date <= today && today <= p.end_date)
   if (inRange) return inRange
   const openEnded = ps
