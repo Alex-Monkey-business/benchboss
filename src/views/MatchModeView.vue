@@ -401,18 +401,14 @@ function resetDrag() {
   hoverSlot.value = null
   pressInfo = null
 }
-// Oppsett: dra oppå en annen spiller = bytt slot; oppå en tom slot = flytt.
-function moveOrSwapSetup(fromSlot, toSlot) {
+// Oppsett: dra kun for å BYTTE to spillere. Tomme plasser fylles med velgeren
+// (tapp), ikke ved dra — å dra inn på en tom plass ville bare etterlate et hull.
+function swapSetup(fromSlot, toSlot) {
   const a = assignments.value[fromSlot]
-  if (!a) return
   const b = assignments.value[toSlot]
-  if (b) {
-    assignments.value[fromSlot] = b
-    assignments.value[toSlot] = a
-  } else {
-    delete assignments.value[fromSlot]
-    assignments.value[toSlot] = a
-  }
+  if (!a || !b) return   // tom slot → ingen handling
+  assignments.value[fromSlot] = b
+  assignments.value[toSlot] = a
 }
 
 async function finishDrag() {
@@ -422,7 +418,7 @@ async function finishDrag() {
   if (!from || !to || to === from) return
 
   if (phase.value === 'setup') {
-    moveOrSwapSetup(from, to)
+    swapSetup(from, to)
     return
   }
 
@@ -614,8 +610,8 @@ const summary = computed(() =>
             'marker--gk': slot.role === 'keeper',
             'marker--empty': !playerInSlot(slot.id),
             'marker--lifted': dragId && dragFromSlot === slot.id,
-            'marker--droppable': dragId && dragFromSlot !== slot.id && hoverSlot !== slot.id,
-            'marker--drop': dragId && hoverSlot === slot.id && dragFromSlot !== slot.id
+            'marker--droppable': dragId && playerInSlot(slot.id) && dragFromSlot !== slot.id && hoverSlot !== slot.id,
+            'marker--drop': dragId && hoverSlot === slot.id && playerInSlot(slot.id) && dragFromSlot !== slot.id
           }"
           :data-team="playerInSlot(slot.id)?.primary_team || 'none'"
           :style="{ left: slot.x + '%', top: slot.y + '%' }"
@@ -719,8 +715,8 @@ const summary = computed(() =>
             'marker--target': armedBenchId && playerAtPosition(slot.id),
             'marker--empty': !playerAtPosition(slot.id),
             'marker--lifted': dragId && dragFromSlot === slot.id,
-            'marker--droppable': dragId && dragFromSlot !== slot.id && hoverSlot !== slot.id,
-            'marker--drop': dragId && hoverSlot === slot.id && dragFromSlot !== slot.id
+            'marker--droppable': dragId && playerAtPosition(slot.id) && dragFromSlot !== slot.id && hoverSlot !== slot.id,
+            'marker--drop': dragId && hoverSlot === slot.id && playerAtPosition(slot.id) && dragFromSlot !== slot.id
           }"
           :data-team="playerById(playerAtPosition(slot.id))?.primary_team || 'none'"
           :style="{ left: slot.x + '%', top: slot.y + '%' }"
