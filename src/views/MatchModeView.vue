@@ -317,6 +317,17 @@ let pressTimer = null
 let pressInfo = null            // { playerId, slot, slotId, pointerId, startX, startY, el }
 let suppressClick = false       // sant rett etter et dra → svelg klikket som ellers følger
 
+// Dra-hint vises bare til brukeren har skjønt gesten (ett fullført dra holder).
+// Huskes på tvers av økter så det ikke blir gjentakende støy.
+const DRAG_LEARNED_KEY = 'bb_mm_drag_learned'
+const dragLearned = ref(false)
+try { dragLearned.value = localStorage.getItem(DRAG_LEARNED_KEY) === '1' } catch { /* ok */ }
+function markDragLearned() {
+  if (dragLearned.value) return
+  dragLearned.value = true
+  try { localStorage.setItem(DRAG_LEARNED_KEY, '1') } catch { /* ok */ }
+}
+
 // Hvilken spiller står i en slot nå — kilde avhenger av fasen.
 function slotPlayerId(slotId) {
   return phase.value === 'setup' ? (assignments.value[slotId] || null) : playerAtPosition(slotId)
@@ -423,6 +434,7 @@ async function finishDrag() {
   const to = hoverSlot.value
   resetDrag()
   if (!from || !to || to === from) return
+  markDragLearned()   // et reelt dra → brukeren kan gesten, skjul hintene
 
   if (phase.value === 'setup') {
     moveOrSwapSetup(from, to)
@@ -653,8 +665,8 @@ const summary = computed(() =>
       </div>
 
       <div class="mm__setup-bottom">
-        <div v-if="dragId" class="mm__draghint">Slipp på en spiller for å bytte plass</div>
-        <div v-else-if="assignedIds.size" class="mm__draghint mm__draghint--tip">Hold inne og dra for å bytte plass</div>
+        <div v-if="dragId && !dragLearned" class="mm__draghint">Slipp på en spiller for å bytte plass</div>
+        <div v-else-if="!dragLearned && assignedIds.size" class="mm__draghint mm__draghint--tip">Hold inne og dra for å bytte plass</div>
 
         <div v-if="unassigned.length" class="mm__poolnote">
           {{ lineupComplete ? 'På benken' : 'Ikke plassert' }}: <span class="mm__poolnames">{{ unassigned.map(p => firstName(p.name)).join(', ') }}</span>
@@ -763,7 +775,7 @@ const summary = computed(() =>
       </div>
 
       <div class="mm__cockpit-bottom">
-        <div v-if="dragId" class="mm__sub-hint">Slipp på en spiller for å bytte plass</div>
+        <div v-if="dragId && !dragLearned" class="mm__sub-hint">Slipp på en spiller for å bytte plass</div>
         <div v-else-if="armedBenchId" class="mm__sub-hint">Tapp spilleren som skal ut</div>
         <div class="mm__bench mm__bench--bar">
         <button
