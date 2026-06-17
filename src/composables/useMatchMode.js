@@ -222,6 +222,20 @@ export function useMatchMode() {
     await insertStints([{ match_id: matchId, player_id: inPlayerId, role, position, on_clock: clk }])
   }
 
+  // Bytt plass live: to utespillere bytter formasjons-slot. Posisjon brukes
+  // aldri i statistikk (kun rolle + spilletid telles), så vi relabler bare
+  // `position` på de to åpne stintene — klokke og spilletid røres ikke.
+  async function swapFieldPositions(matchId, aPlayerId, bPlayerId) {
+    if (aPlayerId === bPlayerId) return
+    const a = openStintFor(matchId, aPlayerId)
+    const b = openStintFor(matchId, bPlayerId)
+    if (!a || !b) return
+    const aPos = a.position
+    const bPos = b.position
+    await patchStint(a.id, { position: bPos })
+    await patchStint(b.id, { position: aPos })
+  }
+
   // Keeper-bytte: en spiller på banen og keeperen bytter rolle OG plass.
   // Modelleres som lukk + åpne for begge ved gjeldende klokke.
   async function swapKeeper(matchId, playerId) {
@@ -325,7 +339,7 @@ export function useMatchMode() {
     session, stints, currentClock, isRunning,
     startClockTick, stopClockTick,
     fetchSession, fetchStints, fetchAllStints,
-    saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, finishMatch, resetMatch,
+    saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
     matchStints, isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer
   }
 }

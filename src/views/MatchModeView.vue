@@ -19,7 +19,7 @@ const {
   session, currentClock, isRunning,
   startClockTick, stopClockTick,
   fetchSession, fetchStints,
-  saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, finishMatch, resetMatch,
+  saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
   isOnField, roleOf, playerAtPosition, playingTimeByPlayer
 } = useMatchMode()
 const { show: showToast } = useToast()
@@ -70,6 +70,7 @@ onMounted(async () => {
 })
 onUnmounted(() => {
   flushLineupSave()
+  clearTimeout(pressTimer)
   stopClockTick()
   releaseWakeLock()
   document.removeEventListener('visibilitychange', onVisibility)
@@ -288,6 +289,114 @@ async function makeKeeperFromSheet() {
   try {
     await swapKeeper(matchId, p.id)
     showToast(`${firstName(p.name)} er keeper`, 'success')
+  } catch (e) { reportError(e) }
+}
+
+// ── Bytt plass live (long-press + dra) ────────────────────────────────────────
+// Tapp en banespiller = innbytte-arket (uendret). Hold inne og dra spilleren
+// oppå en annen = bytt plass. Ute↔ute bytter formasjons-slot; er keeperen
+// involvert bytter de hansker også (swapKeeper). Live-cockpiten scroller ikke,
+// så draet kommer aldri i konflikt med sidescroll.
+const LONG_PRESS_MS = 280
+const MOVE_CANCEL_PX = 12
+const livePitch = ref(null)
+const dragId = ref(null)        // spiller som dras (null = ikke i dra-modus)
+const dragFromSlot = ref(null)  // slot spilleren ble løftet fra
+const hoverSlot = ref(null)     // slot fingeren er over nå
+const dragPos = ref({ x: 0, y: 0 }) // ghost-posisjon i px relativt til banen
+let pressTimer = null
+let pressInfo = null            // { playerId, slotId, pointerId, startX, startY, el }
+
+function pitchXY(clientX, clientY) {
+  const r = livePitch.value?.getBoundingClientRect()
+  if (!r) return { x: 0, y: 0, w: 0, h: 0 }
+  return { x: clientX - r.left, y: clientY - r.top, w: r.width, h: r.height }
+}
+function nearestSlot(px, py, w, h) {
+  let best = null, bestD = Infinity
+  for (const s of FORMATION) {
+    const dx = (s.x / 100) * w - px
+    const dy = (s.y / 100) * h - py
+    const d = dx * dx + dy * dy
+    if (d < bestD) { bestD = d; best = s }
+  }
+  return best
+}
+
+function onMarkerDown(e, slot) {
+  const playerId = playerAtPosition(slot.id)
+  if (!playerId) return
+  pressInfo = { playerId, slotId: slot.id, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, el: e.currentTarget }
+  // Innbytte i gang (benk «armed») → ingen dra; la tappet håndtere byttet.
+  if (armedBenchId.value) return
+  clearTimeout(pressTimer)
+  pressTimer = setTimeout(startDrag, LONG_PRESS_MS)
+}
+function startDrag() {
+  if (!pressInfo) return
+  dragId.value = pressInfo.playerId
+  dragFromSlot.value = pressInfo.slotId
+  hoverSlot.value = pressInfo.slotId
+  const p = pitchXY(pressInfo.startX, pressInfo.startY)
+  dragPos.value = { x: p.x, y: p.y }
+  try { pressInfo.el.setPointerCapture(pressInfo.pointerId) } catch { /* ok */ }
+  if (navigator.vibrate) { try { navigator.vibrate(15) } catch { /* ok */ } }
+}
+function onMarkerMove(e) {
+  if (!pressInfo) return
+  if (!dragId.value) {
+    // Beveger før long-press rakk å slå inn → avbryt (verken dra eller tapp).
+    const dx = e.clientX - pressInfo.startX
+    const dy = e.clientY - pressInfo.startY
+    if (dx * dx + dy * dy > MOVE_CANCEL_PX * MOVE_CANCEL_PX) {
+      clearTimeout(pressTimer)
+      pressInfo = null
+    }
+    return
+  }
+  e.preventDefault()
+  const p = pitchXY(e.clientX, e.clientY)
+  dragPos.value = { x: p.x, y: p.y }
+  hoverSlot.value = nearestSlot(p.x, p.y, p.w, p.h)?.id || null
+}
+function onMarkerUp() {
+  clearTimeout(pressTimer)
+  if (dragId.value) {
+    finishDrag()
+  } else if (pressInfo) {
+    const playerId = pressInfo.playerId
+    pressInfo = null
+    tapPitchPlayer(playerId)
+  }
+}
+function onMarkerCancel() {
+  clearTimeout(pressTimer)
+  resetDrag()
+}
+function resetDrag() {
+  try { pressInfo?.el.releasePointerCapture(pressInfo.pointerId) } catch { /* ok */ }
+  dragId.value = null
+  dragFromSlot.value = null
+  hoverSlot.value = null
+  pressInfo = null
+}
+async function finishDrag() {
+  const from = dragFromSlot.value
+  const to = hoverSlot.value
+  resetDrag()
+  if (!from || !to || to === from) return
+  const aId = playerAtPosition(from)
+  const bId = playerAtPosition(to)
+  if (!aId || !bId) return
+  try {
+    if (roleOf(aId) === 'keeper' || roleOf(bId) === 'keeper') {
+      // Keeperen er involvert → bytt hansker også. swapKeeper tar utespilleren.
+      const fieldPlayer = roleOf(aId) === 'keeper' ? bId : aId
+      await swapKeeper(matchId, fieldPlayer)
+    } else {
+      await swapFieldPositions(matchId, aId, bId)
+    }
+    showToast(`${firstName(playerById(aId)?.name)} ↔ ${firstName(playerById(bId)?.name)}`, 'success')
   } catch (e) { reportError(e) }
 }
 
@@ -527,7 +636,7 @@ const summary = computed(() =>
       </div>
 
       <div class="mm__pitch-area">
-      <div class="pitch pitch--live">
+      <div ref="livePitch" class="pitch pitch--live">
         <div class="pitch__turf" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
         <div class="pitch__lines" aria-hidden="true">
           <span class="pitch__circle"></span>
@@ -539,15 +648,21 @@ const summary = computed(() =>
           v-for="slot in FORMATION"
           :key="slot.id"
           type="button"
-          class="marker"
+          class="marker marker--live"
           :class="{
             'marker--gk': playerAtPosition(slot.id) && roleOf(playerAtPosition(slot.id)) === 'keeper',
             'marker--target': armedBenchId && playerAtPosition(slot.id),
-            'marker--empty': !playerAtPosition(slot.id)
+            'marker--empty': !playerAtPosition(slot.id),
+            'marker--lifted': dragId && dragFromSlot === slot.id,
+            'marker--drop': dragId && hoverSlot === slot.id && dragFromSlot !== slot.id
           }"
           :data-team="playerById(playerAtPosition(slot.id))?.primary_team || 'none'"
           :style="{ left: slot.x + '%', top: slot.y + '%' }"
-          @click="tapPitchPlayer(playerAtPosition(slot.id))"
+          @pointerdown="onMarkerDown($event, slot)"
+          @pointermove="onMarkerMove"
+          @pointerup="onMarkerUp"
+          @pointercancel="onMarkerCancel"
+          @contextmenu.prevent
         >
           <span class="marker__circle">
             <span v-if="playerAtPosition(slot.id)">{{ initial(playerById(playerAtPosition(slot.id))?.name) }}</span>
@@ -558,11 +673,23 @@ const summary = computed(() =>
             <span class="marker__time">{{ fmt(timeFor(playerAtPosition(slot.id))) }}</span>
           </span>
         </button>
+
+        <!-- Ghost som følger fingeren under dra -->
+        <div
+          v-if="dragId"
+          class="marker marker--ghost"
+          :class="{ 'marker--gk': roleOf(dragId) === 'keeper' }"
+          :data-team="playerById(dragId)?.primary_team || 'none'"
+          :style="{ left: dragPos.x + 'px', top: dragPos.y + 'px' }"
+        >
+          <span class="marker__circle">{{ initial(playerById(dragId)?.name) }}</span>
+        </div>
       </div>
       </div>
 
       <div class="mm__cockpit-bottom">
-        <div v-if="armedBenchId" class="mm__sub-hint">Tapp spilleren som skal ut</div>
+        <div v-if="dragId" class="mm__sub-hint">Slipp på en spiller for å bytte plass</div>
+        <div v-else-if="armedBenchId" class="mm__sub-hint">Tapp spilleren som skal ut</div>
         <div class="mm__bench mm__bench--bar">
         <button
           v-for="p in bench"
@@ -895,6 +1022,26 @@ const summary = computed(() =>
   color: #fff; box-shadow: none;
 }
 .marker--gk .marker__circle { background: var(--ds-color-warning); color: #fff; }
+
+/* Live-markører kan dras: ingen nettleser-gester (scroll/zoom/tekstvalg) */
+.marker--live { touch-action: none; user-select: none; -webkit-user-select: none; }
+
+/* Spilleren som løftes ut av banen mens den dras */
+.marker--lifted { opacity: .25; }
+.marker--lifted .marker__circle { transform: none; }
+
+/* Slot fingeren er over — målet for plassbyttet */
+.marker--drop .marker__circle {
+  outline: 3px solid #fff; outline-offset: 2px;
+  transform: scale(1.12);
+}
+
+/* Ghost-drakta som følger fingeren */
+.marker--ghost { z-index: 5; pointer-events: none; transition: none; }
+.marker--ghost .marker__circle {
+  transform: scale(1.18);
+  box-shadow: 0 10px 22px rgba(0,0,0,.45);
+}
 .marker--target .marker__circle { border-color: var(--ds-color-accent); border-style: dashed; }
 
 /* Lagfarge på draktene */
