@@ -20,13 +20,18 @@ const kickoff = computed(() => {
   return t && t !== '00:00' ? t : ''
 })
 
-const inProgress = computed(() => props.prep?.status === 'running' || props.prep?.status === 'paused')
-const done = computed(() => props.prep?.status === 'finished')
-
 // Resultat sett fra vårt perspektiv (hjemme/borte avgjør hvilken score er vår).
 const ourScore = computed(() => home.value ? props.match.home_score : props.match.away_score)
 const theirScore = computed(() => home.value ? props.match.away_score : props.match.home_score)
 const hasResult = computed(() => ourScore.value != null && theirScore.value != null)
+
+const inProgress = computed(() => props.prep?.status === 'running' || props.prep?.status === 'paused')
+// Spilt = kampmodus avsluttet, ELLER resultat ført manuelt (uten kampmodus) så
+// lenge kampen ikke er i gang nå.
+const done = computed(() => props.prep?.status === 'finished' || (hasResult.value && !inProgress.value))
+// Bare kampmodus gir et spilletid-sammendrag å vise.
+const hasSummary = computed(() => props.prep?.status === 'finished')
+
 const outcome = computed(() => {
   if (!done.value || !hasResult.value) return null
   if (ourScore.value > theirScore.value) return 'win'
@@ -36,7 +41,7 @@ const outcome = computed(() => {
 
 const kicker = computed(() => done.value ? 'Spilt' : 'Kampdag')
 const ctaLabel = computed(() => {
-  if (done.value) return 'Se sammendrag'
+  if (done.value) return hasSummary.value ? 'Se sammendrag' : 'Se kampen'
   return inProgress.value ? 'Fortsett kampen' : 'Åpne kampmodus'
 })
 
@@ -58,6 +63,12 @@ function openDetail() {
 
 function openLive() {
   router.push(`/kamp/${props.match.id}/live`)
+}
+
+// Uten kampmodus finnes ikke noe live-sammendrag — send da til kampdetaljene.
+function onCta() {
+  if (done.value && !hasSummary.value) openDetail()
+  else openLive()
 }
 </script>
 
@@ -108,7 +119,7 @@ function openLive() {
       type="button"
       class="ds-btn today-match__cta"
       :class="done ? 'ds-btn--ghost' : 'ds-btn--primary'"
-      @click.stop="openLive"
+      @click.stop="onCta"
     >
       {{ ctaLabel }}
     </button>
