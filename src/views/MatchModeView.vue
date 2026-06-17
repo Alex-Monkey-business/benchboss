@@ -604,6 +604,7 @@ const summary = computed(() =>
             'marker--gk': slot.role === 'keeper',
             'marker--empty': !playerInSlot(slot.id),
             'marker--lifted': dragId && dragFromSlot === slot.id,
+            'marker--droppable': dragId && dragFromSlot !== slot.id && hoverSlot !== slot.id,
             'marker--drop': dragId && hoverSlot === slot.id && dragFromSlot !== slot.id
           }"
           :data-team="playerInSlot(slot.id)?.primary_team || 'none'"
@@ -634,6 +635,9 @@ const summary = computed(() =>
           <span class="marker__circle">{{ initial(playerById(dragId)?.name) }}</span>
         </div>
       </div>
+
+      <div v-if="dragId" class="mm__draghint">Slipp på en spiller for å bytte plass</div>
+      <div v-else-if="assignedIds.size" class="mm__draghint mm__draghint--tip">Hold inne og dra for å bytte plass</div>
 
       <div v-if="unassigned.length" class="mm__poolnote">
         {{ lineupComplete ? 'På benken' : 'Ikke plassert' }}: <span class="mm__poolnames">{{ unassigned.map(p => firstName(p.name)).join(', ') }}</span>
@@ -705,6 +709,7 @@ const summary = computed(() =>
             'marker--target': armedBenchId && playerAtPosition(slot.id),
             'marker--empty': !playerAtPosition(slot.id),
             'marker--lifted': dragId && dragFromSlot === slot.id,
+            'marker--droppable': dragId && dragFromSlot !== slot.id && hoverSlot !== slot.id,
             'marker--drop': dragId && hoverSlot === slot.id && dragFromSlot !== slot.id
           }"
           :data-team="playerById(playerAtPosition(slot.id))?.primary_team || 'none'"
@@ -1079,18 +1084,43 @@ const summary = computed(() =>
 .marker--lifted { opacity: .25; }
 .marker--lifted .marker__circle { transform: none; }
 
-/* Slot fingeren er over — målet for plassbyttet */
+/* Andre spillere er gyldige slippmål under dra — stiplet ring som invitasjon */
+.marker--droppable .marker__circle {
+  outline: 2px dashed rgba(255,255,255,.7);
+  outline-offset: 2px;
+}
+
+/* Slot fingeren er over akkurat nå — sterkere, heldekkende ring */
 .marker--drop .marker__circle {
   outline: 3px solid #fff; outline-offset: 2px;
   transform: scale(1.12);
 }
 
-/* Ghost-drakta som følger fingeren */
+/* Ghost-drakta som følger fingeren — «løftet» med pop, ring og skygge */
 .marker--ghost { z-index: 5; pointer-events: none; transition: none; }
 .marker--ghost .marker__circle {
   transform: scale(1.18);
   box-shadow: 0 10px 22px rgba(0,0,0,.45);
+  outline: 3px solid rgba(255,255,255,.95);
+  outline-offset: 1px;
+  animation: mm-pickup .18s var(--ds-ease-out, ease);
 }
+@keyframes mm-pickup {
+  from { transform: scale(.95); }
+  55%  { transform: scale(1.3); }
+  to   { transform: scale(1.18); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .marker--ghost .marker__circle { animation: none; }
+}
+
+/* Hint om dra-gesten i oppsett */
+.mm__draghint {
+  margin-top: var(--ds-space-sm); text-align: center;
+  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-accent);
+}
+.mm__draghint--tip { color: var(--ds-color-text-tertiary); font-weight: var(--ds-weight-medium); }
 .marker--target .marker__circle { border-color: var(--ds-color-accent); border-style: dashed; }
 
 /* Lagfarge på draktene */
