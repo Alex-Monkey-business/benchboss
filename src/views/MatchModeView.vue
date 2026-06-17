@@ -292,23 +292,32 @@ async function makeKeeperFromSheet() {
   } catch (e) { reportError(e) }
 }
 
-// ── Bytt plass live (long-press + dra) ────────────────────────────────────────
-// Tapp en banespiller = innbytte-arket (uendret). Hold inne og dra spilleren
-// oppå en annen = bytt plass. Ute↔ute bytter formasjons-slot; er keeperen
-// involvert bytter de hansker også (swapKeeper). Live-cockpiten scroller ikke,
-// så draet kommer aldri i konflikt med sidescroll.
+// ── Bytt plass med dra (long-press + dra) — både oppsett og live ──────────────
+// Tapp = som før (oppsett: åpne velgeren · live: innbytte-arket). Hold inne og
+// dra en spiller oppå en annen for å bytte plass. I oppsett bytter/flytter vi i
+// `assignments`; live bytter formasjons-slot (og hansker om keeperen er med).
 const LONG_PRESS_MS = 280
 const MOVE_CANCEL_PX = 12
-const livePitch = ref(null)
+const pitchEl = ref(null)
 const dragId = ref(null)        // spiller som dras (null = ikke i dra-modus)
 const dragFromSlot = ref(null)  // slot spilleren ble løftet fra
 const hoverSlot = ref(null)     // slot fingeren er over nå
 const dragPos = ref({ x: 0, y: 0 }) // ghost-posisjon i px relativt til banen
 let pressTimer = null
-let pressInfo = null            // { playerId, slotId, pointerId, startX, startY, el }
+let pressInfo = null            // { playerId, slot, slotId, pointerId, startX, startY, el }
+
+// Hvilken spiller står i en slot nå — kilde avhenger av fasen.
+function slotPlayerId(slotId) {
+  return phase.value === 'setup' ? (assignments.value[slotId] || null) : playerAtPosition(slotId)
+}
+// Skal ghost-drakta vises som keeper?
+const dragIsKeeper = computed(() => {
+  if (!dragId.value) return false
+  return phase.value === 'setup' ? dragFromSlot.value === 'gk' : roleOf(dragId.value) === 'keeper'
+})
 
 function pitchXY(clientX, clientY) {
-  const r = livePitch.value?.getBoundingClientRect()
+  const r = pitchEl.value?.getBoundingClientRect()
   if (!r) return { x: 0, y: 0, w: 0, h: 0 }
   return { x: clientX - r.left, y: clientY - r.top, w: r.width, h: r.height }
 }
@@ -324,12 +333,13 @@ function nearestSlot(px, py, w, h) {
 }
 
 function onMarkerDown(e, slot) {
-  const playerId = playerAtPosition(slot.id)
-  if (!playerId) return
-  pressInfo = { playerId, slotId: slot.id, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, el: e.currentTarget }
+  clearTimeout(pressTimer)
+  const playerId = slotPlayerId(slot.id)
+  pressInfo = { playerId, slot, slotId: slot.id, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, el: e.currentTarget }
   // Innbytte i gang (benk «armed») → ingen dra; la tappet håndtere byttet.
   if (armedBenchId.value) return
-  clearTimeout(pressTimer)
+  // Tom slot → ingenting å dra; tappet åpner velgeren (oppsett).
+  if (!playerId) return
   pressTimer = setTimeout(startDrag, LONG_PRESS_MS)
 }
 function startDrag() {
@@ -364,9 +374,10 @@ function onMarkerUp() {
   if (dragId.value) {
     finishDrag()
   } else if (pressInfo) {
-    const playerId = pressInfo.playerId
+    const { playerId, slot } = pressInfo
     pressInfo = null
-    tapPitchPlayer(playerId)
+    if (phase.value === 'setup') openPicker(slot)
+    else tapPitchPlayer(playerId)
   }
 }
 function onMarkerCancel() {
@@ -380,11 +391,31 @@ function resetDrag() {
   hoverSlot.value = null
   pressInfo = null
 }
+// Oppsett: dra oppå en annen spiller = bytt slot; oppå en tom slot = flytt.
+function moveOrSwapSetup(fromSlot, toSlot) {
+  const a = assignments.value[fromSlot]
+  if (!a) return
+  const b = assignments.value[toSlot]
+  if (b) {
+    assignments.value[fromSlot] = b
+    assignments.value[toSlot] = a
+  } else {
+    delete assignments.value[fromSlot]
+    assignments.value[toSlot] = a
+  }
+}
+
 async function finishDrag() {
   const from = dragFromSlot.value
   const to = hoverSlot.value
   resetDrag()
   if (!from || !to || to === from) return
+
+  if (phase.value === 'setup') {
+    moveOrSwapSetup(from, to)
+    return
+  }
+
   const aId = playerAtPosition(from)
   const bId = playerAtPosition(to)
   if (!aId || !bId) return
@@ -556,7 +587,7 @@ const summary = computed(() =>
         </transition>
       </div>
 
-      <div class="pitch">
+      <div ref="pitchEl" class="pitch">
         <div class="pitch__turf" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
         <div class="pitch__lines" aria-hidden="true">
           <span class="pitch__circle"></span>
@@ -569,10 +600,19 @@ const summary = computed(() =>
           :key="slot.id"
           type="button"
           class="marker"
-          :class="{ 'marker--gk': slot.role === 'keeper', 'marker--empty': !playerInSlot(slot.id) }"
+          :class="{
+            'marker--gk': slot.role === 'keeper',
+            'marker--empty': !playerInSlot(slot.id),
+            'marker--lifted': dragId && dragFromSlot === slot.id,
+            'marker--drop': dragId && hoverSlot === slot.id && dragFromSlot !== slot.id
+          }"
           :data-team="playerInSlot(slot.id)?.primary_team || 'none'"
           :style="{ left: slot.x + '%', top: slot.y + '%' }"
-          @click="openPicker(slot)"
+          @pointerdown="onMarkerDown($event, slot)"
+          @pointermove="onMarkerMove"
+          @pointerup="onMarkerUp"
+          @pointercancel="onMarkerCancel"
+          @contextmenu.prevent
         >
           <span class="marker__circle">
             <span v-if="playerInSlot(slot.id)">{{ initial(playerInSlot(slot.id).name) }}</span>
@@ -582,6 +622,17 @@ const summary = computed(() =>
             {{ playerInSlot(slot.id) ? firstName(playerInSlot(slot.id).name) : (slot.role === 'keeper' ? 'Keeper' : 'Velg') }}
           </span>
         </button>
+
+        <!-- Ghost som følger fingeren under dra -->
+        <div
+          v-if="dragId"
+          class="marker marker--ghost"
+          :class="{ 'marker--gk': dragIsKeeper }"
+          :data-team="playerById(dragId)?.primary_team || 'none'"
+          :style="{ left: dragPos.x + 'px', top: dragPos.y + 'px' }"
+        >
+          <span class="marker__circle">{{ initial(playerById(dragId)?.name) }}</span>
+        </div>
       </div>
 
       <div v-if="unassigned.length" class="mm__poolnote">
@@ -636,7 +687,7 @@ const summary = computed(() =>
       </div>
 
       <div class="mm__pitch-area">
-      <div ref="livePitch" class="pitch pitch--live">
+      <div ref="pitchEl" class="pitch pitch--live">
         <div class="pitch__turf" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
         <div class="pitch__lines" aria-hidden="true">
           <span class="pitch__circle"></span>
@@ -678,7 +729,7 @@ const summary = computed(() =>
         <div
           v-if="dragId"
           class="marker marker--ghost"
-          :class="{ 'marker--gk': roleOf(dragId) === 'keeper' }"
+          :class="{ 'marker--gk': dragIsKeeper }"
           :data-team="playerById(dragId)?.primary_team || 'none'"
           :style="{ left: dragPos.x + 'px', top: dragPos.y + 'px' }"
         >
@@ -994,6 +1045,7 @@ const summary = computed(() =>
   display: flex; flex-direction: column; align-items: center; gap: 5px;
   width: 80px; padding: 0; border: none; background: transparent;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
+  touch-action: none; user-select: none; -webkit-user-select: none;
   --jersey-bg: var(--ds-color-accent); --jersey-fg: #fff;
 }
 .marker__circle {
@@ -1022,9 +1074,6 @@ const summary = computed(() =>
   color: #fff; box-shadow: none;
 }
 .marker--gk .marker__circle { background: var(--ds-color-warning); color: #fff; }
-
-/* Live-markører kan dras: ingen nettleser-gester (scroll/zoom/tekstvalg) */
-.marker--live { touch-action: none; user-select: none; -webkit-user-select: none; }
 
 /* Spilleren som løftes ut av banen mens den dras */
 .marker--lifted { opacity: .25; }
