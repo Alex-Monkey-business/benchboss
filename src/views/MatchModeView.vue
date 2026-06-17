@@ -315,6 +315,7 @@ const hoverSlot = ref(null)     // slot fingeren er over nå
 const dragPos = ref({ x: 0, y: 0 }) // ghost-posisjon i px relativt til banen
 let pressTimer = null
 let pressInfo = null            // { playerId, slot, slotId, pointerId, startX, startY, el }
+let suppressClick = false       // sant rett etter et dra → svelg klikket som ellers følger
 
 // Hvilken spiller står i en slot nå — kilde avhenger av fasen.
 function slotPlayerId(slotId) {
@@ -344,12 +345,12 @@ function nearestSlot(px, py, w, h) {
 
 function onMarkerDown(e, slot) {
   clearTimeout(pressTimer)
+  suppressClick = false
   const playerId = slotPlayerId(slot.id)
   pressInfo = { playerId, slot, slotId: slot.id, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, el: e.currentTarget }
-  // Innbytte i gang (benk «armed») → ingen dra; la tappet håndtere byttet.
-  if (armedBenchId.value) return
-  // Tom slot → ingenting å dra; tappet åpner velgeren (oppsett).
-  if (!playerId) return
+  // Innbytte i gang (benk «armed») eller tom slot → ingen dra. Tappet (click)
+  // håndterer resten: åpne velger (oppsett) / innbytte (live).
+  if (armedBenchId.value || !playerId) return
   pressTimer = setTimeout(startDrag, LONG_PRESS_MS)
 }
 function startDrag() {
@@ -357,6 +358,7 @@ function startDrag() {
   dragId.value = pressInfo.playerId
   dragFromSlot.value = pressInfo.slotId
   hoverSlot.value = pressInfo.slotId
+  suppressClick = true   // dette blir et dra, ikke et tapp — svelg klikket etterpå
   const p = pitchXY(pressInfo.startX, pressInfo.startY)
   dragPos.value = { x: p.x, y: p.y }
   try { pressInfo.el.setPointerCapture(pressInfo.pointerId) } catch { /* ok */ }
@@ -381,14 +383,15 @@ function onMarkerMove(e) {
 }
 function onMarkerUp() {
   clearTimeout(pressTimer)
-  if (dragId.value) {
-    finishDrag()
-  } else if (pressInfo) {
-    const { playerId, slot } = pressInfo
-    pressInfo = null
-    if (phase.value === 'setup') openPicker(slot)
-    else tapPitchPlayer(playerId)
-  }
+  if (dragId.value) finishDrag()
+  pressInfo = null
+}
+// Tapp = vanlig click (umiddelbart og pålitelig). Et dra ender også med et
+// click på kilde-markøren — det svelger vi.
+function onMarkerClick(slot) {
+  if (suppressClick) { suppressClick = false; return }
+  if (phase.value === 'setup') openPicker(slot)
+  else tapPitchPlayer(slotPlayerId(slot.id))
 }
 function onMarkerCancel() {
   clearTimeout(pressTimer)
@@ -401,14 +404,18 @@ function resetDrag() {
   hoverSlot.value = null
   pressInfo = null
 }
-// Oppsett: dra kun for å BYTTE to spillere. Tomme plasser fylles med velgeren
-// (tapp), ikke ved dra — å dra inn på en tom plass ville bare etterlate et hull.
-function swapSetup(fromSlot, toSlot) {
+// Oppsett: dra oppå en annen spiller = bytt plass; oppå en tom plass = flytt dit.
+function moveOrSwapSetup(fromSlot, toSlot) {
   const a = assignments.value[fromSlot]
+  if (!a) return
   const b = assignments.value[toSlot]
-  if (!a || !b) return   // tom slot → ingen handling
-  assignments.value[fromSlot] = b
-  assignments.value[toSlot] = a
+  if (b) {
+    assignments.value[fromSlot] = b
+    assignments.value[toSlot] = a
+  } else {
+    delete assignments.value[fromSlot]
+    assignments.value[toSlot] = a
+  }
 }
 
 async function finishDrag() {
@@ -418,7 +425,7 @@ async function finishDrag() {
   if (!from || !to || to === from) return
 
   if (phase.value === 'setup') {
-    swapSetup(from, to)
+    moveOrSwapSetup(from, to)
     return
   }
 
@@ -610,11 +617,12 @@ const summary = computed(() =>
             'marker--gk': slot.role === 'keeper',
             'marker--empty': !playerInSlot(slot.id),
             'marker--lifted': dragId && dragFromSlot === slot.id,
-            'marker--droppable': dragId && playerInSlot(slot.id) && dragFromSlot !== slot.id && hoverSlot !== slot.id,
-            'marker--drop': dragId && hoverSlot === slot.id && playerInSlot(slot.id) && dragFromSlot !== slot.id
+            'marker--droppable': dragId && dragFromSlot !== slot.id && hoverSlot !== slot.id,
+            'marker--drop': dragId && hoverSlot === slot.id && dragFromSlot !== slot.id
           }"
           :data-team="playerInSlot(slot.id)?.primary_team || 'none'"
           :style="{ left: slot.x + '%', top: slot.y + '%' }"
+          @click="onMarkerClick(slot)"
           @pointerdown="onMarkerDown($event, slot)"
           @pointermove="onMarkerMove"
           @pointerup="onMarkerUp"
@@ -720,6 +728,7 @@ const summary = computed(() =>
           }"
           :data-team="playerById(playerAtPosition(slot.id))?.primary_team || 'none'"
           :style="{ left: slot.x + '%', top: slot.y + '%' }"
+          @click="onMarkerClick(slot)"
           @pointerdown="onMarkerDown($event, slot)"
           @pointermove="onMarkerMove"
           @pointerup="onMarkerUp"
