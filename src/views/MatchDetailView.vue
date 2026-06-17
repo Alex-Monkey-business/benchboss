@@ -107,16 +107,18 @@ function applySmartOpen() {
   const matchDate = new Date((match.value.match_date || '') + 'T12:00:00')
   const isPast = !Number.isNaN(matchDate.getTime()) && matchDate < today
   const hasResult = match.value.home_score != null && match.value.away_score != null
+  // Dommer satt + utlegg registrert → logistikken er gjort, ikke relevant å åpne.
+  const logisticsDone = !!match.value.referee && !!expense.value
 
   if (isPast || hasResult) {
     // Spilt (resultat ført) eller skulle vært spilt — coach kom sannsynligvis
     // for å se eller logge resultat. Gjelder også dagens kamp som alt er spilt.
     open.value.summary = true
-  } else if (isHomeMatch.value) {
-    // Fremtidig hjemmekamp — coach setter dommer/utlegg
+  } else if (isHomeMatch.value && !logisticsDone) {
+    // Fremtidig hjemmekamp der dommer/utlegg gjenstår
     open.value.logistics = true
   } else {
-    // Fremtidig bortekamp — dommer er ikke vårt ansvar, fokus på lag
+    // Bortekamp, eller hjemmekamp der dommer + utlegg alt er på plass — fokus på lag
     open.value.team = true
   }
 }
