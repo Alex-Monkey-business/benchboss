@@ -106,9 +106,11 @@ function applySmartOpen() {
   today.setHours(0, 0, 0, 0)
   const matchDate = new Date((match.value.match_date || '') + 'T12:00:00')
   const isPast = !Number.isNaN(matchDate.getTime()) && matchDate < today
+  const hasResult = match.value.home_score != null && match.value.away_score != null
 
-  if (isPast) {
-    // Spilt eller skulle vært spilt — coach kom sannsynligvis for å se eller logge resultat
+  if (isPast || hasResult) {
+    // Spilt (resultat ført) eller skulle vært spilt — coach kom sannsynligvis
+    // for å se eller logge resultat. Gjelder også dagens kamp som alt er spilt.
     open.value.summary = true
   } else if (isHomeMatch.value) {
     // Fremtidig hjemmekamp — coach setter dommer/utlegg
