@@ -21,6 +21,24 @@ const kickoff = computed(() => {
 })
 
 const inProgress = computed(() => props.prep?.status === 'running' || props.prep?.status === 'paused')
+const done = computed(() => props.prep?.status === 'finished')
+
+// Resultat sett fra vårt perspektiv (hjemme/borte avgjør hvilken score er vår).
+const ourScore = computed(() => home.value ? props.match.home_score : props.match.away_score)
+const theirScore = computed(() => home.value ? props.match.away_score : props.match.home_score)
+const hasResult = computed(() => ourScore.value != null && theirScore.value != null)
+const outcome = computed(() => {
+  if (!done.value || !hasResult.value) return null
+  if (ourScore.value > theirScore.value) return 'win'
+  if (ourScore.value < theirScore.value) return 'loss'
+  return 'draw'
+})
+
+const kicker = computed(() => done.value ? 'Spilt' : 'Kampdag')
+const ctaLabel = computed(() => {
+  if (done.value) return 'Se sammendrag'
+  return inProgress.value ? 'Fortsett kampen' : 'Åpne kampmodus'
+})
 
 // Sjekkliste: dommer kun på hjemmekamp (prep.referee er null borte).
 const checklist = computed(() => {
@@ -55,17 +73,25 @@ function openLive() {
         >{{ teamLabel(color) }}</span>
         <span class="today-match__venue">{{ home ? 'Hjemme' : 'Borte' }}</span>
       </span>
-      <span class="today-match__kicker">Kampdag</span>
+      <span class="today-match__kicker" :class="{ 'today-match__kicker--done': done }">{{ kicker }}</span>
     </div>
 
     <div class="today-match__main">
-      <span v-if="kickoff" class="today-match__time">{{ kickoff }}</span>
-      <span class="today-match__opponent">mot {{ opponent }}</span>
+      <template v-if="done && hasResult">
+        <span class="today-match__score" :class="`today-match__score--${outcome}`">
+          {{ ourScore }}<span class="today-match__score-dash">–</span>{{ theirScore }}
+        </span>
+        <span class="today-match__opponent">mot {{ opponent }}</span>
+      </template>
+      <template v-else>
+        <span v-if="kickoff" class="today-match__time">{{ kickoff }}</span>
+        <span class="today-match__opponent">mot {{ opponent }}</span>
+      </template>
     </div>
 
-    <span v-if="coachNames" class="today-match__coaches">{{ coachNames }}</span>
+    <span v-if="coachNames && !done" class="today-match__coaches">{{ coachNames }}</span>
 
-    <ul v-if="checklist.length" class="today-match__checklist">
+    <ul v-if="checklist.length && !done" class="today-match__checklist">
       <li v-for="item in checklist" :key="item.key" class="check-item" :class="{ 'check-item--done': item.done }">
         <svg v-if="item.done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="9"/>
@@ -78,8 +104,13 @@ function openLive() {
       </li>
     </ul>
 
-    <button type="button" class="ds-btn ds-btn--primary today-match__cta" @click.stop="openLive">
-      {{ inProgress ? 'Fortsett kampen' : 'Åpne kampmodus' }}
+    <button
+      type="button"
+      class="ds-btn today-match__cta"
+      :class="done ? 'ds-btn--ghost' : 'ds-btn--primary'"
+      @click.stop="openLive"
+    >
+      {{ ctaLabel }}
     </button>
   </div>
 </template>
@@ -158,6 +189,28 @@ function openLive() {
   text-transform: uppercase;
   color: var(--ds-color-warm);
 }
+
+.today-match__kicker--done {
+  color: var(--ds-color-text-tertiary);
+}
+
+.today-match__score {
+  font-family: var(--ds-font-heading);
+  font-size: 2.5rem;
+  font-weight: var(--ds-weight-bold);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  color: var(--ds-color-text-primary);
+}
+
+.today-match__score-dash {
+  margin: 0 0.2em;
+  color: var(--ds-color-text-tertiary);
+}
+
+.today-match__score--win { color: var(--ds-color-success); }
+.today-match__score--loss { color: var(--ds-color-error); }
 
 .today-match__main {
   display: flex;
