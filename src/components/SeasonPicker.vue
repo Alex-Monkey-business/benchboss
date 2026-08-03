@@ -82,6 +82,13 @@ function pick(seasonId) {
 </template>
 
 <style scoped>
+.season-picker {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
 .season-picker__trigger {
   display: inline-flex;
   align-items: center;
@@ -121,10 +128,9 @@ function pick(seasonId) {
 }
 
 .season-picker__past {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 8px;
-  margin-top: 4px;
   font-size: var(--ds-text-xs);
   font-weight: 500;
   color: var(--ds-color-warm-text);

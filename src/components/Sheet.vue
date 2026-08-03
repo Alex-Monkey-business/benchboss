@@ -43,6 +43,9 @@ watch(() => props.show, (val) => {
 </script>
 
 <template>
+  <!-- Teleport: position:fixed brytes av transform på forfedre (f.eks. ds-anim-fade-up),
+       så sheeten må alltid rendres rett på body. -->
+  <Teleport to="body">
   <Transition :name="transitionName">
     <div v-if="show" class="ds-overlay ds-sheet-overlay" @click.self="emit('close')">
       <div class="ds-sheet" role="dialog" aria-modal="true">
@@ -61,4 +64,5 @@ watch(() => props.show, (val) => {
       </div>
     </div>
   </Transition>
+  </Teleport>
 </template>
