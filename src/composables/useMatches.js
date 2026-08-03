@@ -16,6 +16,9 @@ const DEMO_MATCHES = [
   { id: 'dm-3', season_id: 'demo-season-2', round: '4', match_date: '2026-03-11', match_day: 'onsdag', match_time: '18:00', home_team: 'Halsen Grønn', away_team: 'Tønsberg FK Blå', division: 'Avd 1', referee: '', fee_amount: 200, home_score: null, away_score: null },
   { id: 'dm-4', season_id: 'demo-season-2', round: '4', match_date: '2026-03-14', match_day: 'lørdag', match_time: '12:00', home_team: 'Halsen Rød', away_team: 'Store Bergan rød', division: 'Avd 1', referee: '', fee_amount: 200, home_score: null, away_score: null },
   { id: 'dm-5', season_id: 'demo-season-2', round: '4', match_date: '2026-03-18', match_day: 'onsdag', match_time: '18:00', home_team: 'Halsen Rød', away_team: 'Borre sort', division: 'Avd 1', referee: '', fee_amount: 200, home_score: null, away_score: null },
+  // Avsluttet sesong (Vår 2025) — viser sesongbytte + låst kampdetalj i demo.
+  { id: 'dm-6', season_id: 'demo-season-1', round: '3', match_date: '2025-05-10', match_day: 'lørdag', match_time: '11:00', home_team: 'Halsen Grønn', away_team: 'Flint Oransje', division: 'Avd 2', referee: 'Ola Dommer', fee_amount: 200, home_score: 4, away_score: 2, report: 'Sterk andreomgang — pressspillet satt.' },
+  { id: 'dm-7', season_id: 'demo-season-1', round: '5', match_date: '2025-06-07', match_day: 'lørdag', match_time: '13:00', home_team: 'Runar Gul', away_team: 'Halsen Rød', division: 'Avd 2', referee: '', fee_amount: 200, home_score: 1, away_score: 1 },
 ]
 
 const DEMO_MATCH_COACHES = []

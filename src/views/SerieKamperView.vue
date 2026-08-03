@@ -7,8 +7,9 @@ import { relativeDateLabel, isToday, localISODate } from '../lib/dateLabels'
 import { teamColorsForMatch as teamColors, isHomeMatch, isHalsenMatch, teamLabel } from '../lib/matchMeta'
 import TeamFilter from '../components/TeamFilter.vue'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
+import SeasonPicker from '../components/SeasonPicker.vue'
 
-const { activeSeason, fetchSeasons } = useSeasons()
+const { viewingSeason, fetchSeasons } = useSeasons()
 const { matches, fetchMatches, getCoachesForMatch } = useMatches()
 const { coaches, fetchCoaches } = useCoaches()
 
@@ -18,11 +19,11 @@ const loading = ref(matches.value.length === 0)
 
 onMounted(async () => {
   await Promise.all([fetchSeasons(), fetchCoaches()])
-  if (activeSeason.value) await fetchMatches(activeSeason.value.id)
+  if (viewingSeason.value) await fetchMatches(viewingSeason.value.id)
   loading.value = false
 })
 
-watch(activeSeason, async (s) => {
+watch(viewingSeason, async (s) => {
   if (s) await fetchMatches(s.id)
 })
 
@@ -89,7 +90,7 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
 <template>
   <div class="desktop-container">
     <div class="page-header">
-      <h1 class="page-header__title">{{ activeSeason?.name || 'Kampoversikt' }}</h1>
+      <SeasonPicker variant="title" />
     </div>
 
     <div class="px-lg">

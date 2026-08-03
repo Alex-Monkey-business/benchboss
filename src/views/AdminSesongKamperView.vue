@@ -8,7 +8,7 @@ import { parseMatchFile, detectSeasonName } from '../lib/excelParser'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
 
-const { seasons, activeSeason, fetchSeasons, createSeason, setActiveSeason } = useSeasons()
+const { seasons, activeSeason, viewingSeason, fetchSeasons, createSeason, setViewingSeason } = useSeasons()
 const { matches, fetchMatches, bulkAddMatches, addMatch, updateMatch, deleteAllMatches, backfillDefaultCoaches } = useMatches()
 const { fetchExpenses } = useExpenses()
 const { show: showToast } = useToast()
@@ -43,8 +43,8 @@ const editTimeInput = ref('')
 
 onMounted(async () => {
   await fetchSeasons()
-  if (activeSeason.value) {
-    await fetchMatches(activeSeason.value.id)
+  if (viewingSeason.value) {
+    await fetchMatches(viewingSeason.value.id)
   }
 })
 
@@ -87,12 +87,12 @@ async function confirmImport() {
   if (parsedMatches.value.length === 0) return
   importing.value = true
 
-  let targetSeason = activeSeason.value
+  let targetSeason = viewingSeason.value
   if (detectedSeason.value) {
     const existing = seasons.value.find(s => s.name === detectedSeason.value)
     if (existing) {
       targetSeason = existing
-      await setActiveSeason(existing.id)
+      setViewingSeason(existing.id)
     } else {
       targetSeason = await createSeason(detectedSeason.value)
     }
@@ -152,18 +152,18 @@ function cancelNewSeason() {
 }
 
 async function switchSeason(seasonId) {
-  await setActiveSeason(seasonId)
+  setViewingSeason(seasonId)
   await fetchMatches(seasonId)
   await fetchExpenses(matches.value.map(m => m.id))
-  showToast(`Byttet til ${activeSeason.value?.name}`, 'success')
+  showToast(`Byttet til ${viewingSeason.value?.name}`, 'success')
 }
 
 const backfilling = ref(false)
 
 async function handleBackfillCoaches() {
-  if (!activeSeason.value || backfilling.value) return
+  if (!viewingSeason.value || backfilling.value) return
   backfilling.value = true
-  const updated = await backfillDefaultCoaches(activeSeason.value.id)
+  const updated = await backfillDefaultCoaches(viewingSeason.value.id)
   backfilling.value = false
   showToast(
     updated > 0
@@ -177,7 +177,7 @@ async function handleAddMatch() {
   if (!newMatch.value.home_team || !newMatch.value.away_team || !newMatch.value.match_date) return
   await addMatch({
     ...newMatch.value,
-    season_id: activeSeason.value.id,
+    season_id: viewingSeason.value.id,
     fee_amount: 200
   })
   showToast('Kamp lagt til', 'success')
@@ -190,9 +190,9 @@ function cancelAddMatch() {
 }
 
 async function confirmDeleteAll() {
-  if (!activeSeason.value) return
+  if (!viewingSeason.value) return
   deleting.value = true
-  await deleteAllMatches(activeSeason.value.id)
+  await deleteAllMatches(viewingSeason.value.id)
   showDeleteAllDialog.value = false
   deleting.value = false
   showToast('Alle kamper slettet', 'success')
@@ -226,7 +226,7 @@ async function saveDateTime() {
     match_day: weekday,
   }
   await updateMatch(editingMatch.value.id, updates)
-  if (activeSeason.value) await fetchMatches(activeSeason.value.id)
+  if (viewingSeason.value) await fetchMatches(viewingSeason.value.id)
   editingMatch.value = null
   showToast('Tidspunkt oppdatert', 'success')
 }
@@ -257,23 +257,22 @@ function formatMatchDate(dateStr) {
     <div class="px-lg mb-lg">
       <div class="section-label">Sesong</div>
       <div class="ds-card ds-card--compact">
-        <div v-if="activeSeason" class="season-active">
+        <div v-if="viewingSeason" class="season-active">
           <div>
-            <div class="season-active__name">{{ activeSeason.name }}</div>
+            <div class="season-active__name">{{ viewingSeason.name }}</div>
             <div class="season-active__meta">
               {{ matches.length }} kamper
-              <template v-if="activeSeason.status === 'settled'"> · avsluttet</template>
+              <template v-if="viewingSeason.status === 'settled'"> · avsluttet</template>
             </div>
           </div>
-          <span class="ds-badge" :class="activeSeason.status === 'settled' ? 'ds-badge--success' : 'ds-badge--accent'">
-            {{ activeSeason.status === 'settled' ? 'Avsluttet' : 'Aktiv' }}
-          </span>
+          <span v-if="viewingSeason.status === 'settled'" class="ds-badge ds-badge--success">Avsluttet</span>
+          <span v-else-if="viewingSeason.id === activeSeason?.id" class="ds-badge ds-badge--accent">Aktiv</span>
         </div>
 
         <div v-if="seasons.length > 1" class="season-list">
           <div class="season-list__label">Bytt sesong</div>
           <button
-            v-for="s in seasons.filter(s => s.id !== activeSeason?.id)"
+            v-for="s in seasons.filter(s => s.id !== viewingSeason?.id)"
             :key="s.id"
             class="season-item"
             @click="switchSeason(s.id)"
@@ -387,7 +386,7 @@ function formatMatchDate(dateStr) {
 
     <!-- ═══ MATCH LIST ═══ -->
     <div v-if="matches.length > 0" class="px-lg mb-lg">
-      <div class="section-label">Kamper i {{ activeSeason?.name }}</div>
+      <div class="section-label">Kamper i {{ viewingSeason?.name }}</div>
       <div class="ds-card ds-card--compact match-list-card">
         <div
           v-for="m in matches"
@@ -426,7 +425,7 @@ function formatMatchDate(dateStr) {
       <div class="danger-zone">
         <button class="danger-btn" @click="showDeleteAllDialog = true">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-          Slett alle {{ matches.length }} kamper i {{ activeSeason?.name }}
+          Slett alle {{ matches.length }} kamper i {{ viewingSeason?.name }}
         </button>
       </div>
     </div>
@@ -507,7 +506,7 @@ function formatMatchDate(dateStr) {
     <ConfirmDialog
       :show="showDeleteAllDialog"
       title="Slett alle kamper?"
-      :message="`Er du sikker på at du vil slette alle ${matches.length} kamper i ${activeSeason?.name}? Dette kan ikke angres.`"
+      :message="`Er du sikker på at du vil slette alle ${matches.length} kamper i ${viewingSeason?.name}? Dette kan ikke angres.`"
       confirm-label="Slett alle"
       variant="warning"
       @confirm="confirmDeleteAll"

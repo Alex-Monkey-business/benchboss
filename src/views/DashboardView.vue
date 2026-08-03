@@ -8,6 +8,7 @@ import { useCoaches } from '../composables/useCoaches'
 import MatchCard from '../components/MatchCard.vue'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import TeamFilter from '../components/TeamFilter.vue'
+import SeasonPicker from '../components/SeasonPicker.vue'
 import { useStaggerOnce } from '../composables/useStaggerOnce'
 import { relativeDateLabel, isToday, shortRelativeDate, localISODate } from '../lib/dateLabels'
 import { teamColorsForMatch } from '../lib/matchMeta'
@@ -18,7 +19,7 @@ const router = useRouter()
 const playStagger = useStaggerOnce('dashboard-matches')
 
 const { coach } = useAuth()
-const { activeSeason, fetchSeasons } = useSeasons()
+const { viewingSeason, fetchSeasons } = useSeasons()
 const { matches, fetchMatches, getCoachesForMatch } = useMatches()
 const { expenses, fetchExpenses, getExpenseForMatch } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
@@ -32,14 +33,14 @@ const loading = ref(matches.value.length === 0)
 
 onMounted(async () => {
   await Promise.all([fetchSeasons(), fetchCoaches()])
-  if (activeSeason.value) {
-    await fetchMatches(activeSeason.value.id)
+  if (viewingSeason.value) {
+    await fetchMatches(viewingSeason.value.id)
     await fetchExpenses(matches.value.map(m => m.id))
   }
   loading.value = false
 })
 
-watch(activeSeason, async (s) => {
+watch(viewingSeason, async (s) => {
   if (s) {
     await fetchMatches(s.id)
     await fetchExpenses(matches.value.map(m => m.id))
@@ -257,8 +258,8 @@ function getCoachNamesForMatch(matchId) {
 
 <template>
   <div class="desktop-container">
-    <div class="page-header">
-      <h1 class="page-header__title ds-anim-fade-up">{{ activeSeason?.name || 'Kampoversikt' }}</h1>
+    <div class="page-header ds-anim-fade-up">
+      <SeasonPicker variant="title" />
     </div>
 
     <div class="time-tabs ds-anim-fade-up ds-anim-delay-1" role="tablist">

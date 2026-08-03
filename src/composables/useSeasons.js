@@ -1,8 +1,11 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 
 const seasons = ref([])
 const activeSeason = ref(null)
+// Sesongen brukeren ser på (browsing) — kan avvike fra activeSeason der nye kamper lander.
+// Kun in-memory: nullstilles ved cold start så man alltid åpner appen i inneværende sesong.
+const viewingSeason = ref(null)
 const loaded = ref(false)
 
 const DEMO_SEASONS = [
@@ -15,6 +18,7 @@ export function useSeasons() {
     if (!isSupabaseConfigured) {
       seasons.value = DEMO_SEASONS
       activeSeason.value = DEMO_SEASONS[0]
+      if (!viewingSeason.value) viewingSeason.value = activeSeason.value
       loaded.value = true
       return
     }
@@ -27,6 +31,7 @@ export function useSeasons() {
     if (!error && data) {
       seasons.value = data
       activeSeason.value = data.find(s => s.status === 'active') || data[0]
+      if (!viewingSeason.value) viewingSeason.value = activeSeason.value
       loaded.value = true
     }
   }
@@ -36,6 +41,7 @@ export function useSeasons() {
       const newSeason = { id: 'demo-' + Date.now(), name, status: 'active', settled_at: null, created_at: new Date().toISOString() }
       seasons.value.unshift(newSeason)
       activeSeason.value = newSeason
+      viewingSeason.value = newSeason
       return newSeason
     }
 
@@ -48,6 +54,7 @@ export function useSeasons() {
     if (!error && data) {
       seasons.value.unshift(data)
       activeSeason.value = data
+      viewingSeason.value = data
     }
     return data
   }
@@ -75,13 +82,20 @@ export function useSeasons() {
       if (activeSeason.value?.id === seasonId) {
         activeSeason.value = data
       }
+      if (viewingSeason.value?.id === seasonId) {
+        viewingSeason.value = data
+      }
     }
     return data
   }
 
-  async function setActiveSeason(seasonId) {
-    activeSeason.value = seasons.value.find(s => s.id === seasonId) || null
+  function setViewingSeason(seasonId) {
+    viewingSeason.value = seasons.value.find(s => s.id === seasonId) || null
   }
 
-  return { seasons, activeSeason, loaded, fetchSeasons, createSeason, settleSeason, setActiveSeason }
+  const isViewingPast = computed(() =>
+    !!viewingSeason.value && !!activeSeason.value && viewingSeason.value.id !== activeSeason.value.id
+  )
+
+  return { seasons, activeSeason, viewingSeason, isViewingPast, loaded, fetchSeasons, createSeason, settleSeason, setViewingSeason }
 }

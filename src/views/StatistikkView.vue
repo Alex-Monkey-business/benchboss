@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useSeasons } from '../composables/useSeasons'
 import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
@@ -10,9 +10,10 @@ import { useMatchMode } from '../composables/useMatchMode'
 import AnimatedNumber from '../components/AnimatedNumber.vue'
 import Skeleton from '../components/Skeleton.vue'
 import FormCurve from '../components/FormCurve.vue'
+import SeasonPicker from '../components/SeasonPicker.vue'
 import { hasResult, isPlayed } from '../lib/matchMeta'
 
-const { activeSeason, fetchSeasons } = useSeasons()
+const { viewingSeason, fetchSeasons } = useSeasons()
 const { matches, matchCoaches, matchPlayers, fetchMatches } = useMatches()
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees } = useReferees()
@@ -25,10 +26,14 @@ const loading = ref(matches.value.length === 0)
 
 onMounted(async () => {
   await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchAllGoals(), fetchAllStints()])
-  if (activeSeason.value) {
-    await fetchMatches(activeSeason.value.id)
+  if (viewingSeason.value) {
+    await fetchMatches(viewingSeason.value.id)
   }
   loading.value = false
+})
+
+watch(viewingSeason, async (s) => {
+  if (s) await fetchMatches(s.id)
 })
 
 const TEAM_LABELS = { gronn: 'Grønn', rod: 'Rød', hvit: 'Hvit' }
@@ -308,7 +313,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   <div class="desktop-container">
     <div class="page-header ds-anim-fade-up">
       <h1 class="page-header__title">Statistikk</h1>
-      <p class="page-header__subtitle">{{ activeSeason?.name }}</p>
+      <SeasonPicker />
     </div>
 
     <div v-if="loading" class="px-lg stat-skel-stack" aria-hidden="true">

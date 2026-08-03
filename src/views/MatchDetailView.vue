@@ -8,6 +8,7 @@ import { useReferees } from '../composables/useReferees'
 import { usePlayers } from '../composables/usePlayers'
 import { useMatchGoals } from '../composables/useMatchGoals'
 import { useMatchMode } from '../composables/useMatchMode'
+import { useSeasons } from '../composables/useSeasons'
 import { useAuth } from '../stores/auth'
 import { useToast } from '../composables/useToast'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -27,6 +28,7 @@ const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } =
 const { players, fetchPlayers, addPlayer, getPlayerById } = usePlayers()
 const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals()
 const { session: mmSession, fetchSession: fetchMmSession } = useMatchMode()
+const { seasons, fetchSeasons } = useSeasons()
 const { coach: currentCoach } = useAuth()
 const { show: showToast } = useToast()
 
@@ -72,7 +74,7 @@ const reportSavedAt = ref(null)
 const isEditingReport = ref(false)
 
 onMounted(async () => {
-  await Promise.all([fetchCoaches(), fetchReferees(), fetchPlayers(), fetchAllMatchPlayers()])
+  await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchAllMatchPlayers()])
   match.value = await getMatch(route.params.id)
   if (match.value) {
     // Hent sesongens kamper — grunnlag for ekstra-kamp-tall og konflikt-/uke-sjekk.
@@ -90,9 +92,9 @@ onMounted(async () => {
     awayScoreInput.value = match.value.away_score ?? ''
     reportInput.value = match.value.report || ''
     // Tomt referat → edit-modus direkte; lagret referat → lese-modus med "Rediger"
-    isEditingReport.value = !match.value.report
+    isEditingReport.value = !match.value.report && !isLocked.value
     // Show custom input if current referee is not in known list
-    if (match.value.referee && !referees.value.some(r => r.name === match.value.referee)) {
+    if (match.value.referee && !referees.value.some(r => r.name === match.value.referee) && !isLocked.value) {
       customReferee.value = true
     }
     applySmartOpen()
@@ -166,7 +168,7 @@ async function openVipps() {
 
   // Auto-registrer Vipps-tapper som utlegger hvis ingen er satt fra før.
   // Antagelse: den som åpner Vipps er den som faktisk betaler.
-  if (!expense.value && currentCoach.value?.id && match.value) {
+  if (!expense.value && currentCoach.value?.id && match.value && !isLocked.value) {
     await registerExpense(
       match.value.id,
       currentCoach.value.id,
@@ -188,6 +190,10 @@ const expense = computed(() => getExpenseForMatch(route.params.id))
 
 const isHomeMatch = computed(() => computeIsHomeMatch(match.value))
 
+// Avsluttet (settled) sesong = arkivert: kampen er låst for all redigering.
+const matchSeason = computed(() => seasons.value.find(s => s.id === match.value?.season_id))
+const isLocked = computed(() => matchSeason.value?.status === 'settled')
+
 const teamColors = computed(() => teamColorsForMatch(match.value))
 
 // Rekkefølge på de tre seksjonene styres av kampens livssyklus:
@@ -207,6 +213,7 @@ const sectionOrder = computed(() => {
 const formattedDate = computed(() => relativeDateLabel(match.value?.match_date))
 
 async function selectReferee(name) {
+  if (isLocked.value) return
   customReferee.value = false
   if (match.value.referee === name) {
     // Deselect
@@ -237,6 +244,7 @@ function cancelCustomReferee() {
 }
 
 async function saveCustomReferee() {
+  if (isLocked.value) return
   const name = refereeInput.value.trim()
   if (!name) {
     customReferee.value = false
@@ -263,6 +271,7 @@ async function saveCustomReferee() {
 }
 
 async function selectPayer(coachId) {
+  if (isLocked.value) return
   if (expense.value?.paid_by === coachId) {
     await removeExpense(match.value.id)
     showToast('Utlegg fjernet', 'success')
@@ -275,6 +284,7 @@ async function selectPayer(coachId) {
 }
 
 async function toggleCoach(coachId) {
+  if (isLocked.value) return
   const current = [...matchCoachIds.value]
   const idx = current.indexOf(coachId)
   if (idx > -1) {
@@ -288,6 +298,7 @@ async function toggleCoach(coachId) {
 }
 
 async function togglePlayer(playerId) {
+  if (isLocked.value) return
   const current = [...matchPlayerIds.value]
   const idx = current.indexOf(playerId)
   if (idx > -1) {
@@ -315,6 +326,7 @@ const availableCount = computed(() =>
 )
 
 async function handleToggleAbsence(playerId) {
+  if (isLocked.value) return
   await toggleAbsence(match.value.id, playerId)
   matchAbsenceIds.value = matchAbsenceIds.value.includes(playerId)
     ? matchAbsenceIds.value.filter(id => id !== playerId)
@@ -514,7 +526,7 @@ const isResultChanged = computed(() => {
 })
 
 async function saveResult() {
-  if (!isResultValid.value || !isResultChanged.value) return
+  if (isLocked.value || !isResultValid.value || !isResultChanged.value) return
   const home = Number(homeScoreInput.value)
   const away = Number(awayScoreInput.value)
   await updateMatch(match.value.id, { home_score: home, away_score: away })
@@ -524,6 +536,7 @@ async function saveResult() {
 }
 
 async function clearResult() {
+  if (isLocked.value) return
   await updateMatch(match.value.id, { home_score: null, away_score: null })
   match.value.home_score = null
   match.value.away_score = null
@@ -534,6 +547,7 @@ async function clearResult() {
 
 async function handleDelete() {
   showDeleteDialog.value = false
+  if (isLocked.value) return
   await deleteMatch(match.value.id)
   showToast('Kamp slettet', 'success')
   router.push('/kamper')
@@ -557,7 +571,7 @@ const isDateTimeChanged = computed(() => {
 })
 
 async function saveDateTime() {
-  if (!editDateInput.value || !isDateTimeChanged.value) return
+  if (isLocked.value || !editDateInput.value || !isDateTimeChanged.value) return
   const newDate = editDateInput.value
   const newTime = editTimeInput.value || null
   const weekday = new Date(newDate + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'long' })
@@ -620,6 +634,7 @@ const goalCountMismatch = computed(() => {
 })
 
 function openScorerSheet(preselectPlayerId = '') {
+  if (isLocked.value) return
   lastTappedPlayerId.value = preselectPlayerId
   showNewPlayerForm.value = false
   newPlayerName.value = ''
@@ -703,7 +718,7 @@ const isReportChanged = computed(() => {
 })
 
 async function saveReport() {
-  if (!isReportChanged.value || !match.value) return
+  if (isLocked.value || !isReportChanged.value || !match.value) return
   await updateMatch(match.value.id, { report: reportInput.value })
   match.value.report = reportInput.value
   reportSavedAt.value = new Date()
@@ -713,6 +728,7 @@ async function saveReport() {
 }
 
 function startEditingReport() {
+  if (isLocked.value) return
   isEditingReport.value = true
 }
 
@@ -823,6 +839,7 @@ function focusSummaryGroup() {
             {{ formattedDate }}<template v-if="match.match_time && match.match_time.substring(0, 5) !== '00:00'"> · {{ match.match_time.substring(0, 5) }}</template><template v-if="match.round"> · Runde {{ match.round }}</template>
           </span>
           <button
+            v-if="!isLocked"
             type="button"
             class="match-card__edit-btn"
             aria-label="Mer"
@@ -854,8 +871,13 @@ function focusSummaryGroup() {
       </div>
     </div>
 
+    <!-- Låst kamp — sesongen er gjort opp -->
+    <div v-if="isLocked" class="px-lg mt-lg">
+      <p class="locked-note">Sesongen er avsluttet — kampen er låst.</p>
+    </div>
+
     <!-- Match mode — label + tyngde følger kampens livsløp -->
-    <div class="px-lg mt-lg">
+    <div v-if="!isLocked" class="px-lg mt-lg">
       <button
         type="button"
         class="match-mode-cta"
@@ -900,9 +922,9 @@ function focusSummaryGroup() {
         <div class="sub-section">
           <!-- Valgt dommer — kompakt, med kontakt under -->
           <template v-if="match.referee && !showRefereePicker">
-            <button type="button" class="picker-result" @click="showRefereePicker = true">
+            <button type="button" class="picker-result" @click="!isLocked && (showRefereePicker = true)">
               <span class="picker-result__name">{{ match.referee }}</span>
-              <span class="picker-result__change">Bytt</span>
+              <span v-if="!isLocked" class="picker-result__change">Bytt</span>
             </button>
           </template>
 
@@ -929,7 +951,7 @@ function focusSummaryGroup() {
           </div>
 
           <!-- Mangler dommer — én knapp -->
-          <button v-else type="button" class="picker-trigger" @click="showRefereePicker = true">
+          <button v-else-if="!isLocked" type="button" class="picker-trigger" @click="showRefereePicker = true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"/>
               <line x1="5" y1="12" x2="19" y2="12"/>
@@ -960,7 +982,7 @@ function focusSummaryGroup() {
               </div>
               <div class="referee-contact__hint-amount">Lim inn i Vipps · send {{ match.fee_amount || 200 }} kr</div>
             </template>
-            <template v-else>
+            <template v-else-if="!isLocked">
               <div class="referee-contact__empty-title">Ingen telefon registrert</div>
               <div class="referee-contact__empty-subtitle">Legg til nummer for å aktivere Ring, SMS og Vipps</div>
               <div class="referee-add-phone__row">
@@ -995,10 +1017,10 @@ function focusSummaryGroup() {
             v-if="expense && !showPayerPicker"
             type="button"
             class="picker-result"
-            @click="showPayerPicker = true"
+            @click="!isLocked && (showPayerPicker = true)"
           >
             <span class="picker-result__name">{{ payerSummary }}</span>
-            <span class="picker-result__change">Bytt</span>
+            <span v-if="!isLocked" class="picker-result__change">Bytt</span>
           </button>
 
           <!-- Picker åpen — velg trener -->
@@ -1017,7 +1039,7 @@ function focusSummaryGroup() {
           </div>
 
           <!-- Ingen utlegger — én knapp -->
-          <button v-else type="button" class="picker-trigger" @click="showPayerPicker = true">
+          <button v-else-if="!isLocked" type="button" class="picker-trigger" @click="showPayerPicker = true">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
               <line x1="12" y1="5" x2="12" y2="19"/>
               <line x1="5" y1="12" x2="19" y2="12"/>
@@ -1200,6 +1222,7 @@ function focusSummaryGroup() {
                 max="99"
                 inputmode="numeric"
                 class="ds-input score-edit__input"
+                :disabled="isLocked"
                 :aria-label="`Mål for ${match.home_team}`"
                 @blur="saveResult"
                 @keydown.enter="$event.target.blur()"
@@ -1215,6 +1238,7 @@ function focusSummaryGroup() {
                 max="99"
                 inputmode="numeric"
                 class="ds-input score-edit__input"
+                :disabled="isLocked"
                 :aria-label="`Mål for ${match.away_team}`"
                 @blur="saveResult"
                 @keydown.enter="$event.target.blur()"
@@ -1223,7 +1247,7 @@ function focusSummaryGroup() {
             </div>
           </div>
           <button
-            v-if="hasResult"
+            v-if="hasResult && !isLocked"
             type="button"
             class="ds-btn ds-btn--ghost ds-btn--sm result-clear-btn"
             @click="clearResult"
@@ -1249,6 +1273,7 @@ function focusSummaryGroup() {
               > ×{{ s.count }}</span>
             </button>
             <button
+              v-if="!isLocked"
               type="button"
               class="referee-pill referee-pill--other"
               @click="openScorerSheet()"
@@ -1270,7 +1295,7 @@ function focusSummaryGroup() {
           <div class="sub-section__label">
             Kampreferat
             <button
-              v-if="!isEditingReport && match.report"
+              v-if="!isEditingReport && match.report && !isLocked"
               type="button"
               class="report-edit-link"
               @click="startEditingReport"
@@ -1285,7 +1310,7 @@ function focusSummaryGroup() {
           </div>
 
           <!-- EDIT-MODUS: textarea + Lagre/Avbryt -->
-          <template v-else>
+          <template v-else-if="!isLocked">
             <textarea
               v-model="reportInput"
               class="ds-input report-textarea"
@@ -1589,6 +1614,15 @@ function focusSummaryGroup() {
 /* Match detail card — reuses global .match-card classes, adds team tag locally */
 .match-detail-card {
   padding: var(--ds-space-lg);
+}
+
+/* Låst kamp (avsluttet sesong) */
+.locked-note {
+  font-size: var(--ds-text-xs);
+  font-weight: 500;
+  color: var(--ds-color-text-tertiary);
+  text-align: center;
+  margin: 0;
 }
 
 /* Match mode CTA */

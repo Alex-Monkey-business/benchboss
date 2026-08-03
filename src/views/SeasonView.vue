@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useAuth } from '../stores/auth'
 import { useSeasons } from '../composables/useSeasons'
 import { useMatches } from '../composables/useMatches'
@@ -9,10 +9,11 @@ import { useToast } from '../composables/useToast'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Skeleton from '../components/Skeleton.vue'
 import AnimatedNumber from '../components/AnimatedNumber.vue'
+import SeasonPicker from '../components/SeasonPicker.vue'
 import { exportSeasonToExcel } from '../lib/excelExport'
 
 const { coach: currentCoach } = useAuth()
-const { seasons, activeSeason, fetchSeasons, settleSeason } = useSeasons()
+const { seasons, viewingSeason, fetchSeasons, settleSeason } = useSeasons()
 const { matches, fetchMatches, getCoachesForMatch } = useMatches()
 const { expenses, fetchExpenses, getSettlement } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
@@ -24,11 +25,18 @@ const showSettleDialog = ref(false)
 
 onMounted(async () => {
   await Promise.all([fetchSeasons(), fetchCoaches()])
-  if (activeSeason.value) {
-    await fetchMatches(activeSeason.value.id)
+  if (viewingSeason.value) {
+    await fetchMatches(viewingSeason.value.id)
     await fetchExpenses(matches.value.map(m => m.id))
   }
   loading.value = false
+})
+
+watch(viewingSeason, async (s) => {
+  if (s) {
+    await fetchMatches(s.id)
+    await fetchExpenses(matches.value.map(m => m.id))
+  }
 })
 
 const settlement = computed(() => {
@@ -38,7 +46,7 @@ const settlement = computed(() => {
 
 const totalAmount = computed(() => expenses.value.reduce((s, e) => s + e.amount, 0))
 const registeredCount = computed(() => expenses.value.length)
-const isSettled = computed(() => activeSeason.value?.status === 'settled')
+const isSettled = computed(() => viewingSeason.value?.status === 'settled')
 
 // My own owed-by-the-club balance for the active season
 const myOwed = computed(() => {
@@ -55,15 +63,15 @@ const myMatchesPaid = computed(() => {
 
 async function confirmSettle() {
   showSettleDialog.value = false
-  if (activeSeason.value) {
-    await settleSeason(activeSeason.value.id)
+  if (viewingSeason.value) {
+    await settleSeason(viewingSeason.value.id)
     showToast('Sesongen er avsluttet', 'success')
   }
 }
 
 function handleExport() {
   exportSeasonToExcel({
-    seasonName: activeSeason.value?.name,
+    seasonName: viewingSeason.value?.name,
     matches: matches.value,
     expenses: expenses.value,
     coaches: coaches.value,
@@ -77,7 +85,7 @@ function handleExport() {
   <div class="desktop-container">
     <div class="page-header">
       <h1 class="page-header__title">Sesongoppgjør</h1>
-      <p class="page-header__subtitle">{{ activeSeason?.name }}</p>
+      <SeasonPicker />
     </div>
 
     <div v-if="loading" class="px-lg season-skel" aria-hidden="true">
@@ -130,7 +138,7 @@ function handleExport() {
       <!-- Settled banner -->
       <div v-if="isSettled" class="px-lg mb-lg">
         <div class="ds-alert ds-alert--success">
-          Denne sesongen er avsluttet. Oppgjøret ble gjort {{ new Date(activeSeason.settled_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }) }}.
+          Denne sesongen er avsluttet. Oppgjøret ble gjort {{ new Date(viewingSeason.settled_at).toLocaleDateString('nb-NO', { day: 'numeric', month: 'long', year: 'numeric' }) }}.
         </div>
       </div>
 
@@ -180,10 +188,10 @@ function handleExport() {
       </div>
 
       <!-- Previous settled seasons -->
-      <div v-if="seasons.filter(s => s.status === 'settled' && s.id !== activeSeason?.id).length > 0" class="px-lg mb-lg">
+      <div v-if="seasons.filter(s => s.status === 'settled' && s.id !== viewingSeason?.id).length > 0" class="px-lg mb-lg">
         <h3 style="font-family: var(--ds-font-heading); font-size: 1rem; font-weight: 500; margin-bottom: 12px; color: var(--ds-color-text-secondary);">Tidligere sesonger</h3>
         <div class="ds-stack--sm">
-          <div v-for="s in seasons.filter(s => s.status === 'settled' && s.id !== activeSeason?.id)" :key="s.id" class="ds-card ds-card--compact">
+          <div v-for="s in seasons.filter(s => s.status === 'settled' && s.id !== viewingSeason?.id)" :key="s.id" class="ds-card ds-card--compact">
             <div class="ds-flex ds-flex--between">
               <span style="font-weight: 500;">{{ s.name }}</span>
               <span class="ds-badge ds-badge--success">Avsluttet</span>
@@ -196,7 +204,7 @@ function handleExport() {
     <ConfirmDialog
       :show="showSettleDialog"
       title="Avslutt sesong?"
-      :message="`Er du sikker på at du vil avslutte ${activeSeason?.name}? Oppgjøret låses og kan ikke endres etterpå.`"
+      :message="`Er du sikker på at du vil avslutte ${viewingSeason?.name}? Oppgjøret låses og kan ikke endres etterpå.`"
       confirm-label="Ja, avslutt"
       variant="warning"
       @confirm="confirmSettle"
