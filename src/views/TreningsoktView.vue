@@ -146,18 +146,26 @@ function queueDrills(mutate) {
 
 const showPicker = ref(false)
 
-function pickExercise(ex) {
-  queueDrills(ds => [...ds, exerciseToDrill(ex)])
-  showToast(`«${ex.name}» lagt til`, 'success')
+function drillMatchesExercise(d, ex) {
+  return d.exercise_id === ex.id || (d.text || '').trim().toLowerCase() === ex.name.trim().toLowerCase()
 }
 
-const removeDrillIndex = ref(null)
-const removeDrillName = computed(() => okt.value?.drills?.[removeDrillIndex.value]?.text || '')
+// Toggle fra plukkeren: på = legg til, av = ta ut av økta.
+// Å ta ut sletter ingenting — øvelsen ligger fortsatt i banken.
+function toggleExercise(ex) {
+  const inSession = (okt.value?.drills || []).some(d => drillMatchesExercise(d, ex))
+  queueDrills(ds => inSession
+    ? ds.filter(d => !drillMatchesExercise(d, ex))
+    : [...ds, exerciseToDrill(ex)]
+  )
+}
 
-function confirmRemoveDrill() {
-  const i = removeDrillIndex.value
-  removeDrillIndex.value = null
+// Fjern fra økta (×) — friksjonsfritt, ingen dialog: dette er ikke sletting.
+function removeDrillFromSession(i) {
+  const d = okt.value?.drills?.[i]
+  if (!d) return
   queueDrills(ds => ds.filter((_, idx) => idx !== i))
+  showToast(d.exercise_id ? 'Fjernet — ligger i banken' : 'Fjernet', 'success')
 }
 
 // ---- Dupliser økt ----
@@ -250,7 +258,7 @@ onMounted(async () => {
           >{{ d.type === 'diff' ? 'Diff' : 'Mix' }}</span>
           <h3 class="drill__name">{{ d.text }}</h3>
           <div class="drill__actions">
-            <button type="button" class="drill__action" aria-label="Fjern øvelse" title="Fjern øvelse" @click="removeDrillIndex = di">
+            <button type="button" class="drill__action" aria-label="Fjern fra økta" title="Fjern fra økta" @click="removeDrillFromSession(di)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>
           </div>
@@ -279,14 +287,14 @@ onMounted(async () => {
     <div v-else class="okt-view__empty">
       <p>Ingen øvelser ennå.</p>
       <div class="okt-view__empty-actions">
-        <button type="button" class="ds-btn ds-btn--primary" @click="showPicker = true">Fra banken</button>
+        <button type="button" class="ds-btn ds-btn--primary" @click="showPicker = true">Velg øvelser</button>
         <button type="button" class="ds-btn ds-btn--secondary" @click="openEdit">Skriv selv</button>
       </div>
     </div>
 
     <button v-if="drillCount" type="button" class="drill-add" @click="showPicker = true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Øvelse fra banken
+      Velg øvelser
     </button>
     </div>
     </div>
@@ -403,17 +411,7 @@ onMounted(async () => {
       :show="showPicker"
       :current-drills="okt.drills || []"
       @close="showPicker = false"
-      @pick="pickExercise"
-    />
-
-    <ConfirmDialog
-      :show="removeDrillIndex !== null"
-      title="Fjern øvelse?"
-      :message="`«${removeDrillName}» fjernes fra økta.`"
-      confirm-label="Fjern"
-      variant="warning"
-      @confirm="confirmRemoveDrill"
-      @cancel="removeDrillIndex = null"
+      @toggle="toggleExercise"
     />
   </div>
 </template>
@@ -426,12 +424,12 @@ onMounted(async () => {
 .okt-view[data-accent="sky"],        .accent-swatch[data-accent="sky"]        { --accent-bg: #DDE6EC; --accent-text: #3A4C5C; }
 .okt-view[data-accent="olive"],      .accent-swatch[data-accent="olive"]      { --accent-bg: #F0E7D6; --accent-text: #6B5630; }
 
-:global([data-theme="dark"]) .okt-view[data-accent="warm"],       :global([data-theme="dark"]) .accent-swatch[data-accent="warm"]       { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
-:global([data-theme="dark"]) .okt-view[data-accent="sage"],       :global([data-theme="dark"]) .accent-swatch[data-accent="sage"]       { --accent-bg: #1A241D; --accent-text: #B5D2B0; }
-:global([data-theme="dark"]) .okt-view[data-accent="cornflower"], :global([data-theme="dark"]) .accent-swatch[data-accent="cornflower"] { --accent-bg: #1A1F33; --accent-text: #B9C2E5; }
-:global([data-theme="dark"]) .okt-view[data-accent="peach"],      :global([data-theme="dark"]) .accent-swatch[data-accent="peach"]      { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
-:global([data-theme="dark"]) .okt-view[data-accent="sky"],        :global([data-theme="dark"]) .accent-swatch[data-accent="sky"]        { --accent-bg: #1A222A; --accent-text: #B0C5D8; }
-:global([data-theme="dark"]) .okt-view[data-accent="olive"],      :global([data-theme="dark"]) .accent-swatch[data-accent="olive"]      { --accent-bg: #2A241A; --accent-text: #D9C99E; }
+:global([data-theme="dark"] .okt-view[data-accent="warm"]),       :global([data-theme="dark"] .accent-swatch[data-accent="warm"]) { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
+:global([data-theme="dark"] .okt-view[data-accent="sage"]),       :global([data-theme="dark"] .accent-swatch[data-accent="sage"]) { --accent-bg: #1A241D; --accent-text: #B5D2B0; }
+:global([data-theme="dark"] .okt-view[data-accent="cornflower"]), :global([data-theme="dark"] .accent-swatch[data-accent="cornflower"]) { --accent-bg: #1A1F33; --accent-text: #B9C2E5; }
+:global([data-theme="dark"] .okt-view[data-accent="peach"]),      :global([data-theme="dark"] .accent-swatch[data-accent="peach"]) { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
+:global([data-theme="dark"] .okt-view[data-accent="sky"]),        :global([data-theme="dark"] .accent-swatch[data-accent="sky"]) { --accent-bg: #1A222A; --accent-text: #B0C5D8; }
+:global([data-theme="dark"] .okt-view[data-accent="olive"]),      :global([data-theme="dark"] .accent-swatch[data-accent="olive"]) { --accent-bg: #2A241A; --accent-text: #D9C99E; }
 
 /* Dyp, kinematisk header-palett (VG-aktig) — lik i lyst og mørkt tema */
 .okt-view[data-accent="warm"]       { --hero-bg: #4A1E14; --hero-accent: #E5A488; --hero-fg: #F6EAE3; }
@@ -620,8 +618,8 @@ onMounted(async () => {
 .drill__badge--diff { background: #E2EDDE; color: #3D5C44; }
 .drill__badge--mix  { background: #F8E8E0; color: #7A3A24; }
 
-:global([data-theme="dark"]) .drill__badge--diff { background: #1A241D; color: #B5D2B0; }
-:global([data-theme="dark"]) .drill__badge--mix  { background: #2A1E18; color: #F4C4A8; }
+:global([data-theme="dark"] .drill__badge--diff) { background: #1A241D; color: #B5D2B0; }
+:global([data-theme="dark"] .drill__badge--mix) { background: #2A1E18; color: #F4C4A8; }
 
 .drill__name {
   flex: 1;
@@ -872,8 +870,8 @@ onMounted(async () => {
 .type-toggle__opt--mix.type-toggle__opt--active  { background: #F8E8E0; color: #7A3A24; }
 .type-toggle__opt--none.type-toggle__opt--active { background: var(--ds-color-bg-subtle); color: var(--ds-color-text-primary); }
 
-:global([data-theme="dark"]) .type-toggle__opt--diff.type-toggle__opt--active { background: #1A241D; color: #B5D2B0; }
-:global([data-theme="dark"]) .type-toggle__opt--mix.type-toggle__opt--active  { background: #2A1E18; color: #F4C4A8; }
+:global([data-theme="dark"] .type-toggle__opt--diff.type-toggle__opt--active) { background: #1A241D; color: #B5D2B0; }
+:global([data-theme="dark"] .type-toggle__opt--mix.type-toggle__opt--active) { background: #2A1E18; color: #F4C4A8; }
 
 .link-row {
   display: flex;

@@ -122,18 +122,18 @@ function selectCoach(c) {
 .profile-card[data-coach="simon"] { --coach-bg: #F0E7D6; --coach-text: #6B5630; }
 .profile-card[data-coach="trond"] { --coach-bg: #DDE6EC; --coach-text: #3A4C5C; }
 
-:global([data-theme="dark"]) .profile-card[data-coach="alex"]  { --coach-bg: #2A1E18; --coach-text: #F4C4A8; }
-:global([data-theme="dark"]) .profile-card[data-coach="iver"]  { --coach-bg: #1A241D; --coach-text: #B5D2B0; }
-:global([data-theme="dark"]) .profile-card[data-coach="jacob"] { --coach-bg: #1A1F33; --coach-text: #B9C2E5; }
-:global([data-theme="dark"]) .profile-card[data-coach="simon"] { --coach-bg: #2A241A; --coach-text: #D9C99E; }
-:global([data-theme="dark"]) .profile-card[data-coach="trond"] { --coach-bg: #1A222A; --coach-text: #B0C5D8; }
+:global([data-theme="dark"] .profile-card[data-coach="alex"]) { --coach-bg: #2A1E18; --coach-text: #F4C4A8; }
+:global([data-theme="dark"] .profile-card[data-coach="iver"]) { --coach-bg: #1A241D; --coach-text: #B5D2B0; }
+:global([data-theme="dark"] .profile-card[data-coach="jacob"]) { --coach-bg: #1A1F33; --coach-text: #B9C2E5; }
+:global([data-theme="dark"] .profile-card[data-coach="simon"]) { --coach-bg: #2A241A; --coach-text: #D9C99E; }
+:global([data-theme="dark"] .profile-card[data-coach="trond"]) { --coach-bg: #1A222A; --coach-text: #B0C5D8; }
 
 /* Dark mode: gradient bottom stays dark + stronger figure shadow */
-:global([data-theme="dark"]) .profile-card__avatar-img {
+:global([data-theme="dark"] .profile-card__avatar-img) {
   filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.45));
 }
 
-:global([data-theme="dark"]) .profile-card::after {
+:global([data-theme="dark"] .profile-card::after) {
   background: linear-gradient(
     180deg,
     rgba(0, 0, 0, 0) 0%,

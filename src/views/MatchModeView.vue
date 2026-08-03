@@ -1103,7 +1103,7 @@ const summary = computed(() =>
   box-shadow: var(--ds-shadow-md), inset 0 0 60px rgba(0,0,0,.18);
   overflow: hidden;
 }
-:global([data-theme="dark"]) .pitch { background: #23613d; }
+:global([data-theme="dark"] .pitch) { background: #23613d; }
 
 /* Klippestriper — solide bånd, ingen gradient */
 .pitch__turf { position: absolute; inset: 0; display: flex; flex-direction: column; }

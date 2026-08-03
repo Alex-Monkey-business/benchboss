@@ -260,12 +260,12 @@ async function confirmDelete() {
   border: 1px solid var(--ds-color-border-strong);
   box-shadow: none;
 }
-:global([data-theme="dark"]) [data-accent="warm"]       { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
-:global([data-theme="dark"]) [data-accent="sage"]       { --accent-bg: #1A241D; --accent-text: #B5D2B0; }
-:global([data-theme="dark"]) [data-accent="cornflower"] { --accent-bg: #1A1F33; --accent-text: #B9C2E5; }
-:global([data-theme="dark"]) [data-accent="olive"]      { --accent-bg: #2A241A; --accent-text: #D9C99E; }
-:global([data-theme="dark"]) [data-accent="sky"]        { --accent-bg: #1A222A; --accent-text: #B0C5D8; }
-:global([data-theme="dark"]) [data-accent="peach"]      { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
+:global([data-theme="dark"] [data-accent="warm"]) { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
+:global([data-theme="dark"] [data-accent="sage"]) { --accent-bg: #1A241D; --accent-text: #B5D2B0; }
+:global([data-theme="dark"] [data-accent="cornflower"]) { --accent-bg: #1A1F33; --accent-text: #B9C2E5; }
+:global([data-theme="dark"] [data-accent="olive"]) { --accent-bg: #2A241A; --accent-text: #D9C99E; }
+:global([data-theme="dark"] [data-accent="sky"]) { --accent-bg: #1A222A; --accent-text: #B0C5D8; }
+:global([data-theme="dark"] [data-accent="peach"]) { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
 
 /* Ett kort per lag */
 .teamcard {

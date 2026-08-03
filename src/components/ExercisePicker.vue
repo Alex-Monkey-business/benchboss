@@ -3,14 +3,15 @@ import { ref, computed, watch } from 'vue'
 import { useExercises } from '../composables/useExercises'
 import Sheet from './Sheet.vue'
 
-// Plukk øvelser fra banken inn i en økt. Sheeten blir stående åpen etter
-// valg så flere øvelser kan legges til i ett besøk.
+// Plukk øvelser fra banken inn i en økt — toggle av/på. Å ta en øvelse ut av
+// økta sletter ingenting: den ligger fortsatt i banken. Sheeten blir stående
+// åpen så hele økta kan settes sammen i ett besøk.
 const props = defineProps({
   show: { type: Boolean, default: false },
   currentDrills: { type: Array, default: () => [] }
 })
 
-const emit = defineEmits(['close', 'pick'])
+const emit = defineEmits(['close', 'toggle'])
 
 const { exercises, loaded, fetchExercises } = useExercises()
 
@@ -31,16 +32,18 @@ const filtered = computed(() => {
   )
 })
 
-// Antall ganger en øvelse alt ligger i økta — match på opphav, fallback navn.
-function countInSession(ex) {
-  return props.currentDrills.filter(d =>
+const selectedCount = computed(() => exercises.value.filter(isInSession).length)
+
+// I økta? Match på opphav (exercise_id), fallback navn for eldre drills.
+function isInSession(ex) {
+  return props.currentDrills.some(d =>
     d.exercise_id === ex.id || (d.text || '').trim().toLowerCase() === ex.name.trim().toLowerCase()
-  ).length
+  )
 }
 </script>
 
 <template>
-  <Sheet :show="show" title="Fra banken" @close="emit('close')">
+  <Sheet :show="show" :title="selectedCount ? `Øvelser · ${selectedCount} valgt` : 'Øvelser'" @close="emit('close')">
     <div v-if="exercises.length === 0" class="picker-empty">
       <p class="picker-empty__text">Ingen øvelser i banken ennå.</p>
       <router-link to="/trening/ovelser" class="ds-btn ds-btn--secondary" @click="emit('close')">
@@ -63,7 +66,9 @@ function countInSession(ex) {
           :key="ex.id"
           type="button"
           class="picker-row"
-          @click="emit('pick', ex)"
+          :class="{ 'picker-row--selected': isInSession(ex) }"
+          :aria-pressed="isInSession(ex)"
+          @click="emit('toggle', ex)"
         >
           <span
             v-if="ex.type && ex.type !== 'none'"
@@ -74,11 +79,15 @@ function countInSession(ex) {
             <span class="picker-row__name">{{ ex.name }}</span>
             <span v-if="ex.tema" class="picker-row__tema">{{ ex.tema }}</span>
           </span>
-          <span v-if="countInSession(ex)" class="picker-row__in">I økta{{ countInSession(ex) > 1 ? ` ×${countInSession(ex)}` : '' }}</span>
+          <svg v-if="isInSession(ex)" class="picker-row__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           <svg v-else class="picker-row__plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
         <p v-if="!filtered.length" class="picker-no-hits">Ingen treff på «{{ search }}»</p>
       </div>
+
+      <button type="button" class="ds-btn ds-btn--primary ds-btn--lg picker-done" @click="emit('close')">
+        Ferdig
+      </button>
     </template>
   </Sheet>
 </template>
@@ -128,10 +137,12 @@ function countInSession(ex) {
 .picker-row:active { transform: scale(0.99); }
 
 @media (hover: hover) and (pointer: fine) {
-  .picker-row:hover {
-    background: var(--ds-color-accent-light);
-    border-color: var(--ds-color-accent);
-  }
+  .picker-row:hover { border-color: var(--ds-color-border-strong); }
+}
+
+.picker-row--selected {
+  background: var(--ds-color-accent-light);
+  border-color: var(--ds-color-accent);
 }
 
 .picker-row__badge {
@@ -145,8 +156,8 @@ function countInSession(ex) {
 }
 .picker-row__badge--diff { background: #E2EDDE; color: #3D5C44; }
 .picker-row__badge--mix { background: #F8E8E0; color: #7A3A24; }
-:global([data-theme="dark"]) .picker-row__badge--diff { background: #1A241D; color: #B5D2B0; }
-:global([data-theme="dark"]) .picker-row__badge--mix { background: #2A1E18; color: #F4C4A8; }
+:global([data-theme="dark"] .picker-row__badge--diff) { background: #1A241D; color: #B5D2B0; }
+:global([data-theme="dark"] .picker-row__badge--mix) { background: #2A1E18; color: #F4C4A8; }
 
 .picker-row__body {
   flex: 1;
@@ -170,12 +181,11 @@ function countInSession(ex) {
   text-overflow: ellipsis;
 }
 
-.picker-row__in {
+.picker-row__check {
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
-  font-size: var(--ds-text-xs);
-  font-weight: 500;
-  color: var(--ds-color-text-tertiary);
-  font-variant-numeric: tabular-nums;
+  color: var(--ds-color-accent);
 }
 
 .picker-row__plus {
@@ -191,5 +201,10 @@ function countInSession(ex) {
   text-align: center;
   padding: var(--ds-space-md) 0;
   margin: 0;
+}
+
+.picker-done {
+  width: 100%;
+  margin-top: var(--ds-space-md);
 }
 </style>

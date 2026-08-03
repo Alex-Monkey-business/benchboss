@@ -75,7 +75,7 @@ const RESULT_LABEL = { w: 'V', d: 'U', l: 'T' }
   color: #0A0A0A;
 }
 
-:global([data-theme="dark"]) .form-curve__chip--d {
+:global([data-theme="dark"] .form-curve__chip--d) {
   background: #4A4A45;
   color: #F5F5F2;
 }
