@@ -57,12 +57,22 @@ export function useToday() {
       .sort((a, b) => (a.match_time || '').localeCompare(b.match_time || ''))
   })
 
-  // Aktiv treningsperiode: dagens dato innenfor start/slutt, lavest position vinner.
+  // Aktiv treningsperiode: dagens dato innenfor start/slutt (åpen slutt teller), lavest position vinner.
   const activePeriod = computed(() => {
     const today = localISODate()
     return periods.value
-      .filter(p => p.start_date && p.end_date && p.start_date <= today && today <= p.end_date)
+      .filter(p => p.start_date && p.start_date <= today && (!p.end_date || today <= p.end_date))
       .sort((a, b) => a.position - b.position)[0] || null
+  })
+
+  // Perioden «neste trening» hentes fra: den som dekker i dag, ellers den
+  // nærmeste som starter frem i tid (så en periode som starter i morgen synes).
+  const upcomingPeriod = computed(() => {
+    if (activePeriod.value) return activePeriod.value
+    const today = localISODate()
+    return periods.value
+      .filter(p => p.start_date && p.start_date > today)
+      .sort((a, b) => a.start_date.localeCompare(b.start_date))[0] || null
   })
 
   const todayTraining = computed(() => {
@@ -112,14 +122,21 @@ export function useToday() {
     return null
   }
 
-  // Neste treningsøkt: nærmeste forekomst av en økt med ukedag i aktiv periode.
+  // Neste treningsøkt: nærmeste forekomst av en økt med ukedag i aktuell periode.
+  // For en fremtidig periode søkes det fra periodens start, ikke fra i dag.
   const nextTraining = computed(() => {
     const today = localISODate()
-    const period = activePeriod.value
+    const period = upcomingPeriod.value
     if (!period) return null
+    let after = today
+    if (period.start_date > today) {
+      const d = new Date(period.start_date + 'T12:00:00')
+      d.setDate(d.getDate() - 1)
+      after = localISODate(d)
+    }
     const candidates = sessions.value
       .filter(s => s.period_id === period.id && s.weekday)
-      .map(s => ({ session: s, date: nextDateForWeekday(s.weekday, today, period.end_date) }))
+      .map(s => ({ session: s, date: nextDateForWeekday(s.weekday, after, period.end_date) }))
       .filter(x => x.date)
       .sort((a, b) => a.date.localeCompare(b.date))
     if (!candidates.length) return null
@@ -190,7 +207,7 @@ export function useToday() {
     const jobs = []
     if (activeSeason.value) jobs.push(fetchMatches(activeSeason.value.id))
     if (activeCup.value) jobs.push(fetchCupMatches(activeCup.value.id))
-    if (activePeriod.value) jobs.push(fetchSessions(activePeriod.value.id))
+    if (upcomingPeriod.value) jobs.push(fetchSessions(upcomingPeriod.value.id))
     await Promise.all(jobs)
 
     await Promise.all([
