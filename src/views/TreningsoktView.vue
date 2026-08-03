@@ -3,7 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingPeriods } from '../composables/useTrainingPeriods'
 import { useTrainingSessions } from '../composables/useTrainingSessions'
-import { useExercises, exerciseToDrill, drillToExercise } from '../composables/useExercises'
+import { useExercises, exerciseToDrill } from '../composables/useExercises'
 import { useToast } from '../composables/useToast'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -14,7 +14,7 @@ const route = useRoute()
 const router = useRouter()
 const { getPeriod, fetchPeriods } = useTrainingPeriods()
 const { sessions, loadedPeriod, fetchSessions, createSession, updateSession, removeSession } = useTrainingSessions()
-const { createExercise, findByName, fetchExercises } = useExercises()
+const { fetchExercises, upsertFromDrill } = useExercises()
 const { show: showToast } = useToast()
 
 const ACCENTS = [
@@ -114,6 +114,13 @@ async function save() {
       exercise_id: d.exercise_id || null
     }))
     .filter(d => d.text || d.link || d.tema || d.organisering || d.laeringsmomenter.length)
+  // Nye øvelser (uten bank-opphav) fanges automatisk i øvelsesbanken.
+  for (const d of drills) {
+    if (!d.exercise_id) {
+      const ex = await upsertFromDrill(d)
+      if (ex) d.exercise_id = ex.id
+    }
+  }
   await updateSession(oktId.value, {
     title: form.value.title.trim(),
     accent: form.value.accent,
@@ -151,16 +158,6 @@ function confirmRemoveDrill() {
   const i = removeDrillIndex.value
   removeDrillIndex.value = null
   queueDrills(ds => ds.filter((_, idx) => idx !== i))
-}
-
-async function saveDrillToBank(d) {
-  const existing = findByName(d.text)
-  if (existing) {
-    showToast(`«${existing.name}» finnes allerede i banken`, 'info')
-    return
-  }
-  const row = await createExercise(drillToExercise(d))
-  if (row) showToast(`«${row.name}» lagret i banken`, 'success')
 }
 
 // ---- Dupliser økt ----
@@ -253,9 +250,6 @@ onMounted(async () => {
           >{{ d.type === 'diff' ? 'Diff' : 'Mix' }}</span>
           <h3 class="drill__name">{{ d.text }}</h3>
           <div class="drill__actions">
-            <button type="button" class="drill__action" aria-label="Lagre i øvelsesbanken" title="Lagre i øvelsesbanken" @click="saveDrillToBank(d)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-            </button>
             <button type="button" class="drill__action" aria-label="Fjern øvelse" title="Fjern øvelse" @click="removeDrillIndex = di">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
             </button>

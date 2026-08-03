@@ -107,7 +107,7 @@ onMounted(fetchExercises)
     <div v-if="exercises.length === 0" class="ds-empty">
       <img src="/illustrations/bench-boss-feature-icons/512/training-plan-transparent.png" alt="" class="ds-empty__illo" />
       <div class="ds-empty__title">Ingen øvelser ennå</div>
-      <div class="ds-empty__description">Legg til her, eller lagre en øvelse fra en økt med bokmerke-ikonet.</div>
+      <div class="ds-empty__description">Øvelser du lager i øktene havner her automatisk.</div>
       <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="openNew">Ny øvelse</button>
     </div>
 

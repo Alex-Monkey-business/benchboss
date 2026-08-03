@@ -77,6 +77,8 @@ export function useExercises() {
   async function createExercise(payload) {
     if (!isSupabaseConfigured) {
       const row = { id: demoId('dex'), laeringsmomenter: [], link: null, tema: null, organisering: null, type: 'none', ...payload }
+      // DEMO_EXERCISES er demo-«databasen» — uten denne forsvinner raden ved reload.
+      DEMO_EXERCISES.push(row)
       exercises.value = [...exercises.value, row].sort(byName)
       return row
     }
@@ -92,6 +94,8 @@ export function useExercises() {
 
   async function updateExercise(id, updates) {
     if (!isSupabaseConfigured) {
+      const di = DEMO_EXERCISES.findIndex(e => e.id === id)
+      if (di > -1) DEMO_EXERCISES[di] = { ...DEMO_EXERCISES[di], ...updates }
       const i = exercises.value.findIndex(e => e.id === id)
       if (i > -1) exercises.value[i] = { ...exercises.value[i], ...updates }
       exercises.value = [...exercises.value].sort(byName)
@@ -114,6 +118,8 @@ export function useExercises() {
 
   async function deleteExercise(id) {
     if (!isSupabaseConfigured) {
+      const di = DEMO_EXERCISES.findIndex(e => e.id === id)
+      if (di > -1) DEMO_EXERCISES.splice(di, 1)
       exercises.value = exercises.value.filter(e => e.id !== id)
       return
     }
@@ -130,5 +136,17 @@ export function useExercises() {
     return exercises.value.find(e => e.name.trim().toLowerCase() === n) || null
   }
 
-  return { exercises, loading, loaded, fetchExercises, createExercise, updateExercise, deleteExercise, findByName }
+  // Alle øvelser lever i banken: nye drills fanges automatisk ved opprettelse.
+  // Returnerer eksisterende rad ved navnetreff, ellers opprettes en ny.
+  // Kall sekvensielt — findByName ser forrige insert og deduper innen samme batch.
+  async function upsertFromDrill(d) {
+    const name = (d.text || '').trim()
+    if (!name) return null
+    await fetchExercises()
+    const hit = findByName(name)
+    if (hit) return hit
+    return createExercise(drillToExercise(d))
+  }
+
+  return { exercises, loading, loaded, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill }
 }

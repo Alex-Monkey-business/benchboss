@@ -3,6 +3,7 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingPeriods } from '../composables/useTrainingPeriods'
 import { useTrainingSessions, DEFAULT_WEEK_SESSIONS } from '../composables/useTrainingSessions'
+import { useExercises } from '../composables/useExercises'
 import { useToast } from '../composables/useToast'
 import { parseTreningsplan } from '../lib/treningParser'
 import Sheet from '../components/Sheet.vue'
@@ -12,6 +13,7 @@ const route = useRoute()
 const router = useRouter()
 const { periods, getPeriod, fetchPeriods, createPeriod, updatePeriod, deletePeriod } = useTrainingPeriods()
 const { sessions, fetchSessions, createSession } = useTrainingSessions()
+const { upsertFromDrill } = useExercises()
 const { show: showToast } = useToast()
 
 const ACCENTS = [
@@ -70,12 +72,18 @@ async function confirmPaste() {
   savingPaste.value = true
   const base = sessions.value.length
   for (const [i, s] of parsed.sessions.entries()) {
+    // Alle øvelser lever i banken — nye fanges automatisk ved import.
+    const drills = []
+    for (const d of s.drills) {
+      const ex = await upsertFromDrill(d)
+      drills.push(ex ? { ...d, exercise_id: ex.id } : d)
+    }
     await createSession(periodId.value, {
       title: s.title,
       weekday: s.weekday,
       focus: s.focus || null,
       accent: ACCENT_ROTATION[(base + i) % ACCENT_ROTATION.length],
-      drills: s.drills,
+      drills,
       position: base + i
     })
   }
