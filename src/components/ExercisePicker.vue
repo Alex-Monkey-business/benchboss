@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useExercises } from '../composables/useExercises'
+import { useExercises, groupByCategory } from '../composables/useExercises'
 import Sheet from './Sheet.vue'
 
 // Plukk øvelser fra banken inn i en økt — toggle av/på. Å ta en øvelse ut av
@@ -32,6 +32,8 @@ const filtered = computed(() => {
   )
 })
 
+const grouped = computed(() => groupByCategory(filtered.value))
+
 const selectedCount = computed(() => exercises.value.filter(isInSession).length)
 
 // I økta? Match på opphav (exercise_id), fallback navn for eldre drills.
@@ -60,9 +62,11 @@ function isInSession(ex) {
         placeholder="Søk i øvelser"
       />
 
-      <div class="picker-list">
+      <div v-for="group in grouped" :key="group.value" class="picker-group">
+        <div class="picker-group__label">{{ group.label }}</div>
+        <div class="picker-list">
         <button
-          v-for="ex in filtered"
+          v-for="ex in group.items"
           :key="ex.id"
           type="button"
           class="picker-row"
@@ -82,8 +86,9 @@ function isInSession(ex) {
           <svg v-if="isInSession(ex)" class="picker-row__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
           <svg v-else class="picker-row__plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         </button>
-        <p v-if="!filtered.length" class="picker-no-hits">Ingen treff på «{{ search }}»</p>
+        </div>
       </div>
+      <p v-if="!filtered.length" class="picker-no-hits">Ingen treff på «{{ search }}»</p>
 
       <button type="button" class="ds-btn ds-btn--primary ds-btn--lg picker-done" @click="emit('close')">
         Ferdig
@@ -110,6 +115,18 @@ function isInSession(ex) {
 .picker-search {
   width: 100%;
   margin-bottom: var(--ds-space-sm);
+}
+
+.picker-group + .picker-group { margin-top: var(--ds-space-md); }
+
+.picker-group__label {
+  font-size: var(--ds-text-xs);
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ds-color-text-tertiary);
+  padding: 0 4px;
+  margin-bottom: 6px;
 }
 
 .picker-list {

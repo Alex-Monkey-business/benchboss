@@ -9,13 +9,30 @@ const exercises = ref([])
 const loading = ref(false)
 const loaded = ref(false)
 
+// Kanonisk kategorirekkefølge — banken og plukkeren grupperes og sorteres etter denne.
+// Ukategoriserte samles i «Annet» nederst.
+export const EXERCISE_CATEGORIES = [
+  { value: 'oppvarming', label: 'Oppvarming' },
+  { value: 'sjef-over-ballen', label: 'Sjef over ballen' },
+  { value: 'pasning', label: 'Pasning' },
+  { value: 'skudd', label: 'Skudd' },
+  { value: 'spill', label: 'Spill' }
+]
+
+export function groupByCategory(list) {
+  const groups = EXERCISE_CATEGORIES.map(c => ({ ...c, items: list.filter(e => e.category === c.value) }))
+  const rest = list.filter(e => !e.category || !EXERCISE_CATEGORIES.some(c => c.value === e.category))
+  if (rest.length) groups.push({ value: 'annet', label: 'Annet', items: rest })
+  return groups.filter(g => g.items.length)
+}
+
 const DEMO_EXERCISES = [
-  { id: 'dex-1', name: 'Medtak, dribling, vending og pasning', type: 'diff', tema: 'Spille oss fremover', organisering: 'To og to per stasjon. Pasning gjennom port, retningsbestemt medtak, dribling forbi kjegler, finte mot passivt press, vending ved siste kjegle. Bytt roller.', laeringsmomenter: ['Mykt medtak ut til siden — fremover på andre touch', 'Løft blikket og finn timing på finta', 'Finte med tempo og store bevegelser for å passere'], link: { label: 'Medtak, dribling, vending, pasning', url: 'https://tiim.no/ovelse/medtak-dribling-vending-pasning' } },
-  { id: 'dex-2', name: '3v3 med press i ryggen', type: 'diff', tema: 'Fart i angrep, hold overtaket', organisering: 'To baner med småmål. To forsvarere ved eget mål; den siste jager i press straks angriperne får ballen.', laeringsmomenter: [], link: null },
-  { id: 'dex-3', name: 'Vinneren står', type: 'mix', tema: 'Tempo og lite dødtid', organisering: 'To lag spiller kort 7er — ny kamp straks det er mål.', laeringsmomenter: [], link: null },
-  { id: 'dex-4', name: 'Ferdighetssirkel', type: 'mix', tema: 'Sjef over ballen', organisering: 'Avsluttes med press.', laeringsmomenter: [], link: null },
-  { id: 'dex-5', name: 'Eggs (transition game)', type: 'diff', tema: null, organisering: '4v4, 3v3 eller 2v2 ut fra antall.', laeringsmomenter: [], link: { label: 'Eggs Transition Game – 4v4 til 4v3', url: 'https://tiim.no/ovelse/eggs-transition-game-4v4-til-4v3' } },
-  { id: 'dex-6', name: 'Utvidet Barça-oppvarming', type: 'diff', tema: null, organisering: 'Innside, utside, såle, vendinger og finter med begge føtter, rundt kjegler.', laeringsmomenter: [], link: null }
+  { id: 'dex-1', category: 'sjef-over-ballen', name: 'Medtak, dribling, vending og pasning', type: 'diff', tema: 'Spille oss fremover', organisering: 'To og to per stasjon. Pasning gjennom port, retningsbestemt medtak, dribling forbi kjegler, finte mot passivt press, vending ved siste kjegle. Bytt roller.', laeringsmomenter: ['Mykt medtak ut til siden — fremover på andre touch', 'Løft blikket og finn timing på finta', 'Finte med tempo og store bevegelser for å passere'], link: { label: 'Medtak, dribling, vending, pasning', url: 'https://tiim.no/ovelse/medtak-dribling-vending-pasning' } },
+  { id: 'dex-2', category: 'spill', name: '3v3 med press i ryggen', type: 'diff', tema: 'Fart i angrep, hold overtaket', organisering: 'To baner med småmål. To forsvarere ved eget mål; den siste jager i press straks angriperne får ballen.', laeringsmomenter: [], link: null },
+  { id: 'dex-3', category: 'spill', name: 'Vinneren står', type: 'mix', tema: 'Tempo og lite dødtid', organisering: 'To lag spiller kort 7er — ny kamp straks det er mål.', laeringsmomenter: [], link: null },
+  { id: 'dex-4', category: 'sjef-over-ballen', name: 'Ferdighetssirkel', type: 'mix', tema: 'Sjef over ballen', organisering: 'Avsluttes med press.', laeringsmomenter: [], link: null },
+  { id: 'dex-5', category: 'spill', name: 'Eggs (transition game)', type: 'diff', tema: null, organisering: '4v4, 3v3 eller 2v2 ut fra antall.', laeringsmomenter: [], link: { label: 'Eggs Transition Game – 4v4 til 4v3', url: 'https://tiim.no/ovelse/eggs-transition-game-4v4-til-4v3' } },
+  { id: 'dex-6', category: 'oppvarming', name: 'Utvidet Barça-oppvarming', type: 'diff', tema: null, organisering: 'Innside, utside, såle, vendinger og finter med begge føtter, rundt kjegler.', laeringsmomenter: [], link: null }
 ]
 
 function byName(a, b) {

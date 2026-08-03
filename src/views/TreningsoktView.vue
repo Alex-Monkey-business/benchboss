@@ -828,6 +828,12 @@ onMounted(async () => {
   gap: var(--ds-space-md);
 }
 
+/* Global p-farge er mørk grå — usynlig på det alltid-mørke panelet. */
+.okt-view__empty p {
+  color: inherit;
+  margin: 0;
+}
+
 /* ---- Øvelse-editor i skjema ---- */
 .drill-edit {
   display: flex;
