@@ -3,6 +3,8 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingPeriods } from '../composables/useTrainingPeriods'
 import { useTrainingSessions } from '../composables/useTrainingSessions'
+import { useToast } from '../composables/useToast'
+import { parseTreningsplan } from '../lib/treningParser'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
@@ -10,6 +12,7 @@ const route = useRoute()
 const router = useRouter()
 const { periods, getPeriod, fetchPeriods, createPeriod, updatePeriod, deletePeriod } = useTrainingPeriods()
 const { sessions, fetchSessions, createSession } = useTrainingSessions()
+const { show: showToast } = useToast()
 
 const ACCENTS = [
   { value: 'warm',       label: 'Varm' },
@@ -46,6 +49,73 @@ async function addOkt() {
   const row = await createSession(periodId.value, { title: 'Ny økt', accent: period.value?.accent || 'warm' })
   creating.value = false
   if (row) openOkt(row)
+}
+
+// ---- Lim inn plan ----
+const ACCENT_ROTATION = ['sky', 'peach', 'olive', 'sage', 'cornflower', 'warm']
+const showPaste = ref(false)
+const pasteText = ref('')
+const savingPaste = ref(false)
+
+const parsedPlan = computed(() => parseTreningsplan(pasteText.value))
+
+function openPaste() {
+  pasteText.value = ''
+  showPaste.value = true
+}
+
+async function confirmPaste() {
+  const parsed = parsedPlan.value
+  if (!parsed.sessions.length || savingPaste.value) return
+  savingPaste.value = true
+  const base = sessions.value.length
+  for (const [i, s] of parsed.sessions.entries()) {
+    await createSession(periodId.value, {
+      title: s.title,
+      weekday: s.weekday,
+      focus: s.focus || null,
+      accent: ACCENT_ROTATION[(base + i) % ACCENT_ROTATION.length],
+      drills: s.drills,
+      position: base + i
+    })
+  }
+  savingPaste.value = false
+  showPaste.value = false
+  const n = parsed.sessions.length
+  pasteText.value = ''
+  showToast(`${n} ${n === 1 ? 'økt' : 'økter'} lagt til`, 'success')
+}
+
+// ---- Dupliser periode (med alle økter, uten datoer) ----
+const duplicating = ref(false)
+async function duplicatePeriod() {
+  if (duplicating.value) return
+  duplicating.value = true
+  const src = period.value
+  const copies = [...sessions.value].sort((a, b) => a.position - b.position)
+  const row = await createPeriod({
+    title: `${src.title} (kopi)`,
+    lead: src.lead || null,
+    accent: src.accent,
+    start_date: null,
+    end_date: null
+  })
+  if (row) {
+    for (const [i, s] of copies.entries()) {
+      await createSession(row.id, {
+        title: s.title,
+        weekday: s.weekday ?? null,
+        accent: s.accent || 'warm',
+        illustration: s.illustration || null,
+        focus: s.focus || null,
+        drills: s.drills || [],
+        position: i
+      })
+    }
+    showToast(`«${row.title}» opprettet`, 'success')
+    router.push(`/trening/${row.id}`)
+  }
+  duplicating.value = false
 }
 
 // ---- Periode-skjema (rediger) ----
@@ -140,6 +210,9 @@ onMounted(async () => {
         <button type="button" class="periode__icon-btn" aria-label="Rediger periode" @click="openEditPeriod">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
         </button>
+        <button type="button" class="periode__icon-btn" aria-label="Dupliser periode" :disabled="duplicating" @click="duplicatePeriod">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
+        </button>
         <button type="button" class="periode__icon-btn periode__icon-btn--danger" aria-label="Slett periode" @click="showDeletePeriod = true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
         </button>
@@ -184,9 +257,49 @@ onMounted(async () => {
       </div>
     </div>
 
-    <button type="button" class="ds-btn ds-btn--secondary periode__add" :disabled="creating" @click="addOkt">
-      {{ creating ? 'Lager…' : 'Legg til økt' }}
-    </button>
+    <div class="periode__add-row">
+      <button type="button" class="ds-btn ds-btn--secondary periode__add" @click="openPaste">
+        Lim inn plan
+      </button>
+      <button type="button" class="ds-btn ds-btn--secondary periode__add" :disabled="creating" @click="addOkt">
+        {{ creating ? 'Lager…' : 'Legg til økt' }}
+      </button>
+    </div>
+
+    <!-- Lim inn plan -->
+    <Sheet :show="showPaste" title="Lim inn plan" @close="showPaste = false">
+      <textarea
+        v-model="pasteText"
+        class="ds-input paste-input"
+        rows="9"
+        placeholder="Tirsdag: Ferdigheter under press
+- Medtak og vending (diff)
+- 3v3 med press i ryggen
+
+Torsdag
+- Ferdighetssirkel
+- Vinneren står (mix)"
+      ></textarea>
+      <p class="paste-hint">Ukedag starter ny økt, kulepunkter blir øvelser. «(diff)» og «(mix)» merker type.</p>
+
+      <div v-if="parsedPlan.sessions.length" class="paste-preview">
+        <div v-for="(s, i) in parsedPlan.sessions" :key="i" class="paste-preview__row" :data-accent="ACCENT_ROTATION[(sessions.length + i) % ACCENT_ROTATION.length]">
+          <span class="paste-preview__day">{{ s.title }}</span>
+          <span v-if="s.focus" class="paste-preview__focus">{{ s.focus }}</span>
+          <span class="paste-preview__meta">{{ s.drills.length }} {{ s.drills.length === 1 ? 'øvelse' : 'øvelser' }}</span>
+        </div>
+      </div>
+
+      <button
+        type="button"
+        class="ds-btn ds-btn--primary ds-btn--lg"
+        style="width: 100%; margin-top: var(--ds-space-md);"
+        :disabled="!parsedPlan.sessions.length || savingPaste"
+        @click="confirmPaste"
+      >
+        {{ savingPaste ? 'Lagrer…' : parsedPlan.sessions.length ? `Opprett ${parsedPlan.sessions.length} ${parsedPlan.sessions.length === 1 ? 'økt' : 'økter'}` : 'Opprett økter' }}
+      </button>
+    </Sheet>
 
     <!-- Rediger periode -->
     <Sheet :show="showPeriodSheet" title="Rediger periode" @close="showPeriodSheet = false">
@@ -497,7 +610,81 @@ onMounted(async () => {
   flex-shrink: 0;
 }
 
-.periode__add { width: 100%; }
+.periode__add-row {
+  display: flex;
+  gap: var(--ds-space-sm);
+}
+.periode__add { flex: 1; }
+
+/* ---- Lim inn plan ---- */
+.paste-input {
+  width: 100%;
+  font-size: var(--ds-text-sm);
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.paste-hint {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+  margin: var(--ds-space-sm) 0 0;
+  line-height: 1.5;
+}
+
+.paste-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: var(--ds-space-md);
+}
+
+.paste-preview__row {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ds-space-sm);
+  padding: 10px 12px;
+  background: var(--accent-bg, var(--ds-color-bg-subtle));
+  color: var(--accent-text, var(--ds-color-text-primary));
+  border-radius: var(--ds-radius-md);
+  min-width: 0;
+}
+
+.paste-preview__row[data-accent="warm"]       { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
+.paste-preview__row[data-accent="sage"]       { --accent-bg: #E2EDDE; --accent-text: #3D5C44; }
+.paste-preview__row[data-accent="cornflower"] { --accent-bg: #D6DDEF; --accent-text: #3D456B; }
+.paste-preview__row[data-accent="peach"]      { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
+.paste-preview__row[data-accent="sky"]        { --accent-bg: #DDE6EC; --accent-text: #3A4C5C; }
+.paste-preview__row[data-accent="olive"]      { --accent-bg: #F0E7D6; --accent-text: #6B5630; }
+
+:global([data-theme="dark"]) .paste-preview__row[data-accent="warm"]       { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
+:global([data-theme="dark"]) .paste-preview__row[data-accent="sage"]       { --accent-bg: #1A241D; --accent-text: #B5D2B0; }
+:global([data-theme="dark"]) .paste-preview__row[data-accent="cornflower"] { --accent-bg: #1A1F33; --accent-text: #B9C2E5; }
+:global([data-theme="dark"]) .paste-preview__row[data-accent="peach"]      { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
+:global([data-theme="dark"]) .paste-preview__row[data-accent="sky"]        { --accent-bg: #1A222A; --accent-text: #B0C5D8; }
+:global([data-theme="dark"]) .paste-preview__row[data-accent="olive"]      { --accent-bg: #2A241A; --accent-text: #D9C99E; }
+
+.paste-preview__day {
+  font-weight: var(--ds-weight-semibold);
+  font-size: var(--ds-text-sm);
+  flex-shrink: 0;
+}
+
+.paste-preview__focus {
+  flex: 1;
+  font-size: var(--ds-text-xs);
+  opacity: 0.75;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
+
+.paste-preview__meta {
+  font-size: var(--ds-text-xs);
+  flex-shrink: 0;
+  margin-left: auto;
+  font-variant-numeric: tabular-nums;
+}
 
 /* Håndbok-lenke — rammer inn øktene, lettere vekt enn økt-kortene. */
 .handbok-link {

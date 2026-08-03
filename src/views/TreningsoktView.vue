@@ -10,7 +10,7 @@ import { WEEKDAY_LABELS } from '../lib/dateLabels'
 const route = useRoute()
 const router = useRouter()
 const { getPeriod, fetchPeriods } = useTrainingPeriods()
-const { sessions, loadedPeriod, fetchSessions, updateSession, removeSession } = useTrainingSessions()
+const { sessions, loadedPeriod, fetchSessions, createSession, updateSession, removeSession } = useTrainingSessions()
 
 const ACCENTS = [
   { value: 'warm',       label: 'Varm' },
@@ -119,6 +119,25 @@ async function save() {
   showSheet.value = false
 }
 
+// ---- Dupliser økt ----
+const duplicating = ref(false)
+async function duplicateOkt() {
+  if (duplicating.value) return
+  duplicating.value = true
+  const s = okt.value
+  const row = await createSession(periodId.value, {
+    title: `${s.title} (kopi)`,
+    weekday: s.weekday ?? null,
+    accent: s.accent || 'warm',
+    illustration: s.illustration || null,
+    focus: s.focus || null,
+    drills: s.drills || [],
+    position: sessions.value.length
+  })
+  duplicating.value = false
+  if (row) router.push(`/trening/${periodId.value}/okt/${row.id}`)
+}
+
 // ---- Slett økt ----
 const showDelete = ref(false)
 async function confirmDelete() {
@@ -145,6 +164,9 @@ onMounted(async () => {
       <div class="okt-view__nav-actions">
         <button type="button" class="okt-view__icon-btn" aria-label="Rediger økt" @click="openEdit">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+        </button>
+        <button type="button" class="okt-view__icon-btn" aria-label="Dupliser økt" :disabled="duplicating" @click="duplicateOkt">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
         </button>
         <button type="button" class="okt-view__icon-btn okt-view__icon-btn--danger" aria-label="Slett økt" @click="showDelete = true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
