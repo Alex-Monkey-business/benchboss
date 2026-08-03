@@ -37,7 +37,9 @@ export function useTrainingPeriods() {
     const data = { position: periods.value.length, ...payload }
 
     if (!isSupabaseConfigured) {
-      const row = { id: 'dtp-' + Date.now(), ...data }
+      const row = { id: 'dtp-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), ...data }
+      // DEMO_PERIODS er demo-«databasen» — uten denne forsvinner raden ved neste fetch.
+      DEMO_PERIODS.push(row)
       periods.value.push(row)
       return row
     }
@@ -53,6 +55,8 @@ export function useTrainingPeriods() {
 
   async function updatePeriod(id, updates) {
     if (!isSupabaseConfigured) {
+      const di = DEMO_PERIODS.findIndex(p => p.id === id)
+      if (di > -1) DEMO_PERIODS[di] = { ...DEMO_PERIODS[di], ...updates }
       const i = periods.value.findIndex(p => p.id === id)
       if (i > -1) periods.value[i] = { ...periods.value[i], ...updates }
       return periods.value[i]
@@ -73,6 +77,8 @@ export function useTrainingPeriods() {
 
   async function deletePeriod(id) {
     if (!isSupabaseConfigured) {
+      const di = DEMO_PERIODS.findIndex(p => p.id === id)
+      if (di > -1) DEMO_PERIODS.splice(di, 1)
       periods.value = periods.value.filter(p => p.id !== id)
       return
     }

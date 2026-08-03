@@ -12,6 +12,9 @@ const emit = defineEmits(['confirm', 'cancel'])
 </script>
 
 <template>
+  <!-- Teleport: samme grunn som Sheet — fixed-overlay må ligge på body, og
+       dialogen må stacke OVER en eventuell åpen (teleportert) sheet. -->
+  <Teleport to="body">
   <Transition name="ds-dialog">
     <div v-if="show" class="ds-overlay" @click.self="emit('cancel')">
       <div class="ds-dialog ds-dialog--narrow">
@@ -35,4 +38,5 @@ const emit = defineEmits(['confirm', 'cancel'])
       </div>
     </div>
   </Transition>
+  </Teleport>
 </template>

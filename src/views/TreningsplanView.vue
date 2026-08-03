@@ -2,12 +2,14 @@
 import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTrainingPeriods } from '../composables/useTrainingPeriods'
+import { useTrainingSessions, DEFAULT_WEEK_SESSIONS } from '../composables/useTrainingSessions'
 import { localISODate } from '../lib/dateLabels'
 import Sheet from '../components/Sheet.vue'
 import Skeleton from '../components/Skeleton.vue'
 
 const router = useRouter()
 const { periods, fetchPeriods, createPeriod } = useTrainingPeriods()
+const { createSession } = useTrainingSessions()
 
 const ACCENTS = [
   { value: 'warm',       label: 'Varm' },
@@ -59,6 +61,12 @@ async function save() {
     end_date: form.value.end_date || null
   }
   const row = await createPeriod(payload)
+  // Fast ukeoppsett: tirsdag, torsdag og lørdag ligger klare i nye perioder.
+  if (row) {
+    for (const [i, tpl] of DEFAULT_WEEK_SESSIONS.entries()) {
+      await createSession(row.id, { ...tpl, drills: [], position: i })
+    }
+  }
   saving.value = false
   showSheet.value = false
   if (row) router.replace(`/trening/${row.id}`)
@@ -123,6 +131,7 @@ onMounted(async () => {
             <input id="tp-end" v-model="form.end_date" class="ds-input" type="date" />
           </div>
         </div>
+        <p class="seed-hint">Tirsdag, torsdag og lørdag legges inn automatisk.</p>
         <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg" :disabled="!form.title.trim() || saving" style="width: 100%; margin-top: var(--ds-space-sm);">
           {{ saving ? 'Lagrer…' : 'Opprett periode' }}
         </button>
@@ -156,6 +165,13 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: var(--ds-space-sm);
+}
+
+.seed-hint {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+  margin: 0 0 var(--ds-space-sm);
+  line-height: 1.5;
 }
 
 .accent-picker {

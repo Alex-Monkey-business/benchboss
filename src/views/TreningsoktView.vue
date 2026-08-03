@@ -3,14 +3,19 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingPeriods } from '../composables/useTrainingPeriods'
 import { useTrainingSessions } from '../composables/useTrainingSessions'
+import { useExercises, exerciseToDrill, drillToExercise } from '../composables/useExercises'
+import { useToast } from '../composables/useToast'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import ExercisePicker from '../components/ExercisePicker.vue'
 import { WEEKDAY_LABELS } from '../lib/dateLabels'
 
 const route = useRoute()
 const router = useRouter()
 const { getPeriod, fetchPeriods } = useTrainingPeriods()
 const { sessions, loadedPeriod, fetchSessions, createSession, updateSession, removeSession } = useTrainingSessions()
+const { createExercise, findByName, fetchExercises } = useExercises()
+const { show: showToast } = useToast()
 
 const ACCENTS = [
   { value: 'warm',       label: 'Varm' },
@@ -78,7 +83,8 @@ function openEdit() {
     tema: d.tema || '',
     organisering: d.organisering || '',
     laeringsmomenter: (d.laeringsmomenter || []).join('\n'),
-    link: d.link ? { label: d.link.label || '', url: d.link.url || '' } : { label: '', url: '' }
+    link: d.link ? { label: d.link.label || '', url: d.link.url || '' } : { label: '', url: '' },
+    exercise_id: d.exercise_id || null
   }))
   form.value = {
     title: s.title,
@@ -104,7 +110,8 @@ async function save() {
       tema: d.tema.trim() || null,
       organisering: d.organisering.trim() || null,
       laeringsmomenter: d.laeringsmomenter.split('\n').map(s => s.trim()).filter(Boolean),
-      link: d.link.url.trim() ? { label: d.link.label.trim(), url: d.link.url.trim() } : null
+      link: d.link.url.trim() ? { label: d.link.label.trim(), url: d.link.url.trim() } : null,
+      exercise_id: d.exercise_id || null
     }))
     .filter(d => d.text || d.link || d.tema || d.organisering || d.laeringsmomenter.length)
   await updateSession(oktId.value, {
@@ -117,6 +124,43 @@ async function save() {
   })
   saving.value = false
   showSheet.value = false
+}
+
+// ---- Direkte manipulering av øvelser (uten redigeringssheeten) ----
+// Serialisert kø: hver mutasjon regner alltid fra sist lagrede drills-state,
+// så raske legg-til/fjern aldri overskriver hverandre.
+let drillQueue = Promise.resolve()
+function queueDrills(mutate) {
+  drillQueue = drillQueue.then(() =>
+    updateSession(oktId.value, { drills: mutate([...(okt.value?.drills || [])]) })
+  )
+  return drillQueue
+}
+
+const showPicker = ref(false)
+
+function pickExercise(ex) {
+  queueDrills(ds => [...ds, exerciseToDrill(ex)])
+  showToast(`«${ex.name}» lagt til`, 'success')
+}
+
+const removeDrillIndex = ref(null)
+const removeDrillName = computed(() => okt.value?.drills?.[removeDrillIndex.value]?.text || '')
+
+function confirmRemoveDrill() {
+  const i = removeDrillIndex.value
+  removeDrillIndex.value = null
+  queueDrills(ds => ds.filter((_, idx) => idx !== i))
+}
+
+async function saveDrillToBank(d) {
+  const existing = findByName(d.text)
+  if (existing) {
+    showToast(`«${existing.name}» finnes allerede i banken`, 'info')
+    return
+  }
+  const row = await createExercise(drillToExercise(d))
+  if (row) showToast(`«${row.name}» lagret i banken`, 'success')
 }
 
 // ---- Dupliser økt ----
@@ -151,6 +195,7 @@ onMounted(async () => {
   if (loadedPeriod.value !== periodId.value || !sessions.value.length) {
     await fetchSessions(periodId.value)
   }
+  fetchExercises() // banken — for bokmerke-dedupe og rask picker (loaded-guard i composablen)
 })
 </script>
 
@@ -207,6 +252,14 @@ onMounted(async () => {
             :class="`drill__badge--${d.type}`"
           >{{ d.type === 'diff' ? 'Diff' : 'Mix' }}</span>
           <h3 class="drill__name">{{ d.text }}</h3>
+          <div class="drill__actions">
+            <button type="button" class="drill__action" aria-label="Lagre i øvelsesbanken" title="Lagre i øvelsesbanken" @click="saveDrillToBank(d)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
+            </button>
+            <button type="button" class="drill__action" aria-label="Fjern øvelse" title="Fjern øvelse" @click="removeDrillIndex = di">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
         </div>
         <p v-if="d.tema" class="drill__focus">{{ d.tema }}</p>
 
@@ -231,8 +284,16 @@ onMounted(async () => {
 
     <div v-else class="okt-view__empty">
       <p>Ingen øvelser ennå.</p>
-      <button type="button" class="ds-btn ds-btn--primary" @click="openEdit">Legg til øvelser</button>
+      <div class="okt-view__empty-actions">
+        <button type="button" class="ds-btn ds-btn--primary" @click="showPicker = true">Fra banken</button>
+        <button type="button" class="ds-btn ds-btn--secondary" @click="openEdit">Skriv selv</button>
+      </div>
     </div>
+
+    <button v-if="drillCount" type="button" class="drill-add" @click="showPicker = true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      Øvelse fra banken
+    </button>
     </div>
     </div>
 
@@ -342,6 +403,23 @@ onMounted(async () => {
       variant="warning"
       @confirm="confirmDelete"
       @cancel="showDelete = false"
+    />
+
+    <ExercisePicker
+      :show="showPicker"
+      :current-drills="okt.drills || []"
+      @close="showPicker = false"
+      @pick="pickExercise"
+    />
+
+    <ConfirmDialog
+      :show="removeDrillIndex !== null"
+      title="Fjern øvelse?"
+      :message="`«${removeDrillName}» fjernes fra økta.`"
+      confirm-label="Fjern"
+      variant="warning"
+      @confirm="confirmRemoveDrill"
+      @cancel="removeDrillIndex = null"
     />
   </div>
 </template>
@@ -561,6 +639,65 @@ onMounted(async () => {
   line-height: 1.25;
   letter-spacing: -0.01em;
   color: var(--hero-fg);
+}
+
+/* Stille handlinger per øvelse — skal ikke kjempe mot panelet */
+.drill__actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+  align-self: flex-start;
+}
+
+.drill__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
+  color: var(--hero-fg);
+  opacity: 0.4;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.drill__action svg { width: 15px; height: 15px; }
+.drill__action:hover, .drill__action:active { opacity: 0.9; }
+
+/* Legg-til-rad nederst i panelet */
+.drill-add {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  margin-top: var(--ds-space-md);
+  padding: 12px;
+  background: transparent;
+  border: 1px dashed rgba(255, 255, 255, 0.3);
+  border-radius: var(--ds-radius-md);
+  color: var(--hero-fg);
+  opacity: 0.75;
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--ds-duration-fast) var(--ds-ease-out), border-color var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.drill-add svg { width: 15px; height: 15px; }
+.drill-add:hover, .drill-add:active { opacity: 1; border-color: rgba(255, 255, 255, 0.55); }
+
+.okt-view__empty-actions {
+  display: flex;
+  gap: var(--ds-space-sm);
+  justify-content: center;
 }
 
 /* Fokus — det vi øver på, fremhevet i aksent */

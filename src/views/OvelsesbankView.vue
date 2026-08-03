@@ -1,0 +1,360 @@
+<script setup>
+import { ref, computed, onMounted } from 'vue'
+import { useExercises } from '../composables/useExercises'
+import Sheet from '../components/Sheet.vue'
+import ConfirmDialog from '../components/ConfirmDialog.vue'
+
+const { exercises, fetchExercises, createExercise, updateExercise, deleteExercise } = useExercises()
+
+const DRILL_TYPES = [
+  { value: 'diff', label: 'Diff' },
+  { value: 'mix', label: 'Mix' },
+  { value: 'none', label: '—' }
+]
+
+const search = ref('')
+const showSearch = computed(() => exercises.value.length > 8)
+
+const filtered = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  if (!q) return exercises.value
+  return exercises.value.filter(e =>
+    e.name.toLowerCase().includes(q) || (e.tema || '').toLowerCase().includes(q)
+  )
+})
+
+// ---- Ny / rediger øvelse (én sheet) ----
+const showSheet = ref(false)
+const editingId = ref(null)
+const saving = ref(false)
+const form = ref(emptyForm())
+
+function emptyForm() {
+  return { name: '', type: 'none', tema: '', organisering: '', laeringsmomenter: '', link: { label: '', url: '' } }
+}
+
+function openNew() {
+  editingId.value = null
+  form.value = emptyForm()
+  showSheet.value = true
+}
+
+function openEdit(ex) {
+  editingId.value = ex.id
+  form.value = {
+    name: ex.name,
+    type: ex.type || 'none',
+    tema: ex.tema || '',
+    organisering: ex.organisering || '',
+    laeringsmomenter: (ex.laeringsmomenter || []).join('\n'),
+    link: ex.link ? { label: ex.link.label || '', url: ex.link.url || '' } : { label: '', url: '' }
+  }
+  showSheet.value = true
+}
+
+async function save() {
+  if (!form.value.name.trim() || saving.value) return
+  saving.value = true
+  const payload = {
+    name: form.value.name.trim(),
+    type: form.value.type,
+    tema: form.value.tema.trim() || null,
+    organisering: form.value.organisering.trim() || null,
+    laeringsmomenter: form.value.laeringsmomenter.split('\n').map(s => s.trim()).filter(Boolean),
+    link: form.value.link.url.trim() ? { label: form.value.link.label.trim(), url: form.value.link.url.trim() } : null
+  }
+  if (editingId.value) await updateExercise(editingId.value, payload)
+  else await createExercise(payload)
+  saving.value = false
+  showSheet.value = false
+}
+
+// ---- Slett ----
+const showDelete = ref(false)
+const deletingName = computed(() => exercises.value.find(e => e.id === editingId.value)?.name || '')
+
+async function confirmDelete() {
+  await deleteExercise(editingId.value)
+  showDelete.value = false
+  showSheet.value = false
+}
+
+onMounted(fetchExercises)
+</script>
+
+<template>
+  <div class="bank">
+    <div class="bank__nav">
+      <router-link to="/trening" class="back-btn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        Trening
+      </router-link>
+    </div>
+
+    <header class="bank__head">
+      <h1 class="bank__title">Øvelsesbank</h1>
+      <p class="bank__count">{{ exercises.length }} {{ exercises.length === 1 ? 'øvelse' : 'øvelser' }}</p>
+    </header>
+
+    <input
+      v-if="showSearch"
+      v-model="search"
+      class="ds-input bank__search"
+      type="search"
+      placeholder="Søk i øvelser"
+    />
+
+    <div v-if="exercises.length === 0" class="ds-empty">
+      <img src="/illustrations/bench-boss-feature-icons/512/training-plan-transparent.png" alt="" class="ds-empty__illo" />
+      <div class="ds-empty__title">Ingen øvelser ennå</div>
+      <div class="ds-empty__description">Legg til her, eller lagre en øvelse fra en økt med bokmerke-ikonet.</div>
+      <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="openNew">Ny øvelse</button>
+    </div>
+
+    <template v-else>
+      <div class="bank__list">
+        <button v-for="ex in filtered" :key="ex.id" type="button" class="bank-row" @click="openEdit(ex)">
+          <span
+            v-if="ex.type && ex.type !== 'none'"
+            class="bank-row__badge"
+            :class="`bank-row__badge--${ex.type}`"
+          >{{ ex.type === 'diff' ? 'Diff' : 'Mix' }}</span>
+          <span class="bank-row__body">
+            <span class="bank-row__name">{{ ex.name }}</span>
+            <span v-if="ex.tema" class="bank-row__tema">{{ ex.tema }}</span>
+          </span>
+          <svg v-if="ex.link && ex.link.url" class="bank-row__link" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+        </button>
+        <p v-if="!filtered.length" class="bank__no-hits">Ingen treff på «{{ search }}»</p>
+      </div>
+
+      <button type="button" class="ds-btn ds-btn--primary bank__add" @click="openNew">Ny øvelse</button>
+    </template>
+
+    <!-- Ny / rediger øvelse -->
+    <Sheet :show="showSheet" :title="editingId ? 'Rediger øvelse' : 'Ny øvelse'" @close="showSheet = false">
+      <form @submit.prevent="save">
+        <div class="ds-form-group">
+          <label class="ds-label" for="ex-name">Navn</label>
+          <input id="ex-name" v-model="form.name" class="ds-input" type="text" placeholder="F.eks. Rondo 4v1" required />
+        </div>
+        <div class="ds-form-group">
+          <label class="ds-label">Type</label>
+          <div class="type-toggle" role="radiogroup" aria-label="Type øvelse">
+            <button
+              v-for="t in DRILL_TYPES"
+              :key="t.value"
+              type="button"
+              role="radio"
+              :aria-checked="form.type === t.value"
+              :class="['type-toggle__opt', `type-toggle__opt--${t.value}`, { 'type-toggle__opt--active': form.type === t.value }]"
+              @click="form.type = t.value"
+            >{{ t.label }}</button>
+          </div>
+        </div>
+        <div class="ds-form-group">
+          <label class="ds-label" for="ex-tema">Fokus</label>
+          <input id="ex-tema" v-model="form.tema" class="ds-input" type="text" placeholder="F.eks. Spille oss fremover (valgfri)" />
+        </div>
+        <div class="ds-form-group">
+          <label class="ds-label" for="ex-moments">Øver på — ett per linje</label>
+          <textarea id="ex-moments" v-model="form.laeringsmomenter" class="ds-input" rows="3" placeholder="Mykt medtak ut til siden&#10;Løft blikket (valgfri)"></textarea>
+        </div>
+        <div class="ds-form-group">
+          <label class="ds-label" for="ex-org">Oppsett</label>
+          <textarea id="ex-org" v-model="form.organisering" class="ds-input" rows="3" placeholder="Hvordan øvelsen settes opp og kjøres (valgfri)."></textarea>
+        </div>
+        <div class="ds-form-group">
+          <label class="ds-label">Lenke</label>
+          <div class="link-row">
+            <input v-model="form.link.label" class="ds-input" type="text" placeholder="Lenketekst (valgfri)" />
+            <input v-model="form.link.url" class="ds-input" type="url" placeholder="https://… (valgfri)" />
+          </div>
+        </div>
+        <div class="bank__form-actions">
+          <button
+            v-if="editingId"
+            type="button"
+            class="ds-btn ds-btn--ghost bank__delete"
+            @click="showDelete = true"
+          >
+            Slett
+          </button>
+          <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg bank__save" :disabled="!form.name.trim() || saving">
+            {{ saving ? 'Lagrer…' : editingId ? 'Lagre endringer' : 'Legg i banken' }}
+          </button>
+        </div>
+      </form>
+    </Sheet>
+
+    <ConfirmDialog
+      :show="showDelete"
+      title="Slett øvelse?"
+      :message="`«${deletingName}» fjernes fra banken. Økter som bruker den beholder sin kopi.`"
+      confirm-label="Slett"
+      variant="warning"
+      @confirm="confirmDelete"
+      @cancel="showDelete = false"
+    />
+  </div>
+</template>
+
+<style scoped>
+.bank {
+  max-width: 640px;
+  margin: 0 auto;
+  padding: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-2xl);
+}
+
+.bank__nav { margin-bottom: var(--ds-space-xl); }
+
+.bank__head { margin-bottom: var(--ds-space-lg); }
+
+.bank__title {
+  font-family: var(--ds-font-display);
+  font-size: clamp(2rem, 6.5vw, 2.8rem);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-tighter);
+  line-height: 1.1;
+  color: var(--ds-color-text-primary);
+  font-variation-settings: var(--ds-font-display-settings);
+  margin: 0 0 4px;
+}
+
+.bank__count {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-tertiary);
+  margin: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.bank__search {
+  width: 100%;
+  margin-bottom: var(--ds-space-md);
+}
+
+.bank__list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+  margin-bottom: var(--ds-space-lg);
+}
+
+.bank-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-md);
+  width: 100%;
+  padding: 14px var(--ds-space-md);
+  background: var(--ds-color-bg-elevated);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--ds-font-body);
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color var(--ds-duration-fast) var(--ds-ease-out), transform var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.bank-row:active { transform: scale(0.99); }
+
+@media (hover: hover) and (pointer: fine) {
+  .bank-row:hover { border-color: var(--ds-color-border-strong); }
+}
+
+.bank-row__badge {
+  flex-shrink: 0;
+  font-size: 0.6875rem;
+  font-weight: 600;
+  padding: 2px 7px;
+  border-radius: var(--ds-radius-sm);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.bank-row__badge--diff { background: #E2EDDE; color: #3D5C44; }
+.bank-row__badge--mix { background: #F8E8E0; color: #7A3A24; }
+:global([data-theme="dark"]) .bank-row__badge--diff { background: #1A241D; color: #B5D2B0; }
+:global([data-theme="dark"]) .bank-row__badge--mix { background: #2A1E18; color: #F4C4A8; }
+
+.bank-row__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.bank-row__name {
+  font-weight: var(--ds-weight-semibold);
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-primary);
+}
+
+.bank-row__tema {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.bank-row__link {
+  width: 15px;
+  height: 15px;
+  flex-shrink: 0;
+  color: var(--ds-color-text-tertiary);
+}
+
+.bank__no-hits {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-tertiary);
+  text-align: center;
+  padding: var(--ds-space-lg) 0;
+  margin: 0;
+}
+
+.bank__add { width: 100%; }
+
+.bank__form-actions {
+  display: flex;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-sm);
+}
+
+.bank__delete { flex-shrink: 0; color: var(--ds-color-error); }
+.bank__save { flex: 1; }
+
+/* Type-toggle — samme uttrykk som drill-editoren i økta */
+.type-toggle {
+  display: inline-flex;
+  gap: 4px;
+  padding: 3px;
+  background: var(--ds-color-bg-subtle);
+  border-radius: var(--ds-radius-md);
+}
+
+.type-toggle__opt {
+  border: none;
+  background: transparent;
+  padding: 6px 14px;
+  border-radius: var(--ds-radius-sm);
+  font-size: var(--ds-text-xs);
+  font-weight: 600;
+  color: var(--ds-color-text-tertiary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: all var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.type-toggle__opt--active.type-toggle__opt--diff { background: #E2EDDE; color: #3D5C44; }
+.type-toggle__opt--active.type-toggle__opt--mix { background: #F8E8E0; color: #7A3A24; }
+.type-toggle__opt--active.type-toggle__opt--none { background: var(--ds-color-bg-elevated); color: var(--ds-color-text-primary); }
+:global([data-theme="dark"]) .type-toggle__opt--active.type-toggle__opt--diff { background: #1A241D; color: #B5D2B0; }
+:global([data-theme="dark"]) .type-toggle__opt--active.type-toggle__opt--mix { background: #2A1E18; color: #F4C4A8; }
+
+.link-row {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+}
+</style>

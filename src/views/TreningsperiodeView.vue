@@ -2,7 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingPeriods } from '../composables/useTrainingPeriods'
-import { useTrainingSessions } from '../composables/useTrainingSessions'
+import { useTrainingSessions, DEFAULT_WEEK_SESSIONS } from '../composables/useTrainingSessions'
 import { useToast } from '../composables/useToast'
 import { parseTreningsplan } from '../lib/treningParser'
 import Sheet from '../components/Sheet.vue'
@@ -169,6 +169,12 @@ async function saveCreate() {
     start_date: createForm.value.start_date || null,
     end_date: createForm.value.end_date || null
   })
+  // Fast ukeoppsett: tirsdag, torsdag og lørdag ligger klare i nye perioder.
+  if (row) {
+    for (const [i, tpl] of DEFAULT_WEEK_SESSIONS.entries()) {
+      await createSession(row.id, { ...tpl, drills: [], position: i })
+    }
+  }
   savingCreate.value = false
   showCreateSheet.value = false
   if (row) router.push(`/trening/${row.id}`)
@@ -229,14 +235,23 @@ onMounted(async () => {
       <span v-if="dateRange(period)" class="periode__dates">{{ dateRange(period) }}</span>
     </header>
 
-    <!-- Filosofien bak planen — håndboka, som rammer inn øktene under. -->
-    <router-link to="/trening/handbok" class="handbok-link">
-      <span class="handbok-link__body">
-        <span class="handbok-link__eyebrow">Trener-håndbok</span>
-        <span class="handbok-link__title">Slik trener vi</span>
-      </span>
-      <svg class="handbok-link__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-    </router-link>
+    <!-- Ressurser: håndboka (filosofien) + øvelsesbanken (byggeklossene) -->
+    <div class="resource-row">
+      <router-link to="/trening/handbok" class="handbok-link">
+        <span class="handbok-link__body">
+          <span class="handbok-link__eyebrow">Trener-håndbok</span>
+          <span class="handbok-link__title">Slik trener vi</span>
+        </span>
+        <svg class="handbok-link__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </router-link>
+      <router-link to="/trening/ovelser" class="handbok-link">
+        <span class="handbok-link__body">
+          <span class="handbok-link__eyebrow">Øvelsesbank</span>
+          <span class="handbok-link__title">Alle øvelser</span>
+        </span>
+        <svg class="handbok-link__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </router-link>
+    </div>
 
     <!-- Økt-kort -->
     <div class="okt-list">
@@ -403,6 +418,7 @@ Torsdag
             <input id="new-end" v-model="createForm.end_date" class="ds-input" type="date" />
           </div>
         </div>
+        <p class="paste-hint">Tirsdag, torsdag og lørdag legges inn automatisk.</p>
         <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg" :disabled="!createForm.title.trim() || savingCreate" style="width: 100%; margin-top: var(--ds-space-sm);">
           {{ savingCreate ? 'Lagrer…' : 'Opprett periode' }}
         </button>
@@ -686,12 +702,18 @@ Torsdag
   font-variant-numeric: tabular-nums;
 }
 
-/* Håndbok-lenke — rammer inn øktene, lettere vekt enn økt-kortene. */
+/* Ressursrad — håndbok + øvelsesbank side om side, lettere vekt enn økt-kortene. */
+.resource-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: var(--ds-space-sm);
+  margin-bottom: var(--ds-space-lg);
+}
+
 .handbok-link {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-md);
-  margin-bottom: var(--ds-space-lg);
+  gap: var(--ds-space-sm);
   padding: 14px var(--ds-space-md);
   background: var(--ds-color-bg-elevated);
   border: 1px solid var(--ds-color-border-light);
@@ -724,6 +746,15 @@ Torsdag
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ds-color-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.handbok-link__title {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .handbok-link__title {

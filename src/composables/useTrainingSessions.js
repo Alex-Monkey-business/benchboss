@@ -5,6 +5,19 @@ const sessions = ref([])
 const loading = ref(false)
 const loadedPeriod = ref(null)
 
+// Fast ukeoppsett: det er alltid trening tirsdag, torsdag og lørdag.
+// Nye perioder seedes med disse tre øktene (tomme, klare for øvelser).
+export const DEFAULT_WEEK_SESSIONS = [
+  { title: 'Tirsdag', weekday: 2, accent: 'sky', illustration: 'tuesday_june_tranparent.png' },
+  { title: 'Torsdag', weekday: 4, accent: 'peach', illustration: 'thursday_june_transparent.png' },
+  { title: 'Lørdag', weekday: 6, accent: 'olive', illustration: 'saturday_june_transparent.png' }
+]
+
+// Demo-id-er må være unike også når flere rader lages i samme millisekund.
+export function demoId(prefix) {
+  return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
+}
+
 // Demo-økter (uten Supabase). links: [{ label, url }]
 const DEMO_SESSIONS = [
   {
@@ -87,7 +100,9 @@ export function useTrainingSessions() {
     const data = { period_id: periodId, position: sessions.value.length, accent: 'warm', illustration: null, focus: null, drills: [], weekday: null, ...payload }
 
     if (!isSupabaseConfigured) {
-      const row = { id: 'dts-' + Date.now(), ...data }
+      const row = { id: demoId('dts'), ...data }
+      // DEMO_SESSIONS er demo-«databasen» — uten denne forsvinner raden ved neste fetch.
+      DEMO_SESSIONS.push(row)
       sessions.value.push(row)
       return row
     }
@@ -103,6 +118,8 @@ export function useTrainingSessions() {
 
   async function updateSession(id, updates) {
     if (!isSupabaseConfigured) {
+      const di = DEMO_SESSIONS.findIndex(s => s.id === id)
+      if (di > -1) DEMO_SESSIONS[di] = { ...DEMO_SESSIONS[di], ...updates }
       const i = sessions.value.findIndex(s => s.id === id)
       if (i > -1) sessions.value[i] = { ...sessions.value[i], ...updates }
       return sessions.value[i]
@@ -123,6 +140,8 @@ export function useTrainingSessions() {
 
   async function removeSession(id) {
     if (!isSupabaseConfigured) {
+      const di = DEMO_SESSIONS.findIndex(s => s.id === id)
+      if (di > -1) DEMO_SESSIONS.splice(di, 1)
       sessions.value = sessions.value.filter(s => s.id !== id)
       return
     }

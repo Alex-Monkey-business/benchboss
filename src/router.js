@@ -107,6 +107,13 @@ const routes = [
     component: () => import('./views/TrainingPrincipleView.vue'),
     meta: { coachOnly: true }
   },
+  // Øvelsesbank — gjenbrukbare øvelser, plukkes inn i øktene.
+  {
+    path: '/trening/ovelser',
+    name: 'ovelsesbank',
+    component: () => import('./views/OvelsesbankView.vue'),
+    meta: { coachOnly: true }
+  },
   // ---- Treningsplan: egen toppnivå-seksjon (egen fane i bunnmenyen) ----
   {
     path: '/trening',

@@ -1,0 +1,195 @@
+<script setup>
+import { ref, computed, watch } from 'vue'
+import { useExercises } from '../composables/useExercises'
+import Sheet from './Sheet.vue'
+
+// Plukk øvelser fra banken inn i en økt. Sheeten blir stående åpen etter
+// valg så flere øvelser kan legges til i ett besøk.
+const props = defineProps({
+  show: { type: Boolean, default: false },
+  currentDrills: { type: Array, default: () => [] }
+})
+
+const emit = defineEmits(['close', 'pick'])
+
+const { exercises, loaded, fetchExercises } = useExercises()
+
+const search = ref('')
+
+watch(() => props.show, (open) => {
+  if (open) {
+    search.value = ''
+    if (!loaded.value) fetchExercises()
+  }
+})
+
+const filtered = computed(() => {
+  const q = search.value.trim().toLowerCase()
+  if (!q) return exercises.value
+  return exercises.value.filter(e =>
+    e.name.toLowerCase().includes(q) || (e.tema || '').toLowerCase().includes(q)
+  )
+})
+
+// Antall ganger en øvelse alt ligger i økta — match på opphav, fallback navn.
+function countInSession(ex) {
+  return props.currentDrills.filter(d =>
+    d.exercise_id === ex.id || (d.text || '').trim().toLowerCase() === ex.name.trim().toLowerCase()
+  ).length
+}
+</script>
+
+<template>
+  <Sheet :show="show" title="Fra banken" @close="emit('close')">
+    <div v-if="exercises.length === 0" class="picker-empty">
+      <p class="picker-empty__text">Ingen øvelser i banken ennå.</p>
+      <router-link to="/trening/ovelser" class="ds-btn ds-btn--secondary" @click="emit('close')">
+        Til øvelsesbanken
+      </router-link>
+    </div>
+
+    <template v-else>
+      <input
+        v-if="exercises.length > 8"
+        v-model="search"
+        class="ds-input picker-search"
+        type="search"
+        placeholder="Søk i øvelser"
+      />
+
+      <div class="picker-list">
+        <button
+          v-for="ex in filtered"
+          :key="ex.id"
+          type="button"
+          class="picker-row"
+          @click="emit('pick', ex)"
+        >
+          <span
+            v-if="ex.type && ex.type !== 'none'"
+            class="picker-row__badge"
+            :class="`picker-row__badge--${ex.type}`"
+          >{{ ex.type === 'diff' ? 'Diff' : 'Mix' }}</span>
+          <span class="picker-row__body">
+            <span class="picker-row__name">{{ ex.name }}</span>
+            <span v-if="ex.tema" class="picker-row__tema">{{ ex.tema }}</span>
+          </span>
+          <span v-if="countInSession(ex)" class="picker-row__in">I økta{{ countInSession(ex) > 1 ? ` ×${countInSession(ex)}` : '' }}</span>
+          <svg v-else class="picker-row__plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        </button>
+        <p v-if="!filtered.length" class="picker-no-hits">Ingen treff på «{{ search }}»</p>
+      </div>
+    </template>
+  </Sheet>
+</template>
+
+<style scoped>
+.picker-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--ds-space-md);
+  padding: var(--ds-space-lg) 0;
+}
+
+.picker-empty__text {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+  margin: 0;
+}
+
+.picker-search {
+  width: 100%;
+  margin-bottom: var(--ds-space-sm);
+}
+
+.picker-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.picker-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-sm);
+  width: 100%;
+  padding: 12px;
+  background: var(--ds-color-bg-subtle);
+  border: 1px solid transparent;
+  border-radius: var(--ds-radius-md);
+  cursor: pointer;
+  text-align: left;
+  font-family: var(--ds-font-body);
+  -webkit-tap-highlight-color: transparent;
+  transition: all 0.15s;
+}
+
+.picker-row:active { transform: scale(0.99); }
+
+@media (hover: hover) and (pointer: fine) {
+  .picker-row:hover {
+    background: var(--ds-color-accent-light);
+    border-color: var(--ds-color-accent);
+  }
+}
+
+.picker-row__badge {
+  flex-shrink: 0;
+  font-size: 0.65rem;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: var(--ds-radius-sm);
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+}
+.picker-row__badge--diff { background: #E2EDDE; color: #3D5C44; }
+.picker-row__badge--mix { background: #F8E8E0; color: #7A3A24; }
+:global([data-theme="dark"]) .picker-row__badge--diff { background: #1A241D; color: #B5D2B0; }
+:global([data-theme="dark"]) .picker-row__badge--mix { background: #2A1E18; color: #F4C4A8; }
+
+.picker-row__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+}
+
+.picker-row__name {
+  font-weight: var(--ds-weight-semibold);
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-primary);
+}
+
+.picker-row__tema {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.picker-row__in {
+  flex-shrink: 0;
+  font-size: var(--ds-text-xs);
+  font-weight: 500;
+  color: var(--ds-color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.picker-row__plus {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  color: var(--ds-color-text-tertiary);
+}
+
+.picker-no-hits {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-tertiary);
+  text-align: center;
+  padding: var(--ds-space-md) 0;
+  margin: 0;
+}
+</style>
