@@ -6,11 +6,12 @@ const loading = ref(false)
 const loadedPeriod = ref(null)
 
 // Fast ukeoppsett: det er alltid trening tirsdag, torsdag og lørdag.
-// Nye perioder seedes med disse tre øktene (tomme, klare for øvelser).
+// Nye perioder seedes med disse tre øktene — tomme og uten illustrasjon:
+// bildet velges når dagen får innhold, en tom dag skal ikke love noe.
 export const DEFAULT_WEEK_SESSIONS = [
-  { title: 'Tirsdag', weekday: 2, accent: 'sky', illustration: 'tuesday_june_tranparent.png' },
-  { title: 'Torsdag', weekday: 4, accent: 'peach', illustration: 'thursday_june_transparent.png' },
-  { title: 'Lørdag', weekday: 6, accent: 'olive', illustration: 'saturday_june_transparent.png' }
+  { title: 'Tirsdag', weekday: 2, accent: 'sky' },
+  { title: 'Torsdag', weekday: 4, accent: 'peach' },
+  { title: 'Lørdag', weekday: 6, accent: 'olive' }
 ]
 
 // Demo-id-er må være unike også når flere rader lages i samme millisekund.

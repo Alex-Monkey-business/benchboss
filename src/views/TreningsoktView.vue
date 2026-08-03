@@ -226,7 +226,7 @@ onMounted(async () => {
 
     <!-- Farget kapittel-panel -->
     <div class="chapter">
-    <div class="chapter__hero">
+    <div class="chapter__hero" :class="{ 'chapter__hero--bare': !okt.illustration }">
       <picture v-if="okt.illustration">
         <source :srcset="illoSrc(okt.illustration)" type="image/webp" />
         <img
@@ -461,6 +461,12 @@ onMounted(async () => {
   flex-direction: column;
   justify-content: flex-end;
   padding: var(--ds-space-xl);
+}
+
+/* Uten illustrasjon: kompakt panel — 60vh tom farge lover innhold som ikke finnes. */
+.chapter__hero--bare {
+  min-height: 0;
+  padding-top: var(--ds-space-2xl);
 }
 
 .chapter__img {
