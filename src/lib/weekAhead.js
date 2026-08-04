@@ -15,7 +15,8 @@ export function resolveUpcomingPeriod(periods, today = localISODate()) {
 }
 
 // includeToday: flater uten egen «I dag»-seksjon (foreldre) tar med dagens hendelser.
-export function buildWeekAhead({ today = localISODate(), period, sessions = [], matches = [], cupMatches = [], includeToday = false }) {
+// cup: aktiv cup demper treninger på cup-dagene — laget står på cup, ikke på feltet.
+export function buildWeekAhead({ today = localISODate(), period, sessions = [], matches = [], cupMatches = [], cup = null, includeToday = false }) {
   const now = new Date(today + 'T12:00:00')
   const daysLeft = 7 - isoWeekday(now)
   const start = includeToday ? 0 : 1
@@ -30,8 +31,13 @@ export function buildWeekAhead({ today = localISODate(), period, sessions = [], 
   const last = dates[dates.length - 1]
   const items = []
 
+  const cupCovers = (date) =>
+    cup?.status === 'active' && cup.start_date && cup.end_date &&
+    cup.start_date <= date && date <= cup.end_date
+
   if (period) {
     for (const date of dates) {
+      if (cupCovers(date)) continue
       if (period.start_date && period.start_date <= date && (!period.end_date || date <= period.end_date)) {
         const wd = isoWeekday(new Date(date + 'T12:00:00'))
         sessions

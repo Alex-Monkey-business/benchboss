@@ -3,8 +3,10 @@ import { computed } from 'vue'
 
 // Inngangen til cup-modulen mens en cup er aktiv. Ingen egen meny-fane —
 // kortet lever på Hjem og forsvinner når cupen settes til completed.
+// På kampdag viser pillen antall kamper for MITT lag i stedet for datoene.
 const props = defineProps({
-  cup: { type: Object, required: true }
+  cup: { type: Object, required: true },
+  todayCount: { type: Number, default: 0 }
 })
 
 const dateRange = computed(() => {
@@ -17,13 +19,19 @@ const dateRange = computed(() => {
   if (s.getMonth() === e.getMonth()) return `${s.getDate()}.–${e.getDate()}. ${month(s)}`
   return `${s.getDate()}. ${month(s)} – ${e.getDate()}. ${month(e)}`
 })
+
+const pill = computed(() => {
+  if (props.todayCount === 1) return '1 kamp i dag'
+  if (props.todayCount > 1) return `${props.todayCount} kamper i dag`
+  return dateRange.value
+})
 </script>
 
 <template>
   <router-link to="/cup" class="ds-card ds-card--interactive cup-entry">
     <div class="cup-entry__top">
       <span class="cup-entry__kicker">Cup</span>
-      <span v-if="dateRange" class="cup-entry__when">{{ dateRange }}</span>
+      <span v-if="pill" class="cup-entry__when">{{ pill }}</span>
     </div>
     <span class="cup-entry__name">{{ cup.name }}</span>
     <span v-if="cup.venue" class="cup-entry__detail">{{ cup.venue }}</span>

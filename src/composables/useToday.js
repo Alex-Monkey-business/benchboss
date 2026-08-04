@@ -17,7 +17,7 @@ import { isHalsenMatch, isHomeMatch, teamColorsForMatch } from '../lib/matchMeta
 import { resolveUpcomingPeriod, buildWeekAhead } from '../lib/weekAhead'
 import { buildReminders } from '../lib/reminders'
 import { useDismissedReminders } from './useDismissedReminders'
-import { CUP_TEAMS, cupTeam } from '../lib/cupTeams'
+import { CUP_TEAMS } from '../lib/cupTeams'
 
 // Egen modul-state. NB: ikke gjenbruk useMatchMode.fetchSession her —
 // den holder én singleton-session og knekker når to Halsen-lag spiller samme dag.
@@ -78,7 +78,16 @@ export function useToday() {
   // nærmeste som starter frem i tid (så en periode som starter i morgen synes).
   const upcomingPeriod = computed(() => resolveUpcomingPeriod(periods.value))
 
+  // Cup-dager demper trening: laget står på cup, ikke på feltet.
+  const cupCoversToday = computed(() => {
+    const cup = activeCup.value
+    if (cup?.status !== 'active' || !cup.start_date || !cup.end_date) return false
+    const today = localISODate()
+    return cup.start_date <= today && today <= cup.end_date
+  })
+
   const todayTraining = computed(() => {
+    if (cupCoversToday.value) return null
     const period = activePeriod.value
     if (!period) return null
     const wd = isoWeekday()
@@ -146,17 +155,18 @@ export function useToday() {
     return { period, session: candidates[0].session, date: candidates[0].date }
   })
 
-  // Resten av uka (i morgen → søndag): treninger fra ukerytmen + kamper.
-  // Tomme dager utelates — lista viser bare det som faktisk skjer.
+  // Resten av uka (i morgen → søndag): treninger fra ukerytmen + seriekamper.
+  // Cup-kamper ramses IKKE opp her — cup-widgeten på Hjem er inngangen,
+  // og aktiv cup demper treninger på cup-dagene (via cup-parameteren).
   const weekAhead = computed(() => buildWeekAhead({
     period: upcomingPeriod.value,
     sessions: sessions.value,
     matches: matches.value,
-    cupMatches: myCupMatches.value
+    cup: activeCup.value
   }))
 
-  // Neste kamp = MIN neste kamp (laget jeg er trener for), serie eller cup —
-  // tidligste vinner. Fallback til alle Halsen-kamper hvis tilordning mangler.
+  // Neste kamp = MIN neste seriekamp (laget jeg er trener for). Cup dekkes
+  // av widgeten. Fallback til alle Halsen-kamper hvis tilordning mangler.
   const nextMatch = computed(() => {
     const today = localISODate()
     const byDateTime = (a, b) => a.match_date.localeCompare(b.match_date) || (a.match_time || '').localeCompare(b.match_time || '')
@@ -164,32 +174,17 @@ export function useToday() {
     const upcoming = matches.value.filter(m => isHalsenMatch(m) && m.match_date > today)
     const mineUpcoming = upcoming.filter(m => getCoachesForMatch(m.id).includes(coach.value?.id))
     const league = (mineUpcoming.length ? mineUpcoming : upcoming).sort(byDateTime)[0]
-    const cup = myCupMatches.value.filter(m => m.match_date > today).sort(byDateTime)[0]
 
-    if (league && (!cup || league.match_date <= cup.match_date)) {
-      return {
-        type: 'match',
-        date: league.match_date,
-        time: league.match_time || '',
-        opponent: isHomeMatch(league) ? league.away_team : league.home_team,
-        teams: teamColorsForMatch(league),
-        isHome: isHomeMatch(league),
-        to: `/kamp/${league.id}`
-      }
+    if (!league) return null
+    return {
+      type: 'match',
+      date: league.match_date,
+      time: league.match_time || '',
+      opponent: isHomeMatch(league) ? league.away_team : league.home_team,
+      teams: teamColorsForMatch(league),
+      isHome: isHomeMatch(league),
+      to: `/kamp/${league.id}`
     }
-    if (cup) {
-      return {
-        type: 'cup',
-        date: cup.match_date,
-        time: cup.match_time || '',
-        opponent: cup.opponent,
-        teamName: cupTeam(cup.our_team)?.name || '',
-        pitch: cup.pitch || '',
-        round: cup.round || '',
-        to: `/cup/kamp/${cup.id}`
-      }
-    }
-    return null
   })
 
   async function fetchPrepSessions(matchIds) {

@@ -6,7 +6,6 @@ import { useCoaches } from '../composables/useCoaches'
 import { useCups } from '../composables/useCups'
 import { localISODate } from '../lib/dateLabels'
 import TodayMatchCard from '../components/today/TodayMatchCard.vue'
-import TodayCupCard from '../components/today/TodayCupCard.vue'
 import CupEntryCard from '../components/today/CupEntryCard.vue'
 import TodayTrainingCard from '../components/today/TodayTrainingCard.vue'
 import ReminderList from '../components/today/ReminderList.vue'
@@ -50,6 +49,7 @@ const hasToday = computed(() =>
 )
 
 const matchToday = computed(() => todayMatches.value.length > 0 || todayCupMatches.value.length > 0)
+const cupMatchesToday = computed(() => (showCupEntry.value ? todayCupMatches.value.length : 0))
 
 // Det som kommer: uka dekker det meste. Neste-kortene er fallback for
 // hendelser UTENFOR uka, og vises bare når ukelista er tom.
@@ -95,13 +95,6 @@ function coachNamesForMatch(matchId) {
         class="ds-anim-fade-up ds-anim-delay-1"
       />
 
-      <TodayCupCard
-        v-for="match in todayCupMatches"
-        :key="match.id"
-        :match="match"
-        class="ds-anim-fade-up ds-anim-delay-1"
-      />
-
       <TodayTrainingCard
         v-if="todayTraining"
         :period="todayTraining.period"
@@ -112,6 +105,7 @@ function coachNamesForMatch(matchId) {
       <CupEntryCard
         v-if="showCupEntry"
         :cup="activeCup"
+        :today-count="cupMatchesToday"
         class="ds-anim-fade-up ds-anim-delay-2"
       />
 

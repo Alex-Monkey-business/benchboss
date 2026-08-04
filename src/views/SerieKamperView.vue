@@ -5,6 +5,7 @@ import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
 import { useTrainingPeriods } from '../composables/useTrainingPeriods'
 import { useTrainingSessions } from '../composables/useTrainingSessions'
+import { useCups } from '../composables/useCups'
 import { relativeDateLabel, isToday, localISODate } from '../lib/dateLabels'
 import { teamColorsForMatch as teamColors, isHomeMatch, isHalsenMatch, teamLabel } from '../lib/matchMeta'
 import { resolveUpcomingPeriod, buildWeekAhead } from '../lib/weekAhead'
@@ -18,13 +19,14 @@ const { matches, fetchMatches, getCoachesForMatch } = useMatches()
 const { coaches, fetchCoaches } = useCoaches()
 const { periods, fetchPeriods } = useTrainingPeriods()
 const { sessions, fetchSessions } = useTrainingSessions()
+const { activeCup, fetchCups } = useCups()
 
 const teamFilter = ref('alle')
 const timeFilter = ref('upcoming')
 const loading = ref(matches.value.length === 0)
 
 onMounted(async () => {
-  await Promise.all([fetchSeasons(), fetchCoaches(), fetchPeriods()])
+  await Promise.all([fetchSeasons(), fetchCoaches(), fetchPeriods(), fetchCups()])
   const jobs = []
   if (viewingSeason.value) jobs.push(fetchMatches(viewingSeason.value.id))
   const period = resolveUpcomingPeriod(periods.value)
@@ -43,6 +45,7 @@ const weekAhead = computed(() => buildWeekAhead({
   period: resolveUpcomingPeriod(periods.value),
   sessions: sessions.value,
   matches: matches.value,
+  cup: activeCup.value,
   includeToday: true
 }))
 
