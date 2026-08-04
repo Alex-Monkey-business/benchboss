@@ -148,7 +148,10 @@ function isInSession(ex) {
   text-align: left;
   font-family: var(--ds-font-body);
   -webkit-tap-highlight-color: transparent;
-  transition: all 0.15s;
+  transition:
+    background-color var(--ds-duration-fast) var(--ds-ease-out),
+    border-color var(--ds-duration-fast) var(--ds-ease-out),
+    transform var(--ds-duration-fast) var(--ds-ease-out);
 }
 
 .picker-row:active { transform: scale(0.99); }

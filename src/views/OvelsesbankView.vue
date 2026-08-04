@@ -175,17 +175,17 @@ onMounted(fetchExercises)
     </template>
 
     <!-- Detalj: visning først, redigering sekundært -->
-    <Sheet :show="showSheet" :title="mode === 'new' ? 'Ny øvelse' : mode === 'edit' ? 'Rediger øvelse' : ''" @close="closeSheet">
+    <Sheet :show="showSheet" :title="mode === 'new' ? 'Ny øvelse' : mode === 'edit' ? 'Rediger øvelse' : (active?.name || '')" @close="closeSheet">
       <!-- VISNING -->
       <template v-if="mode === 'view' && active">
         <div class="ex-view">
-          <div class="ex-view__head">
+          <div v-if="(active.type && active.type !== 'none') || categoryLabel" class="ex-view__head">
             <span
               v-if="active.type && active.type !== 'none'"
               class="bank-row__badge"
               :class="`bank-row__badge--${active.type}`"
             >{{ active.type === 'diff' ? 'Diff' : 'Mix' }}</span>
-            <h3 class="ex-view__name">{{ active.name }}</h3>
+            <span v-if="categoryLabel" class="ex-view__category">{{ categoryLabel }}</span>
           </div>
           <p v-if="active.tema" class="ex-view__tema">{{ active.tema }}</p>
 
@@ -211,8 +211,6 @@ onMounted(fetchExercises)
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
             {{ active.link.label || active.link.url }}
           </a>
-
-          <div v-if="categoryLabel" class="ex-view__category">{{ categoryLabel }}</div>
 
           <button type="button" class="ds-btn ds-btn--secondary ds-btn--lg ex-view__edit" @click="startEdit">
             Rediger
@@ -439,16 +437,6 @@ onMounted(fetchExercises)
   gap: var(--ds-space-sm);
 }
 
-.ex-view__name {
-  font-family: var(--ds-font-display-sans);
-  font-size: var(--ds-text-lg);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: -0.01em;
-  color: var(--ds-color-text-primary);
-  margin: 0;
-  line-height: 1.25;
-}
-
 .ex-view__tema {
   font-size: var(--ds-text-md);
   font-weight: var(--ds-weight-medium);
@@ -495,8 +483,14 @@ onMounted(fetchExercises)
 .ex-view__link svg { width: 15px; height: 15px; }
 
 .ex-view__category {
-  font-size: var(--ds-text-xs);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
   color: var(--ds-color-text-tertiary);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-full);
+  padding: 2px 8px;
 }
 
 .ex-view__edit { width: 100%; margin-top: var(--ds-space-sm); }

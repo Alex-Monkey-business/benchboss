@@ -165,7 +165,9 @@ function pick(seasonId) {
   font-size: var(--ds-text-sm);
   font-weight: 500;
   color: var(--ds-color-text-primary);
-  transition: all 0.15s;
+  transition:
+    background-color var(--ds-duration-fast) var(--ds-ease-out),
+    border-color var(--ds-duration-fast) var(--ds-ease-out);
   text-align: left;
   -webkit-tap-highlight-color: transparent;
 }

@@ -463,10 +463,12 @@ onMounted(async () => {
   padding: var(--ds-space-xl);
 }
 
-/* Uten illustrasjon: kompakt panel — 60vh tom farge lover innhold som ikke finnes. */
+/* Uten illustrasjon: kompakt panel — 60vh tom farge lover innhold som ikke finnes.
+   Stram bunn: body-en under har egen padding, to lag stables til død sone. */
 .chapter__hero--bare {
   min-height: 0;
   padding-top: var(--ds-space-2xl);
+  padding-bottom: var(--ds-space-sm);
 }
 
 .chapter__img {
@@ -686,16 +688,38 @@ onMounted(async () => {
   font-weight: 500;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: opacity var(--ds-duration-fast) var(--ds-ease-out), border-color var(--ds-duration-fast) var(--ds-ease-out);
+  transition:
+    opacity var(--ds-duration-fast) var(--ds-ease-out),
+    border-color var(--ds-duration-fast) var(--ds-ease-out),
+    transform var(--ds-duration-fast) var(--ds-ease-out);
 }
 
 .drill-add svg { width: 15px; height: 15px; }
-.drill-add:hover, .drill-add:active { opacity: 1; border-color: rgba(255, 255, 255, 0.55); }
+.drill-add:hover { opacity: 1; border-color: rgba(255, 255, 255, 0.55); }
+.drill-add:active { opacity: 1; transform: scale(0.98); }
 
 .okt-view__empty-actions {
   display: flex;
   gap: var(--ds-space-sm);
   justify-content: center;
+}
+
+/* Panelet er alltid mørkt — standardknappene (nesten svart primær, lys grå
+   sekundær) drukner eller gjørmer seg. Panel-lokale varianter i panelets språk. */
+.okt-view__empty .ds-btn--primary {
+  background: var(--hero-fg);
+  border-color: var(--hero-fg);
+  color: var(--hero-bg);
+}
+.okt-view__empty .ds-btn--primary:hover { opacity: 0.92; }
+.okt-view__empty .ds-btn--secondary {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.35);
+  color: var(--hero-fg);
+}
+.okt-view__empty .ds-btn--secondary:hover {
+  background: transparent;
+  border-color: rgba(255, 255, 255, 0.6);
 }
 
 /* Fokus — det vi øver på, fremhevet i aksent */
