@@ -7,7 +7,7 @@ const { teamFilter, setFilter } = useCupFilter()
 
 const options = computed(() => [
   { slug: 'all', label: 'Alle' },
-  ...CUP_TEAMS.map(t => ({ slug: t.slug, label: t.name.replace('Halsen IF ', '') }))
+  ...CUP_TEAMS.map(t => ({ slug: t.slug, label: t.name }))
 ])
 </script>
 

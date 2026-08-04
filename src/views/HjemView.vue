@@ -3,8 +3,10 @@ import { ref, computed, onMounted } from 'vue'
 import { useToday } from '../composables/useToday'
 import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
+import { useCups } from '../composables/useCups'
 import TodayMatchCard from '../components/today/TodayMatchCard.vue'
 import TodayCupCard from '../components/today/TodayCupCard.vue'
+import CupEntryCard from '../components/today/CupEntryCard.vue'
 import TodayTrainingCard from '../components/today/TodayTrainingCard.vue'
 import ReminderList from '../components/today/ReminderList.vue'
 import NextTrainingCard from '../components/today/NextTrainingCard.vue'
@@ -20,6 +22,10 @@ const {
 
 const { getCoachesForMatch } = useMatches()
 const { coaches } = useCoaches()
+
+// Cup-inngangen: eget kort mens en cup er aktiv (ingen fane i bunnmenyen).
+const { activeCup } = useCups()
+const showCupEntry = computed(() => activeCup.value?.status === 'active')
 
 const ready = ref(false)
 
@@ -50,7 +56,7 @@ const upNext = computed(() => {
 })
 
 const showEmpty = computed(() =>
-  ready.value && !loading.value && !hasToday.value && weekAhead.value.length === 0 && upNext.value.length === 0 && reminders.value.length === 0
+  ready.value && !loading.value && !hasToday.value && weekAhead.value.length === 0 && upNext.value.length === 0 && reminders.value.length === 0 && !showCupEntry.value
 )
 
 function coachNamesForMatch(matchId) {
@@ -94,6 +100,12 @@ function coachNamesForMatch(matchId) {
         v-if="todayTraining"
         :period="todayTraining.period"
         :session="todayTraining.session"
+        class="ds-anim-fade-up ds-anim-delay-2"
+      />
+
+      <CupEntryCard
+        v-if="showCupEntry"
+        :cup="activeCup"
         class="ds-anim-fade-up ds-anim-delay-2"
       />
 

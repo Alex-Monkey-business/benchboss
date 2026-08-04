@@ -6,7 +6,7 @@ const activeCup = ref(null)
 const loaded = ref(false)
 
 const DEMO_CUPS = [
-  { id: 'demo-cup-1', name: 'Bø Sommerland Cup', venue: 'Bø i Telemark', start_date: null, end_date: null, status: 'active', created_at: '2026-05-01' }
+  { id: 'demo-cup-1', name: 'Sandarcupen', venue: 'Virik Idrettspark, Sandefjord', start_date: '2026-08-08', end_date: '2026-08-09', status: 'active', created_at: '2026-08-04' }
 ]
 
 export function useCups() {

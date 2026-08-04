@@ -17,7 +17,7 @@ import { isHalsenMatch, isHomeMatch, teamColorsForMatch } from '../lib/matchMeta
 import { resolveUpcomingPeriod, buildWeekAhead } from '../lib/weekAhead'
 import { buildReminders } from '../lib/reminders'
 import { useDismissedReminders } from './useDismissedReminders'
-import { cupTeam } from '../lib/cupTeams'
+import { CUP_TEAMS, cupTeam } from '../lib/cupTeams'
 
 // Egen modul-state. NB: ikke gjenbruk useMatchMode.fetchSession her —
 // den holder én singleton-session og knekker når to Halsen-lag spiller samme dag.
@@ -51,9 +51,17 @@ export function useToday() {
       .sort((a, b) => (a.match_time || '').localeCompare(b.match_time || ''))
   })
 
+  // Cupkamper for MITT cup-lag (trener-fornavn i CUP_TEAMS). Med to lag i
+  // samme cup blir alle kampene støy — trenere uten eget cup-lag ser alt.
+  const myCupMatches = computed(() => {
+    const first = (coach.value?.name || '').split(' ')[0].toLowerCase()
+    const mine = CUP_TEAMS.find(t => (t.trainers || []).some(n => n.toLowerCase() === first))
+    return mine ? cupMatches.value.filter(m => m.our_team === mine.slug) : cupMatches.value
+  })
+
   const todayCupMatches = computed(() => {
     const today = localISODate()
-    return cupMatches.value
+    return myCupMatches.value
       .filter(m => m.match_date === today)
       .sort((a, b) => (a.match_time || '').localeCompare(b.match_time || ''))
   })
@@ -144,7 +152,7 @@ export function useToday() {
     period: upcomingPeriod.value,
     sessions: sessions.value,
     matches: matches.value,
-    cupMatches: cupMatches.value
+    cupMatches: myCupMatches.value
   }))
 
   // Neste kamp = MIN neste kamp (laget jeg er trener for), serie eller cup —
@@ -156,7 +164,7 @@ export function useToday() {
     const upcoming = matches.value.filter(m => isHalsenMatch(m) && m.match_date > today)
     const mineUpcoming = upcoming.filter(m => getCoachesForMatch(m.id).includes(coach.value?.id))
     const league = (mineUpcoming.length ? mineUpcoming : upcoming).sort(byDateTime)[0]
-    const cup = cupMatches.value.filter(m => m.match_date > today).sort(byDateTime)[0]
+    const cup = myCupMatches.value.filter(m => m.match_date > today).sort(byDateTime)[0]
 
     if (league && (!cup || league.match_date <= cup.match_date)) {
       return {
