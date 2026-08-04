@@ -187,6 +187,13 @@ async function duplicateOkt() {
   if (row) router.push(`/trening/${periodId.value}/okt/${row.id}`)
 }
 
+// Ekte tilbake: dit du kom fra (Hjem, perioden, banken …). Perioden er
+// bare fallback ved direkte-lenke uten historikk.
+function goBack() {
+  if (window.history.state?.back) router.back()
+  else router.push(`/trening/${periodId.value}`)
+}
+
 // ---- Slett økt ----
 const showDelete = ref(false)
 async function confirmDelete() {
@@ -207,10 +214,10 @@ onMounted(async () => {
 <template>
   <div v-if="okt" class="okt-view" :data-accent="okt.accent || 'warm'">
     <div class="okt-view__nav">
-      <router-link :to="`/trening/${periodId}`" class="okt-view__back">
+      <button type="button" class="okt-view__back" @click="goBack">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         Tilbake
-      </router-link>
+      </button>
       <div class="okt-view__nav-actions">
         <button type="button" class="okt-view__icon-btn" aria-label="Rediger økt" @click="openEdit">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
@@ -509,6 +516,11 @@ onMounted(async () => {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+  border: none;
+  background: none;
+  padding: 0;
+  cursor: pointer;
+  font-family: var(--ds-font-body);
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);
   color: var(--ds-color-text-secondary);

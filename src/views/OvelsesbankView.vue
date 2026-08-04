@@ -1,10 +1,18 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useExercises, EXERCISE_CATEGORIES, groupByCategory } from '../composables/useExercises'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
+const router = useRouter()
 const { exercises, fetchExercises, createExercise, updateExercise, deleteExercise } = useExercises()
+
+// Ekte tilbake: dit du kom fra (perioden, en økt …); /trening som fallback.
+function goBack() {
+  if (window.history.state?.back) router.back()
+  else router.push('/trening')
+}
 
 const DRILL_TYPES = [
   { value: 'diff', label: 'Diff' },
@@ -125,10 +133,10 @@ onMounted(fetchExercises)
 <template>
   <div class="bank">
     <div class="bank__nav">
-      <router-link to="/trening" class="back-btn">
+      <button type="button" class="back-btn" @click="goBack">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Trening
-      </router-link>
+        Tilbake
+      </button>
     </div>
 
     <header class="bank__head">
