@@ -4,6 +4,7 @@ import { useToday } from '../composables/useToday'
 import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
 import { useCups } from '../composables/useCups'
+import { localISODate } from '../lib/dateLabels'
 import TodayMatchCard from '../components/today/TodayMatchCard.vue'
 import TodayCupCard from '../components/today/TodayCupCard.vue'
 import CupEntryCard from '../components/today/CupEntryCard.vue'
@@ -24,8 +25,13 @@ const { getCoachesForMatch } = useMatches()
 const { coaches } = useCoaches()
 
 // Cup-inngangen: eget kort mens en cup er aktiv (ingen fane i bunnmenyen).
+// Passert sluttdato skjuler kortet selv om ingen husket å sette completed.
 const { activeCup } = useCups()
-const showCupEntry = computed(() => activeCup.value?.status === 'active')
+const showCupEntry = computed(() => {
+  const cup = activeCup.value
+  if (!cup || cup.status !== 'active') return false
+  return !cup.end_date || cup.end_date >= localISODate()
+})
 
 const ready = ref(false)
 
