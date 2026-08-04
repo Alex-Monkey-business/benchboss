@@ -247,7 +247,7 @@ onMounted(async () => {
     <div class="resource-row">
       <router-link to="/trening/handbok" class="handbok-link">
         <span class="handbok-link__body">
-          <span class="handbok-link__eyebrow">Trener-håndbok</span>
+          <span class="handbok-link__eyebrow">Håndbok</span>
           <span class="handbok-link__title">Slik trener vi</span>
         </span>
         <svg class="handbok-link__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -710,7 +710,8 @@ Torsdag
   font-variant-numeric: tabular-nums;
 }
 
-/* Ressursrad — håndbok + øvelsesbank side om side, lettere vekt enn økt-kortene. */
+/* Ressursrad — håndbok + øvelsesbank side om side, lettere vekt enn økt-kortene.
+   På smale skjermer stables de: avkuttede labels er verre enn én ekstra rad. */
 .resource-row {
   display: grid;
   grid-template-columns: 1fr 1fr;
@@ -718,10 +719,17 @@ Torsdag
   margin-bottom: var(--ds-space-lg);
 }
 
+@media (max-width: 379px) {
+  .resource-row { grid-template-columns: 1fr; }
+}
+
 .handbok-link {
   display: flex;
   align-items: center;
   gap: var(--ds-space-sm);
+  /* Grid-item: uten denne nekter 1fr-kolonnen å krympe under tekstens
+     min-bredde (nowrap-eyebrow) og raden renner ut av smale viewports. */
+  min-width: 0;
   padding: 14px var(--ds-space-md);
   background: var(--ds-color-bg-elevated);
   border: 1px solid var(--ds-color-border-light);
