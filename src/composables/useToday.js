@@ -143,6 +143,64 @@ export function useToday() {
     return { period, session: candidates[0].session, date: candidates[0].date }
   })
 
+  // Resten av uka (i morgen → søndag): treninger fra ukerytmen + kamper.
+  // Tomme dager utelates — lista viser bare det som faktisk skjer.
+  const weekAhead = computed(() => {
+    const today = localISODate()
+    const now = new Date(today + 'T12:00:00')
+    const daysLeft = 7 - isoWeekday(now)
+    if (daysLeft <= 0) return []
+    const dates = []
+    for (let i = 1; i <= daysLeft; i++) {
+      const d = new Date(now)
+      d.setDate(d.getDate() + i)
+      dates.push(localISODate(d))
+    }
+    const last = dates[dates.length - 1]
+    const items = []
+
+    const period = upcomingPeriod.value
+    if (period) {
+      for (const date of dates) {
+        if (period.start_date && period.start_date <= date && (!period.end_date || date <= period.end_date)) {
+          const wd = isoWeekday(new Date(date + 'T12:00:00'))
+          sessions.value
+            .filter(s => s.period_id === period.id && s.weekday === wd)
+            .forEach(session => items.push({
+              kind: 'training',
+              date,
+              focus: session.focus || '',
+              drillCount: (session.drills || []).length,
+              to: `/trening/${period.id}/okt/${session.id}`
+            }))
+        }
+      }
+    }
+
+    matches.value
+      .filter(m => isHalsenMatch(m) && m.match_date > today && m.match_date <= last)
+      .forEach(m => items.push({
+        kind: 'match',
+        date: m.match_date,
+        time: (m.match_time || '').slice(0, 5),
+        opponent: isHomeMatch(m) ? m.away_team : m.home_team,
+        isHome: isHomeMatch(m),
+        to: `/kamp/${m.id}`
+      }))
+
+    cupMatches.value
+      .filter(m => m.match_date > today && m.match_date <= last)
+      .forEach(m => items.push({
+        kind: 'cup',
+        date: m.match_date,
+        time: (m.match_time || '').slice(0, 5),
+        opponent: m.opponent,
+        to: `/cup/kamp/${m.id}`
+      }))
+
+    return items.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
+  })
+
   // Neste kamp = MIN neste kamp (laget jeg er trener for), serie eller cup —
   // tidligste vinner. Fallback til alle Halsen-kamper hvis tilordning mangler.
   const nextMatch = computed(() => {
@@ -220,6 +278,6 @@ export function useToday() {
   return {
     loading, refresh, greeting,
     todayMatches, todayCupMatches, todayTraining,
-    prepFor, reminders, nextTraining, nextMatch
+    prepFor, reminders, nextTraining, nextMatch, weekAhead
   }
 }

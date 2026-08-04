@@ -14,7 +14,7 @@ import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 const {
   loading, refresh, greeting,
   todayMatches, todayCupMatches, todayTraining,
-  prepFor, reminders, nextTraining, nextMatch
+  prepFor, reminders, nextTraining, nextMatch, weekAhead
 } = useToday()
 
 const { getCoachesForMatch } = useMatches()
@@ -38,9 +38,10 @@ const hasToday = computed(() =>
 
 const matchToday = computed(() => todayMatches.value.length > 0 || todayCupMatches.value.length > 0)
 
-// Det som kommer: neste trening (på rolige dager) og neste kamp (når det ikke
-// er kampdag) — sortert så det nærmeste står øverst.
+// Det som kommer: uka dekker det meste. Neste-kortene er fallback for
+// hendelser UTENFOR uka, og vises bare når ukelista er tom.
 const upNext = computed(() => {
+  if (weekAhead.value.length) return []
   const items = []
   if (!hasToday.value && nextTraining.value) items.push({ kind: 'training', date: nextTraining.value.date })
   if (!matchToday.value && nextMatch.value) items.push({ kind: 'match', date: nextMatch.value.date })
@@ -48,8 +49,14 @@ const upNext = computed(() => {
 })
 
 const showEmpty = computed(() =>
-  ready.value && !loading.value && !hasToday.value && upNext.value.length === 0 && reminders.value.length === 0
+  ready.value && !loading.value && !hasToday.value && weekAhead.value.length === 0 && upNext.value.length === 0 && reminders.value.length === 0
 )
+
+// «Ons 6. aug» — kort daglabel til ukelista.
+function weekDayLabel(iso) {
+  const s = new Date(iso + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })
+  return (s.charAt(0).toUpperCase() + s.slice(1)).replace(/\./g, '')
+}
 
 function coachNamesForMatch(matchId) {
   return getCoachesForMatch(matchId)
@@ -111,6 +118,26 @@ function coachNamesForMatch(matchId) {
         />
       </template>
 
+      <!-- Resten av uka — bare dager med innhold, ingen fyll -->
+      <section v-if="weekAhead.length" class="ds-anim-fade-up ds-anim-delay-2">
+        <h2 class="hjem-section-kicker">Denne uka</h2>
+        <div class="week-list">
+          <router-link v-for="(item, i) in weekAhead" :key="i" :to="item.to" class="week-row">
+            <span class="week-row__day">{{ weekDayLabel(item.date) }}</span>
+            <span class="week-row__body">
+              <span class="week-row__title">
+                {{ item.kind === 'training' ? 'Trening' : item.kind === 'cup' ? `Cup mot ${item.opponent}` : `Kamp mot ${item.opponent}` }}
+              </span>
+              <span v-if="item.kind === 'training' && item.focus" class="week-row__sub">{{ item.focus }}</span>
+              <span v-else-if="item.kind !== 'training'" class="week-row__sub">
+                {{ item.kind === 'match' ? (item.isHome ? 'Hjemme' : 'Borte') : '' }}{{ item.time ? (item.kind === 'match' ? ' · ' : '') + item.time : '' }}
+              </span>
+            </span>
+            <svg class="week-row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </router-link>
+        </div>
+      </section>
+
       <section v-if="reminders.length" class="ds-anim-fade-up ds-anim-delay-3">
         <h2 class="hjem-section-kicker">Å ordne</h2>
         <ReminderList :reminders="reminders" />
@@ -161,6 +188,73 @@ function coachNamesForMatch(matchId) {
   font-weight: var(--ds-weight-semibold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+}
+
+/* ---- Denne uka ---- */
+.week-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+}
+
+.week-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-md);
+  padding: 14px var(--ds-space-md);
+  background: var(--ds-color-bg-elevated);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  text-decoration: none;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition:
+    border-color var(--ds-duration-fast) var(--ds-ease-out),
+    transform var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.week-row:active { transform: scale(0.99); }
+
+@media (hover: hover) and (pointer: fine) {
+  .week-row:hover { border-color: var(--ds-color-border-strong); }
+}
+
+.week-row__day {
+  flex-shrink: 0;
+  width: 72px;
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+.week-row__body {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.week-row__title {
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-primary);
+}
+
+.week-row__sub {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.week-row__chevron {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
   color: var(--ds-color-text-tertiary);
 }
 </style>
