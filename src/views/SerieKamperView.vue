@@ -3,29 +3,48 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useSeasons } from '../composables/useSeasons'
 import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
+import { useTrainingPeriods } from '../composables/useTrainingPeriods'
+import { useTrainingSessions } from '../composables/useTrainingSessions'
 import { relativeDateLabel, isToday, localISODate } from '../lib/dateLabels'
 import { teamColorsForMatch as teamColors, isHomeMatch, isHalsenMatch, teamLabel } from '../lib/matchMeta'
+import { resolveUpcomingPeriod, buildWeekAhead } from '../lib/weekAhead'
 import TeamFilter from '../components/TeamFilter.vue'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
+import WeekList from '../components/today/WeekList.vue'
 
 const { viewingSeason, fetchSeasons } = useSeasons()
 const { matches, fetchMatches, getCoachesForMatch } = useMatches()
 const { coaches, fetchCoaches } = useCoaches()
+const { periods, fetchPeriods } = useTrainingPeriods()
+const { sessions, fetchSessions } = useTrainingSessions()
 
 const teamFilter = ref('alle')
 const timeFilter = ref('upcoming')
 const loading = ref(matches.value.length === 0)
 
 onMounted(async () => {
-  await Promise.all([fetchSeasons(), fetchCoaches()])
-  if (viewingSeason.value) await fetchMatches(viewingSeason.value.id)
+  await Promise.all([fetchSeasons(), fetchCoaches(), fetchPeriods()])
+  const jobs = []
+  if (viewingSeason.value) jobs.push(fetchMatches(viewingSeason.value.id))
+  const period = resolveUpcomingPeriod(periods.value)
+  if (period) jobs.push(fetchSessions(period.id))
+  await Promise.all(jobs)
   loading.value = false
 })
 
 watch(viewingSeason, async (s) => {
   if (s) await fetchMatches(s.id)
 })
+
+// Ukeplanen — samme liste som trenerne ser på Hjem, men uten lenker
+// (trenings- og kampdetaljer er trenerflater).
+const weekAhead = computed(() => buildWeekAhead({
+  period: resolveUpcomingPeriod(periods.value),
+  sessions: sessions.value,
+  matches: matches.value,
+  includeToday: true
+}))
 
 function hasResult(m) {
   return m.home_score != null && m.away_score != null
@@ -94,6 +113,11 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
     </div>
 
     <div class="px-lg">
+      <section v-if="weekAhead.length" class="serie-week">
+        <h2 class="serie-week__kicker">Denne uka</h2>
+        <WeekList :items="weekAhead" :interactive="false" />
+      </section>
+
       <div class="time-tabs" role="tablist">
         <button
           type="button"
@@ -171,6 +195,18 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
 </template>
 
 <style scoped>
+.serie-week { margin-bottom: var(--ds-space-lg); }
+
+.serie-week__kicker {
+  margin: 0 0 var(--ds-space-sm);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+}
+
 .daygroup { margin-bottom: var(--ds-space-lg); }
 .day-label {
   font-size: var(--ds-text-xs);

@@ -14,6 +14,7 @@ import { useTrainingSessions } from './useTrainingSessions'
 import { useMatchMode } from './useMatchMode'
 import { localISODate, isoWeekday } from '../lib/dateLabels'
 import { isHalsenMatch, isHomeMatch, teamColorsForMatch } from '../lib/matchMeta'
+import { resolveUpcomingPeriod, buildWeekAhead } from '../lib/weekAhead'
 import { buildReminders } from '../lib/reminders'
 import { useDismissedReminders } from './useDismissedReminders'
 import { cupTeam } from '../lib/cupTeams'
@@ -67,13 +68,7 @@ export function useToday() {
 
   // Perioden «neste trening» hentes fra: den som dekker i dag, ellers den
   // nærmeste som starter frem i tid (så en periode som starter i morgen synes).
-  const upcomingPeriod = computed(() => {
-    if (activePeriod.value) return activePeriod.value
-    const today = localISODate()
-    return periods.value
-      .filter(p => p.start_date && p.start_date > today)
-      .sort((a, b) => a.start_date.localeCompare(b.start_date))[0] || null
-  })
+  const upcomingPeriod = computed(() => resolveUpcomingPeriod(periods.value))
 
   const todayTraining = computed(() => {
     const period = activePeriod.value
@@ -145,61 +140,12 @@ export function useToday() {
 
   // Resten av uka (i morgen → søndag): treninger fra ukerytmen + kamper.
   // Tomme dager utelates — lista viser bare det som faktisk skjer.
-  const weekAhead = computed(() => {
-    const today = localISODate()
-    const now = new Date(today + 'T12:00:00')
-    const daysLeft = 7 - isoWeekday(now)
-    if (daysLeft <= 0) return []
-    const dates = []
-    for (let i = 1; i <= daysLeft; i++) {
-      const d = new Date(now)
-      d.setDate(d.getDate() + i)
-      dates.push(localISODate(d))
-    }
-    const last = dates[dates.length - 1]
-    const items = []
-
-    const period = upcomingPeriod.value
-    if (period) {
-      for (const date of dates) {
-        if (period.start_date && period.start_date <= date && (!period.end_date || date <= period.end_date)) {
-          const wd = isoWeekday(new Date(date + 'T12:00:00'))
-          sessions.value
-            .filter(s => s.period_id === period.id && s.weekday === wd)
-            .forEach(session => items.push({
-              kind: 'training',
-              date,
-              focus: session.focus || '',
-              drillCount: (session.drills || []).length,
-              to: `/trening/${period.id}/okt/${session.id}`
-            }))
-        }
-      }
-    }
-
-    matches.value
-      .filter(m => isHalsenMatch(m) && m.match_date > today && m.match_date <= last)
-      .forEach(m => items.push({
-        kind: 'match',
-        date: m.match_date,
-        time: (m.match_time || '').slice(0, 5),
-        opponent: isHomeMatch(m) ? m.away_team : m.home_team,
-        isHome: isHomeMatch(m),
-        to: `/kamp/${m.id}`
-      }))
-
-    cupMatches.value
-      .filter(m => m.match_date > today && m.match_date <= last)
-      .forEach(m => items.push({
-        kind: 'cup',
-        date: m.match_date,
-        time: (m.match_time || '').slice(0, 5),
-        opponent: m.opponent,
-        to: `/cup/kamp/${m.id}`
-      }))
-
-    return items.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
-  })
+  const weekAhead = computed(() => buildWeekAhead({
+    period: upcomingPeriod.value,
+    sessions: sessions.value,
+    matches: matches.value,
+    cupMatches: cupMatches.value
+  }))
 
   // Neste kamp = MIN neste kamp (laget jeg er trener for), serie eller cup —
   // tidligste vinner. Fallback til alle Halsen-kamper hvis tilordning mangler.
