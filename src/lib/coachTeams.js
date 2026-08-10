@@ -3,10 +3,11 @@ import { teamColorsForMatch } from './matchMeta'
 // Standard trener-oppsett per lagfarge.
 // Trenere settes automatisk ved import/oppretting av kamper ut fra hvilke
 // Halsen-lag som spiller. Endre rollene her hvis trenerne bytter lag.
+// Høst 2026: lag 1 = Rød, lag 2 = Hvit, lag 3 = Grønn.
 export const COACH_TEAMS = {
-  gronn: ['Alex', 'Iver'],
-  rod: ['Trond', 'Simon'],
-  hvit: ['Jacob'],
+  gronn: ['Simon', 'Alex'],
+  rod: ['Trond'],
+  hvit: ['Iver', 'Jacob'],
 }
 
 // Resolve hvilke trener-IDer som skal settes på en kamp, gitt trener-poolen.

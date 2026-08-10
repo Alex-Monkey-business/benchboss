@@ -5,6 +5,7 @@ import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
 import { useReferees } from '../composables/useReferees'
 import { usePlayers } from '../composables/usePlayers'
+import { usePlayerSeasonTeams } from '../composables/usePlayerSeasonTeams'
 import { useMatchGoals } from '../composables/useMatchGoals'
 import { useMatchMode } from '../composables/useMatchMode'
 import AnimatedNumber from '../components/AnimatedNumber.vue'
@@ -18,14 +19,18 @@ const { matches, matchCoaches, matchPlayers, fetchMatches } = useMatches()
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees } = useReferees()
 const { players, fetchPlayers } = usePlayers()
+const { fetchPlayerSeasonTeams, teamForSeason } = usePlayerSeasonTeams()
 const { goals: allGoals, fetchAllGoals } = useMatchGoals()
 const { stints, fetchAllStints } = useMatchMode()
+
+// Lagfargen slik den var i sesongen man ser på — ikke slik lagene står i dag.
+const teamOf = p => teamForSeason(p, viewingSeason.value?.id)
 
 // Skeleton only on the very first load. Data persists across navigation.
 const loading = ref(matches.value.length === 0)
 
 onMounted(async () => {
-  await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchAllGoals(), fetchAllStints()])
+  await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllGoals(), fetchAllStints()])
   if (viewingSeason.value) {
     await fetchMatches(viewingSeason.value.id)
   }
@@ -215,7 +220,7 @@ const playerStats = computed(() => {
   })
   return players.value
     .map(p => ({
-      id: p.id, name: p.name, primary_team: p.primary_team,
+      id: p.id, name: p.name, primary_team: teamOf(p),
       count: counts[p.id] || 0,
       upcoming: upcoming[p.id] || 0
     }))
@@ -236,7 +241,7 @@ const topScorers = computed(() => {
     counts[g.player_id] = (counts[g.player_id] || 0) + 1
   })
   return players.value
-    .map(p => ({ id: p.id, name: p.name, primary_team: p.primary_team, count: counts[p.id] || 0 }))
+    .map(p => ({ id: p.id, name: p.name, primary_team: teamOf(p), count: counts[p.id] || 0 }))
     .filter(p => p.count > 0)
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
 })
@@ -266,7 +271,7 @@ const playtimeByTeam = computed(() => {
       const total = f + k
       const games = gamesByPlayer[p.id]?.size || 0
       return {
-        id: p.id, name: p.name, primary_team: p.primary_team,
+        id: p.id, name: p.name, primary_team: teamOf(p),
         keeperSec: k, totalSec: total, games,
         avgSec: games ? Math.round(total / games) : 0
       }
