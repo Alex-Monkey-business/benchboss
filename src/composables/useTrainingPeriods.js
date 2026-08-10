@@ -1,8 +1,13 @@
 import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { registerReset } from '../stores/dataReset'
+import { fetchRows, STATUS } from '../lib/query'
 
 const periods = ref([])
 const loading = ref(false)
+const status = ref(STATUS.IDLE)
+
+registerReset(() => { periods.value = []; loading.value = false; status.value = STATUS.IDLE })
 
 // Demo-perioder (uten Supabase). Erstattes av training_periods i prod.
 const DEMO_PERIODS = [
@@ -16,16 +21,24 @@ export function useTrainingPeriods() {
     if (!isSupabaseConfigured) {
       periods.value = [...DEMO_PERIODS].sort((a, b) => a.position - b.position)
       loading.value = false
+      status.value = STATUS.OK
       return periods.value
     }
 
-    const { data, error } = await supabase
-      .from('training_periods')
-      .select('*')
-      .order('position')
-
-    if (!error && data) periods.value = data
+    status.value = STATUS.LOADING
+    const { rows } = await fetchRows(
+      supabase.from('training_periods').select('*').order('position'),
+      'training_periods'
+    )
     loading.value = false
+
+    if (!rows) {
+      status.value = STATUS.ERROR
+      return periods.value
+    }
+
+    periods.value = rows
+    status.value = STATUS.OK
     return periods.value
   }
 
@@ -90,5 +103,5 @@ export function useTrainingPeriods() {
     if (!error) periods.value = periods.value.filter(p => p.id !== id)
   }
 
-  return { periods, loading, fetchPeriods, getPeriod, createPeriod, updatePeriod, deletePeriod }
+  return { periods, loading, status, fetchPeriods, getPeriod, createPeriod, updatePeriod, deletePeriod }
 }

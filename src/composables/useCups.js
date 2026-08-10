@@ -1,10 +1,20 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { localISODate } from '../lib/dateLabels'
+import { registerReset } from '../stores/dataReset'
+import { fetchRows, STATUS } from '../lib/query'
 
 const cups = ref([])
 const activeCup = ref(null)
 const loaded = ref(false)
+const status = ref(STATUS.IDLE)
+
+registerReset(() => {
+  cups.value = []
+  activeCup.value = null
+  loaded.value = false
+  status.value = STATUS.IDLE
+})
 
 // Cupen er «i gang» så lenge den er aktiv og sluttdatoen ikke er passert.
 // Datosjekken er sikkerhetsnettet for når ingen husket å sette completed.
@@ -27,21 +37,27 @@ export function useCups() {
       cups.value = DEMO_CUPS
       activeCup.value = DEMO_CUPS[0]
       loaded.value = true
+      status.value = STATUS.OK
       return cups.value
     }
 
-    const { data, error } = await supabase
-      .from('cups')
-      .select('*')
-      .order('created_at', { ascending: false })
+    status.value = STATUS.LOADING
+    const { rows } = await fetchRows(
+      supabase.from('cups').select('*').order('created_at', { ascending: false }),
+      'cups'
+    )
 
-    if (!error && data) {
-      cups.value = data
-      activeCup.value = data.find(c => c.status === 'active') || data[0] || null
-      loaded.value = true
+    if (!rows) {
+      status.value = STATUS.ERROR
+      return cups.value
     }
+
+    cups.value = rows
+    activeCup.value = rows.find(c => c.status === 'active') || rows[0] || null
+    loaded.value = true
+    status.value = STATUS.OK
     return cups.value
   }
 
-  return { cups, activeCup, cupInProgress, loaded, fetchCups }
+  return { cups, activeCup, cupInProgress, loaded, status, fetchCups }
 }

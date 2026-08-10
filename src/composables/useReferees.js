@@ -1,9 +1,12 @@
 import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { parsePhone } from '../lib/phone'
+import { registerReset } from '../stores/dataReset'
 
 const referees = ref([])
 const loaded = ref(false)
+
+registerReset(() => { referees.value = []; loaded.value = false })
 
 const DEMO_REFEREES = [
   { id: 'dref-1', name: 'Filip HF', phone: '' },

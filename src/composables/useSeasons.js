@@ -1,5 +1,7 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { registerReset } from '../stores/dataReset'
+import { fetchRows, STATUS } from '../lib/query'
 
 const seasons = ref([])
 const activeSeason = ref(null)
@@ -7,6 +9,15 @@ const activeSeason = ref(null)
 // Kun in-memory: nullstilles ved cold start så man alltid åpner appen i inneværende sesong.
 const viewingSeason = ref(null)
 const loaded = ref(false)
+const status = ref(STATUS.IDLE)
+
+registerReset(() => {
+  seasons.value = []
+  activeSeason.value = null
+  viewingSeason.value = null
+  loaded.value = false
+  status.value = STATUS.IDLE
+})
 
 const DEMO_SEASONS = [
   { id: 'demo-season-2', name: 'Vinter 2026', status: 'active', settled_at: null, created_at: '2026-01-15' },
@@ -20,20 +31,29 @@ export function useSeasons() {
       activeSeason.value = DEMO_SEASONS[0]
       if (!viewingSeason.value) viewingSeason.value = activeSeason.value
       loaded.value = true
+      status.value = STATUS.OK
       return
     }
 
-    const { data, error } = await supabase
-      .from('seasons')
-      .select('*')
-      .order('created_at', { ascending: false })
+    status.value = STATUS.LOADING
+    const { rows } = await fetchRows(
+      supabase.from('seasons').select('*').order('created_at', { ascending: false }),
+      'seasons'
+    )
 
-    if (!error && data) {
-      seasons.value = data
-      activeSeason.value = data.find(s => s.status === 'active') || data[0]
-      if (!viewingSeason.value) viewingSeason.value = activeSeason.value
-      loaded.value = true
+    // Feiler denne, henter SerieKamperView aldri kamper (den venter på
+    // viewingSeason) og siden blir helt blank — uten skjelett og uten feil.
+    // `loaded` skal derfor aldri låses til true på en feilet spørring.
+    if (!rows) {
+      status.value = STATUS.ERROR
+      return
     }
+
+    seasons.value = rows
+    activeSeason.value = rows.find(s => s.status === 'active') || rows[0] || null
+    if (!viewingSeason.value) viewingSeason.value = activeSeason.value
+    loaded.value = true
+    status.value = STATUS.OK
   }
 
   async function createSeason(name) {
@@ -97,5 +117,5 @@ export function useSeasons() {
     !!viewingSeason.value && !!activeSeason.value && viewingSeason.value.id !== activeSeason.value.id
   )
 
-  return { seasons, activeSeason, viewingSeason, isViewingPast, loaded, fetchSeasons, createSeason, settleSeason, setViewingSeason }
+  return { seasons, activeSeason, viewingSeason, isViewingPast, loaded, status, fetchSeasons, createSeason, settleSeason, setViewingSeason }
 }

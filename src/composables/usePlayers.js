@@ -1,8 +1,13 @@
 import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { registerReset } from '../stores/dataReset'
+import { fetchRows, STATUS } from '../lib/query'
 
 const players = ref([])
 const loaded = ref(false)
+const status = ref(STATUS.IDLE)
+
+registerReset(() => { players.value = []; loaded.value = false; status.value = STATUS.IDLE })
 
 const DEMO_PLAYERS = [
   // Rød — full tropp for demo-kampen Halsen Rød vs Sem Gul
@@ -36,18 +41,24 @@ export function usePlayers() {
     if (!isSupabaseConfigured) {
       players.value = [...DEMO_PLAYERS]
       loaded.value = true
+      status.value = STATUS.OK
       return players.value
     }
 
-    const { data, error } = await supabase
-      .from('players')
-      .select('*')
-      .order('name')
+    status.value = STATUS.LOADING
+    const { rows } = await fetchRows(
+      supabase.from('players').select('*').order('name'),
+      'players'
+    )
 
-    if (!error && data) {
-      players.value = data
-      loaded.value = true
+    if (!rows) {
+      status.value = STATUS.ERROR
+      return players.value
     }
+
+    players.value = rows
+    loaded.value = true
+    status.value = STATUS.OK
     return players.value
   }
 
@@ -116,5 +127,5 @@ export function usePlayers() {
     return players.value.find(p => p.id === id) || null
   }
 
-  return { players, fetchPlayers, addPlayer, updatePlayer, deletePlayer, getPlayerById }
+  return { players, status, fetchPlayers, addPlayer, updatePlayer, deletePlayer, getPlayerById }
 }

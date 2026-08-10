@@ -1,9 +1,12 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { registerReset } from '../stores/dataReset'
 
 const goals = ref([])
 const loadedAll = ref(false)
 const loadedMatches = ref(new Set())
+
+registerReset(() => { goals.value = []; loadedAll.value = false; loadedMatches.value = new Set() })
 
 const DEMO_GOALS = []
 

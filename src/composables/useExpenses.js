@@ -1,7 +1,10 @@
 import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { registerReset } from '../stores/dataReset'
 
 const expenses = ref([])
+
+registerReset(() => { expenses.value = [] })
 
 const DEMO_EXPENSES = [
   { id: 'de-1', match_id: 'dm-1', paid_by: 'demo-1', amount: 200 },

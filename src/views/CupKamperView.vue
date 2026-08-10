@@ -8,8 +8,8 @@ import CupTeamFilter from '../components/CupTeamFilter.vue'
 import CupTabs from '../components/CupTabs.vue'
 
 const { activeCup, fetchCups } = useCups()
-const { cupMatches, loading, fetchCupMatches } = useCupMatches()
-const { teamFilter } = useCupFilter()
+const { cupMatches, loading, status, fetchCupMatches } = useCupMatches()
+const { teamFilter, setFilter } = useCupFilter()
 const ready = ref(false)
 
 onMounted(async () => {
@@ -64,9 +64,21 @@ const groups = computed(() => {
         <p class="ds-empty__title">Henter kamper …</p>
       </div>
 
+      <div v-else-if="status === 'error'" class="ds-empty">
+        <h3 class="ds-empty__title">Kunne ikke laste kampene</h3>
+        <p class="ds-empty__description">Sjekk nettforbindelsen og prøv igjen.</p>
+      </div>
+
+      <div v-else-if="cupMatches.length && filteredMatches.length === 0" class="ds-empty">
+        <h3 class="ds-empty__title">Ingen kamper for dette laget</h3>
+        <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" @click="setFilter('all')">
+          Vis alle kamper
+        </button>
+      </div>
+
       <div v-else-if="filteredMatches.length === 0" class="ds-empty">
         <h3 class="ds-empty__title">Ingen kamper ennå</h3>
-        <p class="ds-empty__description">Kampprogrammet legges inn i Supabase (supabase-cup-seed.sql).</p>
+        <p class="ds-empty__description">Kampprogrammet er ikke lagt inn.</p>
       </div>
 
       <template v-else>

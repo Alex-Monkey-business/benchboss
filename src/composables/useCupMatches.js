@@ -1,9 +1,19 @@
 import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { registerReset } from '../stores/dataReset'
+import { fetchRows, STATUS } from '../lib/query'
 
 const cupMatches = ref([])
 const loading = ref(false)
 const loadedCup = ref(null)
+const status = ref(STATUS.IDLE)
+
+registerReset(() => {
+  cupMatches.value = []
+  loading.value = false
+  loadedCup.value = null
+  status.value = STATUS.IDLE
+})
 
 // Demo-kampprogram (uten Supabase). Erstattes av cup_matches i prod.
 const DEMO_CUP_MATCHES = [
@@ -31,21 +41,26 @@ export function useCupMatches() {
       cupMatches.value = DEMO_CUP_MATCHES.filter(m => m.cup_id === cupId)
       loadedCup.value = cupId
       loading.value = false
+      status.value = STATUS.OK
       return cupMatches.value
     }
 
-    const { data, error } = await supabase
-      .from('cup_matches')
-      .select('*')
-      .eq('cup_id', cupId)
-      .order('match_date')
-      .order('match_time')
-
-    if (!error && data) {
-      cupMatches.value = data
-      loadedCup.value = cupId
-    }
+    status.value = STATUS.LOADING
+    const { rows } = await fetchRows(
+      supabase.from('cup_matches').select('*').eq('cup_id', cupId)
+        .order('match_date').order('match_time'),
+      'cup_matches'
+    )
     loading.value = false
+
+    if (!rows) {
+      status.value = STATUS.ERROR
+      return cupMatches.value
+    }
+
+    cupMatches.value = rows
+    loadedCup.value = cupId
+    status.value = STATUS.OK
     return cupMatches.value
   }
 
@@ -72,5 +87,5 @@ export function useCupMatches() {
     return data
   }
 
-  return { cupMatches, loading, fetchCupMatches, getCupMatch, updateCupMatch }
+  return { cupMatches, loading, status, fetchCupMatches, getCupMatch, updateCupMatch }
 }

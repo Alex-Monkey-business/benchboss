@@ -18,11 +18,14 @@ import { resolveUpcomingPeriod, buildWeekAhead } from '../lib/weekAhead'
 import { buildReminders } from '../lib/reminders'
 import { useDismissedReminders } from './useDismissedReminders'
 import { CUP_TEAMS } from '../lib/cupTeams'
+import { registerReset } from '../stores/dataReset'
 
 // Egen modul-state. NB: ikke gjenbruk useMatchMode.fetchSession her —
 // den holder én singleton-session og knekker når to Halsen-lag spiller samme dag.
 const prepSessions = ref([])
 const loading = ref(false)
+
+registerReset(() => { prepSessions.value = []; loading.value = false })
 
 export function useToday() {
   const { coach } = useAuth()

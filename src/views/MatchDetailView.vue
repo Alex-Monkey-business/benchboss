@@ -6,6 +6,7 @@ import { useExpenses } from '../composables/useExpenses'
 import { useCoaches } from '../composables/useCoaches'
 import { useReferees } from '../composables/useReferees'
 import { usePlayers } from '../composables/usePlayers'
+import { usePlayerSeasonTeams } from '../composables/usePlayerSeasonTeams'
 import { useMatchGoals } from '../composables/useMatchGoals'
 import { useMatchMode } from '../composables/useMatchMode'
 import { useSeasons } from '../composables/useSeasons'
@@ -26,6 +27,7 @@ const { expenses, fetchExpenses, registerExpense, getExpenseForMatch, removeExpe
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
 const { players, fetchPlayers, addPlayer, getPlayerById } = usePlayers()
+const { fetchPlayerSeasonTeams, isLoanEligible } = usePlayerSeasonTeams()
 const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals()
 const { session: mmSession, fetchSession: fetchMmSession } = useMatchMode()
 const { seasons, fetchSeasons } = useSeasons()
@@ -74,7 +76,7 @@ const reportSavedAt = ref(null)
 const isEditingReport = ref(false)
 
 onMounted(async () => {
-  await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchAllMatchPlayers()])
+  await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllMatchPlayers()])
   match.value = await getMatch(route.params.id)
   if (match.value) {
     // Hent sesongens kamper — grunnlag for ekstra-kamp-tall og konflikt-/uke-sjekk.
@@ -382,7 +384,8 @@ const recommendedLoans = computed(() =>
   availablePlayers.value
     .filter(p =>
       !matchPlayerIds.value.includes(p.id) &&
-      p.loan_eligible &&
+      // Kampens egen sesong, ikke aktiv sesong — gamle kamper er fortsatt nåbare.
+      isLoanEligible(p, match.value?.season_id) &&
       !playerConflicts.value[p.id] &&
       !loanedElsewhereThisWeek.value.has(p.id)
     )

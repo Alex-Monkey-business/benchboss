@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { registerReset } from '../stores/dataReset'
 
 // Event-sourced match mode. Spilletid telles ALDRI med en teller — den regnes
 // ut fra kampklokka (match_sessions) + opphold på banen (match_stints).
@@ -9,6 +10,10 @@ import { supabase, isSupabaseConfigured } from '../supabase'
 const session = ref(null)     // { match_id, status, clock_base_seconds, running_since, period }
 const stints = ref([])        // kan spenne flere kamper når statistikk er lastet
 const now = ref(Date.now())   // display-tikk
+
+// Kun data. Tikk-timeren eies av komponentene som monterer den (ref-tellet),
+// og skal ikke røres her.
+registerReset(() => { session.value = null; stints.value = [] })
 
 // Ref-tellet 1s-intervall — kun for å redrive currentClock i UI.
 let tickTimer = null

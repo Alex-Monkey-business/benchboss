@@ -1,20 +1,35 @@
 import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { registerReset } from '../stores/dataReset'
+import { fetchRows, STATUS } from '../lib/query'
 
 // Slim roster: hvilke spillere er på Goat/Han i cupen. Ingen ansvar.
 // Rader: { id, cup_id, player_id, cup_team }
 const squad = ref([])
+const status = ref(STATUS.IDLE)
+
+registerReset(() => { squad.value = []; status.value = STATUS.IDLE })
 
 export function useCupSquad() {
   async function fetchCupSquad(cupId) {
     if (!isSupabaseConfigured) {
+      status.value = STATUS.OK
       return squad.value
     }
-    const { data, error } = await supabase
-      .from('cup_squad')
-      .select('*')
-      .eq('cup_id', cupId)
-    if (!error && data) squad.value = data
+
+    status.value = STATUS.LOADING
+    const { rows } = await fetchRows(
+      supabase.from('cup_squad').select('*').eq('cup_id', cupId),
+      'cup_squad'
+    )
+
+    if (!rows) {
+      status.value = STATUS.ERROR
+      return squad.value
+    }
+
+    squad.value = rows
+    status.value = STATUS.OK
     return squad.value
   }
 
@@ -60,5 +75,5 @@ export function useCupSquad() {
     if (!error) squad.value = squad.value.filter(r => r.player_id !== playerId)
   }
 
-  return { squad, fetchCupSquad, teamForPlayer, playerIdsForTeam, setTeam, removeFromSquad }
+  return { squad, status, fetchCupSquad, teamForPlayer, playerIdsForTeam, setTeam, removeFromSquad }
 }

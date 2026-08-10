@@ -1,9 +1,14 @@
 import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { useAuth } from '../stores/auth'
+import { registerReset } from '../stores/dataReset'
+import { fetchRows, STATUS } from '../lib/query'
 
 const coaches = ref([])
 const loaded = ref(false)
+const status = ref(STATUS.IDLE)
+
+registerReset(() => { coaches.value = []; loaded.value = false; status.value = STATUS.IDLE })
 
 // Profile images by coach name. Transparent PNG cutouts so the per-coach
 // background color shows through. Alex has no photo yet → initial fallback.
@@ -36,21 +41,27 @@ export function useCoaches() {
     if (!isSupabaseConfigured) {
       coaches.value = enrichWithImages(DEMO_COACHES)
       loaded.value = true
+      status.value = STATUS.OK
       reconcileWithCoaches(coaches.value)
       return coaches.value
     }
 
-    const { data, error } = await supabase
-      .from('coaches')
-      .select('*')
-      .order('name')
+    status.value = STATUS.LOADING
+    const { rows } = await fetchRows(
+      supabase.from('coaches').select('*').order('name'),
+      'coaches'
+    )
 
-    if (!error && data) {
-      coaches.value = enrichWithImages(data)
-      loaded.value = true
-      // Trenerlista er fasit for hvem man er — synk den lagrede brukeren.
-      reconcileWithCoaches(coaches.value)
+    if (!rows) {
+      status.value = STATUS.ERROR
+      return coaches.value
     }
+
+    coaches.value = enrichWithImages(rows)
+    loaded.value = true
+    status.value = STATUS.OK
+    // Trenerlista er fasit for hvem man er — synk den lagrede brukeren.
+    reconcileWithCoaches(coaches.value)
     return coaches.value
   }
 
@@ -59,5 +70,5 @@ export function useCoaches() {
     return coach && coach.pin === pin
   }
 
-  return { coaches, fetchCoaches, verifyPin }
+  return { coaches, status, fetchCoaches, verifyPin }
 }

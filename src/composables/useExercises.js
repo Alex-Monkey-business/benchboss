@@ -1,6 +1,7 @@
 import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { demoId } from './useTrainingSessions'
+import { registerReset } from '../stores/dataReset'
 
 // Øvelsesbank — gjenbrukbare øvelser (training_exercises).
 // Copy-on-add: banken er malen, økta eier sin egen kopi (drills-JSONB).
@@ -8,6 +9,8 @@ import { demoId } from './useTrainingSessions'
 const exercises = ref([])
 const loading = ref(false)
 const loaded = ref(false)
+
+registerReset(() => { exercises.value = []; loading.value = false; loaded.value = false })
 
 // Kanonisk kategorirekkefølge — banken og plukkeren grupperes og sorteres etter denne.
 // Ukategoriserte samles i «Annet» nederst.

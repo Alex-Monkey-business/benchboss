@@ -10,20 +10,29 @@ import { relativeDateLabel, isToday, localISODate } from '../lib/dateLabels'
 import { teamColorsForMatch as teamColors, isHomeMatch, isHalsenMatch, teamLabel } from '../lib/matchMeta'
 import { resolveUpcomingPeriod, buildWeekAhead } from '../lib/weekAhead'
 import TeamFilter from '../components/TeamFilter.vue'
+import { useTeamFilter } from '../composables/useTeamFilter'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
 import WeekList from '../components/today/WeekList.vue'
 
-const { viewingSeason, fetchSeasons } = useSeasons()
-const { matches, fetchMatches, getCoachesForMatch } = useMatches()
+const { viewingSeason, status: seasonStatus, fetchSeasons } = useSeasons()
+const { matches, status: matchStatus, fetchMatches, getCoachesForMatch } = useMatches()
 const { coaches, fetchCoaches } = useCoaches()
 const { periods, fetchPeriods } = useTrainingPeriods()
 const { sessions, fetchSessions } = useTrainingSessions()
 const { activeCup, fetchCups } = useCups()
 
-const teamFilter = ref('alle')
+const { teamFilter } = useTeamFilter()
 const timeFilter = ref('upcoming')
 const loading = ref(matches.value.length === 0)
+
+// Sesongen er inngangen til alt annet her — feiler den, er det ingen kamper
+// å vise, og «ingen kommende kamper» ville vært en løgn.
+const loadFailed = computed(() =>
+  seasonStatus.value === 'error' ||
+  matchStatus.value === 'error' ||
+  (seasonStatus.value === 'ok' && !viewingSeason.value)
+)
 
 onMounted(async () => {
   await Promise.all([fetchSeasons(), fetchCoaches(), fetchPeriods(), fetchCups()])
@@ -149,6 +158,13 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
       </div>
 
       <MatchCardSkeleton v-if="loading" :count="4" />
+
+      <!-- Uten denne blir siden helt blank når sesonger eller kamper feiler:
+           fetchMatches kalles aldri fordi viewingSeason står igjen som null. -->
+      <div v-else-if="loadFailed" class="ds-empty">
+        <h3 class="ds-empty__title">Kunne ikke laste kampene</h3>
+        <p class="ds-empty__description">Sjekk nettforbindelsen og prøv igjen.</p>
+      </div>
 
       <div v-else-if="displayedMatches.length === 0" class="ds-empty">
         <img src="/illustrations/bench-boss-feature-icons/512/matches-transparent.png" alt="" class="ds-empty__illo" />

@@ -1,4 +1,7 @@
 <script setup>
+import { computed } from 'vue'
+import { useSeasonTeams } from '../composables/useSeasonTeams'
+
 defineProps({
   modelValue: { type: String, default: 'alle' },
   counts: { type: Object, default: () => ({}) }
@@ -6,12 +9,11 @@ defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const filters = [
+const { seasonTeams } = useSeasonTeams()
+const filters = computed(() => [
   { key: 'alle', label: 'Alle' },
-  { key: 'gronn', label: 'Grønn' },
-  { key: 'rod', label: 'Rød' },
-  { key: 'hvit', label: 'Hvit' }
-]
+  ...seasonTeams.value.map(t => ({ key: t.slug, label: t.name }))
+])
 </script>
 
 <template>

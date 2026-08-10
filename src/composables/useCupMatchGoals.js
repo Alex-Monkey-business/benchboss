@@ -1,8 +1,11 @@
 import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { registerReset } from '../stores/dataReset'
 
 // Målscorere per cup-kamp. Speiler useMatchGoals, men scoped på cup_match_id.
 const goals = ref([])
+
+registerReset(() => { goals.value = [] })
 
 export function useCupMatchGoals() {
   async function fetchForMatch(cupMatchId) {

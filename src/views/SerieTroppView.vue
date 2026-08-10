@@ -3,24 +3,29 @@ import { computed, onMounted, ref } from 'vue'
 import { useAuth } from '../stores/auth'
 import { useSeasons } from '../composables/useSeasons'
 import { usePlayers } from '../composables/usePlayers'
+import { usePlayerSeasonTeams } from '../composables/usePlayerSeasonTeams'
 import { useToast } from '../composables/useToast'
-import { SEASON_TEAMS } from '../lib/seasonTeams'
+import { useSeasonTeams } from '../composables/useSeasonTeams'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const { isParent } = useAuth()
 const { activeSeason, fetchSeasons } = useSeasons()
 const { players, fetchPlayers, addPlayer, updatePlayer, deletePlayer } = usePlayers()
+const { fetchPlayerSeasonTeams, isLoanEligible, setLoanEligible } = usePlayerSeasonTeams()
+const { seasonTeams } = useSeasonTeams()
 const { show: showToast } = useToast()
 
 const canEdit = computed(() => !isParent.value)
 const ready = ref(false)
 const editing = ref(false)
+const seasonId = computed(() => activeSeason.value?.id ?? null)
 
-const TEAM_OPTIONS = [{ value: '', label: 'Ingen' }, ...SEASON_TEAMS.map(t => ({ value: t.slug, label: t.name }))]
+const TEAM_OPTIONS = computed(() =>
+  [{ value: '', label: 'Ingen' }, ...seasonTeams.value.map(t => ({ value: t.slug, label: t.name }))])
 
 onMounted(async () => {
-  await Promise.all([fetchSeasons(), fetchPlayers()])
+  await Promise.all([fetchSeasons(), fetchPlayers(), fetchPlayerSeasonTeams()])
   ready.value = true
 })
 
@@ -32,7 +37,10 @@ function teamPlayers(slug) {
 }
 const unplaced = computed(() =>
   [...players.value].filter(p => !p.primary_team).sort(byName))
-const hasEligible = computed(() => players.value.some(p => p.loan_eligible))
+// Lånespiller-status er trenerinformasjon. Foreldre ser hverken stjerner eller
+// forklaringen på hva de betyr.
+const eligible = p => canEdit.value && isLoanEligible(p, seasonId.value)
+const hasEligible = computed(() => players.value.some(eligible))
 
 // Hurtig lag-bytte (chip-prikkene / ×)
 async function assign(playerId, team) {
@@ -69,12 +77,16 @@ function openEdit(p) {
   editTarget.value = p
   editName.value = p.name
   editTeam.value = p.primary_team || ''
-  editLoanEligible.value = !!p.loan_eligible
+  editLoanEligible.value = isLoanEligible(p, seasonId.value)
 }
 async function saveEdit() {
   const name = editName.value.trim()
   if (!name || !editTarget.value) return
-  await updatePlayer(editTarget.value.id, { name, primary_team: editTeam.value, loan_eligible: editLoanEligible.value })
+  const id = editTarget.value.id
+  // Dobbeltskriving i overgangen: player_season_teams er den varige raden,
+  // players.loan_eligible holdes i sync til kolonnen droppes.
+  await updatePlayer(id, { name, primary_team: editTeam.value, loan_eligible: editLoanEligible.value })
+  await setLoanEligible(id, seasonId.value, editLoanEligible.value, editTeam.value)
   showToast('Spiller oppdatert', 'success')
   editTarget.value = null
 }
@@ -111,9 +123,9 @@ async function confirmDelete() {
 
       <!-- Samme layout i lese- og edit-modus: lag-kort med chips -->
       <template v-else>
-        <p v-if="hasEligible" class="star-legend"><span class="chip__star">★</span> = egnet som lånespiller</p>
+        <p v-if="canEdit && hasEligible" class="star-legend"><span class="chip__star">★</span> = egnet som lånespiller</p>
 
-        <section v-for="t in SEASON_TEAMS" :key="t.slug" class="teamcard" :data-accent="t.accent">
+        <section v-for="t in seasonTeams" :key="t.slug" class="teamcard" :data-accent="t.accent">
           <header class="teamcard__head">
             <span class="teamcard__dot"></span>
             <span class="teamcard__name">{{ t.name }}</span>
@@ -125,7 +137,7 @@ async function confirmDelete() {
             <span v-for="p in teamPlayers(t.slug)" :key="p.id" class="chip chip--team">
               <button v-if="editing" type="button" class="chip__name" @click="openEdit(p)">{{ p.name }}</button>
               <template v-else>{{ p.name }}</template>
-              <span v-if="p.loan_eligible" class="chip__star" title="Egnet som lånespiller">★</span>
+              <span v-if="eligible(p)" class="chip__star" title="Egnet som lånespiller">★</span>
               <button v-if="editing" type="button" class="chip__x" :aria-label="`Ta ${p.name} av laget`" @click="remove(p.id)">×</button>
             </span>
           </div>
@@ -140,10 +152,10 @@ async function confirmDelete() {
             <span v-for="p in unplaced" :key="p.id" class="chip chip--muted">
               <button v-if="editing" type="button" class="chip__name" @click="openEdit(p)">{{ p.name }}</button>
               <template v-else>{{ p.name }}</template>
-              <span v-if="p.loan_eligible" class="chip__star" title="Egnet som lånespiller">★</span>
+              <span v-if="eligible(p)" class="chip__star" title="Egnet som lånespiller">★</span>
               <span v-if="editing" class="chip__assign">
                 <button
-                  v-for="t in SEASON_TEAMS"
+                  v-for="t in seasonTeams"
                   :key="t.slug"
                   type="button"
                   class="chip__dot"

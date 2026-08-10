@@ -2,12 +2,24 @@ import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { useCoaches } from './useCoaches'
 import { defaultCoachIdsForMatch } from '../lib/coachTeams'
+import { registerReset } from '../stores/dataReset'
+import { fetchRows, STATUS } from '../lib/query'
 
 const matches = ref([])
 const matchCoaches = ref([])
 const matchPlayers = ref([])
 const matchAbsences = ref([])
 const loading = ref(false)
+const status = ref(STATUS.IDLE)
+
+registerReset(() => {
+  matches.value = []
+  matchCoaches.value = []
+  matchPlayers.value = []
+  matchAbsences.value = []
+  loading.value = false
+  status.value = STATUS.IDLE
+})
 
 const DEMO_MATCHES = [
   // Vinter 2026 – G11 Jotron Serie Avd 1 (kun hjemmekamper)
@@ -40,35 +52,38 @@ export function useMatches() {
         matchPlayers.value = [...DEMO_MATCH_PLAYERS]
       }
       loading.value = false
+      status.value = STATUS.OK
       return
     }
 
-    const { data, error } = await supabase
-      .from('matches')
-      .select('*')
-      .eq('season_id', seasonId)
-      .order('match_date')
-      .order('match_time')
+    status.value = STATUS.LOADING
+    const { rows } = await fetchRows(
+      supabase.from('matches').select('*').eq('season_id', seasonId)
+        .order('match_date').order('match_time'),
+      'matches'
+    )
 
-    if (!error && data) matches.value = data
+    // Feiler kamphentingen, ville de to neste spørringene kjørt mot ID-ene fra
+    // forrige sesong og gitt et sammenblandet resultat. Stopp her i stedet.
+    if (!rows) {
+      loading.value = false
+      status.value = STATUS.ERROR
+      return
+    }
+    matches.value = rows
 
     const matchIds = matches.value.map(m => m.id)
 
-    const { data: mc } = await supabase
-      .from('match_coaches')
-      .select('*')
-      .in('match_id', matchIds)
+    const [{ rows: mc }, { rows: mp }] = await Promise.all([
+      fetchRows(supabase.from('match_coaches').select('*').in('match_id', matchIds), 'match_coaches'),
+      fetchRows(supabase.from('match_players').select('*').in('match_id', matchIds), 'match_players')
+    ])
 
     if (mc) matchCoaches.value = mc
-
-    const { data: mp } = await supabase
-      .from('match_players')
-      .select('*')
-      .in('match_id', matchIds)
-
     if (mp) matchPlayers.value = mp
 
     loading.value = false
+    status.value = STATUS.OK
   }
 
   async function getMatch(matchId) {
@@ -350,7 +365,7 @@ export function useMatches() {
   }
 
   return {
-    matches, matchCoaches, matchPlayers, matchAbsences, loading,
+    matches, matchCoaches, matchPlayers, matchAbsences, loading, status,
     fetchMatches, getMatch, updateMatch, addMatch, bulkAddMatches,
     setMatchCoaches, getCoachesForMatch, fetchMatchCoaches, backfillDefaultCoaches,
     setMatchPlayers, getPlayersForMatch, fetchMatchPlayers, fetchAllMatchPlayers,

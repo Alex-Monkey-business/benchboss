@@ -1,9 +1,19 @@
 import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { registerReset } from '../stores/dataReset'
+import { fetchRows, STATUS } from '../lib/query'
 
 const sessions = ref([])
 const loading = ref(false)
 const loadedPeriod = ref(null)
+const status = ref(STATUS.IDLE)
+
+registerReset(() => {
+  sessions.value = []
+  loading.value = false
+  loadedPeriod.value = null
+  status.value = STATUS.IDLE
+})
 
 // Fast ukeoppsett: det er alltid trening tirsdag, torsdag og lørdag.
 // Nye perioder seedes med disse tre øktene — tomme og uten illustrasjon:
@@ -80,20 +90,25 @@ export function useTrainingSessions() {
         .sort((a, b) => a.position - b.position)
       loadedPeriod.value = periodId
       loading.value = false
+      status.value = STATUS.OK
       return sessions.value
     }
 
-    const { data, error } = await supabase
-      .from('training_sessions')
-      .select('*')
-      .eq('period_id', periodId)
-      .order('position')
-
-    if (!error && data) {
-      sessions.value = data
-      loadedPeriod.value = periodId
-    }
+    status.value = STATUS.LOADING
+    const { rows } = await fetchRows(
+      supabase.from('training_sessions').select('*').eq('period_id', periodId).order('position'),
+      'training_sessions'
+    )
     loading.value = false
+
+    if (!rows) {
+      status.value = STATUS.ERROR
+      return sessions.value
+    }
+
+    sessions.value = rows
+    loadedPeriod.value = periodId
+    status.value = STATUS.OK
     return sessions.value
   }
 
@@ -172,5 +187,5 @@ export function useTrainingSessions() {
     sessions.value = [...sessions.value].sort((x, y) => x.position - y.position)
   }
 
-  return { sessions, loading, loadedPeriod, fetchSessions, createSession, updateSession, removeSession, moveSession }
+  return { sessions, loading, loadedPeriod, status, fetchSessions, createSession, updateSession, removeSession, moveSession }
 }
