@@ -12,7 +12,7 @@ import { useCupMatches } from './useCupMatches'
 import { useTrainingPeriods } from './useTrainingPeriods'
 import { useTrainingSessions } from './useTrainingSessions'
 import { useMatchMode } from './useMatchMode'
-import { localISODate, isoWeekday } from '../lib/dateLabels'
+import { localISODate, isoWeekday, daysUntil } from '../lib/dateLabels'
 import { isHalsenMatch, isHomeMatch, teamColorsForMatch } from '../lib/matchMeta'
 import { resolveUpcomingPeriod, buildWeekAhead } from '../lib/weekAhead'
 import { buildReminders } from '../lib/reminders'
@@ -155,6 +155,26 @@ export function useToday() {
     return { period, session: candidates[0].session, date: candidates[0].date }
   })
 
+  // Sesongstart: vises i opptakten til sesongens aller første kamp, og
+  // forsvinner av seg selv så snart den kampen er spilt. Lagene rulleres
+  // mellom sesongene, så dette er også varselet om nye tropper og trenere.
+  const KICKOFF_WINDOW_DAYS = 21
+
+  const seasonKickoff = computed(() => {
+    const today = localISODate()
+    const dates = matches.value
+      .filter(m => isHalsenMatch(m) && m.match_date)
+      .map(m => m.match_date)
+      .sort()
+    const first = dates[0]
+    if (!first || first <= today) return null
+
+    const days = daysUntil(first)
+    if (days > KICKOFF_WINDOW_DAYS) return null
+
+    return { season: activeSeason.value?.name || '', date: first, days }
+  })
+
   // Resten av uka (i morgen → søndag): treninger fra ukerytmen + seriekamper.
   // Cup-kamper ramses IKKE opp her — cup-widgeten på Hjem er inngangen,
   // og aktiv cup demper treninger på cup-dagene (via cup-parameteren).
@@ -228,6 +248,6 @@ export function useToday() {
   return {
     loading, refresh, greeting,
     todayMatches, todayCupMatches, todayTraining,
-    prepFor, reminders, nextTraining, nextMatch, weekAhead
+    prepFor, reminders, nextTraining, nextMatch, weekAhead, seasonKickoff
   }
 }

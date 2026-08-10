@@ -6,6 +6,7 @@ import { useCoaches } from '../composables/useCoaches'
 import { useCups } from '../composables/useCups'
 import TodayMatchCard from '../components/today/TodayMatchCard.vue'
 import CupEntryCard from '../components/today/CupEntryCard.vue'
+import SeasonKickoffCard from '../components/today/SeasonKickoffCard.vue'
 import TodayTrainingCard from '../components/today/TodayTrainingCard.vue'
 import ReminderList from '../components/today/ReminderList.vue'
 import NextTrainingCard from '../components/today/NextTrainingCard.vue'
@@ -16,7 +17,7 @@ import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 const {
   loading, refresh, greeting,
   todayMatches, todayCupMatches, todayTraining,
-  prepFor, reminders, nextTraining, nextMatch, weekAhead
+  prepFor, reminders, nextTraining, nextMatch, weekAhead, seasonKickoff
 } = useToday()
 
 const { getCoachesForMatch } = useMatches()
@@ -44,18 +45,25 @@ const hasToday = computed(() =>
 const matchToday = computed(() => todayMatches.value.length > 0 || todayCupMatches.value.length > 0)
 const cupMatchesToday = computed(() => (showCupEntry.value ? todayCupMatches.value.length : 0))
 
-// Det som kommer: uka dekker det meste. Neste-kortene er fallback for
-// hendelser UTENFOR uka, og vises bare når ukelista er tom.
+// Det som kommer: uka dekker det meste, så neste-kortene er for hendelser
+// UTENFOR uka. Vi sjekker per hendelse om ukelista allerede har den — ikke
+// om lista er tom, ellers forsvinner neste kamp så snart uka har én trening.
+const weekTargets = computed(() => new Set(weekAhead.value.map(i => i.to)))
+
 const upNext = computed(() => {
-  if (weekAhead.value.length) return []
   const items = []
-  if (!hasToday.value && nextTraining.value) items.push({ kind: 'training', date: nextTraining.value.date })
-  if (!matchToday.value && nextMatch.value) items.push({ kind: 'match', date: nextMatch.value.date })
+  const t = nextTraining.value
+  if (!hasToday.value && t && !weekTargets.value.has(`/trening/${t.period.id}/okt/${t.session.id}`)) {
+    items.push({ kind: 'training', date: t.date })
+  }
+  if (!matchToday.value && nextMatch.value && !weekTargets.value.has(nextMatch.value.to)) {
+    items.push({ kind: 'match', date: nextMatch.value.date })
+  }
   return items.sort((a, b) => a.date.localeCompare(b.date))
 })
 
 const showEmpty = computed(() =>
-  ready.value && !loading.value && !hasToday.value && weekAhead.value.length === 0 && upNext.value.length === 0 && reminders.value.length === 0 && !showCupEntry.value
+  ready.value && !loading.value && !hasToday.value && weekAhead.value.length === 0 && upNext.value.length === 0 && reminders.value.length === 0 && !showCupEntry.value && !seasonKickoff.value
 )
 
 function coachNamesForMatch(matchId) {
@@ -100,6 +108,13 @@ function coachNamesForMatch(matchId) {
         :cup="activeCup"
         :today-count="cupMatchesToday"
         class="ds-anim-fade-up ds-anim-delay-2"
+      />
+
+      <!-- Sesongen snur: står rett over neste kamp i opptakten til første kamp -->
+      <SeasonKickoffCard
+        v-if="seasonKickoff"
+        :kickoff="seasonKickoff"
+        class="ds-anim-fade-up ds-anim-delay-1"
       />
 
       <!-- Det som kommer: nærmeste hendelse øverst -->
