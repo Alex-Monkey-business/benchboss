@@ -28,5 +28,19 @@ export function useAuth() {
     localStorage.removeItem('halsen_coach')
   }
 
-  return { coach, user, role, isCoach, isParent, isLoggedIn, login, logout }
+  // Den lagrede brukeren kan peke på en trener-id som ikke finnes lenger.
+  // Da feiler «mine kamper» stille: alt ser riktig ut, men man får et annet
+  // lags kamper på Hjem. Navnet er det man selv valgte ved innlogging, så vi
+  // lar det avgjøre og fornyer id-en mot trenerlista.
+  // Midlertidig — forsvinner den dagen identiteten kommer fra Supabase Auth.
+  function reconcileWithCoaches(coachList) {
+    const u = state.user
+    if (!u || u.role === 'parent' || !coachList?.length) return
+    if (coachList.some(c => c.id === u.id)) return
+
+    const byName = coachList.find(c => c.name === u.name)
+    if (byName) login({ ...u, id: byName.id })
+  }
+
+  return { coach, user, role, isCoach, isParent, isLoggedIn, login, logout, reconcileWithCoaches }
 }

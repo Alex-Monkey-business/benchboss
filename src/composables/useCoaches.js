@@ -1,5 +1,6 @@
 import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { useAuth } from '../stores/auth'
 
 const coaches = ref([])
 const loaded = ref(false)
@@ -27,12 +28,15 @@ function enrichWithImages(coachList) {
 }
 
 export function useCoaches() {
+  const { reconcileWithCoaches } = useAuth()
+
   async function fetchCoaches() {
     if (loaded.value) return coaches.value
 
     if (!isSupabaseConfigured) {
       coaches.value = enrichWithImages(DEMO_COACHES)
       loaded.value = true
+      reconcileWithCoaches(coaches.value)
       return coaches.value
     }
 
@@ -44,6 +48,8 @@ export function useCoaches() {
     if (!error && data) {
       coaches.value = enrichWithImages(data)
       loaded.value = true
+      // Trenerlista er fasit for hvem man er — synk den lagrede brukeren.
+      reconcileWithCoaches(coaches.value)
     }
     return coaches.value
   }
