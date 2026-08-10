@@ -96,7 +96,7 @@ openai_api_key = "env(OPENAI_API_KEY)"
 
 # Email testing server. Emails sent with the local dev setup are not actually sent - rather, they
 # are monitored, and you can view the emails that would have been sent from the web interface.
-[inbucket]
+[local_smtp]
 enabled = true
 # Port to use for the email testing server web interface.
 port = 54324
@@ -151,9 +151,16 @@ max_indexes = 5
 enabled = true
 # The base URL of your website. Used as an allow-list for redirects and for constructing URLs used
 # in emails.
-site_url = "http://127.0.0.1:3000"
+site_url = "http://localhost:5173"
 # A list of *exact* URLs that auth providers are permitted to redirect to post authentication.
-additional_redirect_urls = ["https://127.0.0.1:3000"]
+# NB: gjelder KUN lokal `supabase start`. Den hostede prosjektet har sin egen liste
+# i dashbordet (Authentication → URL Configuration) — begge må vedlikeholdes.
+# Mangler en URL her, bouncer innloggingen stille til rot. Se supabase/SETUP.md.
+additional_redirect_urls = [
+  "http://localhost:5173/auth/callback",
+  "http://localhost:5174/auth/callback",
+  "http://localhost:5175/auth/callback"
+]
 # How long tokens are valid for, in seconds. Defaults to 3600 (1 hour), maximum 604,800 (1 week).
 jwt_expiry = 3600
 # JWT issuer URL. If not set, defaults to the local API URL (http://127.0.0.1:<port>/auth/v1).
@@ -214,17 +221,23 @@ max_frequency = "1s"
 # Number of characters used in the email OTP.
 otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
-otp_expiry = 3600
+# 10 minutter: en 6-sifret kode som lever en time er svak.
+otp_expiry = 600
 
-# Use a production-ready SMTP server
+# SMTP settes IKKE opp lokalt med vilje: `supabase start` kjører Inbucket, en falsk
+# innboks på http://localhost:54324 der du ser alle e-poster uten å sende noe.
+# Det er riktig verktøy for å teste innloggingsflyten.
+#
+# Ekte SMTP konfigureres i dashbordet, per prosjekt (staging og prod hver for seg).
+# Formen for Gmail, til referanse:
 # [auth.email.smtp]
 # enabled = true
-# host = "smtp.sendgrid.net"
-# port = 587
-# user = "apikey"
-# pass = "env(SENDGRID_API_KEY)"
-# admin_email = "admin@email.com"
-# sender_name = "Admin"
+# host = "smtp.gmail.com"
+# port = 465
+# user = "<din@gmail.com>"
+# pass = "env(GMAIL_APP_PASSWORD)"
+# admin_email = "<din@gmail.com>"   # Gmail overskriver From til den autentiserte kontoen
+# sender_name = "BenchBoss"
 
 # Uncomment to customize email template
 # [auth.email.template.invite]
