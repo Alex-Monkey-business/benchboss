@@ -5,6 +5,7 @@ import { useMatches } from '../composables/useMatches'
 import { useExpenses } from '../composables/useExpenses'
 import { useToast } from '../composables/useToast'
 import { parseMatchFile, detectSeasonName } from '../lib/excelParser'
+import { isHalsen } from '../lib/matchMeta'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
 
@@ -17,6 +18,7 @@ const fileInput = ref(null)
 const loading = ref(false)
 const dragActive = ref(false)
 const parsedMatches = ref([])
+const skippedForeign = ref(0)
 const showPreview = ref(false)
 const importing = ref(false)
 const detectedSeason = ref(null)
@@ -73,7 +75,19 @@ async function processFile(file) {
   try {
     loading.value = true
     const result = await parseMatchFile(file)
-    parsedMatches.value = result
+
+    // Serieoppsettet fra kretsen inneholder hele avdelingen. Bare kamper der
+    // et Halsen-lag faktisk spiller skal inn — resten er andre lags kamper.
+    const ours = result.filter(m => isHalsen(m.home_team) || isHalsen(m.away_team))
+    skippedForeign.value = result.length - ours.length
+
+    if (ours.length === 0) {
+      loading.value = false
+      showToast('Fant ingen Halsen-kamper i filen', 'error')
+      return
+    }
+
+    parsedMatches.value = ours
     detectedSeason.value = detectSeasonName(result)
     showPreview.value = true
     loading.value = false
@@ -123,6 +137,7 @@ async function confirmImport() {
     showToast('Alle kamper finnes allerede i sesongen', 'info')
     showPreview.value = false
     parsedMatches.value = []
+    skippedForeign.value = 0
     detectedSeason.value = null
     importing.value = false
     return
@@ -138,6 +153,7 @@ async function confirmImport() {
   showToast(msg, 'success')
   showPreview.value = false
   parsedMatches.value = []
+  skippedForeign.value = 0
   detectedSeason.value = null
   importing.value = false
 }
@@ -322,7 +338,10 @@ function formatMatchDate(dateStr) {
 
         <div v-else>
           <div class="ds-alert ds-alert--info mb-md">
-            {{ parsedMatches.length }} kamper funnet i filen.
+            {{ parsedMatches.length }} Halsen-kamper funnet i filen.
+            <template v-if="skippedForeign">
+              {{ skippedForeign }} kamper for andre lag utelates.
+            </template>
             <template v-if="detectedSeason">
               Sesong: <strong>{{ detectedSeason }}</strong>
             </template>
