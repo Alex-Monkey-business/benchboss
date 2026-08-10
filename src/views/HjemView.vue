@@ -11,13 +11,14 @@ import TodayTrainingCard from '../components/today/TodayTrainingCard.vue'
 import ReminderList from '../components/today/ReminderList.vue'
 import NextTrainingCard from '../components/today/NextTrainingCard.vue'
 import NextMatchCard from '../components/today/NextMatchCard.vue'
+import OtherTeamsList from '../components/today/OtherTeamsList.vue'
 import WeekList from '../components/today/WeekList.vue'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 
 const {
   loading, refresh, greeting,
   todayMatches, todayCupMatches, todayTraining,
-  prepFor, reminders, nextTraining, nextMatch, weekAhead, seasonKickoff
+  prepFor, reminders, nextTraining, nextMatch, otherTeamsNext, weekAhead, seasonKickoff
 } = useToday()
 
 const { getCoachesForMatch } = useMatches()
@@ -132,6 +133,12 @@ function coachNamesForMatch(matchId) {
           class="ds-anim-fade-up ds-anim-delay-2"
         />
       </template>
+
+      <!-- Klubben ellers: de andre lagenes neste kamp, dempet -->
+      <section v-if="otherTeamsNext.length" class="ds-anim-fade-up ds-anim-delay-2">
+        <h2 class="hjem-section-kicker">Andre lag</h2>
+        <OtherTeamsList :items="otherTeamsNext" />
+      </section>
 
       <!-- Resten av uka — bare dager med innhold, ingen fyll -->
       <section v-if="weekAhead.length" class="ds-anim-fade-up ds-anim-delay-2">

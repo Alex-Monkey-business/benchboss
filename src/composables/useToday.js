@@ -198,6 +198,7 @@ export function useToday() {
     if (!league) return null
     return {
       type: 'match',
+      id: league.id,
       date: league.match_date,
       time: league.match_time || '',
       opponent: isHomeMatch(league) ? league.away_team : league.home_team,
@@ -205,6 +206,33 @@ export function useToday() {
       isHome: isHomeMatch(league),
       to: `/kamp/${league.id}`
     }
+  })
+
+  // De andre Halsen-lagenes neste kamp. Egen trening er hovedsaken på Hjem,
+  // men klubben spiller uansett — dette gir oversikten uten å ta fokus.
+  const otherTeamsNext = computed(() => {
+    const today = localISODate()
+    const byDateTime = (a, b) => a.match_date.localeCompare(b.match_date) || (a.match_time || '').localeCompare(b.match_time || '')
+
+    // Mine egne lagfarger er allerede dekket av nextMatch-kortet.
+    const seen = new Set(nextMatch.value?.teams || [])
+    const out = []
+
+    for (const m of matches.value.filter(x => isHalsenMatch(x) && x.match_date > today).sort(byDateTime)) {
+      for (const color of teamColorsForMatch(m)) {
+        if (seen.has(color)) continue
+        seen.add(color)
+        out.push({
+          color,
+          date: m.match_date,
+          time: (m.match_time || '').slice(0, 5),
+          opponent: isHomeMatch(m) ? m.away_team : m.home_team,
+          isHome: isHomeMatch(m),
+          to: `/kamp/${m.id}`
+        })
+      }
+    }
+    return out
   })
 
   async function fetchPrepSessions(matchIds) {
@@ -248,6 +276,6 @@ export function useToday() {
   return {
     loading, refresh, greeting,
     todayMatches, todayCupMatches, todayTraining,
-    prepFor, reminders, nextTraining, nextMatch, weekAhead, seasonKickoff
+    prepFor, reminders, nextTraining, nextMatch, otherTeamsNext, weekAhead, seasonKickoff
   }
 }
