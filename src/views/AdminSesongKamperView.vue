@@ -106,11 +106,15 @@ async function confirmImport() {
 
   await fetchMatches(targetSeason.id)
 
+  // Postgres gir tid som «17:30:00», parseren som «17:30» — uten hh:mm-kutt
+  // matcher aldri to like kamper, og samme fil importert to ganger dobler alt.
+  const hhmm = t => (t || '').slice(0, 5)
+
   const matchData = parsedMatches.value
     .map(m => ({ ...m, season_id: targetSeason.id }))
     .filter(m => !matches.value.some(existing =>
       existing.match_date === m.match_date &&
-      existing.match_time === m.match_time &&
+      hhmm(existing.match_time) === hhmm(m.match_time) &&
       existing.home_team === m.home_team &&
       existing.away_team === m.away_team
     ))
