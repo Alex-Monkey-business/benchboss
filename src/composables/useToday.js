@@ -31,7 +31,7 @@ export function useToday() {
   const { matches, fetchMatches, getCoachesForMatch, getPlayersForMatch } = useMatches()
   const { fetchCoaches } = useCoaches()
   const { fetchExpenses, getExpenseForMatch } = useExpenses()
-  const { activeCup, fetchCups } = useCups()
+  const { activeCup, cupInProgress, fetchCups } = useCups()
   const { cupMatches, fetchCupMatches } = useCupMatches()
   const { periods, fetchPeriods } = useTrainingPeriods()
   const { sessions, fetchSessions } = useTrainingSessions()
@@ -213,7 +213,8 @@ export function useToday() {
 
     const jobs = []
     if (activeSeason.value) jobs.push(fetchMatches(activeSeason.value.id))
-    if (activeCup.value) jobs.push(fetchCupMatches(activeCup.value.id))
+    // Ferdig cup trenger ikke lastes på Hjem — cup-sidene henter selv for historikken.
+    if (cupInProgress.value) jobs.push(fetchCupMatches(activeCup.value.id))
     if (upcomingPeriod.value) jobs.push(fetchSessions(upcomingPeriod.value.id))
     await Promise.all(jobs)
 

@@ -1,9 +1,10 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import { useMatches } from '../composables/useMatches'
 import { useExpenses } from '../composables/useExpenses'
+import { useCups } from '../composables/useCups'
 import { localISODate } from '../lib/dateLabels'
 
 const route = useRoute()
@@ -11,6 +12,9 @@ const router = useRouter()
 const { coach, isParent, logout } = useAuth()
 const { matches, getCoachesForMatch } = useMatches()
 const { getExpenseForMatch } = useExpenses()
+const { cupInProgress, fetchCups } = useCups()
+
+onMounted(fetchCups)
 
 // Trenere får full meny; foreldre får read-only-sidene + logg ut.
 // Samme komponent → bunnmeny på mobil, toppmeny på desktop (se app.css).
@@ -21,13 +25,17 @@ const COACH_TABS = [
   { name: 'stats', label: 'Statistikk', path: '/statistikk' },
   { name: 'admin', label: 'Admin', path: '/admin' }
 ]
+// Cup-fanen kommer og går med cupen — samme regel som Hjem-kortet hos trenerne.
 const PARENT_TABS = [
   { name: 'serie', label: 'Kamper', path: '/serie' },
   { name: 'tropp', label: 'Tropp', path: '/serie/tropp' },
   { name: 'cup', label: 'Cup', path: '/cup' },
   { name: 'logout', label: 'Logg ut', action: 'logout' }
 ]
-const tabs = computed(() => (isParent.value ? PARENT_TABS : COACH_TABS))
+const tabs = computed(() => {
+  if (!isParent.value) return COACH_TABS
+  return PARENT_TABS.filter(t => t.name !== 'cup' || cupInProgress.value)
+})
 
 function isActive(tab) {
   if (tab.name === 'hjem') return route.path === '/'
