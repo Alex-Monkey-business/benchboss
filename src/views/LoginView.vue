@@ -12,6 +12,22 @@ const { sendCode, verifyCode, refreshMember, isLoggedIn, isParent, demoLogin } =
 // 'email' → 'code'. Kodeboksen er primærveien etter «send», ikke gjemt bak en
 // «jeg har en kode»-lenke: e-posten inneholder både lenke og kode, og på iOS
 // er koden den eneste som virker når PWA-en og Safari er ulike nettlesere.
+// iOS gir en hjemskjerm-app sin egen lagringsboks, adskilt fra Safari. Lenken
+// i e-posten åpner alltid Safari, så sesjonen havner DER og denne appen står
+// igjen utlogget — en stille suksess på feil sted, som er verre enn en feil.
+//
+// E-postmalen er den samme for alle og kan ikke vite hvem som får den. Men
+// appen vet hvilken enhet den kjører på i det du ber om koden. Så advarselen
+// hører hjemme her, ikke i e-posten til de andre nitti prosentene.
+const isIosStandalone = (() => {
+  const ua = navigator.userAgent || ''
+  // iPadOS utgir seg for å være Mac; berøringspunkter avslører den.
+  const isIos = /iP(hone|od|ad)/.test(ua) || (/Macintosh/.test(ua) && navigator.maxTouchPoints > 1)
+  const standalone = window.navigator.standalone === true ||
+    window.matchMedia?.('(display-mode: standalone)')?.matches === true
+  return isIos && standalone
+})()
+
 const step = ref('email')
 const email = ref('')
 const sending = ref(false)
@@ -164,6 +180,10 @@ function onDemo(role) {
         <div class="login-step__top">
           <h1 class="login-title">Kode sendt</h1>
           <p class="login-hint">{{ email }}</p>
+          <p v-if="isIosStandalone" class="login-note">
+            Ikke trykk på lenken i e-posten — den åpner Safari, ikke denne
+            appen. Skriv inn koden her i stedet.
+          </p>
         </div>
 
         <div class="login-pin">
@@ -232,6 +252,18 @@ function onDemo(role) {
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
   margin: 0;
+}
+
+.login-note {
+  max-width: 320px;
+  margin: var(--ds-space-xs) auto 0;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-primary);
+  padding: var(--ds-space-sm) var(--ds-space-md);
+  background: var(--ds-color-surface);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  text-align: left;
 }
 
 .login-form {
