@@ -103,6 +103,14 @@ const routes = [
     name: 'admin-dommere',
     component: () => import('./views/AdminDommereView.vue')
   },
+  // Kull-nivå: hvem har tilgang. Rolle-sjekken bor i viewet, ikke i metaen —
+  // en trener kan slippe inn hit når kullets allow_coach_invites er på, og det
+  // er en DB-verdi routeren ikke kan kjenne.
+  {
+    path: '/admin/tilgang',
+    name: 'admin-tilgang',
+    component: () => import('./views/TilgangView.vue')
+  },
   // Spilleradministrasjon er flyttet inn i Tropp (/serie/tropp).
   { path: '/admin/hospitanter', redirect: '/serie/tropp' },
   { path: '/admin/hospitanter/:id', redirect: '/serie/tropp' },

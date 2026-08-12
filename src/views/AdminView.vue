@@ -8,7 +8,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import InstallAppCard from '../components/InstallAppCard.vue'
 
 const router = useRouter()
-const { coach, logout } = useAuth()
+const { coach, logout, isAdmin, isPlatformAdmin } = useAuth()
 const { coaches, fetchCoaches } = useCoaches()
 const { theme, setTheme } = useTheme()
 
@@ -32,13 +32,20 @@ function confirmLogout() {
   router.push('/login')
 }
 
-const links = [
+// Tilgang vises kun for admin. En vanlig trener ser uansett bare sin egen rad
+// (RLS), så lenken ville ført til en liste med én person.
+// NB: skrus `allow_coach_invites` på for et kull, må både denne betingelsen og
+// select-policyen på cohort_members ta høyde for trenere.
+const links = computed(() => [
+  ...(isAdmin.value || isPlatformAdmin.value
+    ? [{ to: '/admin/tilgang', label: 'Tilgang', icon: 'people' }]
+    : []),
   { to: '/admin/dommerutlegg', label: 'Sesongoppgjør', icon: 'vipps' },
   { to: '/admin/sesong-kamper', label: 'Sesong & kampprogram', icon: 'calendar' },
   { to: '/admin/dommere', label: 'Dommere', icon: 'whistle' },
   { to: '/serie/tropp', label: 'Spillere & tropp', icon: 'jersey' },
   { to: '/cup', label: 'Turneringer', icon: 'trophy' }
-]
+])
 </script>
 
 <template>
@@ -59,7 +66,12 @@ const links = [
         class="admin-row"
       >
         <span class="admin-row__icon">
-          <svg v-if="link.icon === 'vipps'" viewBox="35 22 40 28" fill="currentColor">
+          <svg v-if="link.icon === 'people'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
+            <circle cx="9" cy="7" r="4"/>
+            <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
+          </svg>
+          <svg v-else-if="link.icon === 'vipps'" viewBox="35 22 40 28" fill="currentColor">
             <path d="M57.3,40.7c3.7,0,5.8-1.8,7.8-4.4c1.1-1.4,2.5-1.7,3.5-0.9s1.1,2.3,0,3.7c-2.9,3.8-6.6,6.1-11.3,6.1c-5.1,0-9.6-2.8-12.7-7.7c-0.9-1.3-0.7-2.7,0.3-3.4s2.5-0.4,3.4,1C50.5,38.4,53.5,40.7,57.3,40.7z M64.2,28.4c0,1.8-1.4,3-3,3s-3-1.2-3-3s1.4-3,3-3S64.2,26.7,64.2,28.4z"/>
           </svg>
           <svg v-else-if="link.icon === 'calendar'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
