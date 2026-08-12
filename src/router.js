@@ -94,6 +94,14 @@ const routes = [
   // Spilleradministrasjon er flyttet inn i Tropp (/serie/tropp).
   { path: '/admin/hospitanter', redirect: '/serie/tropp' },
   { path: '/admin/hospitanter/:id', redirect: '/serie/tropp' },
+  // Skisser for auth-prosjektets skjermer. Ikke i navigasjonen — nås direkte.
+  // Slettes når fase 4b er ute.
+  {
+    path: '/skisser',
+    name: 'skisser',
+    component: () => import('./views/SkisserView.vue'),
+    meta: { coachOnly: true }
+  },
   // Trener-håndboka bor under Trening (filosofien bak planen), ikke admin.
   {
     path: '/trening/handbok',

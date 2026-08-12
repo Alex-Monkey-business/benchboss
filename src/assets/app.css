@@ -676,10 +676,20 @@
   display: flex;
   gap: var(--ds-space-md);
   justify-content: center;
+  max-width: 100%;
+}
+
+/* Seks bokser à 56px + gap er 416px og renner over på 360px-skjermer.
+   Boksene får krympe i stedet; på 360px lander de på ~45px, som fortsatt
+   er over minste anbefalte trykkflate. Fire bokser rører seg ikke. */
+@media (max-width: 420px) {
+  .pin-container { gap: var(--ds-space-sm); }
 }
 
 .pin-digit {
+  flex: 0 1 56px;
   width: 56px;
+  min-width: 0;
   height: 64px;
   border: 2px solid var(--ds-color-border);
   border-radius: var(--ds-radius-md);
