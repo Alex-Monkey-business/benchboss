@@ -28,7 +28,15 @@ function redirectTarget() {
 
 function humanError(err) {
   const msg = (err?.message || '').toLowerCase()
-  if (msg.includes('signups not allowed') || msg.includes('otp_disabled')) {
+  // To ulike koder havner her, med samme praktiske betydning for brukeren:
+  //   otp_disabled     — adressen finnes ikke (shouldCreateUser: false)
+  //   signup_disabled  — prosjektet nekter registrering
+  //
+  // Felle verdt å kjenne: `signup_disabled` treffer også en bruker som FINNES,
+  // men står ubekreftet — GoTrue regner den som midt i en registrering. Derfor
+  // må invitasjonen alltid opprette brukeren bekreftet (`email_confirm: true`),
+  // ellers får en invitert person «har ikke tilgang» på sin egen invitasjon.
+  if (msg.includes('signups not allowed') || msg.includes('otp_disabled') || msg.includes('signup_disabled')) {
     return 'Denne e-posten har ikke tilgang til BenchBoss.'
   }
   if (msg.includes('rate limit') || msg.includes('too many')) {
