@@ -31,3 +31,7 @@ dist-ssr
 
 # Skillfish lock (per-user)
 src/skills-lock.json
+
+# Supabase CLI, lokal tilstand
+supabase/.branches
+supabase/.temp
