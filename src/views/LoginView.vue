@@ -157,7 +157,7 @@ function onDemo(role) {
             :disabled="sending"
           />
           <button type="submit" class="login-button" :disabled="sending || !email.trim()">
-            {{ sending ? 'Sender…' : 'Send kode' }}
+            {{ sending ? 'Sender…' : (isIosStandalone ? 'Send kode' : 'Send lenke') }}
           </button>
         </form>
 
@@ -177,8 +177,13 @@ function onDemo(role) {
 
       <!-- STEG 2 — kode -->
       <div v-else key="code" class="login-step">
+        <!-- Overskriften bærer den primære handlingen, så det ikke trengs en
+             ingress under. På iOS i hjemskjerm-modus er lenken feil vei, og
+             da er koden det primære — ikke et alternativ. -->
         <div class="login-step__top">
-          <h1 class="login-title">Kode sendt</h1>
+          <h1 class="login-title">
+            {{ isIosStandalone ? 'Kode sendt' : 'Sjekk e-posten' }}
+          </h1>
           <p class="login-hint">{{ email }}</p>
           <p v-if="isIosStandalone" class="login-note">
             Ikke trykk på lenken i e-posten — den åpner Safari, ikke denne
@@ -187,6 +192,7 @@ function onDemo(role) {
         </div>
 
         <div class="login-pin">
+          <p v-if="!isIosStandalone" class="login-alt">Trykk på lenken, eller skriv koden her:</p>
           <PinInput
             ref="pinRef"
             :length="6"
@@ -252,6 +258,12 @@ function onDemo(role) {
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
   margin: 0;
+}
+
+.login-alt {
+  margin: 0;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
 }
 
 .login-note {
@@ -321,6 +333,12 @@ function onDemo(role) {
 }
 
 .login-pin {
+  /* Uten denne blir beholderen innholdsbredde — en flex-item i en kolonne
+     med align-items: center krymper til innholdet. Da måler kodeboksenes
+     max-width: 100% seg mot seg selv og begrenser ingenting, og seks bokser
+     renner utenfor kanten på 360px. Fire gjorde aldri det, så det dukket
+     først opp nå. */
+  width: 100%;
   display: flex;
   flex-direction: column;
   align-items: center;
