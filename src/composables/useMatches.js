@@ -33,8 +33,40 @@ const DEMO_MATCHES = [
   { id: 'dm-7', season_id: 'demo-season-1', round: '5', match_date: '2025-06-07', match_day: 'lørdag', match_time: '13:00', home_team: 'Runar Gul', away_team: 'Halsen Rød', division: 'Avd 2', referee: '', fee_amount: 200, home_score: 1, away_score: 1 },
 ]
 
-const DEMO_MATCH_COACHES = []
-const DEMO_MATCH_PLAYERS = []
+const DEMO_MATCH_COACHES = [
+  { match_id: 'dm-1', coach_id: 'demo-1' }, // Alex
+  { match_id: 'dm-1', coach_id: 'demo-2' }, // Iver
+  { match_id: 'dm-2', coach_id: 'demo-3' }, // Trond
+  { match_id: 'dm-2', coach_id: 'demo-4' }, // Simon
+  { match_id: 'dm-3', coach_id: 'demo-3' },
+  { match_id: 'dm-3', coach_id: 'demo-4' },
+  { match_id: 'dm-4', coach_id: 'demo-1' },
+  { match_id: 'dm-4', coach_id: 'demo-2' },
+  { match_id: 'dm-5', coach_id: 'demo-1' },
+  { match_id: 'dm-5', coach_id: 'demo-5' }, // Jacob
+]
+
+// Hospitanter — spillere som har stilt opp for et annet lag enn sitt eget.
+// Without these the lånespiller-leaderboard on Statistikk renders empty, which
+// hides the one view that answers "who is it fair to ask next?".
+//
+// Only players flagged loan_eligible are used, and only onto teams they could
+// actually be lent to (Erik is hvit, so he can cover both Rød and Grønn; the
+// grønn players only appear in Rød's matches). Spread is deliberate so the
+// board ranks meaningfully: Erik has carried the most and is booked again,
+// Isak is already down for two, so the fair next ask is someone at 0/0.
+const DEMO_MATCH_PLAYERS = [
+  // Played (28 Feb) → counts toward "Ekstra"
+  { match_id: 'dm-1', player_id: 'p-18' }, // Erik (hvit) → Rød
+  { match_id: 'dm-1', player_id: 'p-10' }, // Mads (grønn) → Rød
+  { match_id: 'dm-1', player_id: 'p-13' }, // Sander (grønn) → Rød
+  { match_id: 'dm-2', player_id: 'p-18' }, // Erik again, now → Grønn
+  // Not yet played → counts toward "Kommende", i.e. already booked
+  { match_id: 'dm-3', player_id: 'p-18' }, // Erik → Grønn
+  { match_id: 'dm-4', player_id: 'p-15' }, // Isak (grønn) → Rød
+  { match_id: 'dm-4', player_id: 'p-11' }, // William (grønn) → Rød
+  { match_id: 'dm-5', player_id: 'p-15' }, // Isak again
+]
 
 export function useMatches() {
   const { coaches, fetchCoaches } = useCoaches()

@@ -8,7 +8,19 @@ const loadedMatches = ref(new Set())
 
 registerReset(() => { goals.value = []; loadedAll.value = false; loadedMatches.value = new Set() })
 
-const DEMO_GOALS = []
+// Scorers for the two played demo matches. The totals match the results on
+// DEMO_MATCHES — dm-1 was 3–1 and dm-2 was 2–2 — so the 5 goals here add up to
+// the "Mål: 5 – 3" the Statistikk header already claimed. Without them the
+// toppscorer list sat in an empty state next to a scoreline that said 5 goals.
+const DEMO_GOALS = [
+  // dm-1 · Halsen Rød 3–1 Sem Gul
+  { id: 'dg-1', match_id: 'dm-1', player_id: 'p-1',  position: 0, clock_seconds: 8 * 60 },      // Lukas
+  { id: 'dg-2', match_id: 'dm-1', player_id: 'p-18', position: 1, clock_seconds: 24 * 60 },     // Erik, inn som lånespiller
+  { id: 'dg-3', match_id: 'dm-1', player_id: 'p-1',  position: 2, clock_seconds: 41 * 60 },     // Lukas igjen
+  // dm-2 · Halsen Grønn 2–2 Borre sort
+  { id: 'dg-4', match_id: 'dm-2', player_id: 'p-17', position: 0, clock_seconds: 12 * 60 },     // Kasper
+  { id: 'dg-5', match_id: 'dm-2', player_id: 'p-12', position: 1, clock_seconds: 37 * 60 },     // Liam
+]
 
 export function useMatchGoals() {
   async function fetchMatchGoals(matchId) {
