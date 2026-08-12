@@ -6,6 +6,7 @@ import { usePlayers } from '../composables/usePlayers'
 import { useMatchMode } from '../composables/useMatchMode'
 import { useMatchGoals } from '../composables/useMatchGoals'
 import { useToast } from '../composables/useToast'
+import { useAuth } from '../stores/auth'
 import { teamColorsForMatch, isHomeMatch, TEAM_LABELS } from '../lib/matchMeta'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -23,6 +24,13 @@ const {
   isOnField, roleOf, playerAtPosition, playingTimeByPlayer
 } = useMatchMode()
 const { show: showToast } = useToast()
+const { setSessionHold, sessionLost } = useAuth()
+
+// En sesjon som utløper her skal ikke gi en redirect. Storen holder tilbake
+// opprydningen så lenge dette viewet lever; vi sier bare fra.
+watch(sessionLost, lost => {
+  if (lost) showToast('Sesjonen er utløpt. Fullfør kampen — logg inn igjen etterpå.', 'error', 0)
+})
 
 const matchId = route.params.id
 const match = ref(null)
@@ -65,6 +73,7 @@ onMounted(async () => {
   }
   loading.value = false
   startClockTick()
+  setSessionHold(true)
   requestWakeLock()
   document.addEventListener('visibilitychange', onVisibility)
   // Ikke-passiv så vi kan stoppe scroll KUN mens et dra er i gang (se drag-blokk).
@@ -74,6 +83,8 @@ onUnmounted(() => {
   flushLineupSave()
   clearTimeout(pressTimer)
   stopClockTick()
+  // Slippes holdet mens sesjonen er tapt, rydder storen opp nå — etter kampen.
+  setSessionHold(false)
   releaseWakeLock()
   document.removeEventListener('visibilitychange', onVisibility)
   window.removeEventListener('touchmove', preventScrollWhileDragging)

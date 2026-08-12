@@ -1,6 +1,5 @@
 import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
-import { useAuth } from '../stores/auth'
 import { registerReset } from '../stores/dataReset'
 import { fetchRows, STATUS } from '../lib/query'
 
@@ -21,11 +20,11 @@ const COACH_IMAGES = {
 
 // Demo coaches for development without Supabase
 const DEMO_COACHES = [
-  { id: 'demo-1', name: 'Alex', pin: '1234' },
-  { id: 'demo-2', name: 'Iver', pin: '1234' },
-  { id: 'demo-3', name: 'Trond', pin: '1234' },
-  { id: 'demo-4', name: 'Simon', pin: '1234' },
-  { id: 'demo-5', name: 'Jacob', pin: '1234' }
+  { id: 'demo-1', name: 'Alex' },
+  { id: 'demo-2', name: 'Iver' },
+  { id: 'demo-3', name: 'Trond' },
+  { id: 'demo-4', name: 'Simon' },
+  { id: 'demo-5', name: 'Jacob' }
 ]
 
 function enrichWithImages(coachList) {
@@ -33,8 +32,6 @@ function enrichWithImages(coachList) {
 }
 
 export function useCoaches() {
-  const { reconcileWithCoaches } = useAuth()
-
   async function fetchCoaches() {
     if (loaded.value) return coaches.value
 
@@ -42,13 +39,18 @@ export function useCoaches() {
       coaches.value = enrichWithImages(DEMO_COACHES)
       loaded.value = true
       status.value = STATUS.OK
-      reconcileWithCoaches(coaches.value)
       return coaches.value
     }
 
     status.value = STATUS.LOADING
+    // Eksplisitt kolonneliste, ikke select('*').
+    //
+    // Med '*' lastet hver eneste besøkende ned coaches.pin i klartekst for
+    // alle fem trenerne — nøkkelen som gir tilgang til appen, servert til
+    // hvem som helst som åpnet devtools. Kolonnen forsvinner helt i fase 6;
+    // dette stopper lekkasjen nå, uten å vente på RLS.
     const { rows } = await fetchRows(
-      supabase.from('coaches').select('*').order('name'),
+      supabase.from('coaches').select('id, name').order('name'),
       'coaches'
     )
 
@@ -60,15 +62,8 @@ export function useCoaches() {
     coaches.value = enrichWithImages(rows)
     loaded.value = true
     status.value = STATUS.OK
-    // Trenerlista er fasit for hvem man er — synk den lagrede brukeren.
-    reconcileWithCoaches(coaches.value)
     return coaches.value
   }
 
-  async function verifyPin(coachId, pin) {
-    const coach = coaches.value.find(c => c.id === coachId)
-    return coach && coach.pin === pin
-  }
-
-  return { coaches, status, fetchCoaches, verifyPin }
+  return { coaches, status, fetchCoaches }
 }

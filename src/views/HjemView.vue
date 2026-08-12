@@ -4,6 +4,7 @@ import { useToday } from '../composables/useToday'
 import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
 import { useCups } from '../composables/useCups'
+import { useAuth } from '../stores/auth'
 import TodayMatchCard from '../components/today/TodayMatchCard.vue'
 import CupEntryCard from '../components/today/CupEntryCard.vue'
 import SeasonKickoffCard from '../components/today/SeasonKickoffCard.vue'
@@ -26,6 +27,10 @@ const { coaches } = useCoaches()
 
 // Cup-inngangen: eget kort mens en cup er i gang (ingen fane i bunnmenyen).
 const { activeCup, cupInProgress: showCupEntry } = useCups()
+// Før gjettet reconcileWithCoaches seg fram på navn når trener-id-en var
+// ukjent, og bommet stille — man fikk et annet lags kamper og alt så riktig ut.
+// Nå står det her i stedet.
+const { identityIncomplete } = useAuth()
 
 const ready = ref(false)
 
@@ -81,6 +86,13 @@ function coachNamesForMatch(matchId) {
       <h1 class="hjem-hero__greeting">{{ greeting }}</h1>
       <p class="hjem-hero__date">{{ dateLine }}</p>
     </header>
+
+    <div v-if="identityIncomplete" class="px-lg">
+      <p class="hjem-identity-warning">
+        Kontoen din er ikke koblet til en trenerprofil. «Mine kamper» og utlegg
+        blir feil til det er ordnet.
+      </p>
+    </div>
 
     <div v-if="loading" class="px-lg">
       <MatchCardSkeleton :count="2" />
@@ -200,4 +212,14 @@ function coachNamesForMatch(matchId) {
 }
 
 /* «Denne uka»-radene bor i components/today/WeekList.vue */
+
+.hjem-identity-warning {
+  margin: 0 0 var(--ds-space-lg);
+  padding: var(--ds-space-md);
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-primary);
+  background: var(--ds-color-surface);
+  border: 1px solid var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-md);
+}
 </style>

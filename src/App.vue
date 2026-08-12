@@ -9,16 +9,24 @@ import ToastNotification from './components/ToastNotification.vue'
 import IosInstallBanner from './components/IosInstallBanner.vue'
 
 const route = useRoute()
-const { isLoggedIn } = useAuth()
+const { isLoggedIn, ready } = useAuth()
 const { toasts } = useToast()
 
+const AUTH_ROUTES = ['login', 'auth-callback']
+
 // Både trenere og foreldre får navigasjonen (BottomNav viser rollebaserte faner).
-const showNav = computed(() => isLoggedIn.value && route.name !== 'login')
+const showNav = computed(() => isLoggedIn.value && !AUTH_ROUTES.includes(route.name))
 const showDemo = computed(() => !isSupabaseConfigured)
 </script>
 
 <template>
-  <div class="app-layout">
+  <!-- Tom flate på samme bakgrunn til sesjonen er lest. Uten den ser man et
+       glimt av innloggingsskjermen ved hver kalde start, selv når man er
+       innlogget. Varm start løses av localStorage-speilingen i storen, så
+       dette varer sjelden mer enn et bilde. -->
+  <div v-if="!ready" class="app-boot"></div>
+
+  <div v-else class="app-layout">
     <div v-if="showDemo" class="demo-banner">
       Demo-modus &mdash; koble til Supabase for ekte data
     </div>
@@ -34,3 +42,10 @@ const showDemo = computed(() => !isSupabaseConfigured)
     <IosInstallBanner :above-nav="showNav" />
   </div>
 </template>
+
+<style scoped>
+.app-boot {
+  min-height: 100dvh;
+  background: var(--ds-color-bg);
+}
+</style>

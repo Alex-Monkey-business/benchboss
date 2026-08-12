@@ -28,7 +28,7 @@ const loading = ref(false)
 registerReset(() => { prepSessions.value = []; loading.value = false })
 
 export function useToday() {
-  const { coach } = useAuth()
+  const { coach, preferredCupTeam } = useAuth()
   const { dismissed } = useDismissedReminders()
   const { activeSeason, fetchSeasons } = useSeasons()
   const { matches, fetchMatches, getCoachesForMatch, getPlayersForMatch } = useMatches()
@@ -54,9 +54,20 @@ export function useToday() {
       .sort((a, b) => (a.match_time || '').localeCompare(b.match_time || ''))
   })
 
-  // Cupkamper for MITT cup-lag (trener-fornavn i CUP_TEAMS). Med to lag i
-  // samme cup blir alle kampene støy — trenere uten eget cup-lag ser alt.
+  // Cupkamper for MITT cup-lag. Med to lag i samme cup blir alle kampene støy
+  // — trenere uten eget cup-lag ser alt.
+  //
+  // Preferansen ligger nå på medlemsraden. Den må VALIDERES mot CUP_TEAMS før
+  // bruk: slugene roterer mellom cuper, og en lagret preferanse fra forrige
+  // cup ville ellers filtrert lista til null kamper og gitt en tom-tilstand
+  // som ser ut som en feil.
   const myCupMatches = computed(() => {
+    const preferred = preferredCupTeam.value
+    if (preferred && CUP_TEAMS.some(t => t.slug === preferred)) {
+      return cupMatches.value.filter(m => m.our_team === preferred)
+    }
+
+    // Fallback for PIN-broen, som ikke har noen medlemsrad å hente den fra.
     const first = (coach.value?.name || '').split(' ')[0].toLowerCase()
     const mine = CUP_TEAMS.find(t => (t.trainers || []).some(n => n.toLowerCase() === first))
     return mine ? cupMatches.value.filter(m => m.our_team === mine.slug) : cupMatches.value
