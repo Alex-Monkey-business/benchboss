@@ -21,6 +21,7 @@ const GROUPS = [
   {
     label: 'Fase 4a — plattform',
     items: [
+      { id: 'plattform-tomt', name: 'Ingen kull ennå' },
       { id: 'plattform', name: 'Klubber og kull' },
       { id: 'nytt-kull', name: 'Nytt kull' },
       { id: 'kullvelger', name: 'Bytt kull' }
@@ -29,6 +30,7 @@ const GROUPS = [
   {
     label: 'Fase 4b — tilgang',
     items: [
+      { id: 'tilgang-tomt', name: 'Kull uten medlemmer' },
       { id: 'tilgang', name: 'Medlemmer' },
       { id: 'inviter', name: 'Inviter' },
       { id: 'lagpreferanse', name: 'Lagpreferanse' }
@@ -129,7 +131,7 @@ const PARENTS = [
           <label class="ds-label">E-post</label>
           <input class="ds-input ds-input--error" type="email" value="alex@feiladresse.no" />
           <p class="ds-help ds-help--error">
-            Denne e-posten har ikke tilgang. Be en av trenerne om invitasjon.
+            Denne e-posten har ikke tilgang. Sjekk at du bruker adressen invitasjonen ble sendt til.
           </p>
         </div>
         <button class="ds-btn ds-btn--primary ds-btn--lg auth__cta">Send kode</button>
@@ -140,7 +142,7 @@ const PARENTS = [
       <div class="auth__inner auth__inner--msg">
         <h1 class="auth__title">Ingen tilgang ennå</h1>
         <p class="auth__body">
-          Kontoen din er ikke koblet til et lag. En trener må slippe deg inn.
+          Kontoen din er ikke koblet til et lag. Ta kontakt med den som inviterte deg.
         </p>
         <button class="ds-btn ds-btn--secondary">Logg ut</button>
       </div>
@@ -164,6 +166,24 @@ const PARENTS = [
     </div>
 
     <!-- ============ FASE 4a — PLATTFORM ============ -->
+
+    <div v-else-if="current === 'plattform-tomt'" class="page">
+      <div class="page-header">
+        <h1 class="page-header__title">Plattform</h1>
+      </div>
+      <div class="px-lg">
+        <div class="ds-empty">
+          <img
+            src="/illustrations/bench-boss-feature-icons/512/admin-settings-transparent.png"
+            alt=""
+            class="ds-empty__illo"
+          />
+          <h3 class="ds-empty__title">Ingen kull ennå</h3>
+          <p class="ds-empty__description">Opprett det første, så kan du fylle det før noen inviteres.</p>
+          <button class="ds-btn ds-btn--primary ds-btn--lg sk-empty-cta">Nytt kull</button>
+        </div>
+      </div>
+    </div>
 
     <div v-else-if="current === 'plattform'" class="page">
       <div class="page-header">
@@ -279,6 +299,25 @@ const PARENTS = [
     </div>
 
     <!-- ============ FASE 4b — TILGANG ============ -->
+
+    <div v-else-if="current === 'tilgang-tomt'" class="page">
+      <div class="page-header">
+        <h1 class="page-header__title">Tilgang</h1>
+        <p class="page-header__subtitle">Halsen G2017</p>
+      </div>
+      <div class="px-lg">
+        <div class="ds-empty">
+          <img
+            src="/illustrations/bench-boss-feature-icons/512/squad-players-transparent.png"
+            alt=""
+            class="ds-empty__illo"
+          />
+          <h3 class="ds-empty__title">Ingen medlemmer ennå</h3>
+          <p class="ds-empty__description">Du er alene her. Inviter den første treneren når kullet er klart.</p>
+          <button class="ds-btn ds-btn--primary ds-btn--lg sk-empty-cta">Inviter</button>
+        </div>
+      </div>
+    </div>
 
     <div v-else-if="current === 'tilgang'" class="page">
       <div class="page-header">
@@ -460,6 +499,7 @@ const PARENTS = [
 }
 
 .sk-full { width: 100%; margin-top: var(--ds-space-lg); }
+.sk-empty-cta { margin-top: var(--ds-space-lg); }
 .sk-form { display: flex; flex-direction: column; gap: var(--ds-space-lg); }
 .sk-note { margin: 0; }
 .sk-add { margin-top: var(--ds-space-sm); align-self: flex-start; }
