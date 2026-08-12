@@ -24,7 +24,9 @@ const visible = computed(() => !isInstalled.value && !!iosBrowser && !dismissed.
 const COPY = {
   safari: {
     title: 'Legg BenchBoss på hjemskjermen',
-    body: 'Trykk Del-knappen nederst og velg «Legg til på Hjemskjerm».',
+    // Beskriver ikonet, ikke bare plasseringen: «nederst» er tvetydig når
+    // appens egen bunnmeny ligger mellom banneret og Safaris verktøylinje.
+    body: 'Trykk Del-knappen i Safari nederst — firkanten med pil opp — og velg «Legg til på Hjemskjerm».',
     pointDown: true
   },
   chrome: {
@@ -94,8 +96,11 @@ function dismiss() {
         </svg>
       </button>
 
-      <!-- Safari's share button sits in the bottom toolbar — point at it. -->
-      <span v-if="copy.pointDown" class="ios-banner__arrow" aria-hidden="true">
+      <!-- Pila peker på Safaris Del-knapp i verktøylinja nederst. Men er
+           appens egen bunnmeny på skjermen, ligger DEN imellom — og da peker
+           pila på en fane i stedet for på knappen. Verre enn ingen pil, for
+           den ber deg trykke feil sted. Vises derfor bare uten bunnmeny. -->
+      <span v-if="copy.pointDown && !aboveNav" class="ios-banner__arrow" aria-hidden="true">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
           <line x1="12" y1="4" x2="12" y2="18" /><polyline points="6 13 12 19 18 13" />
         </svg>
