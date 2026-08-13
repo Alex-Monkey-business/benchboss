@@ -8,6 +8,7 @@ import { useMatchGoals } from '../composables/useMatchGoals'
 import { useToast } from '../composables/useToast'
 import { useAuth } from '../stores/auth'
 import { teamColorsForMatch, isHomeMatch, TEAM_LABELS } from '../lib/matchMeta'
+import { positionForSlot, positionLabel, slotLabel, splitByFit } from '../lib/playerPositions'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
@@ -21,7 +22,7 @@ const {
   startClockTick, stopClockTick,
   fetchSession, fetchStints,
   saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
-  isOnField, roleOf, playerAtPosition, playingTimeByPlayer
+  isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer
 } = useMatchMode()
 const { show: showToast } = useToast()
 const { setSessionHold, sessionLost } = useAuth()
@@ -233,13 +234,10 @@ const placedElsewhere = computed(() => {
     .filter(x => x.player)
     .sort((a, b) => a.player.name.localeCompare(b.player.name, 'no'))
 })
-function posLabel(slotId) {
-  if (slotId === 'gk') return 'Keeper'
-  if (slotId.startsWith('d')) return 'Forsvar'
-  if (slotId.startsWith('m')) return 'Midtbane'
-  if (slotId.startsWith('f')) return 'Angrep'
-  return ''
-}
+// Posisjonen slot-en gjelder, og troppen delt på om spilleren passer der.
+// Ingen filtrering: alle er alltid valgbare, de som passer står bare først.
+const pickerPosition = computed(() => positionForSlot(pickerSlot.value?.id))
+const pickerGroups = computed(() => splitByFit(unassigned.value, pickerPosition.value))
 
 function clearSlot(slotId) {
   delete assignments.value[slotId]
@@ -270,6 +268,13 @@ const onField = computed(() =>
     .filter(p => isOnField(p.id))
     .sort((a, b) => a.name.localeCompare(b.name, 'no'))
 )
+
+// Innbytte: benken delt på om spilleren passer i plassen som blir ledig.
+// Rekkefølgen inne i gruppene er fortsatt minst spilletid først — posisjon
+// bestemmer hvem som er relevant, spilletid hvem som fortjener det.
+const subPosition = computed(() =>
+  actionPlayer.value ? positionForSlot(positionOf(actionPlayer.value.id)) : null)
+const subGroups = computed(() => splitByFit(bench.value, subPosition.value))
 
 function armBench(id) { armedBenchId.value = armedBenchId.value === id ? null : id }
 
@@ -849,10 +854,20 @@ const summary = computed(() =>
           Fjern {{ firstName(playerInSlot(pickerSlot.id).name) }}
         </button>
 
-        <div v-if="unassigned.length" class="mm__scorer-group">
-          <div class="mm__sheet-label">Ikke plassert</div>
+        <div v-if="pickerGroups.fit.length" class="mm__scorer-group">
+          <div class="mm__sheet-label">{{ positionLabel(pickerPosition) }}</div>
           <div class="mm__bench">
-            <button v-for="p in unassigned" :key="p.id" type="button" class="mm__bchip" @click="pickForSlot(p.id)">
+            <button v-for="p in pickerGroups.fit" :key="p.id" type="button" class="mm__bchip" @click="pickForSlot(p.id)">
+              <span class="mm__bname">{{ firstName(p.name) }}</span>
+              <span v-if="p.primary_team" class="mm__btag">{{ TEAM_LABELS[p.primary_team] }}</span>
+            </button>
+          </div>
+        </div>
+
+        <div v-if="pickerGroups.rest.length" class="mm__scorer-group">
+          <div class="mm__sheet-label">{{ pickerGroups.fit.length ? 'Andre' : 'Ikke plassert' }}</div>
+          <div class="mm__bench">
+            <button v-for="p in pickerGroups.rest" :key="p.id" type="button" class="mm__bchip" @click="pickForSlot(p.id)">
               <span class="mm__bname">{{ firstName(p.name) }}</span>
               <span v-if="p.primary_team" class="mm__btag">{{ TEAM_LABELS[p.primary_team] }}</span>
             </button>
@@ -864,7 +879,7 @@ const summary = computed(() =>
           <div class="mm__bench">
             <button v-for="x in placedElsewhere" :key="x.player.id" type="button" class="mm__bchip" @click="pickForSlot(x.player.id)">
               <span class="mm__bname">{{ firstName(x.player.name) }}</span>
-              <span class="mm__btag">{{ posLabel(x.slotId) }}</span>
+              <span class="mm__btag">{{ slotLabel(x.slotId) }}</span>
             </button>
           </div>
         </div>
@@ -898,14 +913,38 @@ const summary = computed(() =>
     <!-- Live: banespiller-handling -->
     <Sheet :show="!!actionPlayer" :title="actionPlayer ? `Bytt ${firstName(actionPlayer.name)}` : ''" @close="actionPlayer = null">
       <div class="mm__sheet">
-        <div class="mm__sheet-label">Inn for {{ firstName(actionPlayer?.name) }}</div>
-        <div class="mm__bench">
-          <button v-for="p in bench" :key="p.id" type="button" class="mm__bchip" @click="subFromSheet(p.id)">
-            <span class="mm__bname">{{ firstName(p.name) }}</span>
-            <span class="mm__btime">{{ fmt(p.sec) }}</span>
-          </button>
-          <div v-if="!bench.length" class="mm__empty mm__empty--inline">Ingen på benken</div>
-        </div>
+        <template v-if="subGroups.fit.length">
+          <div class="mm__scorer-group">
+            <div class="mm__sheet-label">
+              Inn for {{ firstName(actionPlayer?.name) }} · {{ positionLabel(subPosition).toLowerCase() }}
+            </div>
+            <div class="mm__bench">
+              <button v-for="p in subGroups.fit" :key="p.id" type="button" class="mm__bchip" @click="subFromSheet(p.id)">
+                <span class="mm__bname">{{ firstName(p.name) }}</span>
+                <span class="mm__btime">{{ fmt(p.sec) }}</span>
+              </button>
+            </div>
+          </div>
+          <div v-if="subGroups.rest.length" class="mm__scorer-group">
+            <div class="mm__sheet-label">Andre</div>
+            <div class="mm__bench">
+              <button v-for="p in subGroups.rest" :key="p.id" type="button" class="mm__bchip" @click="subFromSheet(p.id)">
+                <span class="mm__bname">{{ firstName(p.name) }}</span>
+                <span class="mm__btime">{{ fmt(p.sec) }}</span>
+              </button>
+            </div>
+          </div>
+        </template>
+        <template v-else>
+          <div class="mm__sheet-label">Inn for {{ firstName(actionPlayer?.name) }}</div>
+          <div class="mm__bench">
+            <button v-for="p in bench" :key="p.id" type="button" class="mm__bchip" @click="subFromSheet(p.id)">
+              <span class="mm__bname">{{ firstName(p.name) }}</span>
+              <span class="mm__btime">{{ fmt(p.sec) }}</span>
+            </button>
+            <div v-if="!bench.length" class="mm__empty mm__empty--inline">Ingen på benken</div>
+          </div>
+        </template>
         <button
           v-if="actionPlayer && roleOf(actionPlayer.id) !== 'keeper'"
           type="button"

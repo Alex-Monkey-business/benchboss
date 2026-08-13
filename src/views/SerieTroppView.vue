@@ -6,6 +6,7 @@ import { usePlayers } from '../composables/usePlayers'
 import { usePlayerSeasonTeams } from '../composables/usePlayerSeasonTeams'
 import { useToast } from '../composables/useToast'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
+import { POSITIONS, playerPositions } from '../lib/playerPositions'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
@@ -42,6 +43,11 @@ const unplaced = computed(() =>
 const eligible = p => canEdit.value && isLoanEligible(p, seasonId.value)
 const hasEligible = computed(() => players.value.some(eligible))
 
+// Posisjonene styrer forslagene i kampmodus. Antallet uten er det eneste
+// signalet som trengs for å se om jobben er gjort — vises kun i rediger-modus.
+const missingPositions = computed(() =>
+  players.value.filter(p => !playerPositions(p).length).length)
+
 // Hurtig lag-bytte (chip-prikkene / ×)
 async function assign(playerId, team) {
   await updatePlayer(playerId, { primary_team: team })
@@ -72,12 +78,19 @@ const editTarget = ref(null)
 const editName = ref('')
 const editTeam = ref('')
 const editLoanEligible = ref(false)
+const editPositions = ref([])
 const toDelete = ref(null)
 function openEdit(p) {
   editTarget.value = p
   editName.value = p.name
   editTeam.value = p.primary_team || ''
   editLoanEligible.value = isLoanEligible(p, seasonId.value)
+  editPositions.value = [...playerPositions(p)]
+}
+function togglePosition(value) {
+  const i = editPositions.value.indexOf(value)
+  if (i > -1) editPositions.value.splice(i, 1)
+  else editPositions.value.push(value)
 }
 async function saveEdit() {
   const name = editName.value.trim()
@@ -85,7 +98,7 @@ async function saveEdit() {
   const id = editTarget.value.id
   // Dobbeltskriving i overgangen: player_season_teams er den varige raden,
   // players.loan_eligible holdes i sync til kolonnen droppes.
-  await updatePlayer(id, { name, primary_team: editTeam.value, loan_eligible: editLoanEligible.value })
+  await updatePlayer(id, { name, primary_team: editTeam.value, loan_eligible: editLoanEligible.value, positions: editPositions.value })
   await setLoanEligible(id, seasonId.value, editLoanEligible.value, editTeam.value)
   showToast('Spiller oppdatert', 'success')
   editTarget.value = null
@@ -124,6 +137,7 @@ async function confirmDelete() {
       <!-- Samme layout i lese- og edit-modus: lag-kort med chips -->
       <template v-else>
         <p v-if="canEdit && hasEligible" class="star-legend"><span class="chip__star">★</span> = egnet som lånespiller</p>
+        <p v-if="canEdit && editing && missingPositions" class="star-legend">{{ missingPositions }} uten posisjon</p>
 
         <section v-for="t in seasonTeams" :key="t.slug" class="teamcard" :data-accent="t.accent">
           <header class="teamcard__head">
@@ -199,6 +213,21 @@ async function confirmDelete() {
           <option v-for="opt in TEAM_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
         </select>
       </div>
+      <div class="ds-form-group">
+        <label class="ds-label ds-label--optional">Posisjoner</label>
+        <div class="poschips">
+          <button
+            v-for="o in POSITIONS"
+            :key="o.value"
+            type="button"
+            class="poschip"
+            :class="{ 'poschip--on': editPositions.includes(o.value) }"
+            @click="togglePosition(o.value)"
+          >{{ o.label }}</button>
+        </div>
+        <p class="poschips__hint">Sorterer forslagene i kampmodus</p>
+      </div>
+
       <button
         type="button"
         class="loan-toggle"
@@ -381,6 +410,25 @@ async function confirmDelete() {
 }
 .loan-toggle__switch--on { background: var(--ds-color-warning); }
 .loan-toggle__switch--on::after { transform: translateX(16px); }
+
+/* Posisjons-chips (rediger-sheet) */
+/* 2×2 så fire like valg leser som én velger, ikke fire løse tagger. */
+.poschips { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ds-space-sm); }
+.poschip {
+  padding: 11px 14px; cursor: pointer;
+  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-secondary);
+  border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-elevated);
+  transition: border-color .15s ease, background .15s ease, color .15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.poschip--on {
+  border-color: var(--ds-color-accent);
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+}
+.poschips__hint { margin: var(--ds-space-sm) 0 0; font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary); }
 
 .chip__star { color: var(--ds-color-warning); font-size: 11px; margin: 0 -2px 0 1px; }
 
