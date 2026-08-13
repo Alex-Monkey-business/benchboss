@@ -315,6 +315,29 @@ Deno.serve(async (req) => {
         return json({ ok: true })
       }
 
+      // ------------------------------------------------------------ set_email
+      // Lagre adressen uten å sende noe. Lar deg samle inn alle fire først og
+      // invitere når du er klar — og ingen får en e-post før du bestemmer det.
+      case 'set_email': {
+        const email = (body.email || '').trim().toLowerCase()
+        if (!email.includes('@')) return fail('E-postadressen ser ikke riktig ut')
+        if (member.status === 'revoked') return fail('Tilgangen er fjernet')
+
+        const { data: taken } = await admin
+          .from('cohort_members').select('id')
+          .eq('cohort_id', cohortId).ilike('email', email).neq('id', member.id).maybeSingle()
+        if (taken) return fail('E-posten er allerede i bruk i kullet')
+
+        // invited_at nullstilles: adressen er lagret, invitasjonen er ikke sendt.
+        const { error } = await admin
+          .from('cohort_members')
+          .update({ email, invited_at: null })
+          .eq('id', member.id)
+        if (error) return fail(`Kunne ikke lagre e-posten: ${error.message}`)
+
+        return json({ ok: true })
+      }
+
       // ---------------------------------------------------------- send_invite
       // Medlemmet finnes fra før (seedet eller opprettet uten e-post). Raden
       // peker vi på med id — ingen navne-matching, ingen tvetydighet.

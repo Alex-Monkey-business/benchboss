@@ -58,8 +58,9 @@ function statusLine(m) {
   // «sendt i dag» om noe som aldri er sendt — på selve skjermen som skal
   // svare på om invitasjonen kom fram.
   if (!m.email) return 'Mangler e-post'
+  // invited_at er null til en invitasjon faktisk er sendt.
+  if (!m.invited_at) return 'Ikke invitert ennå'
   const d = daysSince(m.invited_at)
-  if (d === null) return 'Invitert'
   if (d === 0) return 'Invitert · sendt i dag'
   if (d === 1) return 'Invitert · sendt i går'
   return `Invitert · sendt for ${d} dager siden`
@@ -69,6 +70,7 @@ function statusTone(m) {
   if (m.status === 'revoked') return 'muted'
   if (m.status === 'active') return 'ok'
   if (!m.email) return 'warn'
+  if (!m.invited_at) return 'pending'
   return daysSince(m.invited_at) >= 3 ? 'warn' : 'pending'
 }
 
@@ -157,6 +159,17 @@ function openRow(m) {
   if (!canInvite.value) return
   emailDraft.value = ''
   selected.value = m
+}
+
+async function saveEmail() {
+  const m = selected.value
+  const email = emailDraft.value.trim()
+  if (!email) return
+  selected.value = null
+  if (await call({ action: 'set_email', member_id: m.id, email })) {
+    showToast(`E-post lagret for ${m.name}`)
+    await load()
+  }
 }
 
 async function sendInvite() {
@@ -302,7 +315,7 @@ onMounted(load)
 
         <!-- Uten e-post er det ingenting å sende på nytt — da er dette
              stedet man legger den inn. -->
-        <template v-if="!selected.email && selected.status !== 'revoked'">
+        <template v-if="selected.status !== 'revoked'">
           <label class="tilgang-sheet-label" for="row-email">E-post</label>
           <input
             id="row-email"
@@ -312,26 +325,27 @@ onMounted(load)
             autocapitalize="off"
             spellcheck="false"
             class="tilgang-input"
+            :placeholder="selected.email || ''"
           />
-          <button
-            type="button"
-            class="tilgang-submit tilgang-submit--tight"
-            :disabled="busy || !emailDraft.trim()"
-            @click="sendInvite"
-          >
-            {{ busy ? 'Sender…' : 'Send invitasjon' }}
-          </button>
+          <div class="tilgang-pair">
+            <button
+              type="button"
+              class="tilgang-action tilgang-pair__half"
+              :disabled="busy || !emailDraft.trim()"
+              @click="saveEmail"
+            >
+              Lagre
+            </button>
+            <button
+              type="button"
+              class="tilgang-submit tilgang-pair__half tilgang-submit--tight"
+              :disabled="busy || (!emailDraft.trim() && !selected.email)"
+              @click="emailDraft.trim() ? sendInvite() : resend()"
+            >
+              {{ busy ? 'Sender…' : (selected.invited_at ? 'Send på nytt' : 'Send') }}
+            </button>
+          </div>
         </template>
-
-        <button
-          v-else-if="selected.status !== 'revoked'"
-          type="button"
-          class="tilgang-action"
-          :disabled="busy"
-          @click="resend"
-        >
-          Send invitasjonen på nytt
-        </button>
 
         <template v-if="canManage && selected.status !== 'revoked'">
           <button
@@ -514,7 +528,18 @@ onMounted(load)
 
 .tilgang-submit:disabled { opacity: 0.5; cursor: default; }
 
-.tilgang-submit--tight { margin-top: var(--ds-space-sm); }
+.tilgang-submit--tight { margin-top: 0; }
+
+.tilgang-pair {
+  display: flex;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-sm);
+}
+
+.tilgang-pair__half {
+  flex: 1;
+  text-align: center;
+}
 
 /* ---- Handlinger ---- */
 .tilgang-actions-sheet {
