@@ -9,7 +9,12 @@ const BUILD_VERSION = String(Date.now())
 // version.json, som ligger som en vanlig fil på Netlify — så den kan settes
 // til false i Netlify-UI-et uten en deploy, og virker innen 60 sekunder.
 // En ny deploy setter den tilbake til verdien her.
-const LEGACY_AUTH = true
+//
+// STENGT 2026-08-13. Alex, Iver, Simon og Susanne er inne med e-post. Jacob og
+// Trond gikk fortsatt på broen — den eneste grunnen til at `anon` beholdt skrive-
+// tilgang. Skal den åpnes igjen: sett true her og deploy, eller rediger
+// version.json i Netlify-UI-et for å komme unna byggekøen.
+const LEGACY_AUTH = false
 
 export default defineConfig({
   plugins: [
