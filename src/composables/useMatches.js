@@ -2,6 +2,9 @@ import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { useCoaches } from './useCoaches'
 import { defaultCoachIdsForMatch } from '../lib/coachTeams'
+import { useSeasonTeams } from './useSeasonTeams'
+import { useSeasons } from './useSeasons'
+import { useAuth } from '../stores/auth'
 import { registerReset } from '../stores/dataReset'
 import { fetchRows, STATUS } from '../lib/query'
 
@@ -197,10 +200,16 @@ export function useMatches() {
   // Sett standard-trenere på nye kamper ut fra lagfarge. Én samlet insert.
   // Antar at kampene er nyopprettede (ingen eksisterende trener-koblinger).
   async function assignDefaultCoaches(newMatches) {
-    await fetchCoaches()
+    const { seasonTeams, fetchSeasonTeams } = useSeasonTeams()
+    const { activeCohort } = useAuth()
+    const { activeSeason } = useSeasons()
+    await Promise.all([
+      fetchCoaches(),
+      fetchSeasonTeams(activeCohort.value?.id, activeSeason.value?.id)
+    ])
     const rows = []
     for (const m of newMatches) {
-      for (const coach_id of defaultCoachIdsForMatch(m, coaches.value)) {
+      for (const coach_id of defaultCoachIdsForMatch(m, coaches.value, seasonTeams.value)) {
         rows.push({ match_id: m.id, coach_id })
       }
     }
@@ -219,13 +228,19 @@ export function useMatches() {
   // trenere helt. Idempotent — rører ikke kamper som allerede har trenere satt.
   // Returnerer antall kamper som ble oppdatert.
   async function backfillDefaultCoaches(seasonId) {
-    await Promise.all([fetchMatches(seasonId), fetchCoaches()])
+    const { seasonTeams, fetchSeasonTeams } = useSeasonTeams()
+    const { activeCohort } = useAuth()
+    await Promise.all([
+      fetchMatches(seasonId),
+      fetchCoaches(),
+      fetchSeasonTeams(activeCohort.value?.id, seasonId)
+    ])
     const withCoaches = new Set(matchCoaches.value.map(mc => mc.match_id))
     const missing = matches.value.filter(m => !withCoaches.has(m.id))
 
     let updated = 0
     for (const m of missing) {
-      const ids = defaultCoachIdsForMatch(m, coaches.value)
+      const ids = defaultCoachIdsForMatch(m, coaches.value, seasonTeams.value)
       if (!ids.length) continue
       await setMatchCoaches(m.id, ids)
       updated++

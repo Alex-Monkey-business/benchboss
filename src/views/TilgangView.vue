@@ -3,12 +3,15 @@ import { ref, computed, onMounted } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { useAuth } from '../stores/auth'
 import { useToast } from '../composables/useToast'
-import { SEASON_TEAMS } from '../lib/seasonTeams'
+import { useSeasonTeams } from '../composables/useSeasonTeams'
+import { useSeasons } from '../composables/useSeasons'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const { activeCohort, isAdmin, isPlatformAdmin, coach } = useAuth()
 const { show: showToast } = useToast()
+const { seasonTeams, fetchSeasonTeams } = useSeasonTeams()
+const { activeSeason, fetchSeasons } = useSeasons()
 
 const members = ref([])
 const allowCoachInvites = ref(false)
@@ -21,6 +24,10 @@ const canManage = computed(() => isAdmin.value || isPlatformAdmin.value)
 const canInvite = computed(() => canManage.value || allowCoachInvites.value)
 
 const ROLE_LABELS = { admin: 'Administrator', coach: 'Trener', parent: 'Forelder' }
+
+function teamName(slug) {
+  return slug ? (seasonTeams.value.find(t => t.slug === slug)?.name || null) : null
+}
 const GROUPS = [
   { role: 'admin', title: 'Administratorer' },
   { role: 'coach', title: 'Trenere' },
@@ -89,6 +96,9 @@ async function load() {
     members.value = memberRes.data || []
   }
   allowCoachInvites.value = !!cohortRes.data?.allow_coach_invites
+
+  await fetchSeasons()
+  await fetchSeasonTeams(activeCohort.value.id, activeSeason.value?.id)
   loading.value = false
 }
 
@@ -162,6 +172,15 @@ async function setRole(role) {
   }
 }
 
+async function setTeam(slug) {
+  const m = selected.value
+  selected.value = null
+  if (await call({ action: 'set_team', member_id: m.id, team: slug })) {
+    showToast(slug ? `${m.name} står nå på ${teamName(slug)}` : `${m.name} står ikke på noe lag`)
+    await load()
+  }
+}
+
 const confirmRevoke = ref(null)
 
 function askRevoke() {
@@ -213,6 +232,7 @@ onMounted(load)
             <span class="tilgang-row__main">
               <span class="tilgang-row__name">
                 {{ m.name }}<template v-if="coach?.id && m.coach_id === coach.id"> · deg</template>
+                <span v-if="m.role !== 'parent' && teamName(m.preferred_team)" class="tilgang-row__team">{{ teamName(m.preferred_team) }}</span>
               </span>
               <span class="tilgang-row__email">{{ m.email || 'ingen e-post' }}</span>
             </span>
@@ -242,10 +262,10 @@ onMounted(load)
           <option v-if="canManage" value="admin">Administrator</option>
         </select>
 
-        <label class="tilgang-label" for="inv-team">Lag <span class="tilgang-optional">valgfritt</span></label>
-        <select id="inv-team" v-model="form.preferred_team" class="tilgang-input">
+        <label v-if="form.role !== 'parent'" class="tilgang-label" for="inv-team">Lag</label>
+        <select v-if="form.role !== 'parent'" id="inv-team" v-model="form.preferred_team" class="tilgang-input">
           <option value="">Ingen</option>
-          <option v-for="t in SEASON_TEAMS" :key="t.slug" :value="t.slug">{{ t.name }}</option>
+          <option v-for="t in seasonTeams" :key="t.slug" :value="t.slug">{{ t.name }}</option>
         </select>
 
         <button
@@ -285,6 +305,28 @@ onMounted(load)
           >
             Gjør til {{ ROLE_LABELS[r].toLowerCase() }}
           </button>
+
+          <template v-if="selected.role !== 'parent'">
+            <p class="tilgang-sheet-label">Lag</p>
+            <div class="tilgang-teams">
+              <button
+                v-for="t in seasonTeams"
+                :key="t.slug"
+                type="button"
+                class="tilgang-team"
+                :class="{ 'tilgang-team--on': selected.preferred_team === t.slug }"
+                :disabled="busy"
+                @click="setTeam(t.slug)"
+              >{{ t.name }}</button>
+              <button
+                type="button"
+                class="tilgang-team"
+                :class="{ 'tilgang-team--on': !selected.preferred_team }"
+                :disabled="busy"
+                @click="setTeam(null)"
+              >Ingen</button>
+            </div>
+          </template>
 
           <button type="button" class="tilgang-action tilgang-action--danger" :disabled="busy" @click="askRevoke">
             Fjern tilgang
@@ -458,6 +500,45 @@ onMounted(load)
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-md);
   cursor: pointer;
+}
+
+.tilgang-sheet-label {
+  margin: var(--ds-space-sm) 0 0;
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+}
+
+.tilgang-teams {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-sm);
+}
+
+.tilgang-team {
+  flex: 1 1 auto;
+  padding: var(--ds-space-sm) var(--ds-space-md);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-primary);
+  background: var(--ds-color-bg-elevated);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  cursor: pointer;
+}
+
+.tilgang-team--on {
+  border-color: var(--ds-color-text-primary);
+  font-weight: var(--ds-weight-semibold);
+}
+
+.tilgang-row__team {
+  margin-left: 6px;
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-tertiary);
 }
 
 .tilgang-action--danger { color: var(--ds-color-error); }

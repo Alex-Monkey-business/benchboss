@@ -68,6 +68,42 @@ async function ensureCoach(admin: any, cohortId: string, name: string) {
   return data.id
 }
 
+/**
+ * Lagtilhørighet er en RAD i team_coaches, ikke en preferanse på medlemmet.
+ * Den skrives per sesong: når lagene roterer til våren, står fjorårets
+ * kobling igjen, og «hvem trente Grønn i høst» er fortsatt sant.
+ *
+ * `cohort_members.preferred_team` settes til det samme, men den er noe annet
+ * — den seeder brukerens egne filtre. De faller sammen for trenere, og det er
+ * greit, så lenge man vet hvilken av dem som styrer hva.
+ */
+async function setCoachTeam(admin: any, cohortId: string, coachId: string | null, teamSlug: string | null) {
+  if (!coachId) return
+
+  const { data: cohort } = await admin
+    .from('cohorts').select('active_season_id').eq('id', cohortId).maybeSingle()
+  const seasonId = cohort?.active_season_id
+  if (!seasonId) return
+
+  // Kun inneværende sesong ryddes. Tidligere sesonger er historikk.
+  await admin.from('team_coaches')
+    .delete()
+    .eq('cohort_id', cohortId).eq('coach_id', coachId).eq('season_id', seasonId)
+
+  if (!teamSlug) return
+
+  const { data: team } = await admin
+    .from('teams').select('id').eq('cohort_id', cohortId).eq('slug', teamSlug).maybeSingle()
+  if (!team) return
+
+  await admin.from('team_coaches').insert({
+    cohort_id: cohortId,
+    team_id: team.id,
+    coach_id: coachId,
+    season_id: seasonId,
+  })
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return fail('Bare POST', 405)
@@ -140,20 +176,54 @@ Deno.serve(async (req) => {
 
         const coachId = role === 'parent' ? null : await ensureCoach(admin, cohortId, name)
 
-        const { data: row, error: insertError } = await admin
+        // Kullet ble seedet med medlemsrader UTEN e-post (navn + rolle + kobling
+        // til trenerprofilen). Setter man inn en ny rad her, står personen to
+        // ganger i lista — én «Mangler e-post» og én «Invitert». Finn den
+        // eksisterende raden og gi den en e-post i stedet.
+        const { data: seeded } = await admin
           .from('cohort_members')
-          .insert({
-            cohort_id: cohortId,
-            role,
-            status: 'invited',
-            name,
-            email,
-            coach_id: coachId,
-            preferred_team: body.preferred_team || null,
-            invited_at: new Date().toISOString(),
-          })
-          .select('id').single()
-        if (insertError) return fail(`Kunne ikke lagre medlemmet: ${insertError.message}`)
+          .select('id')
+          .eq('cohort_id', cohortId)
+          .is('email', null)
+          .ilike('name', name)
+          .maybeSingle()
+
+        let row: { id: string } | null = null
+
+        if (seeded) {
+          const { data, error } = await admin
+            .from('cohort_members')
+            .update({
+              role,
+              status: 'invited',
+              email,
+              coach_id: coachId ?? undefined,
+              preferred_team: body.preferred_team || null,
+              invited_at: new Date().toISOString(),
+            })
+            .eq('id', seeded.id)
+            .select('id').single()
+          if (error) return fail(`Kunne ikke oppdatere medlemmet: ${error.message}`)
+          row = data
+        } else {
+          const { data, error } = await admin
+            .from('cohort_members')
+            .insert({
+              cohort_id: cohortId,
+              role,
+              status: 'invited',
+              name,
+              email,
+              coach_id: coachId,
+              preferred_team: body.preferred_team || null,
+              invited_at: new Date().toISOString(),
+            })
+            .select('id').single()
+          if (error) return fail(`Kunne ikke lagre medlemmet: ${error.message}`)
+          row = data
+        }
+
+        await setCoachTeam(admin, cohortId, coachId, body.preferred_team || null)
 
         // inviteUserByEmail gir «Kom i gang»-malen. createUser + signInWithOtp
         // ville sendt INNLOGGINGS-malen til en person som aldri har sett appen.
@@ -165,11 +235,13 @@ Deno.serve(async (req) => {
         if (inviteError) {
           const already = /already/i.test(inviteError.message)
           if (!already) {
-            await admin.from('cohort_members').delete().eq('id', row.id)
+            // Slett bare raden hvis VI opprettet den. En seedet rad som fantes
+            // fra før skal ikke forsvinne fordi e-posten ikke gikk ut.
+            if (!seeded) await admin.from('cohort_members').delete().eq('id', row!.id)
             return fail(`Invitasjonen ble ikke sendt: ${inviteError.message}`)
           }
           // Brukeren finnes fra før — koblingen skjer via e-posttriggeren.
-          return json({ ok: true, member_id: row.id, note: 'Brukeren fantes fra før og ble koblet' })
+          return json({ ok: true, member_id: row!.id, note: 'Brukeren fantes fra før og ble koblet' })
         }
 
         // Bekreft brukeren med én gang. Uten dette står hen som «midt i en
@@ -179,7 +251,7 @@ Deno.serve(async (req) => {
           await admin.auth.admin.updateUserById(invited.user.id, { email_confirm: true })
         }
 
-        return json({ ok: true, member_id: row.id })
+        return json({ ok: true, member_id: row!.id })
       }
 
       // ---------------------------------------------------------------- resend
@@ -233,6 +305,27 @@ Deno.serve(async (req) => {
         const { error } = await admin.from('cohort_members')
           .update({ role: body.role, coach_id: coachId }).eq('id', member.id)
         if (error) return fail(`Kunne ikke endre rolle: ${error.message}`)
+
+        // En forelder er ikke trener for et lag. coaches-raden består —
+        // det er bare koblingen til laget som opphører.
+        if (body.role === 'parent') {
+          await setCoachTeam(admin, cohortId, member.coach_id, null)
+        }
+
+        return json({ ok: true })
+      }
+
+      // -------------------------------------------------------------- set_team
+      case 'set_team': {
+        if (level === 'coach') return fail('Bare en admin kan endre lag', 403)
+        if (member.role === 'parent') return fail('En forelder hører ikke til et lag')
+
+        const slug = body.team || null
+        await setCoachTeam(admin, cohortId, member.coach_id, slug)
+
+        const { error } = await admin.from('cohort_members')
+          .update({ preferred_team: slug }).eq('id', member.id)
+        if (error) return fail(`Kunne ikke lagre laget: ${error.message}`)
 
         return json({ ok: true })
       }

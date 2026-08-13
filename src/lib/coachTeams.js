@@ -12,10 +12,18 @@ export const COACH_TEAMS = {
 
 // Resolve hvilke trener-IDer som skal settes på en kamp, gitt trener-poolen.
 // Unionen av trenerne for hver lagfarge i kampen.
-export function defaultCoachIdsForMatch(match, coaches) {
+//
+// `teams` er de oppløste lagene fra useSeasonTeams — altså team_coaches i
+// basen når de finnes. Uten dem faller vi tilbake på COACH_TEAMS, som er den
+// eneste kilden for kull som ikke har fått lagrader ennå.
+export function defaultCoachIdsForMatch(match, coaches, teams = null) {
   const colors = teamColorsForMatch(match)
   if (!colors.length) return []
   const names = new Set()
-  colors.forEach(color => (COACH_TEAMS[color] || []).forEach(name => names.add(name)))
+  colors.forEach(color => {
+    const fromDb = teams?.find(t => t.slug === color)?.trainers
+    const list = fromDb ?? COACH_TEAMS[color] ?? []
+    list.forEach(name => names.add(name))
+  })
   return coaches.filter(c => names.has(c.name)).map(c => c.id)
 }

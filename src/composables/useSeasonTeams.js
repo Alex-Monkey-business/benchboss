@@ -1,16 +1,20 @@
 import { ref, computed } from 'vue'
+import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
 import { SEASON_TEAMS } from '../lib/seasonTeams'
 
 // Serielagene som ÉN kilde for hele appen.
 //
-// I dag kommer de fra den statiske configen i lib/seasonTeams.js. Når `teams`
-// og `team_coaches` finnes i basen, fylles `rows` derfra og DB-raden vinner —
-// uten at et eneste view må endres. Derfor skal views lese herfra, aldri
-// importere SEASON_TEAMS direkte.
+// Lagene og trener-til-lag kommer nå fra `teams` og `team_coaches` i basen.
+// Den statiske configen i lib/seasonTeams.js er fallback: den brukes til
+// DB-radene er hentet, og for kull som ennå ikke har fått lag.
+//
+// Views skal lese herfra, aldri importere SEASON_TEAMS direkte.
 const rows = ref([])
+const loaded = ref(false)
+let inflight = null
 
-registerReset(() => { rows.value = [] })
+registerReset(() => { rows.value = []; loaded.value = false; inflight = null })
 
 export function useSeasonTeams() {
   const seasonTeams = computed(() => {
@@ -24,7 +28,9 @@ export function useSeasonTeams() {
           slug: r.slug,
           name: r.name ?? fallback?.name ?? r.slug,
           accent: r.accent ?? fallback?.accent ?? 'paper',
-          // Trenere blir team_coaches-rader per sesong. Til da: statisk konfig.
+          // Tom liste er et gyldig svar: et lag KAN stå uten trener, og da
+          // skal ikke den statiske lista snike inn gamle navn. Derfor `??`
+          // på null/undefined, ikke `||` på tom array.
           trainers: r.trainers ?? fallback?.trainers ?? []
         }
       })
@@ -34,10 +40,61 @@ export function useSeasonTeams() {
     return seasonTeams.value.find(t => t.slug === slug) || null
   }
 
-  // Fylles av fase 2 når teams-tabellen finnes. Views trenger ikke vite når.
-  function setSeasonTeams(next) {
-    rows.value = Array.isArray(next) ? next : []
+  // Henter lag + trenerkoblinger for kullet og sesongen. Idempotent, og
+  // samler samtidige kall i én forespørsel — den kalles fra flere steder som
+  // alle kan komme først.
+  async function fetchSeasonTeams(cohortId, seasonId) {
+    if (loaded.value) return seasonTeams.value
+    if (inflight) return inflight
+    if (!isSupabaseConfigured || !cohortId) return seasonTeams.value
+
+    inflight = (async () => {
+      const [teamRes, linkRes] = await Promise.all([
+        supabase
+          .from('teams')
+          .select('id, slug, name, accent, position')
+          .eq('cohort_id', cohortId)
+          .order('position'),
+        seasonId
+          ? supabase
+              .from('team_coaches')
+              .select('team_id, coaches(name)')
+              .eq('cohort_id', cohortId)
+              .eq('season_id', seasonId)
+          : Promise.resolve({ data: [], error: null })
+      ])
+
+      // Feiler noe, beholder vi fallbacken. Halvfylte lag er verre enn
+      // statiske: da ville kamper blitt satt på feil trenere.
+      if (teamRes.error || linkRes.error || !teamRes.data?.length) {
+        inflight = null
+        return seasonTeams.value
+      }
+
+      const byTeam = new Map()
+      for (const link of linkRes.data || []) {
+        const name = link.coaches?.name
+        if (!name) continue
+        if (!byTeam.has(link.team_id)) byTeam.set(link.team_id, [])
+        byTeam.get(link.team_id).push(name)
+      }
+
+      rows.value = teamRes.data.map(t => ({
+        ...t,
+        trainers: byTeam.get(t.id) ?? []
+      }))
+      loaded.value = true
+      inflight = null
+      return seasonTeams.value
+    })()
+
+    return inflight
   }
 
-  return { seasonTeams, seasonTeam, setSeasonTeams }
+  function setSeasonTeams(next) {
+    rows.value = Array.isArray(next) ? next : []
+    loaded.value = rows.value.length > 0
+  }
+
+  return { seasonTeams, seasonTeam, fetchSeasonTeams, setSeasonTeams, loaded }
 }
