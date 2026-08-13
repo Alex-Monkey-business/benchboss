@@ -16,7 +16,11 @@ const { activeSeason, fetchSeasons } = useSeasons()
 const members = ref([])
 const allowCoachInvites = ref(false)
 const loading = ref(true)
-const busy = ref(false)
+// Hvilken handling som pågår, ikke bare AT noe pågår. Med et felles
+// boolean-flagg sa «Send»-knappen «Sender…» mens man bare lagret e-posten —
+// altså at en e-post var på vei når ingenting ble sendt.
+const pending = ref('')
+const busy = computed(() => !!pending.value)
 
 // Å endre roller og fjerne tilgang er admin-arbeid. En trener som har fått
 // invitere skal ikke kunne gi bort kullet.
@@ -104,10 +108,10 @@ async function load() {
   loading.value = false
 }
 
-async function call(body) {
-  busy.value = true
+async function call(body, kind = 'work') {
+  pending.value = kind
   const { data, error } = await supabase.functions.invoke('member-admin', { body })
-  busy.value = false
+  pending.value = ''
 
   // En feil fra funksjonen kommer som HTTP 4xx, og supabase-js pakker den i
   // FunctionsHttpError uten meldingen. Den må leses ut av responsen.
@@ -141,7 +145,7 @@ async function submitInvite() {
     email: form.value.email,
     role: form.value.role,
     preferred_team: form.value.preferred_team || null
-  })
+  }, 'send')
   if (!res) return
   inviteOpen.value = false
   showToast(res.note || `Invitasjon sendt til ${form.value.email.trim()}`)
@@ -166,7 +170,7 @@ async function saveEmail() {
   const email = emailDraft.value.trim()
   if (!email) return
   selected.value = null
-  if (await call({ action: 'set_email', member_id: m.id, email })) {
+  if (await call({ action: 'set_email', member_id: m.id, email }, 'save')) {
     showToast(`E-post lagret for ${m.name}`)
     await load()
   }
@@ -177,7 +181,7 @@ async function sendInvite() {
   const email = emailDraft.value.trim()
   if (!email) return
   selected.value = null
-  if (await call({ action: 'send_invite', member_id: m.id, email })) {
+  if (await call({ action: 'send_invite', member_id: m.id, email }, 'send')) {
     showToast(`Invitasjon sendt til ${email}`)
     await load()
   }
@@ -186,7 +190,7 @@ async function sendInvite() {
 async function resend() {
   const m = selected.value
   selected.value = null
-  if (await call({ action: 'resend', member_id: m.id })) {
+  if (await call({ action: 'resend', member_id: m.id }, 'send')) {
     showToast(`Sendt på nytt til ${m.email}`)
     await load()
   }
@@ -303,7 +307,7 @@ onMounted(load)
           :disabled="busy || !form.name.trim() || !form.email.trim()"
           @click="submitInvite"
         >
-          {{ busy ? 'Sender…' : 'Send invitasjon' }}
+          {{ pending === 'send' ? 'Sender…' : 'Send invitasjon' }}
         </button>
       </div>
     </Sheet>
@@ -334,7 +338,7 @@ onMounted(load)
               :disabled="busy || !emailDraft.trim()"
               @click="saveEmail"
             >
-              Lagre
+              {{ pending === 'save' ? 'Lagrer…' : 'Lagre' }}
             </button>
             <button
               type="button"
@@ -342,7 +346,7 @@ onMounted(load)
               :disabled="busy || (!emailDraft.trim() && !selected.email)"
               @click="emailDraft.trim() ? sendInvite() : resend()"
             >
-              {{ busy ? 'Sender…' : (selected.invited_at ? 'Send på nytt' : 'Send') }}
+              {{ pending === 'send' ? 'Sender…' : (selected.invited_at ? 'Send på nytt' : 'Send') }}
             </button>
           </div>
         </template>
