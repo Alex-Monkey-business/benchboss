@@ -750,6 +750,10 @@ function formatMatchDate(dateStr) {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+  /* Uten dette er elementet shrink-to-fit i kolonne-varianten under 480px, og
+     da måler `overflow: hidden` mot sin egen bredde — ellipsen slår aldri inn
+     og lange bortelagsnavn blir klippet av skjermkanten i stedet. */
+  max-width: 100%;
 }
 
 .match-row__vs {
