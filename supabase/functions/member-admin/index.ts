@@ -315,6 +315,42 @@ Deno.serve(async (req) => {
         return json({ ok: true })
       }
 
+      // ---------------------------------------------------------- send_invite
+      // Medlemmet finnes fra før (seedet eller opprettet uten e-post). Raden
+      // peker vi på med id — ingen navne-matching, ingen tvetydighet.
+      case 'send_invite': {
+        const email = (body.email || '').trim().toLowerCase()
+        if (!email.includes('@')) return fail('E-postadressen ser ikke riktig ut')
+        if (member.status === 'revoked') return fail('Tilgangen er fjernet')
+
+        const { data: taken } = await admin
+          .from('cohort_members').select('id')
+          .eq('cohort_id', cohortId).ilike('email', email).neq('id', member.id).maybeSingle()
+        if (taken) return fail('E-posten er allerede i bruk i kullet')
+
+        const { error: updateError } = await admin
+          .from('cohort_members')
+          .update({ email, status: 'invited', invited_at: new Date().toISOString() })
+          .eq('id', member.id)
+        if (updateError) return fail(`Kunne ikke lagre e-posten: ${updateError.message}`)
+
+        const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
+          email,
+          { redirectTo: `${SITE_URL}/auth/callback` },
+        )
+
+        if (inviteError && !/already/i.test(inviteError.message)) {
+          return fail(`Invitasjonen ble ikke sendt: ${inviteError.message}`)
+        }
+
+        // Bekreft brukeren med én gang — ellers avvises kodeveien senere.
+        if (invited?.user?.id) {
+          await admin.auth.admin.updateUserById(invited.user.id, { email_confirm: true })
+        }
+
+        return json({ ok: true })
+      }
+
       // -------------------------------------------------------------- set_team
       case 'set_team': {
         if (level === 'coach') return fail('Bare en admin kan endre lag', 403)

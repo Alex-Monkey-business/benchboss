@@ -149,9 +149,25 @@ async function submitInvite() {
 // ---- Rad-handlinger ----
 const selected = ref(null)
 
+// De fire trenerne fra fase 2 ligger inne uten e-post. Da skal man trykke på
+// raden og fylle den ut — ikke gå via «Inviter noen» og treffe navnet riktig.
+const emailDraft = ref('')
+
 function openRow(m) {
   if (!canInvite.value) return
+  emailDraft.value = ''
   selected.value = m
+}
+
+async function sendInvite() {
+  const m = selected.value
+  const email = emailDraft.value.trim()
+  if (!email) return
+  selected.value = null
+  if (await call({ action: 'send_invite', member_id: m.id, email })) {
+    showToast(`Invitasjon sendt til ${email}`)
+    await load()
+  }
 }
 
 async function resend() {
@@ -284,8 +300,31 @@ onMounted(load)
       <div v-if="selected" class="tilgang-actions-sheet">
         <p class="tilgang-sheet-status">{{ statusLine(selected) }}</p>
 
+        <!-- Uten e-post er det ingenting å sende på nytt — da er dette
+             stedet man legger den inn. -->
+        <template v-if="!selected.email && selected.status !== 'revoked'">
+          <label class="tilgang-sheet-label" for="row-email">E-post</label>
+          <input
+            id="row-email"
+            v-model="emailDraft"
+            type="email"
+            inputmode="email"
+            autocapitalize="off"
+            spellcheck="false"
+            class="tilgang-input"
+          />
+          <button
+            type="button"
+            class="tilgang-submit tilgang-submit--tight"
+            :disabled="busy || !emailDraft.trim()"
+            @click="sendInvite"
+          >
+            {{ busy ? 'Sender…' : 'Send invitasjon' }}
+          </button>
+        </template>
+
         <button
-          v-if="selected.status !== 'revoked'"
+          v-else-if="selected.status !== 'revoked'"
           type="button"
           class="tilgang-action"
           :disabled="busy"
@@ -474,6 +513,8 @@ onMounted(load)
 }
 
 .tilgang-submit:disabled { opacity: 0.5; cursor: default; }
+
+.tilgang-submit--tight { margin-top: var(--ds-space-sm); }
 
 /* ---- Handlinger ---- */
 .tilgang-actions-sheet {
