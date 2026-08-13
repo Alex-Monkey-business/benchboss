@@ -10,11 +10,9 @@ import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import TeamFilter from '../components/TeamFilter.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
 import { useStaggerOnce } from '../composables/useStaggerOnce'
-import { relativeDateLabel, isToday, shortRelativeDate, localISODate } from '../lib/dateLabels'
+import { relativeDateLabel, isToday, localISODate } from '../lib/dateLabels'
 import { teamColorsForMatch } from '../lib/matchMeta'
-import { useRouter } from 'vue-router'
 
-const router = useRouter()
 
 const playStagger = useStaggerOnce('dashboard-matches')
 
@@ -46,86 +44,6 @@ watch(viewingSeason, async (s) => {
     await fetchExpenses(matches.value.map(m => m.id))
   }
 })
-
-// Smart suggestion banner — picks the single most useful prompt
-// based on current state. Returns null if nothing's actionable.
-const smartPrompt = computed(() => {
-  if (!coach.value || loading.value) return null
-  const todayStr = localISODate()
-
-  // Past HOME matches where I was the assigned coach but no expense logged.
-  // (Away matches don't have utlegg.)
-  const pendingMatches = matches.value
-    .filter(m =>
-      isHalsenTeam(m.home_team) &&
-      m.match_date < todayStr &&
-      !getExpenseForMatch(m.id) &&
-      getCoachesForMatch(m.id).includes(coach.value.id)
-    )
-    .sort((a, b) => b.match_date.localeCompare(a.match_date))
-
-  if (pendingMatches.length > 0) {
-    const m = pendingMatches[0]
-    const opponent = m.away_team
-    const when = shortRelativeDate(m.match_date)
-    const count = pendingMatches.length
-    return {
-      kind: 'pending-expense',
-      title: count === 1
-        ? `Du var trener mot ${opponent} ${when.toLowerCase()}`
-        : `${count} kamper venter på utlegg`,
-      body: count === 1
-        ? 'Registrer Vipps-utlegget når du har et øyeblikk.'
-        : `Den eldste er mot ${opponent}, ${when.toLowerCase()}.`,
-      action: 'Registrer',
-      matchId: m.id
-    }
-  }
-
-  // Upcoming HOME match (within a week) without dommer assigned
-  const refLess = matches.value
-    .filter(m =>
-      isHalsenTeam(m.home_team) &&
-      m.match_date >= todayStr &&
-      !m.referee &&
-      getCoachesForMatch(m.id).includes(coach.value.id)
-    )
-    .sort((a, b) => a.match_date.localeCompare(b.match_date))
-  const days7 = localISODate(new Date(Date.now() + 7 * 24 * 60 * 60 * 1000))
-  const refLessSoon = refLess.find(m => m.match_date <= days7)
-  if (refLessSoon) {
-    return {
-      kind: 'no-ref',
-      title: `Dommer mangler til kampen mot ${refLessSoon.away_team}`,
-      body: `Hjemmekamp ${relativeDateLabel(refLessSoon.match_date).toLowerCase()} — ordne dommer før avspark.`,
-      action: 'Sett opp',
-      matchId: refLessSoon.id
-    }
-  }
-
-  // Today's match where I'm assigned (any home/away)
-  const todaysMine = matches.value.find(m =>
-    m.match_date === todayStr &&
-    getCoachesForMatch(m.id).includes(coach.value.id)
-  )
-  if (todaysMine) {
-    const opponent = isHalsenTeam(todaysMine.home_team) ? todaysMine.away_team : todaysMine.home_team
-    const time = (todaysMine.match_time || '').slice(0, 5)
-    return {
-      kind: 'today',
-      title: `Du er trener i dag mot ${opponent}`,
-      body: time && time !== '00:00' ? `Kampen starter ${time}.` : 'Husk dommer og utstyr.',
-      action: 'Se kamp',
-      matchId: todaysMine.id
-    }
-  }
-
-  return null
-})
-
-function openPromptMatch(matchId) {
-  router.push(`/kamp/${matchId}`)
-}
 
 function isHalsenTeam(teamName) {
   return (teamName || '').toLowerCase().includes('halsen')
@@ -285,21 +203,6 @@ function getCoachNamesForMatch(matchId) {
       </button>
     </div>
 
-    <!-- Smart prompt banner -->
-    <Transition name="ds-slide-up">
-      <button v-if="smartPrompt" class="smart-prompt px-lg" @click="openPromptMatch(smartPrompt.matchId)">
-        <span class="smart-prompt__dot" aria-hidden="true"></span>
-        <span class="smart-prompt__body">
-          <span class="smart-prompt__title">{{ smartPrompt.title }}</span>
-          <span class="smart-prompt__sub">{{ smartPrompt.body }}</span>
-        </span>
-        <span class="smart-prompt__action">
-          {{ smartPrompt.action }}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-        </span>
-      </button>
-    </Transition>
-
     <div class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-2">
       <div class="filter-row">
         <div class="ds-pills">
@@ -365,84 +268,6 @@ function getCoachNamesForMatch(matchId) {
 
 <style scoped>
 /* Smart prompt banner — warm accent, full-row tappable */
-.smart-prompt {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  align-items: center;
-  gap: 12px;
-  width: calc(100% - var(--ds-space-lg) * 2);
-  margin: 0 var(--ds-space-lg) var(--ds-space-md);
-  padding: 14px var(--ds-space-md);
-  border: 1px solid rgba(185, 96, 63, 0.22);
-  border-radius: var(--ds-radius-lg);
-  background: var(--ds-color-warm-bg);
-  text-align: left;
-  cursor: pointer;
-  font-family: var(--ds-font-body);
-  transition:
-    transform var(--ds-duration-fast) var(--ds-ease-out),
-    border-color var(--ds-duration-fast) var(--ds-ease-out);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.smart-prompt:active {
-  transform: scale(0.99);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .smart-prompt:hover {
-    border-color: rgba(185, 96, 63, 0.4);
-  }
-}
-
-.smart-prompt__dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
-  background: var(--ds-color-warm);
-  box-shadow: 0 0 0 4px rgba(185, 96, 63, 0.16);
-  flex-shrink: 0;
-}
-
-.smart-prompt__body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.smart-prompt__title {
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-primary);
-  letter-spacing: -0.005em;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.smart-prompt__sub {
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-warm-text);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.smart-prompt__action {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-warm-text);
-  flex-shrink: 0;
-}
-
-.smart-prompt__action svg {
-  width: 14px;
-  height: 14px;
-}
 
 .day-header {
   display: flex;

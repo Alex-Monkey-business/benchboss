@@ -7,7 +7,6 @@ import { useCups } from '../composables/useCups'
 import { useAuth } from '../stores/auth'
 import TodayMatchCard from '../components/today/TodayMatchCard.vue'
 import CupEntryCard from '../components/today/CupEntryCard.vue'
-import SeasonKickoffCard from '../components/today/SeasonKickoffCard.vue'
 import TodayTrainingCard from '../components/today/TodayTrainingCard.vue'
 import ReminderList from '../components/today/ReminderList.vue'
 import NextTrainingCard from '../components/today/NextTrainingCard.vue'
@@ -19,7 +18,7 @@ import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 const {
   loading, refresh, greeting,
   todayMatches, todayCupMatches, todayTraining,
-  prepFor, reminders, nextTraining, nextMatch, otherTeamsNext, weekAhead, seasonKickoff
+  prepFor, reminders, nextTraining, nextMatch, otherTeamsNext, weekAhead
 } = useToday()
 
 const { getCoachesForMatch } = useMatches()
@@ -69,7 +68,7 @@ const upNext = computed(() => {
 })
 
 const showEmpty = computed(() =>
-  ready.value && !loading.value && !hasToday.value && weekAhead.value.length === 0 && upNext.value.length === 0 && reminders.value.length === 0 && !showCupEntry.value && !seasonKickoff.value
+  ready.value && !loading.value && !hasToday.value && weekAhead.value.length === 0 && upNext.value.length === 0 && reminders.value.length === 0 && !showCupEntry.value
 )
 
 function coachNamesForMatch(matchId) {
@@ -121,13 +120,6 @@ function coachNamesForMatch(matchId) {
         :cup="activeCup"
         :today-count="cupMatchesToday"
         class="ds-anim-fade-up ds-anim-delay-2"
-      />
-
-      <!-- Sesongen snur: står rett over neste kamp i opptakten til første kamp -->
-      <SeasonKickoffCard
-        v-if="seasonKickoff"
-        :kickoff="seasonKickoff"
-        class="ds-anim-fade-up ds-anim-delay-1"
       />
 
       <!-- Det som kommer: nærmeste hendelse øverst -->
