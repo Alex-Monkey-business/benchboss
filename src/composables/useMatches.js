@@ -3,7 +3,6 @@ import { supabase, isSupabaseConfigured } from '../supabase'
 import { useCoaches } from './useCoaches'
 import { defaultCoachIdsForMatch } from '../lib/coachTeams'
 import { useSeasonTeams } from './useSeasonTeams'
-import { useSeasons } from './useSeasons'
 import { useAuth } from '../stores/auth'
 import { registerReset } from '../stores/dataReset'
 import { fetchRows, STATUS } from '../lib/query'
@@ -202,10 +201,13 @@ export function useMatches() {
   async function assignDefaultCoaches(newMatches) {
     const { seasonTeams, fetchSeasonTeams } = useSeasonTeams()
     const { activeCohort } = useAuth()
-    const { activeSeason } = useSeasons()
+    // Sesongen tas fra kampene som legges inn, ikke fra `activeSeason`. Legger
+    // man kamper i en tidligere sesong, er det DEN sesongens trenere som
+    // gjelder — ikke dagens.
+    const seasonId = newMatches[0]?.season_id
     await Promise.all([
       fetchCoaches(),
-      fetchSeasonTeams(activeCohort.value?.id, activeSeason.value?.id)
+      fetchSeasonTeams(activeCohort.value?.id, seasonId)
     ])
     const rows = []
     for (const m of newMatches) {

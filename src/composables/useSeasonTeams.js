@@ -11,10 +11,16 @@ import { SEASON_TEAMS } from '../lib/seasonTeams'
 //
 // Views skal lese herfra, aldri importere SEASON_TEAMS direkte.
 const rows = ref([])
-const loaded = ref(false)
+// Cachen er per SESONG, ikke bare «lastet». Lagene roterer mellom sesonger,
+// så en cache som ikke vet hvilken sesong den gjelder ville servert høstens
+// trenere til vårens kamper.
+const loadedKey = ref(null)
+// Nøkkelet, ikke bare en flagg-promise: to samtidige kall for ULIKE sesonger
+// skal ikke dele svar.
 let inflight = null
+let inflightKey = null
 
-registerReset(() => { rows.value = []; loaded.value = false; inflight = null })
+registerReset(() => { rows.value = []; loadedKey.value = null; inflight = null; inflightKey = null })
 
 export function useSeasonTeams() {
   const seasonTeams = computed(() => {
@@ -44,10 +50,16 @@ export function useSeasonTeams() {
   // samler samtidige kall i én forespørsel — den kalles fra flere steder som
   // alle kan komme først.
   async function fetchSeasonTeams(cohortId, seasonId) {
-    if (loaded.value) return seasonTeams.value
-    if (inflight) return inflight
-    if (!isSupabaseConfigured || !cohortId) return seasonTeams.value
+    // Uten sesong kan trenerkoblingene ikke slås opp. Da skal vi IKKE late som
+    // om lagene er tomme for trenere — vi lar den statiske fallbacken stå, og
+    // prøver igjen neste gang. Alternativet er kamper uten trenere, i stillhet.
+    if (!isSupabaseConfigured || !cohortId || !seasonId) return seasonTeams.value
 
+    const key = `${cohortId}:${seasonId}`
+    if (loadedKey.value === key) return seasonTeams.value
+    if (inflight && inflightKey === key) return inflight
+
+    inflightKey = key
     inflight = (async () => {
       const [teamRes, linkRes] = await Promise.all([
         supabase
@@ -55,19 +67,17 @@ export function useSeasonTeams() {
           .select('id, slug, name, accent, position')
           .eq('cohort_id', cohortId)
           .order('position'),
-        seasonId
-          ? supabase
-              .from('team_coaches')
-              .select('team_id, coaches(name)')
-              .eq('cohort_id', cohortId)
-              .eq('season_id', seasonId)
-          : Promise.resolve({ data: [], error: null })
+        supabase
+          .from('team_coaches')
+          .select('team_id, coaches(name)')
+          .eq('cohort_id', cohortId)
+          .eq('season_id', seasonId)
       ])
 
       // Feiler noe, beholder vi fallbacken. Halvfylte lag er verre enn
       // statiske: da ville kamper blitt satt på feil trenere.
       if (teamRes.error || linkRes.error || !teamRes.data?.length) {
-        inflight = null
+        inflight = null; inflightKey = null
         return seasonTeams.value
       }
 
@@ -83,8 +93,8 @@ export function useSeasonTeams() {
         ...t,
         trainers: byTeam.get(t.id) ?? []
       }))
-      loaded.value = true
-      inflight = null
+      loadedKey.value = key
+      inflight = null; inflightKey = null
       return seasonTeams.value
     })()
 
@@ -93,8 +103,8 @@ export function useSeasonTeams() {
 
   function setSeasonTeams(next) {
     rows.value = Array.isArray(next) ? next : []
-    loaded.value = rows.value.length > 0
+    loadedKey.value = null
   }
 
-  return { seasonTeams, seasonTeam, fetchSeasonTeams, setSeasonTeams, loaded }
+  return { seasonTeams, seasonTeam, fetchSeasonTeams, setSeasonTeams }
 }
