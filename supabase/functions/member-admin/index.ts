@@ -104,6 +104,26 @@ async function setCoachTeam(admin: any, cohortId: string, coachId: string | null
   })
 }
 
+/**
+ * En invitert bruker står ubekreftet til hen klikker lenken. Med
+ * disable_signup slått på betyr ubekreftet at KODEVEIEN avvises — så utløper
+ * lenken, er personen låst ute for godt.
+ *
+ * Vi bekreftet derfor med én gang. Men vi ANTOK at kallet slo til, og det
+ * gjorde det ikke: fire trenere sto ubekreftet etter invitasjon. Nå leses det
+ * tilbake, og svaret sier fra hvis det fortsatt ikke tok.
+ */
+async function confirmUser(admin: any, userId: string): Promise<boolean> {
+  await admin.auth.admin.updateUserById(userId, { email_confirm: true })
+  const { data } = await admin.auth.admin.getUserById(userId)
+  if (data?.user?.email_confirmed_at) return true
+
+  // Ett nytt forsøk — så gir vi opp og sier det høyt.
+  await admin.auth.admin.updateUserById(userId, { email_confirm: true })
+  const { data: again } = await admin.auth.admin.getUserById(userId)
+  return !!again?.user?.email_confirmed_at
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return fail('Bare POST', 405)
@@ -244,14 +264,12 @@ Deno.serve(async (req) => {
           return json({ ok: true, member_id: row!.id, note: 'Brukeren fantes fra før og ble koblet' })
         }
 
-        // Bekreft brukeren med én gang. Uten dette står hen som «midt i en
-        // registrering», og med disable_signup slått på blir kodeveien avvist
-        // — så en invitert som lar lenken utløpe er låst ute for godt.
-        if (invited?.user?.id) {
-          await admin.auth.admin.updateUserById(invited.user.id, { email_confirm: true })
+        let warning: string | undefined
+        if (invited?.user?.id && !(await confirmUser(admin, invited.user.id))) {
+          warning = 'Invitasjonen er sendt, men kontoen ble ikke bekreftet. Utløper lenken, må den sendes på nytt.'
         }
 
-        return json({ ok: true, member_id: row!.id })
+        return json({ ok: true, member_id: row!.id, note: warning })
       }
 
       // ---------------------------------------------------------------- resend
@@ -284,6 +302,10 @@ Deno.serve(async (req) => {
 
         await admin.from('cohort_members')
           .update({ invited_at: new Date().toISOString() }).eq('id', member.id)
+
+        // Også her: en invitasjon sendt på nytt til en ubekreftet konto må
+        // bekrefte den, ellers er lenken igjen eneste vei inn.
+        if (member.profile_id) await confirmUser(admin, member.profile_id)
 
         return json({ ok: true })
       }
@@ -328,10 +350,17 @@ Deno.serve(async (req) => {
           .eq('cohort_id', cohortId).ilike('email', email).neq('id', member.id).maybeSingle()
         if (taken) return fail('E-posten er allerede i bruk i kullet')
 
-        // invited_at nullstilles: adressen er lagret, invitasjonen er ikke sendt.
+        // invited_at nullstilles KUN når adressen faktisk endres. Lagrer man
+        // den samme adressen på nytt, er invitasjonen fortsatt sendt — og å
+        // nullstille den ville slettet beviset og fått skjermen til å påstå
+        // «ikke invitert ennå» om en e-post som ligger i innboksen.
+        const changed = (member.email || '').toLowerCase() !== email
+        const patch: Record<string, unknown> = { email }
+        if (changed) patch.invited_at = null
+
         const { error } = await admin
           .from('cohort_members')
-          .update({ email, invited_at: null })
+          .update(patch)
           .eq('id', member.id)
         if (error) return fail(`Kunne ikke lagre e-posten: ${error.message}`)
 
@@ -366,12 +395,12 @@ Deno.serve(async (req) => {
           return fail(`Invitasjonen ble ikke sendt: ${inviteError.message}`)
         }
 
-        // Bekreft brukeren med én gang — ellers avvises kodeveien senere.
-        if (invited?.user?.id) {
-          await admin.auth.admin.updateUserById(invited.user.id, { email_confirm: true })
+        let warning: string | undefined
+        if (invited?.user?.id && !(await confirmUser(admin, invited.user.id))) {
+          warning = 'Invitasjonen er sendt, men kontoen ble ikke bekreftet. Utløper lenken, må den sendes på nytt.'
         }
 
-        return json({ ok: true })
+        return json({ ok: true, note: warning })
       }
 
       // -------------------------------------------------------------- set_team

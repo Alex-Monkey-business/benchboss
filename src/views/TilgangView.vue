@@ -148,7 +148,7 @@ async function submitInvite() {
   }, 'send')
   if (!res) return
   inviteOpen.value = false
-  showToast(res.note || `Invitasjon sendt til ${form.value.email.trim()}`)
+  showToast(res.note || `Invitasjon sendt til ${form.value.email.trim()}`, res.note ? 'error' : 'success', res.note ? 0 : 3000)
   await load()
 }
 
@@ -181,8 +181,11 @@ async function sendInvite() {
   const email = emailDraft.value.trim()
   if (!email) return
   selected.value = null
-  if (await call({ action: 'send_invite', member_id: m.id, email }, 'send')) {
-    showToast(`Invitasjon sendt til ${email}`)
+  const res = await call({ action: 'send_invite', member_id: m.id, email }, 'send')
+  if (res) {
+    // note settes når invitasjonen gikk ut, men kontoen ikke ble bekreftet —
+    // da er lenken eneste vei inn, og det må sies.
+    showToast(res.note || `Invitasjon sendt til ${email}`, res.note ? 'error' : 'success', res.note ? 0 : 3000)
     await load()
   }
 }
@@ -190,8 +193,9 @@ async function sendInvite() {
 async function resend() {
   const m = selected.value
   selected.value = null
-  if (await call({ action: 'resend', member_id: m.id }, 'send')) {
-    showToast(`Sendt på nytt til ${m.email}`)
+  const res = await call({ action: 'resend', member_id: m.id }, 'send')
+  if (res) {
+    showToast(res.note || `Sendt på nytt til ${m.email}`, res.note ? 'error' : 'success', res.note ? 0 : 3000)
     await load()
   }
 }
