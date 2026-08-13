@@ -35,6 +35,15 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
         <source :srcset="illoSrc" type="image/webp" />
         <img :src="illoPng" alt="" loading="lazy" />
       </picture>
+      <!-- Har ikke økta egen illustrasjon, faller vi tilbake på state-ikonet,
+           så kortet aldri står bildeløst ved siden av neste kamp. -->
+      <img
+        v-else
+        class="next-training__illo next-training__illo--fallback"
+        src="/illustrations/bench-boss-state-icons/512/upcoming-training-transparent.png"
+        alt=""
+        decoding="async"
+      />
     </div>
 
     <p v-if="drillLine" class="next-training__drills">{{ drillLine }}</p>

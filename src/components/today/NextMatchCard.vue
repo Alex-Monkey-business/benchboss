@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { relativeDateLabel } from '../../lib/dateLabels'
+import { relativeDateLabel, daysUntil } from '../../lib/dateLabels'
 import { teamLabel } from '../../lib/matchMeta'
 
 // event fra useToday.nextMatch: { type: 'match'|'cup', date, time, opponent,
@@ -9,22 +9,33 @@ const props = defineProps({
   event: { type: Object, required: true }
 })
 
-const when = computed(() => relativeDateLabel(props.event.date))
 
 const detailLine = computed(() => {
   const d = new Date(props.event.date + 'T12:00:00')
   const t = (props.event.time || '').slice(0, 5)
-  let when = d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' })
-  if (t && t !== '00:00') when += ` kl. ${t}`
+  // Samme format som radene under («Man 17 aug · 18:00 · borte») — to ulike
+  // datoformater rett over hverandre er halve grunnen til at flaten ser
+  // ustelt ut.
+  const day = relativeDateLabel(props.event.date)
+  // Datoen er overflødig når kampen er denne uka — «Onsdag» er mer presist
+  // for en trener enn «19. aug». Den kommer tilbake så snart ukedagen alene
+  // ikke lenger peker entydig.
+  // nb-NO gir «19. aug.» — punktumet bak måneden finnes ikke i radene under.
+  const far = daysUntil(props.event.date) > 7
+  const dm = d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' }).replace(/\.$/, '')
+  const parts = [far ? `${day} ${dm}` : day]
+  if (t && t !== '00:00') parts.push(t)
   const where = props.event.type === 'cup'
     ? props.event.pitch
     : (props.event.isHome ? 'hjemme' : 'borte')
-  return where ? `${when} — ${where}` : when
+  if (where) parts.push(where)
+  return parts.join(' · ')
 })
 </script>
 
 <template>
   <router-link :to="event.to" class="ds-card ds-card--interactive next-match">
+    <div class="next-match__body">
     <div class="next-match__top">
       <span class="next-match__tags">
         <span
@@ -36,21 +47,54 @@ const detailLine = computed(() => {
         <span v-if="event.teamName" class="next-match__team-tag next-match__team-tag--cup">{{ event.teamName }}</span>
         <span class="next-match__kicker">{{ event.type === 'cup' ? 'Neste cupkamp' : 'Neste kamp' }}</span>
       </span>
-      <span class="next-match__when">{{ when }}</span>
     </div>
 
-    <span class="next-match__opponent">mot {{ event.opponent }}</span>
+    <span class="next-match__opponent">{{ event.opponent }}</span>
     <span class="next-match__detail">{{ detailLine }}</span>
+    </div>
+
+    <img
+      class="next-match__illo"
+      src="/illustrations/bench-boss-state-icons/512/upcoming-match-transparent.png"
+      alt=""
+      width="88"
+      height="88"
+      decoding="async"
+    />
   </router-link>
 </template>
 
 <style scoped>
+/* Kortet er skjermens viktigste, og hadde ingenting som skilte det fra
+   resten. Illustrasjonen ligger som en egen kolonne — ikke bak teksten:
+   den er tegnet med farge og dybde, og bak tekst blir den grumsete. */
 .next-match {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: var(--ds-space-md);
+  padding: var(--ds-space-lg);
+  text-decoration: none;
+}
+
+.next-match__body {
   display: flex;
   flex-direction: column;
   gap: var(--ds-space-xs);
-  padding: var(--ds-space-lg);
-  text-decoration: none;
+  flex: 1;
+  min-width: 0;
+}
+
+.next-match__illo {
+  flex-shrink: 0;
+  width: 64px;
+  height: 64px;
+  object-fit: contain;
+}
+
+/* Under 380px stjeler bildet for mye fra motstandernavnet. */
+@media (max-width: 379px) {
+  .next-match__illo { width: 56px; height: 56px; }
 }
 
 .next-match__top {
@@ -90,17 +134,6 @@ const detailLine = computed(() => {
   text-transform: uppercase;
   color: var(--ds-color-text-tertiary);
   white-space: nowrap;
-}
-
-.next-match__when {
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  padding: 3px 10px;
-  border-radius: var(--ds-radius-full);
-  border: 1px solid var(--ds-color-border);
-  color: var(--ds-color-text-secondary);
-  white-space: nowrap;
-  flex-shrink: 0;
 }
 
 .next-match__opponent {

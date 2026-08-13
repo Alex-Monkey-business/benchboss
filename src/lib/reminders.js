@@ -42,8 +42,8 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
       kind: 'no-ref',
       tone: 'urgent',
       dismissable: false,
-      title: `Dommer mangler til kampen mot ${m.away_team}`,
-      body: `Hjemmekamp ${when}${time && time !== '00:00' ? ` kl. ${time}` : ''} — ordne dommer før avspark.`,
+      title: `Dommer mangler mot ${m.away_team}`,
+      body: `${when.charAt(0).toUpperCase()}${when.slice(1)}${time && time !== '00:00' ? ` · ${time}` : ''}`,
       matchId: m.id
     })
   }
@@ -71,8 +71,8 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
         ? `Treningsplanen gikk ut ${relativeDateLabel(ended.end_date).toLowerCase()}`
         : 'Ingen treningsplan lagt inn',
       body: ended
-        ? `«${ended.title}» var siste periode — legg inn en ny, så kommer øktene tilbake.`
-        : 'Legg inn en periode med økter, så dukker de opp her.',
+        ? `«${ended.title}» var siste periode`
+        : 'Ingen perioder lagt inn',
       to: '/trening'
     })
   }
@@ -100,8 +100,8 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
         ? `Resultat mangler fra kampen mot ${opponent}`
         : `${resultLess.length} kamper mangler resultat`,
       body: resultLess.length === 1
-        ? `Spilt ${relativeDateLabel(m.match_date).toLowerCase()} — legg inn sluttresultatet.`
-        : `Den siste er mot ${opponent}, ${shortRelativeDate(m.match_date).toLowerCase()}.`,
+        ? `Spilt ${relativeDateLabel(m.match_date).toLowerCase()}`
+        : `Siste mot ${opponent}, ${shortRelativeDate(m.match_date).toLowerCase()}`,
       matchId: m.id
     })
   }
@@ -126,8 +126,8 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
         ? `Utlegg venter fra kampen mot ${m.away_team}`
         : `${pendingExpense.length} kamper venter på utlegg`,
       body: pendingExpense.length === 1
-        ? 'Registrer Vipps-utlegget når du har et øyeblikk.'
-        : `Den siste er mot ${m.away_team}, ${shortRelativeDate(m.match_date).toLowerCase()}.`,
+        ? `Hjemmekamp ${shortRelativeDate(m.match_date).toLowerCase()}`
+        : `Siste mot ${m.away_team}, ${shortRelativeDate(m.match_date).toLowerCase()}`,
       matchId: m.id
     })
   }
@@ -158,8 +158,8 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
         ? `Referat mangler fra kampen mot ${opponent}`
         : `${reportLess.length} kamper mangler referat`,
       body: reportLess.length === 1
-        ? 'Resultatet er inne — skriv noen ord mens kampen er fersk.'
-        : `Den siste er mot ${opponent}, ${shortRelativeDate(m.match_date).toLowerCase()}.`,
+        ? 'Resultatet er inne'
+        : `Siste mot ${opponent}, ${shortRelativeDate(m.match_date).toLowerCase()}`,
       matchId: m.id
     })
   }
