@@ -131,6 +131,7 @@ export function useToday() {
     coachId: coach.value?.id,
     getCoachesForMatch,
     getExpenseForMatch,
+    periods: periods.value,
     excludeMatchIds: todayMatches.value.map(m => m.id),
     dismissedKeys: dismissed.value
   }))

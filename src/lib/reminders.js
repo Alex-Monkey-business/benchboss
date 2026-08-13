@@ -16,7 +16,7 @@ function isoDaysFrom(today, days) {
 
 // Returnerer maks 3 påminnelser: { kind, title, body, matchId }.
 // excludeMatchIds: dagens kamper — de dekkes av kampkortets egen sjekkliste.
-export function buildReminders({ matches, coachId, getCoachesForMatch, getExpenseForMatch, today = localISODate(), excludeMatchIds = [], dismissedKeys = new Set() }) {
+export function buildReminders({ matches, coachId, getCoachesForMatch, getExpenseForMatch, periods = [], today = localISODate(), excludeMatchIds = [], dismissedKeys = new Set() }) {
   if (!coachId) return []
   const excluded = new Set(excludeMatchIds)
   const mine = (m) => getCoachesForMatch(m.id).includes(coachId)
@@ -45,6 +45,35 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
       title: `Dommer mangler til kampen mot ${m.away_team}`,
       body: `Hjemmekamp ${when}${time && time !== '00:00' ? ` kl. ${time}` : ''} — ordne dommer før avspark.`,
       matchId: m.id
+    })
+  }
+
+  // 2. Ingen treningsplan dekker i dag.
+  //
+  //    Uten denne sier startsiden ingenting når planen renner ut — den viser
+  //    bare fravær av treningskort, som leses som «fri i dag» og ikke som «du
+  //    har ikke planlagt noe». Perioden «Etter ferien» gikk ut 11. august uten
+  //    at noe sa fra.
+  const covering = periods.filter(p => p.start_date && p.end_date && p.start_date <= today && p.end_date >= today)
+  if (covering.length === 0) {
+    const ended = periods
+      .filter(p => p.end_date && p.end_date < today)
+      .sort((a, b) => b.end_date.localeCompare(a.end_date))[0]
+    reminders.push({
+      kind: 'no-training-plan',
+      tone: 'urgent',
+      dismissable: true,
+      // Nøkkelen bærer utløpsdatoen, ikke bare typen. Ellers ville ett klikk
+      // på «skjul» gjemt påminnelsen for alltid — også neste gang en helt ny
+      // plan renner ut.
+      key: `no-training-plan:${ended?.end_date || 'ingen'}`,
+      title: ended
+        ? `Treningsplanen gikk ut ${relativeDateLabel(ended.end_date).toLowerCase()}`
+        : 'Ingen treningsplan lagt inn',
+      body: ended
+        ? `«${ended.title}» var siste periode — legg inn en ny, så kommer øktene tilbake.`
+        : 'Legg inn en periode med økter, så dukker de opp her.',
+      to: '/trening'
     })
   }
 
@@ -136,6 +165,6 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
   }
 
   return reminders
-    .filter(r => !dismissedKeys.has(`${r.kind}:${r.matchId}`))
+    .filter(r => !dismissedKeys.has(r.key || `${r.kind}:${r.matchId}`))
     .slice(0, MAX_REMINDERS)
 }

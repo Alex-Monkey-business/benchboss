@@ -17,7 +17,8 @@ function load() {
 const dismissed = ref(new Set(load()))
 
 function keyOf(r) {
-  return `${r.kind}:${r.matchId}`
+  // Noen påminnelser handler ikke om en kamp og bærer sin egen nøkkel.
+  return r.key || `${r.kind}:${r.matchId}`
 }
 
 export function useDismissedReminders() {

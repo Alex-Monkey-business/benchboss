@@ -10,7 +10,7 @@ const router = useRouter()
 const { dismiss } = useDismissedReminders()
 
 function open(reminder) {
-  router.push(`/kamp/${reminder.matchId}`)
+  router.push(reminder.to || `/kamp/${reminder.matchId}`)
 }
 </script>
 
@@ -18,7 +18,7 @@ function open(reminder) {
   <div class="reminder-list">
     <div
       v-for="r in reminders"
-      :key="r.kind + r.matchId"
+      :key="r.key || r.kind + r.matchId"
       class="reminder-row"
       :class="`reminder-row--${r.tone || 'urgent'}`"
     >
