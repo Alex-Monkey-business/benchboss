@@ -9,7 +9,7 @@ import Skeleton from '../components/Skeleton.vue'
 
 const router = useRouter()
 const { periods, fetchPeriods, createPeriod } = useTrainingPeriods()
-const { createSession } = useTrainingSessions()
+const { createSession, fetchSessions } = useTrainingSessions()
 
 const ACCENTS = [
   { value: 'warm',       label: 'Varm' },
@@ -28,7 +28,9 @@ const form = ref(emptyForm())
 const saving = ref(false)
 
 function emptyForm() {
-  return { title: '', lead: '', accent: 'warm', start_date: '', end_date: '' }
+  // Å ta med forrige periodes økter er normalen, ikke unntaket: en ny bolk
+  // fortsetter der forrige slapp. Derfor på som standard.
+  return { title: '', lead: '', accent: 'warm', start_date: '', end_date: '', reuse: true }
 }
 
 // AKTIV periode = dekker dagens dato, eller er åpen i enden og alt startet.
@@ -42,9 +44,16 @@ function pickActivePeriod() {
   const today = localISODate()
   const inRange = ps.find(p => p.start_date && p.end_date && p.start_date <= today && today <= p.end_date)
   if (inRange) return inRange
-  return ps
+  const openEnded = ps
     .filter(p => p.start_date && !p.end_date && p.start_date <= today)
-    .sort((a, b) => b.start_date.localeCompare(a.start_date))[0] || null
+    .sort((a, b) => b.start_date.localeCompare(a.start_date))[0]
+  if (openEnded) return openEnded
+  // Har du alt laget neste periode, er DEN planen — selv om den ikke har
+  // startet. Å vise «ingen aktiv periode» da ville bedt deg gjøre om igjen
+  // noe du nettopp gjorde.
+  return ps
+    .filter(p => p.start_date && p.start_date > today)
+    .sort((a, b) => a.start_date.localeCompare(b.start_date))[0] || null
 }
 
 // Den forrige — vises som snarvei, ikke som «gjeldende».
@@ -55,7 +64,7 @@ function pickLastPeriod() {
   return withStart[0] || ps[ps.length - 1]
 }
 
-const endedLabel = p => p?.end_date ? relativeDateLabel(p.end_date).toLowerCase() : 
+const endedLabel = p => (p?.end_date ? relativeDateLabel(p.end_date).toLowerCase() : '')
 
 function openSheet() {
   form.value = emptyForm()
@@ -73,10 +82,31 @@ async function save() {
     end_date: form.value.end_date || null
   }
   const row = await createPeriod(payload)
-  // Fast ukeoppsett: tirsdag, torsdag og lørdag ligger klare i nye perioder.
   if (row) {
-    for (const [i, tpl] of DEFAULT_WEEK_SESSIONS.entries()) {
-      await createSession(row.id, { ...tpl, drills: [], position: i })
+    // Enten forrige periodes økter med øvelser og alt, eller det faste
+    // tir/tor/lør-oppsettet. Vi kopierer ALDRI tittel og datoer — det er
+    // nettopp de to tingene som gjør perioden til en ny periode, og som den
+    // gamle «Dupliser»-knappen lot stå igjen som «… (kopi)» uten datoer.
+    const kilde = form.value.reuse && lastPeriod.value
+      ? await fetchSessions(lastPeriod.value.id)
+      : null
+
+    if (kilde?.length) {
+      for (const [i, s] of [...kilde].sort((a, b) => a.position - b.position).entries()) {
+        await createSession(row.id, {
+          title: s.title,
+          weekday: s.weekday ?? null,
+          accent: s.accent || 'warm',
+          illustration: s.illustration || null,
+          focus: s.focus || null,
+          drills: s.drills || [],
+          position: i
+        })
+      }
+    } else {
+      for (const [i, tpl] of DEFAULT_WEEK_SESSIONS.entries()) {
+        await createSession(row.id, { ...tpl, drills: [], position: i })
+      }
     }
   }
   saving.value = false
@@ -150,6 +180,20 @@ onMounted(async () => {
             />
           </div>
         </div>
+        <button
+          v-if="lastPeriod"
+          type="button"
+          class="reuse-toggle"
+          :class="{ 'reuse-toggle--on': form.reuse }"
+          @click="form.reuse = !form.reuse"
+        >
+          <span class="reuse-toggle__text">
+            <span class="reuse-toggle__title">Ta med øktene fra «{{ lastPeriod.title }}»</span>
+            <span class="reuse-toggle__sub">Ukedager, fokus og øvelser følger med. Tittel og datoer setter du selv.</span>
+          </span>
+          <span class="reuse-toggle__switch" :class="{ 'reuse-toggle__switch--on': form.reuse }"></span>
+        </button>
+
         <div class="ds-form-row">
           <div class="ds-form-group">
             <label class="ds-label" for="tp-start">Fra</label>
@@ -160,7 +204,7 @@ onMounted(async () => {
             <input id="tp-end" v-model="form.end_date" class="ds-input" type="date" />
           </div>
         </div>
-        <p class="seed-hint">Tirsdag, torsdag og lørdag legges inn automatisk.</p>
+        <p v-if="!(lastPeriod && form.reuse)" class="seed-hint">Tirsdag, torsdag og lørdag legges inn automatisk.</p>
         <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg" :disabled="!form.title.trim() || saving" style="width: 100%; margin-top: var(--ds-space-sm);">
           {{ saving ? 'Lagrer…' : 'Opprett periode' }}
         </button>
@@ -170,6 +214,34 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+/* Samme bryter-språk som «Egnet som lånespiller» på Tropp. */
+.reuse-toggle {
+  display: flex; align-items: center; gap: var(--ds-space-md);
+  width: 100%; text-align: left; cursor: pointer;
+  padding: var(--ds-space-md); margin-bottom: var(--ds-space-lg);
+  border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-md);
+  background: var(--ds-color-bg-elevated); transition: border-color .15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.reuse-toggle--on { border-color: var(--ds-color-accent); }
+.reuse-toggle__text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
+.reuse-toggle__title {
+  font-weight: var(--ds-weight-semibold); font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-primary);
+}
+.reuse-toggle__sub { font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary); line-height: 1.4; }
+.reuse-toggle__switch {
+  flex: none; width: 40px; height: 24px; border-radius: var(--ds-radius-full);
+  background: var(--ds-color-border); position: relative; transition: background .15s ease;
+}
+.reuse-toggle__switch::after {
+  content: ''; position: absolute; top: 2px; left: 2px;
+  width: 20px; height: 20px; border-radius: 50%; background: #fff;
+  transition: transform .15s ease; box-shadow: var(--ds-shadow-xs);
+}
+.reuse-toggle__switch--on { background: var(--ds-color-accent); }
+.reuse-toggle__switch--on::after { transform: translateX(16px); }
+
 .accent-swatch[data-accent="warm"]       { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
 .accent-swatch[data-accent="sage"]       { --accent-bg: #E2EDDE; --accent-text: #3D5C44; }
 .accent-swatch[data-accent="cornflower"] { --accent-bg: #D6DDEF; --accent-text: #3D456B; }

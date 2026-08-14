@@ -55,7 +55,10 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
   //    har ikke planlagt noe». Perioden «Etter ferien» gikk ut 11. august uten
   //    at noe sa fra.
   const covering = periods.filter(p => p.start_date && p.end_date && p.start_date <= today && p.end_date >= today)
-  if (covering.length === 0) {
+  // En periode som starter i morgen er ikke fravær av plan — den ER planen.
+  // Uten dette maste påminnelsen videre etter at jobben var gjort.
+  const upcoming = periods.filter(p => p.start_date && p.start_date > today)
+  if (covering.length === 0 && upcoming.length === 0) {
     const ended = periods
       .filter(p => p.end_date && p.end_date < today)
       .sort((a, b) => b.end_date.localeCompare(a.end_date))[0]

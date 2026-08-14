@@ -6,7 +6,7 @@ import { useTrainingSessions, DEFAULT_WEEK_SESSIONS } from '../composables/useTr
 import { useExercises } from '../composables/useExercises'
 import { useToast } from '../composables/useToast'
 import { parseTreningsplan } from '../lib/treningParser'
-import { localISODate } from '../lib/dateLabels'
+import { localISODate, relativeDateLabel } from '../lib/dateLabels'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
@@ -204,6 +204,10 @@ function hasEnded(p) {
   return !!(p?.end_date && p.end_date < localISODate())
 }
 
+function notStarted(p) {
+  return !!(p?.start_date && p.start_date > localISODate())
+}
+
 function dateRange(p) {
   const fmt = (d) => new Date(d).toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' })
   if (p.start_date && p.end_date) return `${fmt(p.start_date)} – ${fmt(p.end_date)}`
@@ -251,6 +255,7 @@ onMounted(async () => {
       <span v-if="dateRange(period)" class="periode__dates">
         {{ dateRange(period) }}
         <span v-if="hasEnded(period)" class="periode__ended">Avsluttet</span>
+        <span v-else-if="notStarted(period)" class="periode__ended">Starter {{ relativeDateLabel(period.start_date).toLowerCase() }}</span>
       </span>
     </header>
 
