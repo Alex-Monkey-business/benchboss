@@ -1,7 +1,7 @@
 // Påminnelser for hjem-skjermen — rene funksjoner, ingen state.
 // Rangert etter hastegrad: dommer (tidskritisk) → resultat → utlegg → referat.
 
-import { shortRelativeDate, relativeDateLabel, localISODate } from './dateLabels'
+import { relativeDateLabel, localISODate } from './dateLabels'
 import { isHomeMatch, isHalsenMatch, isPlayed, hasResult } from './matchMeta'
 
 const MAX_REMINDERS = 3
@@ -104,14 +104,19 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
     const opponent = isHomeMatch(m) ? m.away_team : m.home_team
     reminders.push({
       kind: 'no-result',
-      tone: 'urgent',
+      // Rødt er reservert for noe som RYKER om du ikke rekker en frist. Uten
+      // dommer blir det ikke kamp — det er den eneste av disse. Et manglende
+      // resultat gjør tabellen utdatert, men ingenting går i stykker, og to
+      // røde kort ved siden av hverandre opphever hverandre.
+      tone: 'soft',
       dismissable: false,
       title: resultLess.length === 1
-        ? `Resultat mangler fra kampen mot ${opponent}`
+        ? `Resultat mangler mot ${opponent}`
         : `${resultLess.length} kamper mangler resultat`,
-      body: resultLess.length === 1
-        ? `Spilt ${relativeDateLabel(m.match_date).toLowerCase()}`
-        : `Siste mot ${opponent}, ${shortRelativeDate(m.match_date).toLowerCase()}`,
+      // Underlinja er handlingen. «Spilt onsdag» er historikk: den forteller
+      // hva som skjedde, ikke hva du skal gjøre — og uten resultatet er både
+      // tabellen og toppscorerlista feil.
+      body: resultLess.length === 1 ? 'Legg inn resultatet' : 'Legg inn resultatene',
       matchId: m.id
     })
   }
@@ -133,11 +138,10 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
       tone: 'soft',
       dismissable: true,
       title: pendingExpense.length === 1
-        ? `Utlegg venter fra kampen mot ${m.away_team}`
+        ? `Utlegg ikke ført mot ${m.away_team}`
         : `${pendingExpense.length} kamper venter på utlegg`,
-      body: pendingExpense.length === 1
-        ? `Hjemmekamp ${shortRelativeDate(m.match_date).toLowerCase()}`
-        : `Siste mot ${m.away_team}, ${shortRelativeDate(m.match_date).toLowerCase()}`,
+      // Konsekvensen er at pengene ikke kommer tilbake før det er ført.
+      body: pendingExpense.length === 1 ? 'Før utlegget' : 'Før utleggene',
       matchId: m.id
     })
   }
@@ -165,11 +169,9 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
       tone: 'soft',
       dismissable: true,
       title: reportLess.length === 1
-        ? `Referat mangler fra kampen mot ${opponent}`
+        ? `Referat mangler mot ${opponent}`
         : `${reportLess.length} kamper mangler referat`,
-      body: reportLess.length === 1
-        ? 'Resultatet er inne'
-        : `Siste mot ${opponent}, ${shortRelativeDate(m.match_date).toLowerCase()}`,
+      body: reportLess.length === 1 ? 'Skriv referatet' : 'Skriv referatene',
       matchId: m.id
     })
   }
