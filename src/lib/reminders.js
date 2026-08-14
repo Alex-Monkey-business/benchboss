@@ -80,9 +80,9 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
       // tirsdag» er en datoopplysning; det som faktisk betyr noe er at ingen
       // vet hva som skal skje på banen neste gang.
       title: 'Ingen plan for neste trening',
-      body: ended
-        ? `«${ended.title}» gikk ut ${relativeDateLabel(ended.end_date).toLowerCase()}`
-        : 'Ingen treningsplan lagt inn',
+      // Underlinja er neste handling, ikke historikk. Når og hvilken periode
+      // som gikk ut står på Trening-fanen — her er det bare i veien.
+      body: 'Sett opp ny plan',
       to: '/trening'
     })
   }
