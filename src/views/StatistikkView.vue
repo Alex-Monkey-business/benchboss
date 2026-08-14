@@ -434,7 +434,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
         <div v-for="(item, i) in playerStats" :key="item.id" class="leaderboard__row">
           <span class="leaderboard__rank">{{ i + 1 }}</span>
           <span class="leaderboard__name">
-            {{ item.name }}
+            <router-link :to="`/spiller/${item.id}`" class="leaderboard__link">{{ item.name }}</router-link>
             <span v-if="item.primary_team" :class="['leaderboard__tag', `leaderboard__tag--${item.primary_team}`]">{{ TEAM_LABELS[item.primary_team] }}</span>
           </span>
           <span class="leaderboard__metric">{{ item.count || '–' }}</span>
@@ -453,7 +453,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
         <div v-for="(item, i) in visibleScorers" :key="item.id" class="leaderboard__row">
           <span class="leaderboard__rank">{{ i + 1 }}</span>
           <span class="leaderboard__name">
-            {{ item.name }}
+            <router-link :to="`/spiller/${item.id}`" class="leaderboard__link">{{ item.name }}</router-link>
             <span v-if="item.primary_team" :class="['leaderboard__tag', `leaderboard__tag--${item.primary_team}`]">{{ TEAM_LABELS[item.primary_team] }}</span>
           </span>
           <span class="leaderboard__count">{{ item.count }} mål</span>
@@ -490,7 +490,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
           </div>
           <div v-for="item in group.rows" :key="item.id" class="playtime-row">
             <span class="playtime-row__name">
-              {{ item.name }}
+              <router-link :to="`/spiller/${item.id}`" class="leaderboard__link">{{ item.name }}</router-link>
               <span v-if="item.keeperSec > 0" class="playtime-keeper">keeper {{ minutes(item.keeperSec) }} min</span>
             </span>
             <span class="playtime-row__bar-track">
@@ -570,6 +570,11 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   padding: 10px 14px;
   border-top: 1px solid var(--ds-color-border-light);
 }
+
+/* Navnet er en lenke til spillerprofilen, men skal ikke se ut som en lenke i
+   en liste av 27 — bare oppføre seg som en. */
+.leaderboard__link { color: inherit; text-decoration: none; }
+.leaderboard__link:hover { text-decoration: underline; }
 
 .playtime-row__name {
   font-size: 0.875rem;

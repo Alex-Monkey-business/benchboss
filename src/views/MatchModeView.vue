@@ -818,7 +818,13 @@ const summary = computed(() =>
       </div>
 
       <div class="summary">
-        <div v-for="(p, i) in summary" :key="p.id" class="srow" :data-team="p.primary_team || 'none'">
+        <router-link
+          v-for="(p, i) in summary"
+          :key="p.id"
+          :to="`/spiller/${p.id}`"
+          class="srow"
+          :data-team="p.primary_team || 'none'"
+        >
           <span class="srow__avatar">{{ initial(p.name) }}</span>
           <div class="srow__main">
             <div class="srow__top">
@@ -832,7 +838,7 @@ const summary = computed(() =>
               <span class="srow__bar" :style="{ width: (currentClock ? Math.round((p.totalSec / currentClock) * 100) : 0) + '%' }"></span>
             </span>
           </div>
-        </div>
+        </router-link>
       </div>
 
       <div class="mm__doneactions">
@@ -1348,6 +1354,7 @@ const summary = computed(() =>
 }
 .srow { display: flex; align-items: center; gap: var(--ds-space-md); padding: 12px var(--ds-space-lg); }
 .srow + .srow { border-top: 1px solid var(--ds-color-border-light); }
+.srow { color: inherit; text-decoration: none; }
 .srow__avatar {
   flex: none; width: 36px; height: 36px; display: grid; place-items: center;
   border-radius: 50%; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-bold);
@@ -1366,7 +1373,8 @@ const summary = computed(() =>
 .srow[data-team="gronn"] { --team-bg: var(--ds-team-gronn-bg); --team-fg: var(--ds-team-gronn); }
 .srow[data-team="rod"]   { --team-bg: var(--ds-team-rod-bg);   --team-fg: var(--ds-team-rod); }
 .srow[data-team="hvit"]  { --team-bg: var(--ds-team-hvit-bg);  --team-fg: var(--ds-color-text-secondary); }
-.srow[data-team="hvit"] .srow__avatar { border-color: var(--ds-team-hvit-border, var(--ds-color-border)); }
+.srow[data-team="hvit"] .srow { color: inherit; text-decoration: none; }
+.srow__avatar { border-color: var(--ds-team-hvit-border, var(--ds-color-border)); }
 
 .mm__doneactions { display: flex; gap: var(--ds-space-sm); margin-top: var(--ds-space-lg); }
 .mm__btn { flex: 1; padding: 16px; border-radius: var(--ds-radius-lg); font-family: var(--ds-font-body); font-size: var(--ds-text-md); font-weight: var(--ds-weight-bold); cursor: pointer; -webkit-tap-highlight-color: transparent; }
