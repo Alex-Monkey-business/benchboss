@@ -15,23 +15,23 @@ const DEMO_PLAYERS = [
   { id: 'p-1', name: 'Lukas', primary_team: 'rod', positions: ['keeper', 'forsvar'] },
   { id: 'p-2', name: 'Oliver', primary_team: 'rod', positions: ['forsvar'] },
   { id: 'p-3', name: 'Filip', primary_team: 'rod', positions: ['forsvar', 'sentral'] },
-  { id: 'p-4', name: 'Noah', primary_team: 'rod', positions: ['midtbane', 'sentral'] },
-  { id: 'p-5', name: 'Aksel', primary_team: 'rod', positions: ['midtbane', 'angrep'] },
+  { id: 'p-4', name: 'Noah', primary_team: 'rod', positions: ['ving', 'sentral'] },
+  { id: 'p-5', name: 'Aksel', primary_team: 'rod', positions: ['ving', 'angrep'] },
   { id: 'p-6', name: 'Emil', primary_team: 'rod', positions: ['angrep'] },
   { id: 'p-7', name: 'Jakob', primary_team: 'rod', positions: ['keeper'] },
   { id: 'p-8', name: 'Theo', primary_team: 'rod', positions: ['angrep'] },
   { id: 'p-9', name: 'Henrik', primary_team: 'rod', positions: [] },
   // Grønn — full tropp for Halsen Grønn vs Borre (noen egnet som lånespiller)
-  { id: 'p-10', name: 'Mads', primary_team: 'gronn', loan_eligible: true, positions: ['midtbane'] },
+  { id: 'p-10', name: 'Mads', primary_team: 'gronn', loan_eligible: true, positions: ['ving'] },
   { id: 'p-11', name: 'William', primary_team: 'gronn', loan_eligible: true, positions: ['angrep'] },
   { id: 'p-12', name: 'Liam', primary_team: 'gronn', positions: ['keeper'] },
   { id: 'p-13', name: 'Sander', primary_team: 'gronn', loan_eligible: true, positions: ['forsvar'] },
-  { id: 'p-14', name: 'Tobias', primary_team: 'gronn', positions: ['forsvar', 'midtbane'] },
+  { id: 'p-14', name: 'Tobias', primary_team: 'gronn', positions: ['forsvar', 'ving'] },
   { id: 'p-15', name: 'Isak', primary_team: 'gronn', loan_eligible: true, positions: ['angrep'] },
-  { id: 'p-16', name: 'Elias', primary_team: 'gronn', positions: ['midtbane'] },
+  { id: 'p-16', name: 'Elias', primary_team: 'gronn', positions: ['ving'] },
   { id: 'p-17', name: 'Kasper', primary_team: 'gronn', positions: [] },
   // Hvit + uplassert
-  { id: 'p-18', name: 'Erik', primary_team: 'hvit', loan_eligible: true, positions: ['midtbane', 'angrep'] },
+  { id: 'p-18', name: 'Erik', primary_team: 'hvit', loan_eligible: true, positions: ['ving', 'angrep'] },
   { id: 'p-19', name: 'Storm', primary_team: null, positions: [] }
 ]
 

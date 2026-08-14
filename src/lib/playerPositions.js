@@ -7,7 +7,7 @@
 export const POSITIONS = [
   { value: 'keeper',   label: 'Keeper' },
   { value: 'forsvar',  label: 'Forsvar' },
-  { value: 'midtbane', label: 'Midtbane' },
+  { value: 'ving',     label: 'Ving' },
   { value: 'sentral',  label: 'Sentral' },
   { value: 'angrep',   label: 'Angrep' }
 ]
@@ -23,7 +23,7 @@ const ORDER = POSITIONS.map(p => p.value)
 const SLOT_POSITIONS = {
   gk: 'keeper',
   d1: 'forsvar', d2: 'forsvar',
-  m1: 'midtbane', m3: 'midtbane',
+  m1: 'ving', m3: 'ving',
   m2: 'sentral',
   f1: 'angrep'
 }
@@ -31,9 +31,12 @@ const SLOT_POSITIONS = {
 export function positionForSlot(slotId) {
   if (!slotId) return null
   if (SLOT_POSITIONS[slotId]) return SLOT_POSITIONS[slotId]
+  // Bokstav-fallback for slots en framtidig formasjon måtte finne på. `m` står
+  // med vilje IKKE her: etter at ving og sentral ble skilt, er den bokstaven
+  // tvetydig, og en gjetning ville satt kanter på midten. Uten treff faller
+  // velgeren tilbake til én flat liste — samme oppførsel som før posisjonene.
   if (slotId === 'gk') return 'keeper'
   if (slotId.startsWith('d')) return 'forsvar'
-  if (slotId.startsWith('m')) return 'midtbane'
   if (slotId.startsWith('f')) return 'angrep'
   return null
 }
