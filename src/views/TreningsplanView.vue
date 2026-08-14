@@ -1,43 +1,27 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTrainingPeriods } from '../composables/useTrainingPeriods'
 import { useTrainingSessions, DEFAULT_WEEK_SESSIONS } from '../composables/useTrainingSessions'
 import { localISODate, relativeDateLabel } from '../lib/dateLabels'
-import Sheet from '../components/Sheet.vue'
 import Skeleton from '../components/Skeleton.vue'
 
 const router = useRouter()
 const { periods, fetchPeriods, createPeriod } = useTrainingPeriods()
 const { createSession, fetchSessions } = useTrainingSessions()
 
-const ACCENTS = [
-  { value: 'warm',       label: 'Varm' },
-  { value: 'sage',       label: 'Salvie' },
-  { value: 'cornflower', label: 'Kornblå' },
-  { value: 'peach',      label: 'Fersken' },
-  { value: 'sky',        label: 'Himmel' },
-  { value: 'olive',      label: 'Oliven' }
-]
+// Appen velger farge selv — én mindre innstilling å ta stilling til.
+// Måneden bestemmer den, så to perioder på rad aldri blir like.
+const ACCENTS = ['warm', 'sage', 'cornflower', 'peach', 'sky', 'olive']
 
 const deciding = ref(true) // mens vi avgjør hvilken periode vi lander på
-// Siste periode når ingen er aktiv. Vi hopper IKKE inn i den — se under.
 const lastPeriod = ref(null)
-const showSheet = ref(false)
-const form = ref(emptyForm())
-const saving = ref(false)
-
-function emptyForm() {
-  // Å ta med forrige periodes økter er normalen, ikke unntaket: en ny bolk
-  // fortsetter der forrige slapp. Derfor på som standard.
-  return { title: '', lead: '', accent: 'warm', start_date: '', end_date: '', reuse: true }
-}
+const creating = ref(false)
 
 // AKTIV periode = dekker dagens dato, eller er åpen i enden og alt startet.
 // Ingenting annet. Før falt denne tilbake til «nyeste periode» når ingen var
 // aktiv — og da så Trening-fanen ut som om det fantes en gjeldende plan, selv
-// om den gikk ut for ni dager siden. Det er den eneste skjermen som skal si
-// fra om at det er på tide å lage en ny.
+// om den gikk ut for ni dager siden.
 function pickActivePeriod() {
   const ps = periods.value
   if (!ps.length) return null
@@ -56,7 +40,6 @@ function pickActivePeriod() {
     .sort((a, b) => a.start_date.localeCompare(b.start_date))[0] || null
 }
 
-// Den forrige — vises som snarvei, ikke som «gjeldende».
 function pickLastPeriod() {
   const ps = periods.value
   if (!ps.length) return null
@@ -66,31 +49,62 @@ function pickLastPeriod() {
 
 const endedLabel = p => (p?.end_date ? relativeDateLabel(p.end_date).toLowerCase() : '')
 
-function openSheet() {
-  form.value = emptyForm()
-  showSheet.value = true
-}
+// ── Perioden er en måned ────────────────────────────────────────────────────
+//
+// Ingen tittel å finne på, ingen datovelgere, ingen farge. Måneden gir alt
+// tre. Alt kan endres inne i perioden etterpå — det er nettopp derfor
+// opprettelsen kan være ett trykk.
+const iso = d => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 
-async function save() {
-  if (!form.value.title.trim() || saving.value) return
-  saving.value = true
-  const payload = {
-    title: form.value.title.trim(),
-    lead: form.value.lead.trim() || null,
-    accent: form.value.accent,
-    start_date: form.value.start_date || null,
-    end_date: form.value.end_date || null
+const nextPeriodPlan = computed(() => {
+  const now = new Date()
+  let year = now.getFullYear()
+  let month = now.getMonth()
+
+  // Er det under en uke igjen av måneden, er det neste måned du planlegger.
+  const lastDayThisMonth = new Date(year, month + 1, 0).getDate()
+  if (lastDayThisMonth - now.getDate() < 7) {
+    month += 1
+    if (month > 11) { month = 0; year += 1 }
   }
-  const row = await createPeriod(payload)
-  if (row) {
-    // Enten forrige periodes økter med øvelser og alt, eller det faste
-    // tir/tor/lør-oppsettet. Vi kopierer ALDRI tittel og datoer — det er
-    // nettopp de to tingene som gjør perioden til en ny periode, og som den
-    // gamle «Dupliser»-knappen lot stå igjen som «… (kopi)» uten datoer.
-    const kilde = form.value.reuse && lastPeriod.value
-      ? await fetchSessions(lastPeriod.value.id)
-      : null
 
+  const first = new Date(year, month, 1)
+  const last = new Date(year, month + 1, 0)
+
+  // Start dagen etter forrige periode hvis den slutter inne i denne måneden,
+  // så to perioder aldri overlapper.
+  let start = first
+  const prevEnd = lastPeriod.value?.end_date
+  if (prevEnd) {
+    const d = new Date(prevEnd + 'T12:00:00')
+    const dayAfter = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1)
+    if (dayAfter > first && dayAfter <= last) start = dayAfter
+  }
+
+  const navn = first.toLocaleDateString('nb-NO', { month: 'long' })
+  return {
+    title: navn.charAt(0).toUpperCase() + navn.slice(1),
+    start_date: iso(start),
+    end_date: iso(last),
+    accent: ACCENTS[month % ACCENTS.length],
+    spenn: `${start.getDate()}.–${last.getDate()}. ${navn}`
+  }
+})
+
+// Ett trykk: lag månedsperioden, med eller uten forrige plans økter.
+async function createMonth(reuse) {
+  if (creating.value) return
+  creating.value = true
+  const plan = nextPeriodPlan.value
+  const row = await createPeriod({
+    title: plan.title,
+    lead: null,
+    accent: plan.accent,
+    start_date: plan.start_date,
+    end_date: plan.end_date
+  })
+  if (row) {
+    const kilde = reuse && lastPeriod.value ? await fetchSessions(lastPeriod.value.id) : null
     if (kilde?.length) {
       for (const [i, s] of [...kilde].sort((a, b) => a.position - b.position).entries()) {
         await createSession(row.id, {
@@ -109,8 +123,7 @@ async function save() {
       }
     }
   }
-  saving.value = false
-  showSheet.value = false
+  creating.value = false
   if (row) router.replace(`/trening/${row.id}`)
 }
 
@@ -133,8 +146,9 @@ onMounted(async () => {
       <Skeleton v-for="n in 3" :key="n" height="76px" radius="var(--ds-radius-lg)" />
     </div>
 
-    <!-- Perioden er over, men det finnes historikk: si det rett ut i stedet
-         for å vise den utgåtte planen som om den gjaldt. -->
+    <!-- Perioden er over: si det rett ut, og gjør neste steg til ett trykk.
+         Ingen tittel å finne på, ingen datovelgere, ingen farge — perioden er
+         en måned, og alt kan endres inne i den etterpå. -->
     <div v-else-if="lastPeriod" class="ds-empty">
       <img src="/illustrations/bench-boss-feature-icons/512/training-plan-transparent.png" alt="" class="ds-empty__illo" />
       <div class="ds-empty__title">Ingen aktiv treningsperiode</div>
@@ -142,120 +156,32 @@ onMounted(async () => {
         <template v-if="lastPeriod.end_date">«{{ lastPeriod.title }}» gikk ut {{ endedLabel(lastPeriod) }}.</template>
         <template v-else>«{{ lastPeriod.title }}» er siste periode du la inn.</template>
       </div>
-      <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="openSheet">Ny periode</button>
+      <div class="plan-actions">
+        <button type="button" class="ds-btn ds-btn--primary" :disabled="creating" @click="createMonth(true)">
+          {{ creating ? 'Lager …' : 'Bruk forrige plan' }}
+        </button>
+        <button type="button" class="ds-btn ds-btn--secondary" :disabled="creating" @click="createMonth(false)">
+          Start tom
+        </button>
+      </div>
+      <p class="plan-note">Blir «{{ nextPeriodPlan.title }}», {{ nextPeriodPlan.spenn }}</p>
       <router-link :to="`/trening/${lastPeriod.id}`" class="ds-empty__link">Åpne «{{ lastPeriod.title }}»</router-link>
     </div>
 
-    <!-- Tom tilstand — ingen perioder ennå -->
+    <!-- Aldri laget en periode -->
     <div v-else class="ds-empty">
       <img src="/illustrations/bench-boss-feature-icons/512/training-plan-transparent.png" alt="" class="ds-empty__illo" />
-      <div class="ds-empty__title">Ingen perioder ennå</div>
-      <div class="ds-empty__description">Lag den første perioden og legg inn øktene fra Messenger.</div>
-      <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="openSheet">Ny periode</button>
+      <div class="ds-empty__title">Ingen treningsplan ennå</div>
+      <div class="ds-empty__description">Tirsdag, torsdag og lørdag legges inn klare — så fyller du på med øvelser.</div>
+      <button type="button" class="ds-btn ds-btn--primary ds-empty__action" :disabled="creating" @click="createMonth(false)">
+        {{ creating ? 'Lager …' : `Lag plan for ${nextPeriodPlan.title.toLowerCase()}` }}
+      </button>
     </div>
 
-    <!-- Ny periode -->
-    <Sheet :show="showSheet" title="Ny periode" @close="showSheet = false">
-      <form @submit.prevent="save">
-        <div class="ds-form-group">
-          <label class="ds-label" for="tp-title">Tittel</label>
-          <input id="tp-title" v-model="form.title" class="ds-input" type="text" placeholder="F.eks. Juni — avslutning foran mål" required />
-        </div>
-        <div class="ds-form-group">
-          <label class="ds-label" for="tp-lead">Ingress</label>
-          <input id="tp-lead" v-model="form.lead" class="ds-input" type="text" placeholder="Kort om hva perioden handler om" />
-        </div>
-        <div class="ds-form-group">
-          <label class="ds-label">Farge</label>
-          <div class="accent-picker">
-            <button
-              v-for="a in ACCENTS"
-              :key="a.value"
-              type="button"
-              :data-accent="a.value"
-              :class="['accent-swatch', { 'accent-swatch--active': form.accent === a.value }]"
-              :aria-label="a.label"
-              :title="a.label"
-              @click="form.accent = a.value"
-            />
-          </div>
-        </div>
-        <button
-          v-if="lastPeriod"
-          type="button"
-          class="reuse-toggle"
-          :class="{ 'reuse-toggle--on': form.reuse }"
-          @click="form.reuse = !form.reuse"
-        >
-          <span class="reuse-toggle__text">
-            <span class="reuse-toggle__title">Ta med øktene fra «{{ lastPeriod.title }}»</span>
-            <span class="reuse-toggle__sub">Ukedager, fokus og øvelser følger med. Tittel og datoer setter du selv.</span>
-          </span>
-          <span class="reuse-toggle__switch" :class="{ 'reuse-toggle__switch--on': form.reuse }"></span>
-        </button>
-
-        <div class="ds-form-row">
-          <div class="ds-form-group">
-            <label class="ds-label" for="tp-start">Fra</label>
-            <input id="tp-start" v-model="form.start_date" class="ds-input" type="date" />
-          </div>
-          <div class="ds-form-group">
-            <label class="ds-label" for="tp-end">Til</label>
-            <input id="tp-end" v-model="form.end_date" class="ds-input" type="date" />
-          </div>
-        </div>
-        <p v-if="!(lastPeriod && form.reuse)" class="seed-hint">Tirsdag, torsdag og lørdag legges inn automatisk.</p>
-        <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg" :disabled="!form.title.trim() || saving" style="width: 100%; margin-top: var(--ds-space-sm);">
-          {{ saving ? 'Lagrer…' : 'Opprett periode' }}
-        </button>
-      </form>
-    </Sheet>
   </div>
 </template>
 
 <style scoped>
-/* Samme bryter-språk som «Egnet som lånespiller» på Tropp. */
-.reuse-toggle {
-  display: flex; align-items: center; gap: var(--ds-space-md);
-  width: 100%; text-align: left; cursor: pointer;
-  padding: var(--ds-space-md); margin-bottom: var(--ds-space-lg);
-  border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-md);
-  background: var(--ds-color-bg-elevated); transition: border-color .15s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.reuse-toggle--on { border-color: var(--ds-color-accent); }
-.reuse-toggle__text { display: flex; flex-direction: column; gap: 3px; flex: 1; min-width: 0; }
-.reuse-toggle__title {
-  font-weight: var(--ds-weight-semibold); font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-primary);
-}
-.reuse-toggle__sub { font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary); line-height: 1.4; }
-.reuse-toggle__switch {
-  flex: none; width: 40px; height: 24px; border-radius: var(--ds-radius-full);
-  background: var(--ds-color-border); position: relative; transition: background .15s ease;
-}
-.reuse-toggle__switch::after {
-  content: ''; position: absolute; top: 2px; left: 2px;
-  width: 20px; height: 20px; border-radius: 50%; background: #fff;
-  transition: transform .15s ease; box-shadow: var(--ds-shadow-xs);
-}
-.reuse-toggle__switch--on { background: var(--ds-color-accent); }
-.reuse-toggle__switch--on::after { transform: translateX(16px); }
-
-.accent-swatch[data-accent="warm"]       { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
-.accent-swatch[data-accent="sage"]       { --accent-bg: #E2EDDE; --accent-text: #3D5C44; }
-.accent-swatch[data-accent="cornflower"] { --accent-bg: #D6DDEF; --accent-text: #3D456B; }
-.accent-swatch[data-accent="peach"]      { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
-.accent-swatch[data-accent="sky"]        { --accent-bg: #DDE6EC; --accent-text: #3A4C5C; }
-.accent-swatch[data-accent="olive"]      { --accent-bg: #F0E7D6; --accent-text: #6B5630; }
-
-:global([data-theme="dark"] .accent-swatch[data-accent="warm"]) { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
-:global([data-theme="dark"] .accent-swatch[data-accent="sage"]) { --accent-bg: #1A241D; --accent-text: #B5D2B0; }
-:global([data-theme="dark"] .accent-swatch[data-accent="cornflower"]) { --accent-bg: #1A1F33; --accent-text: #B9C2E5; }
-:global([data-theme="dark"] .accent-swatch[data-accent="peach"]) { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
-:global([data-theme="dark"] .accent-swatch[data-accent="sky"]) { --accent-bg: #1A222A; --accent-text: #B0C5D8; }
-:global([data-theme="dark"] .accent-swatch[data-accent="olive"]) { --accent-bg: #2A241A; --accent-text: #D9C99E; }
-
 .treningsplan {
   max-width: 680px;
   margin: 0 auto;
@@ -268,30 +194,15 @@ onMounted(async () => {
   gap: var(--ds-space-sm);
 }
 
-.seed-hint {
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-tertiary);
-  margin: 0 0 var(--ds-space-sm);
-  line-height: 1.5;
+/* To likestilte veier videre: fortsett forrige plan, eller start blankt. */
+.plan-actions {
+  display: flex; flex-wrap: wrap; justify-content: center;
+  gap: var(--ds-space-sm); margin-bottom: var(--ds-space-sm);
 }
 
-.accent-picker {
-  display: flex;
-  gap: var(--ds-space-sm);
-  flex-wrap: wrap;
+/* Sier hva knappene faktisk lager, så måneden aldri blir en overraskelse. */
+.plan-note {
+  margin: 0 0 var(--ds-space-lg);
+  font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary);
 }
-
-.accent-swatch {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--ds-radius-md);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform var(--ds-duration-fast) var(--ds-ease-out), border-color var(--ds-duration-fast) var(--ds-ease-out);
-}
-
-.accent-swatch:active { transform: scale(0.94); }
-.accent-swatch--active { border-color: var(--accent-text); }
 </style>
