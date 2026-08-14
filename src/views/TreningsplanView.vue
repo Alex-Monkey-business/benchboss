@@ -3,7 +3,7 @@ import { ref, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTrainingPeriods } from '../composables/useTrainingPeriods'
 import { useTrainingSessions, DEFAULT_WEEK_SESSIONS } from '../composables/useTrainingSessions'
-import { localISODate } from '../lib/dateLabels'
+import { localISODate, relativeDateLabel } from '../lib/dateLabels'
 import Sheet from '../components/Sheet.vue'
 import Skeleton from '../components/Skeleton.vue'
 
@@ -21,6 +21,8 @@ const ACCENTS = [
 ]
 
 const deciding = ref(true) // mens vi avgjør hvilken periode vi lander på
+// Siste periode når ingen er aktiv. Vi hopper IKKE inn i den — se under.
+const lastPeriod = ref(null)
 const showSheet = ref(false)
 const form = ref(emptyForm())
 const saving = ref(false)
@@ -29,21 +31,31 @@ function emptyForm() {
   return { title: '', lead: '', accent: 'warm', start_date: '', end_date: '' }
 }
 
-// Aktuell periode = dekker dagens dato; ellers nyeste (siste start_date),
-// til slutt den sist opprettede i lista.
-function pickCurrentPeriod() {
+// AKTIV periode = dekker dagens dato, eller er åpen i enden og alt startet.
+// Ingenting annet. Før falt denne tilbake til «nyeste periode» når ingen var
+// aktiv — og da så Trening-fanen ut som om det fantes en gjeldende plan, selv
+// om den gikk ut for ni dager siden. Det er den eneste skjermen som skal si
+// fra om at det er på tide å lage en ny.
+function pickActivePeriod() {
   const ps = periods.value
   if (!ps.length) return null
   const today = localISODate()
   const inRange = ps.find(p => p.start_date && p.end_date && p.start_date <= today && today <= p.end_date)
   if (inRange) return inRange
-  const openEnded = ps
+  return ps
     .filter(p => p.start_date && !p.end_date && p.start_date <= today)
-    .sort((a, b) => b.start_date.localeCompare(a.start_date))[0]
-  if (openEnded) return openEnded
+    .sort((a, b) => b.start_date.localeCompare(a.start_date))[0] || null
+}
+
+// Den forrige — vises som snarvei, ikke som «gjeldende».
+function pickLastPeriod() {
+  const ps = periods.value
+  if (!ps.length) return null
   const withStart = ps.filter(p => p.start_date).sort((a, b) => b.start_date.localeCompare(a.start_date))
   return withStart[0] || ps[ps.length - 1]
 }
+
+const endedLabel = p => p?.end_date ? relativeDateLabel(p.end_date).toLowerCase() : 
 
 function openSheet() {
   form.value = emptyForm()
@@ -74,9 +86,13 @@ async function save() {
 
 onMounted(async () => {
   await fetchPeriods()
-  const current = pickCurrentPeriod()
-  if (current) router.replace(`/trening/${current.id}`)
-  else deciding.value = false
+  const active = pickActivePeriod()
+  if (active) {
+    router.replace(`/trening/${active.id}`)
+    return
+  }
+  lastPeriod.value = pickLastPeriod()
+  deciding.value = false
 })
 </script>
 
@@ -85,6 +101,19 @@ onMounted(async () => {
     <!-- Avgjør hvilken periode vi lander på -->
     <div v-if="deciding" class="treningsplan__list">
       <Skeleton v-for="n in 3" :key="n" height="76px" radius="var(--ds-radius-lg)" />
+    </div>
+
+    <!-- Perioden er over, men det finnes historikk: si det rett ut i stedet
+         for å vise den utgåtte planen som om den gjaldt. -->
+    <div v-else-if="lastPeriod" class="ds-empty">
+      <img src="/illustrations/bench-boss-feature-icons/512/training-plan-transparent.png" alt="" class="ds-empty__illo" />
+      <div class="ds-empty__title">Ingen aktiv treningsperiode</div>
+      <div class="ds-empty__description">
+        <template v-if="lastPeriod.end_date">«{{ lastPeriod.title }}» gikk ut {{ endedLabel(lastPeriod) }}.</template>
+        <template v-else>«{{ lastPeriod.title }}» er siste periode du la inn.</template>
+      </div>
+      <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="openSheet">Ny periode</button>
+      <router-link :to="`/trening/${lastPeriod.id}`" class="ds-empty__link">Åpne «{{ lastPeriod.title }}»</router-link>
     </div>
 
     <!-- Tom tilstand — ingen perioder ennå -->

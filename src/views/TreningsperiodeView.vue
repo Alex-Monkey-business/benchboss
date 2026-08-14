@@ -6,6 +6,7 @@ import { useTrainingSessions, DEFAULT_WEEK_SESSIONS } from '../composables/useTr
 import { useExercises } from '../composables/useExercises'
 import { useToast } from '../composables/useToast'
 import { parseTreningsplan } from '../lib/treningParser'
+import { localISODate } from '../lib/dateLabels'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
@@ -196,6 +197,13 @@ async function confirmDeletePeriod() {
   router.push('/trening')
 }
 
+// En periode som er over skal si det. Uten dette leser en åpnet gammel plan
+// nøyaktig som en gjeldende — det var hele grunnen til at Trening-fanen
+// virket som om det alltid fantes en aktiv plan.
+function hasEnded(p) {
+  return !!(p?.end_date && p.end_date < localISODate())
+}
+
 function dateRange(p) {
   const fmt = (d) => new Date(d).toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' })
   if (p.start_date && p.end_date) return `${fmt(p.start_date)} – ${fmt(p.end_date)}`
@@ -240,7 +248,10 @@ onMounted(async () => {
         <svg class="periode__switcher-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
       </button>
       <p v-if="period.lead" class="periode__lead">{{ period.lead }}</p>
-      <span v-if="dateRange(period)" class="periode__dates">{{ dateRange(period) }}</span>
+      <span v-if="dateRange(period)" class="periode__dates">
+        {{ dateRange(period) }}
+        <span v-if="hasEnded(period)" class="periode__ended">Avsluttet</span>
+      </span>
     </header>
 
     <!-- Ressurser: håndboka (filosofien) + øvelsesbanken (byggeklossene) -->
@@ -533,6 +544,15 @@ Torsdag
   letter-spacing: -0.01em;
   color: var(--ds-color-text-primary);
   margin: 0 0 var(--ds-space-sm);
+}
+
+.periode__ended {
+  display: inline-block; margin-left: 8px; padding: 2px 8px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-elevated); border: 1px solid var(--ds-color-border);
+  font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold);
+  letter-spacing: 0.04em; text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
 }
 
 .periode__dates {
