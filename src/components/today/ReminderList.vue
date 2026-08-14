@@ -159,7 +159,10 @@ function open(reminder) {
   place-items: center;
   width: 44px;
   border: none;
-  border-left: 1px solid var(--ds-color-border-light);
+  /* Streken hjalp da alle påminnelser var fylte. På en dempet, hvit rad blir
+     den en løs linje midt i kortet — luft skiller like godt. */
+  border-left: none;
+  margin-right: 2px;
   background: transparent;
   color: var(--ds-color-text-tertiary);
   cursor: pointer;

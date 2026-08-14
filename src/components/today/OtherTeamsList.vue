@@ -7,8 +7,10 @@ defineProps({
   items: { type: Array, default: () => [] }
 })
 
+// Dag, ikke dato-klokkeslett-sted. Dette er lag du IKKE trener — du skal vite
+// at det skjer, ikke planlegge det. Klokkeslett og bane står inne på kampen.
 function dayLabel(iso) {
-  const s = new Date(iso + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })
+  const s = new Date(iso + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'short' })
   return (s.charAt(0).toUpperCase() + s.slice(1)).replace(/\./g, '')
 }
 </script>
@@ -24,7 +26,7 @@ function dayLabel(iso) {
       <span class="other-row__tag" :class="`other-row__tag--${item.color}`">{{ teamLabel(item.color) }}</span>
       <span class="other-row__body">
         <span class="other-row__title">mot {{ item.opponent }}</span>
-        <span class="other-row__sub">{{ dayLabel(item.date) }}<template v-if="item.time"> · {{ item.time }}</template> · {{ item.isHome ? 'hjemme' : 'borte' }}</span>
+        <span class="other-row__sub">{{ dayLabel(item.date) }} · {{ item.isHome ? 'hjemme' : 'borte' }}</span>
       </span>
       <svg class="other-row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </router-link>

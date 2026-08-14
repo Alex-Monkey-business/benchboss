@@ -16,7 +16,7 @@ function isoDaysFrom(today, days) {
 
 // Returnerer maks 3 påminnelser: { kind, title, body, matchId }.
 // excludeMatchIds: dagens kamper — de dekkes av kampkortets egen sjekkliste.
-export function buildReminders({ matches, coachId, getCoachesForMatch, getExpenseForMatch, periods = [], today = localISODate(), excludeMatchIds = [], dismissedKeys = new Set() }) {
+export function buildReminders({ matches, coachId, getCoachesForMatch, getExpenseForMatch, periods = [], today = localISODate(), excludeMatchIds = [], dismissedKeys = new Set(), primaryMatchId = null }) {
   if (!coachId) return []
   const excluded = new Set(excludeMatchIds)
   const mine = (m) => getCoachesForMatch(m.id).includes(coachId)
@@ -42,7 +42,10 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
       kind: 'no-ref',
       tone: 'urgent',
       dismissable: false,
-      title: `Dommer mangler mot ${m.away_team}`,
+      // Gjelder det kampen som alt står i kortet øverst, er motstandernavnet
+      // en gjentakelse 30 cm lenger ned. Gjelder det en ANNEN kamp, bærer
+      // navnet informasjon og blir stående.
+      title: m.id === primaryMatchId ? 'Dommer mangler' : `Dommer mangler mot ${m.away_team}`,
       body: `${when.charAt(0).toUpperCase()}${when.slice(1)}${time && time !== '00:00' ? ` · ${time}` : ''}`,
       matchId: m.id
     })
@@ -64,7 +67,10 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
       .sort((a, b) => b.end_date.localeCompare(a.end_date))[0]
     reminders.push({
       kind: 'no-training-plan',
-      tone: 'urgent',
+      // Dempet med vilje. Dommer er PÅKREVD — uten dommer blir det ikke kamp.
+      // En manglende treningsplan avlyser ingenting. To røde kort ved siden av
+      // hverandre opphever hverandre, og da mister det påkrevde forspranget.
+      tone: 'soft',
       dismissable: true,
       // Nøkkelen bærer utløpsdatoen, ikke bare typen. Ellers ville ett klikk
       // på «skjul» gjemt påminnelsen for alltid — også neste gang en helt ny

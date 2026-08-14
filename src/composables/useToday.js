@@ -133,6 +133,9 @@ export function useToday() {
     getExpenseForMatch,
     periods: periods.value,
     excludeMatchIds: todayMatches.value.map(m => m.id),
+    // Kampen som står i kortet øverst — påminnelsen om den slipper å gjenta
+    // motstanderen.
+    primaryMatchId: nextMatch.value?.id || null,
     dismissedKeys: dismissed.value
   }))
 
