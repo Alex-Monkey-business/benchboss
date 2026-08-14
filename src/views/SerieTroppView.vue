@@ -82,7 +82,7 @@ async function handleAdd() {
     </div>
 
     <div class="px-lg">
-      <div v-if="canEdit" class="tropp-actions">
+      <div v-if="canEdit && (!ready || players.length)" class="tropp-actions">
         <button v-if="editing" type="button" class="add-link" @click="openAdd">
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Ny spiller
@@ -94,6 +94,13 @@ async function handleAdd() {
       </div>
 
       <div v-if="!ready" class="cmd-muted">Henter tropp …</div>
+
+      <div v-else-if="canEdit && players.length === 0" class="ds-empty">
+        <img src="/illustrations/bench-boss-state-icons/512/empty-squad-transparent.png" alt="" class="ds-empty__illo" />
+        <h3 class="ds-empty__title">Ingen spillere ennå</h3>
+        <p class="ds-empty__description">Legg inn spillerne i kullet, så kan du fordele dem på lag og sette posisjoner.</p>
+        <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="openAdd">Ny spiller</button>
+      </div>
 
       <!-- Samme layout i lese- og edit-modus: lag-kort med chips -->
       <template v-else>

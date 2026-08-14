@@ -76,9 +76,12 @@ const groups = computed(() => {
         </button>
       </div>
 
+      <!-- Ingen CTA her med vilje: cup-kamper legges inn direkte i basen, det
+           finnes ingen skjerm å sende noen til. En knapp ville løyet. -->
       <div v-else-if="filteredMatches.length === 0" class="ds-empty">
+        <img src="/illustrations/bench-boss-feature-icons/512/cup-tournament-transparent.png" alt="" class="ds-empty__illo" />
         <h3 class="ds-empty__title">Ingen kamper ennå</h3>
-        <p class="ds-empty__description">Kampprogrammet er ikke lagt inn.</p>
+        <p class="ds-empty__description">Kampprogrammet for turneringen er ikke lagt inn.</p>
       </div>
 
       <template v-else>

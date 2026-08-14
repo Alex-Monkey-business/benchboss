@@ -229,7 +229,8 @@ function getCoachNamesForMatch(matchId) {
       <div class="ds-empty">
         <img src="/illustrations/bench-boss-feature-icons/512/matches-transparent.png" alt="" class="ds-empty__illo" />
         <h3 class="ds-empty__title">Ingen kamper enda</h3>
-        <p class="ds-empty__description">Last opp kampprogram fra Mer-fanen</p>
+        <p class="ds-empty__description">Last opp terminlista, så fyller resten av appen seg selv.</p>
+        <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="$router.push('/admin/sesong-kamper')">Last opp kampprogram</button>
       </div>
     </div>
 

@@ -334,8 +334,20 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
       </div>
     </div>
 
+    <!-- Sesongen har ikke startet: én tomtilstand i stedet for tre grå bokser
+         som hver for seg sier «ingen data». Lånespiller-lista under overlever,
+         for den er nyttig FØR første kamp — den viser hvem som er booket. -->
+    <div v-if="!loading && !hasPlayedMatches" class="px-lg ds-anim-fade-up ds-anim-delay-1">
+      <div class="ds-empty">
+        <img src="/illustrations/bench-boss-feature-icons/512/statistics-transparent.png" alt="" class="ds-empty__illo" />
+        <h3 class="ds-empty__title">Ingen kamper spilt i {{ viewingSeason?.name || 'sesongen' }}</h3>
+        <p class="ds-empty__description">Tabell, mål og spilletid kommer så snart første kamp er ferdigspilt.</p>
+        <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="$router.push('/kamper')">Se kampprogrammet</button>
+      </div>
+    </div>
+
     <!-- Halsen totalt -->
-    <div class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-1">
+    <div v-if="hasPlayedMatches" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-1">
       <div class="stat-section-label">Halsen totalt</div>
       <div class="stat-card-large">
         <template v-if="hasPlayedMatches">
@@ -369,9 +381,6 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
             <FormCurve :results="halsenRecentResults" :max="10" />
           </div>
         </template>
-        <div v-else class="stat-empty">
-          Ingen spilte kamper enda. V/U/T-tall vises når resultater registreres.
-        </div>
       </div>
     </div>
 
@@ -444,7 +453,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
     </div>
 
     <!-- Toppscorere — bare for gøy, derfor under styringsdataene -->
-    <div class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-3">
+    <div v-if="hasPlayedMatches" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-3">
       <div class="stat-section-label">Toppscorere</div>
       <div v-if="topScorers.length === 0" class="leaderboard-empty">
         Ingen mål registrert ennå. Legg til scorere på en kamp under «Resultat & referat».

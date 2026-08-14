@@ -153,7 +153,10 @@ async function confirmDelete() {
         <div v-if="positions.length" class="sp__tags">
           <span v-for="v in positions" :key="v" class="sp__tag">{{ positionLabel(v) }}</span>
         </div>
-        <p v-else class="sp__muted">Ingen posisjoner satt — spilleren foreslås ikke noe sted i kampmodus.</p>
+        <template v-else>
+          <p class="sp__muted">Ingen posisjoner satt. Da foreslås ikke {{ player.name.split(' ')[0] }} noe sted i kampmodus.</p>
+          <button type="button" class="sp__inline-action" @click="openEdit">Sett posisjoner</button>
+        </template>
       </section>
 
       <!-- Sesongvelger, ikke bare en overskrift: tallene er sesongscopet, og
@@ -323,6 +326,16 @@ async function confirmDelete() {
   gap: var(--ds-space-md); margin-bottom: var(--ds-space-sm);
 }
 .sp__seasonrow .sp__h2 { margin: 0; }
+
+/* Handlingen hører til der mangelen er, ikke bare i knappen øverst. */
+.sp__inline-action {
+  margin-top: var(--ds-space-sm); padding: 0;
+  border: 0; background: transparent; cursor: pointer;
+  font-family: var(--ds-font-body); font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium); color: var(--ds-color-text-primary);
+  text-decoration: underline; text-underline-offset: 3px;
+  -webkit-tap-highlight-color: transparent;
+}
 
 .sp__tags { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }
 .sp__tag {
