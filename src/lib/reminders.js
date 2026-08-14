@@ -1,5 +1,9 @@
 // Påminnelser for hjem-skjermen — rene funksjoner, ingen state.
-// Rangert etter hastegrad: dommer (tidskritisk) → resultat → utlegg → referat.
+//
+// Rangert: dommer → utlegg → treningsplan → resultat → referat. Maks tre kort,
+// og flere ærend på SAMME kamp blir ett kort. Rekkefølgen bestemmes til slutt,
+// ikke av hvilken sjekk som kjører først — ellers kunne utlegg falle ut av
+// taket fordi dens sjekk lå sist i fila.
 
 import { relativeDateLabel, localISODate } from './dateLabels'
 import { isHomeMatch, isHalsenMatch, isPlayed, hasResult } from './matchMeta'
@@ -46,6 +50,7 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
       // en gjentakelse 30 cm lenger ned. Gjelder det en ANNEN kamp, bærer
       // navnet informasjon og blir stående.
       title: m.id === primaryMatchId ? 'Dommer mangler' : `Dommer mangler mot ${m.away_team}`,
+      action: 'Finn dommer',
       body: `${when.charAt(0).toUpperCase()}${when.slice(1)}${time && time !== '00:00' ? ` · ${time}` : ''}`,
       matchId: m.id
     })
@@ -83,6 +88,7 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
       // Underlinja er neste handling, ikke historikk. Når og hvilken periode
       // som gikk ut står på Trening-fanen — her er det bare i veien.
       body: 'Sett opp ny plan',
+      action: 'Sett opp ny plan',
       to: '/trening'
     })
   }
@@ -117,6 +123,7 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
       // hva som skjedde, ikke hva du skal gjøre — og uten resultatet er både
       // tabellen og toppscorerlista feil.
       body: resultLess.length === 1 ? 'Legg inn resultatet' : 'Legg inn resultatene',
+      action: resultLess.length === 1 ? 'Legg inn resultatet' : 'Legg inn resultatene',
       matchId: m.id
     })
   }
@@ -142,6 +149,7 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
         : `${pendingExpense.length} kamper venter på utlegg`,
       // Konsekvensen er at pengene ikke kommer tilbake før det er ført.
       body: pendingExpense.length === 1 ? 'Før utlegget' : 'Før utleggene',
+      action: pendingExpense.length === 1 ? 'Før utlegget' : 'Før utleggene',
       matchId: m.id
     })
   }
@@ -172,11 +180,55 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
         ? `Referat mangler mot ${opponent}`
         : `${reportLess.length} kamper mangler referat`,
       body: reportLess.length === 1 ? 'Skriv referatet' : 'Skriv referatene',
+      action: reportLess.length === 1 ? 'Skriv referatet' : 'Skriv referatene',
       matchId: m.id
     })
   }
 
-  return reminders
+  // Rangeringen. Dommer først fordi kampen ikke kan spilles uten; utlegg
+  // fordi det er dine egne penger. Så treningsplanen — den har en dato foran
+  // seg. Resultat og referat er data som kan hentes inn senere.
+  const VEKT = {
+    'no-ref': 1,
+    'pending-expense': 2,
+    'no-training-plan': 3,
+    'no-result': 4,
+    'no-report': 5
+  }
+  const vekt = r => VEKT[r.lead || r.kind] ?? 9
+
+  // Gjelder flere ærend samme kamp, blir de ETT kort. Ellers sto motstanderen
+  // to ganger under «Å ordne» — samme gjentakelse vi fjernet for dommeren.
+  // Kortet arver tittelen fra det viktigste ærendet og lister handlingene.
+  const perKamp = new Map()
+  const utenKamp = []
+  for (const r of reminders) {
+    if (!r.matchId) { utenKamp.push(r); continue }
+    const liste = perKamp.get(r.matchId) || []
+    liste.push(r)
+    perKamp.set(r.matchId, liste)
+  }
+
+  const slaattSammen = []
+  for (const [matchId, liste] of perKamp) {
+    const sortert = [...liste].sort((a, b) => vekt(a) - vekt(b))
+    if (sortert.length === 1) { slaattSammen.push(sortert[0]); continue }
+    const forste = sortert[0]
+    slaattSammen.push({
+      ...forste,
+      kind: 'match-todo',
+      lead: forste.kind,
+      body: sortert.map(r => r.action).filter(Boolean).join(' · '),
+      // Er ett av ærendene påkrevd, er kortet det. Og et kort kan bare skjules
+      // hvis alt det dekker kan skjules.
+      tone: sortert.some(r => r.tone === 'urgent') ? 'urgent' : 'soft',
+      dismissable: sortert.every(r => r.dismissable),
+      key: `${matchId}:${sortert.map(r => r.kind).join('+')}`
+    })
+  }
+
+  return [...slaattSammen, ...utenKamp]
+    .sort((a, b) => vekt(a) - vekt(b))
     .filter(r => !dismissedKeys.has(r.key || `${r.kind}:${r.matchId}`))
     .slice(0, MAX_REMINDERS)
 }
