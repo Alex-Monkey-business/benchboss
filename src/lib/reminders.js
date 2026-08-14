@@ -76,12 +76,13 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
       // på «skjul» gjemt påminnelsen for alltid — også neste gang en helt ny
       // plan renner ut.
       key: `no-training-plan:${ended?.end_date || 'ingen'}`,
-      title: ended
-        ? `Treningsplanen gikk ut ${relativeDateLabel(ended.end_date).toLowerCase()}`
-        : 'Ingen treningsplan lagt inn',
+      // Konsekvensen først, statusen under. «Treningsplanen gikk ut forrige
+      // tirsdag» er en datoopplysning; det som faktisk betyr noe er at ingen
+      // vet hva som skal skje på banen neste gang.
+      title: 'Ingen plan for neste trening',
       body: ended
-        ? `«${ended.title}» var siste periode`
-        : 'Ingen perioder lagt inn',
+        ? `«${ended.title}» gikk ut ${relativeDateLabel(ended.end_date).toLowerCase()}`
+        : 'Ingen treningsplan lagt inn',
       to: '/trening'
     })
   }
