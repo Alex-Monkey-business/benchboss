@@ -6,14 +6,13 @@ import { usePlayers } from '../composables/usePlayers'
 import { usePlayerSeasonTeams } from '../composables/usePlayerSeasonTeams'
 import { useToast } from '../composables/useToast'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
-import { POSITIONS, playerPositions } from '../lib/playerPositions'
+import { playerPositions } from '../lib/playerPositions'
 import Sheet from '../components/Sheet.vue'
-import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const { isParent } = useAuth()
 const { activeSeason, fetchSeasons } = useSeasons()
-const { players, fetchPlayers, addPlayer, updatePlayer, deletePlayer } = usePlayers()
-const { fetchPlayerSeasonTeams, isLoanEligible, setLoanEligible } = usePlayerSeasonTeams()
+const { players, fetchPlayers, addPlayer, updatePlayer } = usePlayers()
+const { fetchPlayerSeasonTeams, isLoanEligible } = usePlayerSeasonTeams()
 const { seasonTeams } = useSeasonTeams()
 const { show: showToast } = useToast()
 
@@ -73,44 +72,6 @@ async function handleAdd() {
   showAdd.value = false
 }
 
-// Rediger / slett spiller
-const editTarget = ref(null)
-const editName = ref('')
-const editTeam = ref('')
-const editLoanEligible = ref(false)
-const editPositions = ref([])
-const toDelete = ref(null)
-function openEdit(p) {
-  editTarget.value = p
-  editName.value = p.name
-  editTeam.value = p.primary_team || ''
-  editLoanEligible.value = isLoanEligible(p, seasonId.value)
-  editPositions.value = [...playerPositions(p)]
-}
-function togglePosition(value) {
-  const i = editPositions.value.indexOf(value)
-  if (i > -1) editPositions.value.splice(i, 1)
-  else editPositions.value.push(value)
-}
-async function saveEdit() {
-  const name = editName.value.trim()
-  if (!name || !editTarget.value) return
-  const id = editTarget.value.id
-  // Dobbeltskriving i overgangen: player_season_teams er den varige raden,
-  // players.loan_eligible holdes i sync til kolonnen droppes.
-  await updatePlayer(id, { name, primary_team: editTeam.value, loan_eligible: editLoanEligible.value, positions: editPositions.value })
-  await setLoanEligible(id, seasonId.value, editLoanEligible.value, editTeam.value)
-  showToast('Spiller oppdatert', 'success')
-  editTarget.value = null
-}
-async function confirmDelete() {
-  if (!toDelete.value) return
-  const name = toDelete.value.name
-  await deletePlayer(toDelete.value.id)
-  toDelete.value = null
-  editTarget.value = null
-  showToast(`${name} slettet`, 'success')
-}
 </script>
 
 <template>
@@ -137,7 +98,7 @@ async function confirmDelete() {
       <!-- Samme layout i lese- og edit-modus: lag-kort med chips -->
       <template v-else>
         <p v-if="canEdit && hasEligible" class="star-legend"><span class="chip__star">★</span> = egnet som lånespiller</p>
-        <p v-if="canEdit && editing && missingPositions" class="star-legend">{{ missingPositions }} uten posisjon</p>
+        <p v-if="canEdit && missingPositions" class="star-legend">{{ missingPositions }} uten posisjon</p>
 
         <section v-for="t in seasonTeams" :key="t.slug" class="teamcard" :data-accent="t.accent">
           <header class="teamcard__head">
@@ -149,7 +110,7 @@ async function confirmDelete() {
           <p v-if="teamPlayers(t.slug).length === 0" class="teamcard__empty">Ingen spillere lagt til ennå.</p>
           <div v-else class="roster">
             <span v-for="p in teamPlayers(t.slug)" :key="p.id" class="chip chip--team">
-              <button v-if="editing" type="button" class="chip__name" @click="openEdit(p)">{{ p.name }}</button>
+              <router-link v-if="canEdit" :to="`/spiller/${p.id}`" class="chip__name">{{ p.name }}</router-link>
               <template v-else>{{ p.name }}</template>
               <span v-if="eligible(p)" class="chip__star" title="Egnet som lånespiller">★</span>
               <button v-if="editing" type="button" class="chip__x" :aria-label="`Ta ${p.name} av laget`" @click="remove(p.id)">×</button>
@@ -164,7 +125,7 @@ async function confirmDelete() {
           </header>
           <div class="roster">
             <span v-for="p in unplaced" :key="p.id" class="chip chip--muted">
-              <button v-if="editing" type="button" class="chip__name" @click="openEdit(p)">{{ p.name }}</button>
+              <router-link v-if="canEdit" :to="`/spiller/${p.id}`" class="chip__name">{{ p.name }}</router-link>
               <template v-else>{{ p.name }}</template>
               <span v-if="eligible(p)" class="chip__star" title="Egnet som lånespiller">★</span>
               <span v-if="editing" class="chip__assign">
@@ -202,62 +163,6 @@ async function confirmDelete() {
       </div>
     </Sheet>
 
-    <Sheet :show="!!editTarget" title="Rediger spiller" @close="editTarget = null">
-      <div class="ds-form-group">
-        <label class="ds-label">Navn</label>
-        <input v-model="editName" class="ds-input" placeholder="Navn" @keydown.enter="saveEdit" />
-      </div>
-      <div class="ds-form-group">
-        <label class="ds-label ds-label--optional">Lag</label>
-        <select v-model="editTeam" class="ds-input">
-          <option v-for="opt in TEAM_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-        </select>
-      </div>
-      <div class="ds-form-group">
-        <label class="ds-label ds-label--optional">Posisjoner</label>
-        <div class="poschips">
-          <button
-            v-for="o in POSITIONS"
-            :key="o.value"
-            type="button"
-            class="poschip"
-            :class="{ 'poschip--on': editPositions.includes(o.value) }"
-            @click="togglePosition(o.value)"
-          >{{ o.label }}</button>
-        </div>
-        <p class="poschips__hint">Sorterer forslagene i kampmodus</p>
-      </div>
-
-      <button
-        type="button"
-        class="loan-toggle"
-        :class="{ 'loan-toggle--on': editLoanEligible }"
-        @click="editLoanEligible = !editLoanEligible"
-      >
-        <span class="loan-toggle__star">★</span>
-        <span class="loan-toggle__text">
-          <span class="loan-toggle__title">Egnet som lånespiller</span>
-        </span>
-        <span class="loan-toggle__switch" :class="{ 'loan-toggle__switch--on': editLoanEligible }"></span>
-      </button>
-      <div class="sheet-actions sheet-actions--with-delete">
-        <button class="sheet-actions__delete" @click="toDelete = editTarget" aria-label="Slett spiller">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
-        </button>
-        <button class="ds-btn ds-btn--secondary" @click="editTarget = null">Avbryt</button>
-        <button class="ds-btn ds-btn--primary" :disabled="!editName.trim()" @click="saveEdit">Lagre</button>
-      </div>
-    </Sheet>
-
-    <ConfirmDialog
-      :show="!!toDelete"
-      title="Slett spiller?"
-      :message="`Er du sikker på at du vil slette ${toDelete?.name}? Tilknytninger til kamper fjernes også.`"
-      confirm-label="Slett"
-      variant="warning"
-      @confirm="confirmDelete"
-      @cancel="toDelete = null"
-    />
   </div>
 </template>
 
@@ -382,55 +287,6 @@ async function confirmDelete() {
   box-shadow: 0 0 0 1px var(--ds-color-border-light);
 }
 .chip__dot:hover { transform: scale(1.15); }
-
-/* Egnet-som-lånespiller toggle (rediger-sheet) */
-.loan-toggle {
-  display: flex; align-items: center; gap: var(--ds-space-md);
-  width: 100%; text-align: left; cursor: pointer;
-  padding: var(--ds-space-md);
-  margin-top: var(--ds-space-xs);
-  border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-md);
-  background: var(--ds-color-bg-elevated); transition: border-color .15s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.loan-toggle--on { border-color: var(--ds-color-warning); }
-.loan-toggle__star { font-size: 18px; color: var(--ds-color-border-strong); flex: none; }
-.loan-toggle--on .loan-toggle__star { color: var(--ds-color-warning); }
-.loan-toggle__text { display: flex; flex-direction: column; gap: 2px; flex: 1; min-width: 0; }
-.loan-toggle__title { font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); font-size: var(--ds-text-sm); }
-.loan-toggle__sub { font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary); }
-.loan-toggle__switch {
-  flex: none; width: 40px; height: 24px; border-radius: var(--ds-radius-full);
-  background: var(--ds-color-border); position: relative; transition: background .15s ease;
-}
-.loan-toggle__switch::after {
-  content: ''; position: absolute; top: 2px; left: 2px;
-  width: 20px; height: 20px; border-radius: 50%; background: #fff;
-  transition: transform .15s ease; box-shadow: var(--ds-shadow-xs);
-}
-.loan-toggle__switch--on { background: var(--ds-color-warning); }
-.loan-toggle__switch--on::after { transform: translateX(16px); }
-
-/* Posisjons-chips (rediger-sheet) */
-/* To kolonner så valgene leser som én velger, ikke løse tagger. Det femte
-   valget tar full bredde i stedet for å stå igjen alene i venstre kolonne. */
-.poschips { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ds-space-sm); }
-.poschips .poschip:last-child:nth-child(odd) { grid-column: 1 / -1; }
-.poschip {
-  padding: 11px 14px; cursor: pointer;
-  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-full);
-  background: var(--ds-color-bg-elevated);
-  transition: border-color .15s ease, background .15s ease, color .15s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.poschip--on {
-  border-color: var(--ds-color-accent);
-  background: var(--ds-color-accent);
-  color: var(--ds-color-accent-text);
-}
-.poschips__hint { margin: var(--ds-space-sm) 0 0; font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary); }
 
 .chip__star { color: var(--ds-color-warning); font-size: 11px; margin: 0 -2px 0 1px; }
 

@@ -8,6 +8,7 @@ import { usePlayers } from '../composables/usePlayers'
 import { usePlayerSeasonTeams } from '../composables/usePlayerSeasonTeams'
 import { useMatchGoals } from '../composables/useMatchGoals'
 import { useMatchMode } from '../composables/useMatchMode'
+import { usePlayerStats } from '../composables/usePlayerStats'
 import AnimatedNumber from '../components/AnimatedNumber.vue'
 import Skeleton from '../components/Skeleton.vue'
 import FormCurve from '../components/FormCurve.vue'
@@ -22,6 +23,8 @@ const { players, fetchPlayers } = usePlayers()
 const { fetchPlayerSeasonTeams, teamForSeason } = usePlayerSeasonTeams()
 const { goals: allGoals, fetchAllGoals } = useMatchGoals()
 const { stints, fetchAllStints } = useMatchMode()
+// Kamper, mål og spilletid per spiller regnes ett sted — delt med spillerprofilen.
+const { statsFor } = usePlayerStats()
 
 // Lagfargen slik den var i sesongen man ser på — ikke slik lagene står i dag.
 const teamOf = p => teamForSeason(p, viewingSeason.value?.id)
@@ -208,25 +211,15 @@ const refereeStats = computed(() => {
 })
 
 // Hospitant-leaderboard
-const playerStats = computed(() => {
-  const counts = {}
-  const upcoming = {}
-  matchPlayers.value.forEach(mp => {
-    if (playedMatchIds.value.has(mp.match_id)) {
-      counts[mp.player_id] = (counts[mp.player_id] || 0) + 1
-    } else if (upcomingMatchIds.value.has(mp.match_id)) {
-      upcoming[mp.player_id] = (upcoming[mp.player_id] || 0) + 1
-    }
-  })
-  return players.value
-    .map(p => ({
-      id: p.id, name: p.name, primary_team: teamOf(p),
-      count: counts[p.id] || 0,
-      upcoming: upcoming[p.id] || 0
-    }))
+const playerStats = computed(() =>
+  players.value
+    .map(p => {
+      const st = statsFor(p.id)
+      return { id: p.id, name: p.name, primary_team: teamOf(p), count: st.extra, upcoming: st.upcomingExtra }
+    })
     .filter(p => p.count > 0 || p.upcoming > 0)
     .sort((a, b) => b.count - a.count || b.upcoming - a.upcoming || a.name.localeCompare(b.name))
-})
+)
 
 // Toppscorere — kun mål registrert i denne sesongens kamper.
 // Vises kollapset (topp 5) som standard — listen er for gøy, ikke styring.
@@ -234,17 +227,12 @@ const SCORER_LIMIT = 5
 const showAllScorers = ref(false)
 // Spilletid er sparsom til match mode er ordentlig i bruk — kollapset som default.
 const showPlaytime = ref(false)
-const topScorers = computed(() => {
-  const counts = {}
-  allGoals.value.forEach(g => {
-    if (!playedMatchIds.value.has(g.match_id)) return
-    counts[g.player_id] = (counts[g.player_id] || 0) + 1
-  })
-  return players.value
-    .map(p => ({ id: p.id, name: p.name, primary_team: teamOf(p), count: counts[p.id] || 0 }))
+const topScorers = computed(() =>
+  players.value
+    .map(p => ({ id: p.id, name: p.name, primary_team: teamOf(p), count: statsFor(p.id).goals }))
     .filter(p => p.count > 0)
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name))
-})
+)
 
 const visibleScorers = computed(() =>
   showAllScorers.value ? topScorers.value : topScorers.value.slice(0, SCORER_LIMIT)
@@ -254,26 +242,12 @@ const visibleScorers = computed(() =>
 // Spilletid sammenlignes kun INNAD i laget (på tvers av lag er det meningsløst);
 // barene er relative til lagets toppspiller. Kun lukkede stints telles.
 const playtimeByTeam = computed(() => {
-  const seasonIds = new Set(matches.value.map(m => m.id))
-  const fieldSec = {}, keeperSec = {}, gamesByPlayer = {}
-  stints.value.forEach(s => {
-    if (!seasonIds.has(s.match_id)) return
-    if (s.off_clock == null) return
-    const dur = Math.max(0, s.off_clock - s.on_clock)
-    if (s.role === 'keeper') keeperSec[s.player_id] = (keeperSec[s.player_id] || 0) + dur
-    else fieldSec[s.player_id] = (fieldSec[s.player_id] || 0) + dur
-    ;(gamesByPlayer[s.player_id] || (gamesByPlayer[s.player_id] = new Set())).add(s.match_id)
-  })
   const rows = players.value
     .map(p => {
-      const f = fieldSec[p.id] || 0
-      const k = keeperSec[p.id] || 0
-      const total = f + k
-      const games = gamesByPlayer[p.id]?.size || 0
+      const st = statsFor(p.id)
       return {
         id: p.id, name: p.name, primary_team: teamOf(p),
-        keeperSec: k, totalSec: total, games,
-        avgSec: games ? Math.round(total / games) : 0
+        keeperSec: st.keeperSec, totalSec: st.totalSec, games: st.timedGames, avgSec: st.avgSec
       }
     })
     .filter(p => p.totalSec > 0)

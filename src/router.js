@@ -61,6 +61,14 @@ const routes = [
     component: () => import('./views/SerieTroppView.vue'),
     meta: { roles: PARENT_AND_COACH }
   },
+  // Spillerprofil: posisjoner, kamper, mål og spilletid om ett navngitt barn.
+  // Ingen meta = trener-only, med vilje. Foreldre ser troppen, men skal ikke
+  // kunne åpne en spiller.
+  {
+    path: '/spiller/:id',
+    name: 'spiller',
+    component: () => import('./views/SpillerView.vue')
+  },
   // ---- Cup-modul: kampoversikt (trenere + foreldre, read-only) ----
   {
     path: '/cup',
