@@ -255,7 +255,7 @@ onMounted(load)
       </div>
 
       <div v-for="group in grouped" :key="group.role" class="px-lg tilgang-group">
-        <h2 class="hjem-section-kicker">{{ group.title }}</h2>
+        <h2 class="ds-section-label">{{ group.title }}</h2>
         <div class="tilgang-list">
           <component
             :is="canInvite ? 'button' : 'div'"

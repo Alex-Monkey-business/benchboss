@@ -97,8 +97,10 @@ async function handleAdd() {
 
       <!-- Samme layout i lese- og edit-modus: lag-kort med chips -->
       <template v-else>
-        <p v-if="canEdit && hasEligible" class="star-legend"><span class="chip__star">★</span> = egnet som lånespiller</p>
-        <p v-if="canEdit && missingPositions" class="star-legend">{{ missingPositions }} uten posisjon</p>
+        <div v-if="canEdit && (hasEligible || missingPositions)" class="legends">
+          <p v-if="hasEligible" class="star-legend"><span class="chip__star">★</span> = egnet som lånespiller</p>
+          <p v-if="missingPositions" class="star-legend">{{ missingPositions }} uten posisjon</p>
+        </div>
 
         <section v-for="t in seasonTeams" :key="t.slug" class="teamcard" :data-accent="t.accent">
           <header class="teamcard__head">
@@ -290,9 +292,16 @@ async function handleAdd() {
 
 .chip__star { color: var(--ds-color-warning); font-size: 11px; margin: 0 -2px 0 1px; }
 
+/* To forklaringslinjer sto som inline-flex og kolliderte på samme linje uten
+   mellomrom: «★ = egnet som lånespiller16 uten posisjon». Beholderen eier nå
+   både retningen og luften. */
+.legends {
+  display: flex; flex-wrap: wrap; column-gap: var(--ds-space-md); row-gap: 4px;
+  margin-bottom: var(--ds-space-md);
+}
 .star-legend {
   display: inline-flex; align-items: center; gap: 5px;
-  margin: 0 0 var(--ds-space-md);
+  margin: 0;
   font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary);
 }
 .star-legend .chip__star { font-size: 12px; margin: 0; }

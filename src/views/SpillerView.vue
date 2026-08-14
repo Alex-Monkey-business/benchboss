@@ -149,7 +149,7 @@ async function confirmDelete() {
       </header>
 
       <section class="sp__section">
-        <h2 class="sp__h2">Posisjoner</h2>
+        <h2 class="ds-section-label sp__h2">Posisjoner</h2>
         <div v-if="positions.length" class="sp__tags">
           <span v-for="v in positions" :key="v" class="sp__tag">{{ positionLabel(v) }}</span>
         </div>
@@ -161,7 +161,7 @@ async function confirmDelete() {
            til fjorårets tall herfra. -->
       <section class="sp__section">
         <div class="sp__seasonrow">
-          <h2 class="sp__h2">Sesong</h2>
+          <h2 class="ds-section-label sp__h2">Sesong</h2>
           <SeasonPicker />
         </div>
         <div class="sp__stats">
@@ -181,7 +181,7 @@ async function confirmDelete() {
       </section>
 
       <section class="sp__section">
-        <h2 class="sp__h2">Spilletid</h2>
+        <h2 class="ds-section-label sp__h2">Spilletid</h2>
         <div v-if="hasTimed" class="sp__stats">
           <div class="sp__stat">
             <span class="sp__statnum">{{ mins(stats.totalSec) }}</span>
@@ -203,7 +203,7 @@ async function confirmDelete() {
       </section>
 
       <section v-if="recentMatches.length" class="sp__section">
-        <h2 class="sp__h2">Siste kamper</h2>
+        <h2 class="ds-section-label sp__h2">Siste kamper</h2>
         <ul class="sp__matches">
           <li v-for="m in recentMatches" :key="m.id">
             <router-link :to="`/kamp/${m.id}`" class="sp__match">
@@ -215,7 +215,7 @@ async function confirmDelete() {
       </section>
 
       <section v-if="teamHistory.length > 1" class="sp__section">
-        <h2 class="sp__h2">Lag gjennom sesongene</h2>
+        <h2 class="ds-section-label sp__h2">Lag gjennom sesongene</h2>
         <ul class="sp__history">
           <li v-for="h in teamHistory" :key="h.id" class="sp__histrow">
             <span class="sp__histseason">{{ h.season }}</span>
@@ -315,12 +315,8 @@ async function confirmDelete() {
 .sp__star { color: var(--ds-color-warning); }
 
 .sp__section { padding: 0 var(--ds-space-lg) var(--ds-space-xl); }
-.sp__h2 {
-  margin: 0 0 var(--ds-space-sm);
-  font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold);
-  text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--ds-color-text-tertiary);
-}
+/* Utseendet kommer fra .ds-section-label; her bare marginen i denne siden. */
+.sp__h2 { margin: 0 0 var(--ds-space-sm); }
 .sp__section .sp__muted { padding: 0; }
 .sp__seasonrow {
   display: flex; align-items: baseline; justify-content: space-between;
@@ -359,12 +355,14 @@ async function confirmDelete() {
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%;
 }
 .sp__matchdate { flex: none; font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary); }
+.sp__matches li:last-child .sp__match { border-bottom: 0; }
 
 .sp__histrow {
   display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md);
   padding: 9px 0; border-bottom: 1px solid var(--ds-color-border);
   font-size: var(--ds-text-sm);
 }
+.sp__histrow:last-child { border-bottom: 0; }
 .sp__histseason { color: var(--ds-color-text-secondary); }
 .sp__histteam { color: var(--ds-color-text-tertiary); }
 

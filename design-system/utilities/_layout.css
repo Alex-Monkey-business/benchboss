@@ -115,3 +115,24 @@
   border-top: 1px solid var(--ds-color-border);
   margin: var(--ds-space-lg) 0;
 }
+
+/* ---- Seksjonsetikett ----
+
+   Den lille versal-etiketten over en gruppe rader. Fantes fra før i fire
+   scoped kopier (hjem-section-kicker, stat-section-label, admin-section-label,
+   sp__h2) — og TilgangView lånte klassenavnet fra HjemView uten å få stilen,
+   siden scoped CSS ikke krysser komponenter. Overskriftene der falt tilbake
+   til appens h2, altså display-serif i full størrelse.
+
+   `font-family` må stå eksplisitt: brukes utilityen på en <h2>, arver den
+   ellers display-serifen. */
+
+.ds-section-label {
+  margin: var(--ds-space-sm) 0 var(--ds-space-sm);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+}
