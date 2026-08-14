@@ -14,8 +14,8 @@ const DEMO_PLAYERS = [
   // Rød — full tropp for demo-kampen Halsen Rød vs Sem Gul
   { id: 'p-1', name: 'Lukas', primary_team: 'rod', positions: ['keeper', 'forsvar'] },
   { id: 'p-2', name: 'Oliver', primary_team: 'rod', positions: ['forsvar'] },
-  { id: 'p-3', name: 'Filip', primary_team: 'rod', positions: ['forsvar', 'midtbane'] },
-  { id: 'p-4', name: 'Noah', primary_team: 'rod', positions: ['midtbane'] },
+  { id: 'p-3', name: 'Filip', primary_team: 'rod', positions: ['forsvar', 'sentral'] },
+  { id: 'p-4', name: 'Noah', primary_team: 'rod', positions: ['midtbane', 'sentral'] },
   { id: 'p-5', name: 'Aksel', primary_team: 'rod', positions: ['midtbane', 'angrep'] },
   { id: 'p-6', name: 'Emil', primary_team: 'rod', positions: ['angrep'] },
   { id: 'p-7', name: 'Jakob', primary_team: 'rod', positions: ['keeper'] },

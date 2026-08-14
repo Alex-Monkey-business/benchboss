@@ -412,8 +412,10 @@ async function confirmDelete() {
 .loan-toggle__switch--on::after { transform: translateX(16px); }
 
 /* Posisjons-chips (rediger-sheet) */
-/* 2×2 så fire like valg leser som én velger, ikke fire løse tagger. */
+/* To kolonner så valgene leser som én velger, ikke løse tagger. Det femte
+   valget tar full bredde i stedet for å stå igjen alene i venstre kolonne. */
 .poschips { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ds-space-sm); }
+.poschips .poschip:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .poschip {
   padding: 11px 14px; cursor: pointer;
   font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium);

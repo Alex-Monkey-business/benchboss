@@ -8,15 +8,29 @@ export const POSITIONS = [
   { value: 'keeper',   label: 'Keeper' },
   { value: 'forsvar',  label: 'Forsvar' },
   { value: 'midtbane', label: 'Midtbane' },
+  { value: 'sentral',  label: 'Sentral' },
   { value: 'angrep',   label: 'Angrep' }
 ]
 
 const ORDER = POSITIONS.map(p => p.value)
 
-// Formasjons-slot → posisjon. Slot-ID-ene bærer posisjonen i bokstaven
-// (gk, d1, m2, f1), så en ny formasjon trenger ingen endring her.
+// Slot → posisjon.
+//
+// Kartet ligger her og ikke på formasjonen i viewet, fordi lagrede stints
+// bærer slot-IDen: en avsluttet kamp må kunne slås opp uten at kampmodus er
+// lastet. Bokstav-fallbacken under holder en framtidig 9er- eller 11er-
+// formasjon i live til den får sine egne rader her.
+const SLOT_POSITIONS = {
+  gk: 'keeper',
+  d1: 'forsvar', d2: 'forsvar',
+  m1: 'midtbane', m3: 'midtbane',
+  m2: 'sentral',
+  f1: 'angrep'
+}
+
 export function positionForSlot(slotId) {
   if (!slotId) return null
+  if (SLOT_POSITIONS[slotId]) return SLOT_POSITIONS[slotId]
   if (slotId === 'gk') return 'keeper'
   if (slotId.startsWith('d')) return 'forsvar'
   if (slotId.startsWith('m')) return 'midtbane'
