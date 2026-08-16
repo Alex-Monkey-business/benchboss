@@ -8,7 +8,6 @@ import { useToast } from '../composables/useToast'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ExercisePicker from '../components/ExercisePicker.vue'
-import ExerciseFields from '../components/ExerciseFields.vue'
 import { sessionIllustration, illoWebp, illoPng } from '../lib/sessionVisuals'
 import { WEEKDAY_LABELS } from '../lib/dateLabels'
 
@@ -16,7 +15,7 @@ const route = useRoute()
 const router = useRouter()
 const { getPeriod, fetchPeriods } = useTrainingPeriods()
 const { sessions, loadedPeriod, fetchSessions, updateSession, removeSession } = useTrainingSessions()
-const { fetchExercises, createExercise, upsertFromDrill } = useExercises()
+const { exercises, supportsCategory, fetchExercises, createExercise } = useExercises()
 const { show: showToast } = useToast()
 
 const heroLoaded = ref(false)
@@ -26,6 +25,17 @@ const oktId = computed(() => route.params.oktId)
 const period = computed(() => getPeriod(periodId.value))
 const okt = computed(() => sessions.value.find(s => s.id === oktId.value) || null)
 const drillCount = computed(() => (okt.value?.drills || []).length)
+
+// Øvelsen har én fasit, og den bor i banken. Retter du en skrivefeil der,
+// slår den gjennom i øktene som bruker øvelsen — uten at du må lete dem opp.
+// Den lagrede kopien i økta er et sikkerhetsnett: forsvinner øvelsen fra
+// banken, står planen igjen med det den hadde da du la den inn.
+const drills = computed(() =>
+  (okt.value?.drills || []).map(d => {
+    const ex = d.exercise_id ? exercises.value.find(e => e.id === d.exercise_id) : null
+    return ex ? exerciseToDrill(ex) : d
+  })
+)
 
 // Bildet velges av ukedagen, ikke av deg — se lib/sessionVisuals.
 const heroIllo = computed(() => sessionIllustration(okt.value))
@@ -94,79 +104,28 @@ function toggleExercise(ex) {
   )
 }
 
-// Fant du ikke øvelsen i banken, lager søket den. Ingen egen «skriv selv»-vei
-// inn — én knapp legger til øvelser, uansett om de finnes fra før.
-async function createFromSearch(name) {
-  const row = await createExercise({
-    name: name.trim(),
-    type: 'none',
-    category: null,
-    tema: null,
-    organisering: null,
-    laeringsmomenter: [],
-    link: null
-  })
+// Fant du ikke øvelsen i banken, lager plukkeren den — og den havner både i
+// banken og i økta. Det er det eneste skjemaet du møter herfra.
+async function createFromPicker(f) {
+  const payload = {
+    name: f.name.trim(),
+    type: f.type,
+    tema: f.tema.trim() || null,
+    organisering: f.organisering.trim() || null,
+    laeringsmomenter: f.laeringsmomenter.split('\n').map(s => s.trim()).filter(Boolean),
+    link: f.link.url.trim() ? { label: f.link.label.trim(), url: f.link.url.trim() } : null
+  }
+  if (supportsCategory.value) payload.category = f.category || null
+  const row = await createExercise(payload)
   if (row) {
     await queueDrills(ds => [...ds, exerciseToDrill(row)])
     showToast(`«${row.name}» lagt til`, 'success')
   }
 }
 
-// ---- Én øvelse om gangen ----
-const showDrill = ref(false)
-const drillIndex = ref(-1)
-const drillForm = ref(emptyDrillForm())
-const savingDrill = ref(false)
-
-function emptyDrillForm() {
-  return { name: '', type: 'none', category: '', tema: '', organisering: '', laeringsmomenter: '', link: { label: '', url: '' } }
-}
-
-function openDrill(i) {
-  const d = okt.value.drills[i]
-  drillIndex.value = i
-  drillForm.value = {
-    name: d.text || '',
-    type: d.type || 'none',
-    category: '',
-    tema: d.tema || '',
-    organisering: d.organisering || '',
-    laeringsmomenter: (d.laeringsmomenter || []).join('\n'),
-    link: d.link ? { label: d.link.label || '', url: d.link.url || '' } : { label: '', url: '' },
-    exercise_id: d.exercise_id || null
-  }
-  showDrill.value = true
-}
-
-async function saveDrill() {
-  const f = drillForm.value
-  if (!f.name.trim() || savingDrill.value) return
-  savingDrill.value = true
-  const drill = {
-    type: f.type,
-    text: f.name.trim(),
-    tema: f.tema.trim() || null,
-    organisering: f.organisering.trim() || null,
-    laeringsmomenter: f.laeringsmomenter.split('\n').map(s => s.trim()).filter(Boolean),
-    link: f.link.url.trim() ? { label: f.link.label.trim(), url: f.link.url.trim() } : null,
-    exercise_id: f.exercise_id || null
-  }
-  // Alle øvelser lever i banken — en ny fanges automatisk der.
-  if (!drill.exercise_id) {
-    const ex = await upsertFromDrill(drill)
-    if (ex) drill.exercise_id = ex.id
-  }
-  const i = drillIndex.value
-  await queueDrills(ds => ds.map((d, idx) => (idx === i ? drill : d)))
-  savingDrill.value = false
-  showDrill.value = false
-}
-
 // Fjerne fra økta er ikke sletting: øvelsen blir liggende i banken.
-function removeDrillFromSession() {
-  const i = drillIndex.value
+function removeDrillFromSession(i) {
   const d = okt.value?.drills?.[i]
-  showDrill.value = false
   if (!d) return
   queueDrills(ds => ds.filter((_, idx) => idx !== i))
   showToast(d.exercise_id ? 'Fjernet — ligger i banken' : 'Fjernet', 'success')
@@ -232,18 +191,9 @@ onMounted(async () => {
     </div>
     <div class="chapter__body">
 
-    <!-- Øvelser: trykk på én for å redigere den alene -->
+    <!-- Øvelser: økta er lesing. Innholdet redigeres i banken. -->
     <div v-if="drillCount" class="drills">
-      <div
-        v-for="(d, di) in okt.drills"
-        :key="di"
-        class="drill"
-        role="button"
-        tabindex="0"
-        @click="openDrill(di)"
-        @keydown.enter.prevent="openDrill(di)"
-        @keydown.space.prevent="openDrill(di)"
-      >
+      <div v-for="(d, di) in drills" :key="di" class="drill">
         <div class="drill__head">
           <span
             v-if="d.type && d.type !== 'none'"
@@ -251,7 +201,9 @@ onMounted(async () => {
             :class="`drill__badge--${d.type}`"
           >{{ d.type === 'diff' ? 'Diff' : 'Mix' }}</span>
           <h3 class="drill__name">{{ d.text }}</h3>
-          <svg class="drill__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <button type="button" class="drill__remove" aria-label="Fjern fra økta" title="Fjern fra økta" @click="removeDrillFromSession(di)">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+          </button>
         </div>
         <p v-if="d.tema" class="drill__focus">{{ d.tema }}</p>
 
@@ -267,7 +219,6 @@ onMounted(async () => {
           target="_blank"
           rel="noopener"
           class="drill__link"
-          @click.stop
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
           {{ d.link.label || d.link.url }}
@@ -309,21 +260,6 @@ onMounted(async () => {
       </form>
     </Sheet>
 
-    <!-- Én øvelse -->
-    <Sheet :show="showDrill" :title="drillForm.name || 'Øvelse'" @close="showDrill = false">
-      <form @submit.prevent="saveDrill">
-        <ExerciseFields :form="drillForm" />
-        <div class="sheet-actions">
-          <button type="button" class="ds-btn ds-btn--ghost sheet-actions__danger" @click="removeDrillFromSession">
-            Fjern fra økta
-          </button>
-          <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg sheet-actions__save" :disabled="!drillForm.name.trim() || savingDrill">
-            {{ savingDrill ? 'Lagrer…' : 'Lagre' }}
-          </button>
-        </div>
-      </form>
-    </Sheet>
-
     <ConfirmDialog
       :show="showDelete"
       title="Slett økt?"
@@ -339,7 +275,7 @@ onMounted(async () => {
       :current-drills="okt.drills || []"
       @close="showPicker = false"
       @toggle="toggleExercise"
-      @create="createFromSearch"
+      @create="createFromPicker"
     />
   </div>
 </template>
@@ -513,17 +449,9 @@ onMounted(async () => {
 .drill {
   padding: var(--ds-space-lg) 0;
   border-top: 1px solid rgba(255, 255, 255, 0.14);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: opacity var(--ds-duration-fast) var(--ds-ease-out);
 }
 
 .drill:first-child { padding-top: 0; border-top: 0; }
-.drill:active { opacity: 0.7; }
-
-@media (hover: hover) and (pointer: fine) {
-  .drill:hover .drill__chevron { opacity: 0.9; }
-}
 
 /* Scanne-linja: badge + navn */
 .drill__head {
@@ -561,16 +489,28 @@ onMounted(async () => {
   color: var(--hero-fg);
 }
 
-/* Stille hint om at øvelsen kan åpnes — skal ikke kjempe mot panelet */
-.drill__chevron {
-  width: 16px;
-  height: 16px;
+/* Stille handling — skal ikke kjempe mot panelet */
+.drill__remove {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
   flex-shrink: 0;
-  align-self: center;
+  align-self: flex-start;
+  border: none;
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
   color: var(--hero-fg);
-  opacity: 0.45;
+  opacity: 0.4;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
   transition: opacity var(--ds-duration-fast) var(--ds-ease-out);
 }
+
+.drill__remove svg { width: 15px; height: 15px; }
+.drill__remove:hover, .drill__remove:active { opacity: 0.9; }
 
 /* Legg-til-rad nederst i panelet */
 .drill-add {

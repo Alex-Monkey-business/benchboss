@@ -7,19 +7,13 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ExerciseFields from '../components/ExerciseFields.vue'
 
 const router = useRouter()
-const { exercises, fetchExercises, createExercise, updateExercise, deleteExercise } = useExercises()
+const { exercises, supportsCategory, fetchExercises, createExercise, updateExercise, deleteExercise } = useExercises()
 
 // Ekte tilbake: dit du kom fra (perioden, en økt …); /trening som fallback.
 function goBack() {
   if (window.history.state?.back) router.back()
   else router.push('/trening')
 }
-
-// Kolonnen category finnes først etter at ALTER-en er kjørt i Supabase.
-// Uten den: flat liste og ingen kategorivelger — appen knekker ikke.
-const supportsCategory = computed(() =>
-  exercises.value.length === 0 || 'category' in (exercises.value[0] || {})
-)
 
 const search = ref('')
 const showSearch = computed(() => exercises.value.length > 8)
@@ -134,9 +128,16 @@ onMounted(fetchExercises)
       </button>
     </div>
 
+    <!-- «Ny øvelse» ligger øverst: det var det Alex ikke fant da den lå
+         under en liste som kan bli hundre rader lang. -->
     <header class="bank__head">
-      <h1 class="bank__title">Øvelsesbank</h1>
-      <p class="bank__count">{{ exercises.length }} {{ exercises.length === 1 ? 'øvelse' : 'øvelser' }}</p>
+      <div class="bank__head-text">
+        <h1 class="bank__title">Øvelsesbank</h1>
+        <p class="bank__count">{{ exercises.length }} {{ exercises.length === 1 ? 'øvelse' : 'øvelser' }}</p>
+      </div>
+      <button v-if="exercises.length" type="button" class="ds-btn ds-btn--primary bank__new" @click="openNew">
+        Ny øvelse
+      </button>
     </header>
 
     <input
@@ -173,8 +174,6 @@ onMounted(fetchExercises)
         </div>
       </div>
       <p v-if="!filtered.length" class="bank__no-hits">Ingen treff på «{{ search }}»</p>
-
-      <button type="button" class="ds-btn ds-btn--primary bank__add" @click="openNew">Ny øvelse</button>
     </template>
 
     <!-- Detalj: visning først, redigering sekundært -->
@@ -261,7 +260,16 @@ onMounted(fetchExercises)
 
 .bank__nav { margin-bottom: var(--ds-space-xl); }
 
-.bank__head { margin-bottom: var(--ds-space-lg); }
+.bank__head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: var(--ds-space-md);
+  margin-bottom: var(--ds-space-lg);
+}
+
+.bank__head-text { min-width: 0; }
+.bank__new { flex-shrink: 0; }
 
 .bank__title {
   font-family: var(--ds-font-display);
@@ -377,7 +385,6 @@ onMounted(fetchExercises)
   margin: 0;
 }
 
-.bank__add { width: 100%; }
 
 /* ---- Visning av øvelse ---- */
 .ex-view {

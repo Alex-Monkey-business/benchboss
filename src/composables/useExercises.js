@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { demoId } from './useTrainingSessions'
 import { registerReset } from '../stores/dataReset'
@@ -66,6 +66,12 @@ export function drillToExercise(d) {
     link: d.link ? { label: d.link.label || '', url: d.link.url || '' } : null
   }
 }
+
+// Kolonnen category finnes først etter at ALTER-en er kjørt i Supabase.
+// Uten den: flat liste og ingen kategorivelger — appen knekker ikke.
+const supportsCategory = computed(() =>
+  exercises.value.length === 0 || 'category' in (exercises.value[0] || {})
+)
 
 export function useExercises() {
   async function fetchExercises() {
@@ -168,5 +174,5 @@ export function useExercises() {
     return createExercise(drillToExercise(d))
   }
 
-  return { exercises, loading, loaded, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill }
+  return { exercises, loading, loaded, supportsCategory, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill }
 }

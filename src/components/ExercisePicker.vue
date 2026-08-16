@@ -2,10 +2,15 @@
 import { ref, computed, watch } from 'vue'
 import { useExercises, groupByCategory } from '../composables/useExercises'
 import Sheet from './Sheet.vue'
+import ExerciseFields from './ExerciseFields.vue'
 
 // Plukk øvelser fra banken inn i en økt — toggle av/på. Å ta en øvelse ut av
 // økta sletter ingenting: den ligger fortsatt i banken. Sheeten blir stående
 // åpen så hele økta kan settes sammen i ett besøk.
+//
+// Her plukker du. Du redigerer ikke: innholdet i en øvelse hører hjemme i
+// banken. Eneste unntaket er å lage en ny — det er alltid et skjema, og det
+// er greit, for du vet at du lager noe.
 const props = defineProps({
   show: { type: Boolean, default: false },
   currentDrills: { type: Array, default: () => [] }
@@ -13,13 +18,20 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'toggle', 'create'])
 
-const { exercises, loaded, fetchExercises } = useExercises()
+const { exercises, loaded, supportsCategory, fetchExercises } = useExercises()
 
 const search = ref('')
+const mode = ref('list') // 'list' | 'new'
+const newForm = ref(emptyForm())
+
+function emptyForm() {
+  return { name: '', type: 'none', category: '', tema: '', organisering: '', laeringsmomenter: '', link: { label: '', url: '' } }
+}
 
 watch(() => props.show, (open) => {
   if (open) {
     search.value = ''
+    mode.value = 'list'
     if (!loaded.value) fetchExercises()
   }
 })
@@ -28,7 +40,9 @@ const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
   if (!q) return exercises.value
   return exercises.value.filter(e =>
-    e.name.toLowerCase().includes(q) || (e.tema || '').toLowerCase().includes(q)
+    e.name.toLowerCase().includes(q) ||
+    (e.tema || '').toLowerCase().includes(q) ||
+    (e.organisering || '').toLowerCase().includes(q)
   )
 })
 
@@ -36,8 +50,7 @@ const grouped = computed(() => groupByCategory(filtered.value))
 
 const selectedCount = computed(() => exercises.value.filter(isInSession).length)
 
-// Finnes ikke øvelsen, lager søket den. Da trengs ingen egen «skriv selv»-vei
-// inn i økta — og du havner aldri i en blindvei med null treff.
+// Finnes ikke øvelsen, lager søket den — med navnet ferdig utfylt.
 const newName = computed(() => search.value.trim())
 
 const canCreate = computed(() =>
@@ -45,9 +58,16 @@ const canCreate = computed(() =>
   !exercises.value.some(e => e.name.trim().toLowerCase() === newName.value.toLowerCase())
 )
 
-function create() {
-  emit('create', newName.value)
+function startNew() {
+  newForm.value = { ...emptyForm(), name: newName.value }
+  mode.value = 'new'
+}
+
+function submitNew() {
+  if (!newForm.value.name.trim()) return
+  emit('create', { ...newForm.value })
   search.value = ''
+  mode.value = 'list'
 }
 
 // I økta? Match på opphav (exercise_id), fallback navn for eldre drills.
@@ -56,59 +76,91 @@ function isInSession(ex) {
     d.exercise_id === ex.id || (d.text || '').trim().toLowerCase() === ex.name.trim().toLowerCase()
   )
 }
+
+// Kort forhåndsvisning så du vet hva du plukker uten å åpne noe.
+function preview(ex) {
+  return ex.organisering || (ex.laeringsmomenter || []).join(' · ') || ''
+}
 </script>
 
 <template>
-  <Sheet :show="show" :title="selectedCount ? `Øvelser · ${selectedCount} valgt` : 'Øvelser'" @close="emit('close')">
-    <input
-      v-model="search"
-      class="ds-input picker-search"
-      type="search"
-      placeholder="Søk — eller skriv navnet på en ny"
-    />
-
-    <button v-if="canCreate" type="button" class="picker-create" @click="create">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      <span>Lag «{{ newName }}»</span>
-    </button>
-
-    <p v-if="!exercises.length && !canCreate" class="picker-no-hits">
-      Ingen øvelser i banken ennå — skriv et navn over for å lage den første.
-    </p>
-
-    <template v-if="exercises.length">
-      <div v-for="group in grouped" :key="group.value" class="picker-group">
-        <div class="picker-group__label">{{ group.label }}</div>
-        <div class="picker-list">
-        <button
-          v-for="ex in group.items"
-          :key="ex.id"
-          type="button"
-          class="picker-row"
-          :class="{ 'picker-row--selected': isInSession(ex) }"
-          :aria-pressed="isInSession(ex)"
-          @click="emit('toggle', ex)"
-        >
-          <span
-            v-if="ex.type && ex.type !== 'none'"
-            class="picker-row__badge"
-            :class="`picker-row__badge--${ex.type}`"
-          >{{ ex.type === 'diff' ? 'Diff' : 'Mix' }}</span>
-          <span class="picker-row__body">
-            <span class="picker-row__name">{{ ex.name }}</span>
-            <span v-if="ex.tema" class="picker-row__tema">{{ ex.tema }}</span>
-          </span>
-          <svg v-if="isInSession(ex)" class="picker-row__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-          <svg v-else class="picker-row__plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+  <Sheet
+    :show="show"
+    :title="mode === 'new' ? 'Ny øvelse' : selectedCount ? `Øvelser · ${selectedCount} i økta` : 'Øvelser'"
+    @close="emit('close')"
+  >
+    <!-- NY ØVELSE — det eneste skjemaet i plukkeren -->
+    <form v-if="mode === 'new'" @submit.prevent="submitNew">
+      <ExerciseFields :form="newForm" :show-category="supportsCategory" />
+      <div class="picker-form-actions">
+        <button type="button" class="ds-btn ds-btn--ghost" @click="mode = 'list'">Avbryt</button>
+        <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg picker-form-actions__save" :disabled="!newForm.name.trim()">
+          Legg i banken og økta
         </button>
-        </div>
       </div>
-      <p v-if="!filtered.length && !canCreate" class="picker-no-hits">Ingen treff på «{{ search }}»</p>
-    </template>
+    </form>
 
-    <button type="button" class="ds-btn ds-btn--primary ds-btn--lg picker-done" @click="emit('close')">
-      Ferdig
-    </button>
+    <!-- PLUKK -->
+    <template v-else>
+      <input
+        v-model="search"
+        class="ds-input picker-search"
+        type="search"
+        placeholder="Søk — eller skriv navnet på en ny"
+      />
+
+      <button v-if="canCreate" type="button" class="picker-create" @click="startNew">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <span>Lag «{{ newName }}»</span>
+      </button>
+
+      <p v-if="!exercises.length && !canCreate" class="picker-no-hits">
+        Ingen øvelser i banken ennå — skriv et navn over for å lage den første.
+      </p>
+
+      <template v-if="exercises.length">
+        <div v-for="group in grouped" :key="group.value" class="picker-group">
+          <div class="picker-group__label">{{ group.label }}</div>
+          <div class="picker-list">
+            <button
+              v-for="ex in group.items"
+              :key="ex.id"
+              type="button"
+              class="picker-row"
+              :class="{ 'picker-row--selected': isInSession(ex) }"
+              :aria-pressed="isInSession(ex)"
+              @click="emit('toggle', ex)"
+            >
+              <span class="picker-row__body">
+                <span class="picker-row__head">
+                  <span
+                    v-if="ex.type && ex.type !== 'none'"
+                    class="picker-row__badge"
+                    :class="`picker-row__badge--${ex.type}`"
+                  >{{ ex.type === 'diff' ? 'Diff' : 'Mix' }}</span>
+                  <span class="picker-row__name">{{ ex.name }}</span>
+                </span>
+                <span v-if="ex.tema" class="picker-row__tema">{{ ex.tema }}</span>
+                <span v-if="preview(ex)" class="picker-row__preview">{{ preview(ex) }}</span>
+              </span>
+              <svg v-if="isInSession(ex)" class="picker-row__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <svg v-else class="picker-row__plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+            </button>
+          </div>
+        </div>
+        <p v-if="!filtered.length && !canCreate" class="picker-no-hits">Ingen treff på «{{ search }}»</p>
+      </template>
+
+      <button type="button" class="ds-btn ds-btn--primary ds-btn--lg picker-done" @click="emit('close')">
+        Ferdig
+      </button>
+
+      <!-- Redigering og sletting hører hjemme i banken, ikke her. -->
+      <router-link to="/trening/ovelser" class="picker-bank-link" @click="emit('close')">
+        Rediger øvelser i banken
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </router-link>
+    </template>
   </Sheet>
 </template>
 
@@ -138,6 +190,14 @@ function isInSession(ex) {
 .picker-create:active { transform: scale(0.99); }
 .picker-create span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
+.picker-form-actions {
+  display: flex;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-sm);
+}
+
+.picker-form-actions__save { flex: 1; }
+
 .picker-search {
   width: 100%;
   margin-bottom: var(--ds-space-sm);
@@ -163,7 +223,7 @@ function isInSession(ex) {
 
 .picker-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   gap: var(--ds-space-sm);
   width: 100%;
   padding: 12px;
@@ -191,6 +251,13 @@ function isInSession(ex) {
   border-color: var(--ds-color-accent);
 }
 
+.picker-row__head {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
 .picker-row__badge {
   flex-shrink: 0;
   font-size: 0.65rem;
@@ -209,7 +276,7 @@ function isInSession(ex) {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 1px;
+  gap: 3px;
   min-width: 0;
 }
 
@@ -217,27 +284,39 @@ function isInSession(ex) {
   font-weight: var(--ds-weight-semibold);
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-primary);
+  min-width: 0;
 }
 
 .picker-row__tema {
   font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-warm-text);
+}
+
+/* Så du vet hva du plukker uten å måtte åpne noe. */
+.picker-row__preview {
+  font-size: var(--ds-text-xs);
+  line-height: 1.45;
   color: var(--ds-color-text-tertiary);
-  white-space: nowrap;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .picker-row__check {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
+  margin-top: 2px;
   color: var(--ds-color-accent);
 }
 
 .picker-row__plus {
-  width: 16px;
-  height: 16px;
+  width: 18px;
+  height: 18px;
   flex-shrink: 0;
+  margin-top: 2px;
   color: var(--ds-color-text-tertiary);
 }
 
@@ -253,4 +332,18 @@ function isInSession(ex) {
   width: 100%;
   margin-top: var(--ds-space-md);
 }
+
+.picker-bank-link {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  margin-top: var(--ds-space-md);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-secondary);
+  text-decoration: none;
+}
+
+.picker-bank-link svg { width: 14px; height: 14px; }
 </style>
