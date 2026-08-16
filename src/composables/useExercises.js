@@ -55,6 +55,16 @@ export function exerciseToDrill(ex) {
   }
 }
 
+// Øvelsen har én fasit, og den bor i banken. Retter du en skrivefeil der, slår
+// den gjennom overalt øvelsen er i bruk. Den lagrede kopien i dagens drills er
+// et sikkerhetsnett: slettes bank-raden, står planen igjen med det den hadde.
+export function resolveDrills(drills, bank) {
+  return (drills || []).map(d => {
+    const ex = d.exercise_id ? bank.find(e => e.id === d.exercise_id) : null
+    return ex ? exerciseToDrill(ex) : d
+  })
+}
+
 // Drill → payload for ny bankövelse (bokmerke-fra-økt).
 export function drillToExercise(d) {
   return {

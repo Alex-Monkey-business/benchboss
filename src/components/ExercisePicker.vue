@@ -13,7 +13,10 @@ import ExerciseFields from './ExerciseFields.vue'
 // er greit, for du vet at du lager noe.
 const props = defineProps({
   show: { type: Boolean, default: false },
-  currentDrills: { type: Array, default: () => [] }
+  currentDrills: { type: Array, default: () => [] },
+  // Hvilken dag plukker vi til? Uten den mister sheeten konteksten når hele
+  // uka står bak den og tre dager ser like ut.
+  titlePrefix: { type: String, default: '' }
 })
 
 const emit = defineEmits(['close', 'toggle', 'create'])
@@ -49,6 +52,12 @@ const filtered = computed(() => {
 const grouped = computed(() => groupByCategory(filtered.value))
 
 const selectedCount = computed(() => exercises.value.filter(isInSession).length)
+
+const sheetTitle = computed(() => {
+  if (mode.value === 'new') return 'Ny øvelse'
+  const dag = props.titlePrefix ? `Øvelser · ${props.titlePrefix}` : 'Øvelser'
+  return selectedCount.value ? `${dag} · ${selectedCount.value} valgt` : dag
+})
 
 // Finnes ikke øvelsen, lager søket den — med navnet ferdig utfylt.
 const newName = computed(() => search.value.trim())
@@ -86,7 +95,7 @@ function preview(ex) {
 <template>
   <Sheet
     :show="show"
-    :title="mode === 'new' ? 'Ny øvelse' : selectedCount ? `Øvelser · ${selectedCount} i økta` : 'Øvelser'"
+    :title="sheetTitle"
     @close="emit('close')"
   >
     <!-- NY ØVELSE — det eneste skjemaet i plukkeren -->

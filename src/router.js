@@ -146,16 +146,19 @@ const routes = [
     name: 'ovelsesbank',
     component: () => import('./views/OvelsesbankView.vue')
   },
-  // ---- Treningsplan: egen toppnivå-seksjon (egen fane i bunnmenyen) ----
+  // ---- Trening: uka er landingssiden, dagen er lesevisningen ----
+  // Begge rutene rendrer samme uke-side: uten :id velger den måneden som
+  // gjelder nå. Ingen redirect — en omdirigering til en id gjorde bare at
+  // tilbake-knappen kastet deg rundt.
   {
     path: '/trening',
     name: 'trening',
-    component: () => import('./views/TreningsplanView.vue')
+    component: () => import('./views/TreningsukeView.vue')
   },
   {
     path: '/trening/:id',
     name: 'treningsperiode',
-    component: () => import('./views/TreningsperiodeView.vue')
+    component: () => import('./views/TreningsukeView.vue')
   },
   {
     path: '/trening/:id/okt/:oktId',
