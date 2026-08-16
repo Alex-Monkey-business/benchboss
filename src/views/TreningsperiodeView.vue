@@ -6,6 +6,8 @@ import { useTrainingSessions, DEFAULT_WEEK_SESSIONS } from '../composables/useTr
 import { useExercises } from '../composables/useExercises'
 import { useToast } from '../composables/useToast'
 import { parseTreningsplan } from '../lib/treningParser'
+import { nextMonthPlan, latestPeriod } from '../lib/trainingMonth'
+import { accentForPosition } from '../lib/sessionVisuals'
 import { localISODate, relativeDateLabel } from '../lib/dateLabels'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -49,13 +51,15 @@ const creating = ref(false)
 async function addOkt() {
   if (creating.value) return
   creating.value = true
-  const row = await createSession(periodId.value, { title: 'Ny økt', accent: period.value?.accent || 'warm' })
+  const row = await createSession(periodId.value, {
+    title: 'Ny økt',
+    accent: accentForPosition(sessions.value.length)
+  })
   creating.value = false
   if (row) openOkt(row)
 }
 
 // ---- Lim inn plan ----
-const ACCENT_ROTATION = ['sky', 'peach', 'olive', 'sage', 'cornflower', 'warm']
 const showPaste = ref(false)
 const pasteText = ref('')
 const savingPaste = ref(false)
@@ -83,7 +87,7 @@ async function confirmPaste() {
       title: s.title,
       weekday: s.weekday,
       focus: s.focus || null,
-      accent: ACCENT_ROTATION[(base + i) % ACCENT_ROTATION.length],
+      accent: accentForPosition(base + i),
       drills,
       position: base + i
     })
@@ -93,38 +97,6 @@ async function confirmPaste() {
   const n = parsed.sessions.length
   pasteText.value = ''
   showToast(`${n} ${n === 1 ? 'økt' : 'økter'} lagt til`, 'success')
-}
-
-// ---- Dupliser periode (med alle økter, uten datoer) ----
-const duplicating = ref(false)
-async function duplicatePeriod() {
-  if (duplicating.value) return
-  duplicating.value = true
-  const src = period.value
-  const copies = [...sessions.value].sort((a, b) => a.position - b.position)
-  const row = await createPeriod({
-    title: `${src.title} (kopi)`,
-    lead: src.lead || null,
-    accent: src.accent,
-    start_date: null,
-    end_date: null
-  })
-  if (row) {
-    for (const [i, s] of copies.entries()) {
-      await createSession(row.id, {
-        title: s.title,
-        weekday: s.weekday ?? null,
-        accent: s.accent || 'warm',
-        illustration: s.illustration || null,
-        focus: s.focus || null,
-        drills: s.drills || [],
-        position: i
-      })
-    }
-    showToast(`«${row.title}» opprettet`, 'success')
-    router.push(`/trening/${row.id}`)
-  }
-  duplicating.value = false
 }
 
 // ---- Periode-skjema (rediger) ----
@@ -158,35 +130,52 @@ async function savePeriod() {
 }
 
 // ---- Ny periode (fra bytteren) ----
-const showCreateSheet = ref(false)
-const createForm = ref({ title: '', lead: '', accent: 'warm', start_date: '', end_date: '' })
+//
+// Her lå et femfeltsskjema — tittel, ingress, farge, fra- og til-dato — for
+// nøyaktig samme handling som er ett trykk på /trening. Perioden er en måned:
+// måneden gir navn, datoer og farge, og øktene arves fra forrige plan.
+const monthPlan = computed(() => nextMonthPlan(latestPeriod(periods.value)))
+const sourcePeriod = computed(() => latestPeriod(periods.value))
 const savingCreate = ref(false)
 
-function openCreate() {
-  showSwitcher.value = false
-  createForm.value = { title: '', lead: '', accent: 'warm', start_date: '', end_date: '' }
-  showCreateSheet.value = true
-}
-
-async function saveCreate() {
-  if (!createForm.value.title.trim() || savingCreate.value) return
+async function createNextMonth() {
+  if (savingCreate.value) return
   savingCreate.value = true
+  const plan = monthPlan.value
+  // Er kilden perioden du står i, ligger øktene allerede her — å hente dem på
+  // nytt ville byttet ut lista under føttene dine mens vi jobber.
+  const src = sourcePeriod.value
+  const kilde = !src ? null
+    : src.id === periodId.value ? sessions.value
+    : await fetchSessions(src.id)
+  const maler = kilde?.length
+    ? [...kilde].sort((a, b) => a.position - b.position)
+    : DEFAULT_WEEK_SESSIONS.map(t => ({ ...t, drills: [] }))
+
   const row = await createPeriod({
-    title: createForm.value.title.trim(),
-    lead: createForm.value.lead.trim() || null,
-    accent: createForm.value.accent,
-    start_date: createForm.value.start_date || null,
-    end_date: createForm.value.end_date || null
+    title: plan.title,
+    lead: null,
+    accent: plan.accent,
+    start_date: plan.start_date,
+    end_date: plan.end_date
   })
-  // Fast ukeoppsett: tirsdag, torsdag og lørdag ligger klare i nye perioder.
   if (row) {
-    for (const [i, tpl] of DEFAULT_WEEK_SESSIONS.entries()) {
-      await createSession(row.id, { ...tpl, drills: [], position: i })
+    for (const [i, s] of maler.entries()) {
+      await createSession(row.id, {
+        title: s.title,
+        weekday: s.weekday ?? null,
+        accent: s.accent || accentForPosition(i),
+        illustration: s.illustration || null,
+        focus: s.focus || null,
+        drills: s.drills || [],
+        position: i
+      })
     }
   }
   savingCreate.value = false
-  showCreateSheet.value = false
+  showSwitcher.value = false
   if (row) router.push(`/trening/${row.id}`)
+  else await fetchSessions(periodId.value) // rulle tilbake øktlista vi lånte
 }
 
 // ---- Slett periode ----
@@ -232,17 +221,9 @@ onMounted(async () => {
 <template>
   <div v-if="period" class="periode" :data-accent="period.accent">
     <div class="periode__nav">
-      <div class="periode__nav-actions">
-        <button type="button" class="periode__icon-btn" aria-label="Rediger periode" @click="openEditPeriod">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-        </button>
-        <button type="button" class="periode__icon-btn" aria-label="Dupliser periode" :disabled="duplicating" @click="duplicatePeriod">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        </button>
-        <button type="button" class="periode__icon-btn periode__icon-btn--danger" aria-label="Slett periode" @click="showDeletePeriod = true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        </button>
-      </div>
+      <button type="button" class="periode__icon-btn" aria-label="Rediger periode" @click="openEditPeriod">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+      </button>
     </div>
 
     <header class="periode__head">
@@ -322,7 +303,7 @@ Torsdag
       <p class="paste-hint">Ukedag starter ny økt, kulepunkter blir øvelser. «(diff)» og «(mix)» merker type.</p>
 
       <div v-if="parsedPlan.sessions.length" class="paste-preview">
-        <div v-for="(s, i) in parsedPlan.sessions" :key="i" class="paste-preview__row" :data-accent="ACCENT_ROTATION[(sessions.length + i) % ACCENT_ROTATION.length]">
+        <div v-for="(s, i) in parsedPlan.sessions" :key="i" class="paste-preview__row" :data-accent="accentForPosition(sessions.length + i)">
           <span class="paste-preview__day">{{ s.title }}</span>
           <span v-if="s.focus" class="paste-preview__focus">{{ s.focus }}</span>
           <span class="paste-preview__meta">{{ s.drills.length }} {{ s.drills.length === 1 ? 'øvelse' : 'øvelser' }}</span>
@@ -376,9 +357,14 @@ Torsdag
             <input id="per-end" v-model="periodForm.end_date" class="ds-input" type="date" />
           </div>
         </div>
-        <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg" :disabled="!periodForm.title.trim() || savingPeriod" style="width: 100%; margin-top: var(--ds-space-sm);">
-          {{ savingPeriod ? 'Lagrer…' : 'Lagre endringer' }}
-        </button>
+        <div class="sheet-actions">
+          <button type="button" class="ds-btn ds-btn--ghost sheet-actions__danger" @click="showDeletePeriod = true">
+            Slett periode
+          </button>
+          <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg sheet-actions__save" :disabled="!periodForm.title.trim() || savingPeriod">
+            {{ savingPeriod ? 'Lagrer…' : 'Lagre endringer' }}
+          </button>
+        </div>
       </form>
     </Sheet>
 
@@ -401,52 +387,12 @@ Torsdag
           <svg v-if="p.id === periodId" class="period-switch__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
         </button>
       </div>
-      <button type="button" class="ds-btn ds-btn--secondary period-switch__add" @click="openCreate">
-        + Ny periode
+      <button type="button" class="ds-btn ds-btn--secondary period-switch__add" :disabled="savingCreate" @click="createNextMonth">
+        {{ savingCreate ? 'Lager …' : `Ny periode — ${monthPlan.title.toLowerCase()}` }}
       </button>
-    </Sheet>
-
-    <!-- Ny periode -->
-    <Sheet :show="showCreateSheet" title="Ny periode" @close="showCreateSheet = false">
-      <form @submit.prevent="saveCreate">
-        <div class="ds-form-group">
-          <label class="ds-label" for="new-title">Tittel</label>
-          <input id="new-title" v-model="createForm.title" class="ds-input" type="text" placeholder="F.eks. Juni — avslutning foran mål" required />
-        </div>
-        <div class="ds-form-group">
-          <label class="ds-label" for="new-lead">Ingress</label>
-          <input id="new-lead" v-model="createForm.lead" class="ds-input" type="text" placeholder="Kort om hva perioden handler om" />
-        </div>
-        <div class="ds-form-group">
-          <label class="ds-label">Farge</label>
-          <div class="accent-picker">
-            <button
-              v-for="a in ACCENTS"
-              :key="a.value"
-              type="button"
-              :data-accent="a.value"
-              :class="['accent-swatch', { 'accent-swatch--active': createForm.accent === a.value }]"
-              :aria-label="a.label"
-              :title="a.label"
-              @click="createForm.accent = a.value"
-            />
-          </div>
-        </div>
-        <div class="ds-form-row">
-          <div class="ds-form-group">
-            <label class="ds-label" for="new-start">Fra</label>
-            <input id="new-start" v-model="createForm.start_date" class="ds-input" type="date" />
-          </div>
-          <div class="ds-form-group">
-            <label class="ds-label" for="new-end">Til</label>
-            <input id="new-end" v-model="createForm.end_date" class="ds-input" type="date" />
-          </div>
-        </div>
-        <p class="paste-hint">Tirsdag, torsdag og lørdag legges inn automatisk.</p>
-        <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg" :disabled="!createForm.title.trim() || savingCreate" style="width: 100%; margin-top: var(--ds-space-sm);">
-          {{ savingCreate ? 'Lagrer…' : 'Opprett periode' }}
-        </button>
-      </form>
+      <p class="paste-hint period-switch__note">
+        {{ monthPlan.spenn }}<template v-if="sourcePeriod">, med øktene fra «{{ sourcePeriod.title }}»</template>
+      </p>
     </Sheet>
 
     <ConfirmDialog
@@ -489,7 +435,17 @@ Torsdag
   margin-bottom: var(--ds-space-2xl);
 }
 
-.periode__nav-actions { display: flex; gap: var(--ds-space-sm); }
+/* Sletting bor i redigeringen, ikke som et ikon rett ved siden av den. */
+.sheet-actions {
+  display: flex;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-sm);
+}
+
+.sheet-actions__danger { flex-shrink: 0; color: var(--ds-color-error); }
+.sheet-actions__save { flex: 1; }
+
+.period-switch__note { text-align: center; }
 
 .periode__icon-btn {
   display: inline-flex;
@@ -508,7 +464,6 @@ Torsdag
 
 .periode__icon-btn svg { width: 16px; height: 16px; }
 .periode__icon-btn:hover { border-color: var(--ds-color-border-strong); color: var(--ds-color-text-primary); }
-.periode__icon-btn--danger:hover { color: var(--ds-color-error); border-color: var(--ds-color-error); }
 
 .periode__head { margin-bottom: var(--ds-space-2xl); }
 

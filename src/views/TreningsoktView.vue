@@ -8,44 +8,17 @@ import { useToast } from '../composables/useToast'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ExercisePicker from '../components/ExercisePicker.vue'
+import ExerciseFields from '../components/ExerciseFields.vue'
+import { sessionIllustration, illoWebp, illoPng } from '../lib/sessionVisuals'
 import { WEEKDAY_LABELS } from '../lib/dateLabels'
 
 const route = useRoute()
 const router = useRouter()
 const { getPeriod, fetchPeriods } = useTrainingPeriods()
-const { sessions, loadedPeriod, fetchSessions, createSession, updateSession, removeSession } = useTrainingSessions()
-const { fetchExercises, upsertFromDrill } = useExercises()
+const { sessions, loadedPeriod, fetchSessions, updateSession, removeSession } = useTrainingSessions()
+const { fetchExercises, createExercise, upsertFromDrill } = useExercises()
 const { show: showToast } = useToast()
 
-const ACCENTS = [
-  { value: 'warm',       label: 'Varm' },
-  { value: 'sage',       label: 'Salvie' },
-  { value: 'cornflower', label: 'Kornblå' },
-  { value: 'peach',      label: 'Fersken' },
-  { value: 'sky',        label: 'Himmel' },
-  { value: 'olive',      label: 'Oliven' }
-]
-
-const DRILL_TYPES = [
-  { value: 'diff', label: 'Diff' },
-  { value: 'mix',  label: 'Mix' },
-  { value: 'none', label: '—' }
-]
-
-const ILLO_BASE = '/illustrations/bench-boss-exercise-illustrations/'
-const ILLUSTRATIONS = [
-  { file: 'tuesday_june_tranparent.png',    label: 'Dribleslalåm' },
-  { file: 'thursday_june_transparent.png',  label: 'Ferdighetssirkel' },
-  { file: 'saturday_june_transparent.png',  label: 'Smålagsspill' },
-  { file: 'pass-and-move-3d.png',        label: 'Pasningsspill' },
-  { file: 'dribbling-slalom-3d.png',     label: 'Dribbleslalåm' },
-  { file: 'finishing-shot-3d.png',       label: 'Avslutning' },
-  { file: 'rondo-possession-3d.png',     label: 'Rondo' },
-  { file: 'one-vs-one-duel-3d.png',      label: '1v1 duell' },
-  { file: 'small-sided-game-3v3-3d.png', label: 'Smålagsspill 3v3' }
-]
-function illoSrc(file) { return file ? ILLO_BASE + file.replace(/\.png$/, '.webp') : null }
-function illoPng(file) { return file ? ILLO_BASE + file : null }
 const heroLoaded = ref(false)
 
 const periodId = computed(() => route.params.id)
@@ -54,86 +27,47 @@ const period = computed(() => getPeriod(periodId.value))
 const okt = computed(() => sessions.value.find(s => s.id === oktId.value) || null)
 const drillCount = computed(() => (okt.value?.drills || []).length)
 
-// ---- Rediger økt ----
+// Bildet velges av ukedagen, ikke av deg — se lib/sessionVisuals.
+const heroIllo = computed(() => sessionIllustration(okt.value))
+
+// ---- Rediger økt: dag og fokus. Ikke noe annet. ----
+//
+// Her lå det før farge, illustrasjon, ukedagspiller og alle øvelsene i samme
+// skjema — 20+ felt for å rette en skrivefeil. Fargen følger posisjonen,
+// bildet følger ukedagen, ukedagen følger tittelen, og øvelsene redigeres
+// én og én ved å trykke på dem.
 const showSheet = ref(false)
-const form = ref(emptyForm())
+const form = ref({ title: '', focus: '' })
 const saving = ref(false)
 
-function emptyDrill() {
-  return { type: 'diff', text: '', tema: '', organisering: '', laeringsmomenter: '', link: { label: '', url: '' } }
-}
-
-function emptyForm() {
-  return { title: '', accent: 'warm', illustration: '', focus: '', weekday: null, drills: [emptyDrill()] }
-}
-
-// Auto-foreslå ukedag når tittelen er et ukedagsnavn og ingen er valgt.
-function suggestWeekdayFromTitle() {
-  if (form.value.weekday) return
-  const t = form.value.title.trim().toLowerCase()
+// Ukedagen ligger i tittelen. «Tirsdag» er et svar, ikke et spørsmål.
+function weekdayFromTitle(title) {
+  const t = (title || '').trim().toLowerCase()
   const idx = WEEKDAY_LABELS.findIndex(label => t.startsWith(label.toLowerCase()))
-  if (idx > -1) form.value.weekday = idx + 1
+  return idx > -1 ? idx + 1 : null
 }
 
 function openEdit() {
-  const s = okt.value
-  const drills = (s.drills || []).map(d => ({
-    type: d.type || 'none',
-    text: d.text || '',
-    tema: d.tema || '',
-    organisering: d.organisering || '',
-    laeringsmomenter: (d.laeringsmomenter || []).join('\n'),
-    link: d.link ? { label: d.link.label || '', url: d.link.url || '' } : { label: '', url: '' },
-    exercise_id: d.exercise_id || null
-  }))
-  form.value = {
-    title: s.title,
-    accent: s.accent || 'warm',
-    illustration: s.illustration || '',
-    focus: s.focus || '',
-    weekday: s.weekday ?? null,
-    drills: drills.length ? drills : [emptyDrill()]
-  }
+  form.value = { title: okt.value.title, focus: okt.value.focus || '' }
   showSheet.value = true
 }
-
-function addDrill() { form.value.drills.push(emptyDrill()) }
-function removeDrill(i) { form.value.drills.splice(i, 1) }
 
 async function save() {
   if (!form.value.title.trim() || saving.value) return
   saving.value = true
-  const drills = form.value.drills
-    .map(d => ({
-      type: d.type,
-      text: d.text.trim(),
-      tema: d.tema.trim() || null,
-      organisering: d.organisering.trim() || null,
-      laeringsmomenter: d.laeringsmomenter.split('\n').map(s => s.trim()).filter(Boolean),
-      link: d.link.url.trim() ? { label: d.link.label.trim(), url: d.link.url.trim() } : null,
-      exercise_id: d.exercise_id || null
-    }))
-    .filter(d => d.text || d.link || d.tema || d.organisering || d.laeringsmomenter.length)
-  // Nye øvelser (uten bank-opphav) fanges automatisk i øvelsesbanken.
-  for (const d of drills) {
-    if (!d.exercise_id) {
-      const ex = await upsertFromDrill(d)
-      if (ex) d.exercise_id = ex.id
-    }
-  }
+  const title = form.value.title.trim()
   await updateSession(oktId.value, {
-    title: form.value.title.trim(),
-    accent: form.value.accent,
-    illustration: form.value.illustration || null,
+    title,
     focus: form.value.focus.trim() || null,
-    weekday: form.value.weekday,
-    drills
+    // Fant vi ingen ukedag i tittelen, står den gamle — en økt som het
+    // «Tirsdag» og døpes om til «Ekstraøkt» skal ikke miste dagen sin.
+    weekday: weekdayFromTitle(title) ?? okt.value.weekday ?? null
   })
   saving.value = false
   showSheet.value = false
 }
 
-// ---- Direkte manipulering av øvelser (uten redigeringssheeten) ----
+// ---- Øvelser ----
 // Serialisert kø: hver mutasjon regner alltid fra sist lagrede drills-state,
 // så raske legg-til/fjern aldri overskriver hverandre.
 let drillQueue = Promise.resolve()
@@ -160,31 +94,82 @@ function toggleExercise(ex) {
   )
 }
 
-// Fjern fra økta (×) — friksjonsfritt, ingen dialog: dette er ikke sletting.
-function removeDrillFromSession(i) {
+// Fant du ikke øvelsen i banken, lager søket den. Ingen egen «skriv selv»-vei
+// inn — én knapp legger til øvelser, uansett om de finnes fra før.
+async function createFromSearch(name) {
+  const row = await createExercise({
+    name: name.trim(),
+    type: 'none',
+    category: null,
+    tema: null,
+    organisering: null,
+    laeringsmomenter: [],
+    link: null
+  })
+  if (row) {
+    await queueDrills(ds => [...ds, exerciseToDrill(row)])
+    showToast(`«${row.name}» lagt til`, 'success')
+  }
+}
+
+// ---- Én øvelse om gangen ----
+const showDrill = ref(false)
+const drillIndex = ref(-1)
+const drillForm = ref(emptyDrillForm())
+const savingDrill = ref(false)
+
+function emptyDrillForm() {
+  return { name: '', type: 'none', category: '', tema: '', organisering: '', laeringsmomenter: '', link: { label: '', url: '' } }
+}
+
+function openDrill(i) {
+  const d = okt.value.drills[i]
+  drillIndex.value = i
+  drillForm.value = {
+    name: d.text || '',
+    type: d.type || 'none',
+    category: '',
+    tema: d.tema || '',
+    organisering: d.organisering || '',
+    laeringsmomenter: (d.laeringsmomenter || []).join('\n'),
+    link: d.link ? { label: d.link.label || '', url: d.link.url || '' } : { label: '', url: '' },
+    exercise_id: d.exercise_id || null
+  }
+  showDrill.value = true
+}
+
+async function saveDrill() {
+  const f = drillForm.value
+  if (!f.name.trim() || savingDrill.value) return
+  savingDrill.value = true
+  const drill = {
+    type: f.type,
+    text: f.name.trim(),
+    tema: f.tema.trim() || null,
+    organisering: f.organisering.trim() || null,
+    laeringsmomenter: f.laeringsmomenter.split('\n').map(s => s.trim()).filter(Boolean),
+    link: f.link.url.trim() ? { label: f.link.label.trim(), url: f.link.url.trim() } : null,
+    exercise_id: f.exercise_id || null
+  }
+  // Alle øvelser lever i banken — en ny fanges automatisk der.
+  if (!drill.exercise_id) {
+    const ex = await upsertFromDrill(drill)
+    if (ex) drill.exercise_id = ex.id
+  }
+  const i = drillIndex.value
+  await queueDrills(ds => ds.map((d, idx) => (idx === i ? drill : d)))
+  savingDrill.value = false
+  showDrill.value = false
+}
+
+// Fjerne fra økta er ikke sletting: øvelsen blir liggende i banken.
+function removeDrillFromSession() {
+  const i = drillIndex.value
   const d = okt.value?.drills?.[i]
+  showDrill.value = false
   if (!d) return
   queueDrills(ds => ds.filter((_, idx) => idx !== i))
   showToast(d.exercise_id ? 'Fjernet — ligger i banken' : 'Fjernet', 'success')
-}
-
-// ---- Dupliser økt ----
-const duplicating = ref(false)
-async function duplicateOkt() {
-  if (duplicating.value) return
-  duplicating.value = true
-  const s = okt.value
-  const row = await createSession(periodId.value, {
-    title: `${s.title} (kopi)`,
-    weekday: s.weekday ?? null,
-    accent: s.accent || 'warm',
-    illustration: s.illustration || null,
-    focus: s.focus || null,
-    drills: s.drills || [],
-    position: sessions.value.length
-  })
-  duplicating.value = false
-  if (row) router.push(`/trening/${periodId.value}/okt/${row.id}`)
 }
 
 // Ekte tilbake: dit du kom fra (Hjem, perioden, banken …). Perioden er
@@ -194,11 +179,12 @@ function goBack() {
   else router.push(`/trening/${periodId.value}`)
 }
 
-// ---- Slett økt ----
+// ---- Slett økt (fra redigeringen — ikke som ikon ved siden av den) ----
 const showDelete = ref(false)
 async function confirmDelete() {
   await removeSession(oktId.value)
   showDelete.value = false
+  showSheet.value = false
   router.push(`/trening/${periodId.value}`)
 }
 
@@ -207,7 +193,7 @@ onMounted(async () => {
   if (loadedPeriod.value !== periodId.value || !sessions.value.length) {
     await fetchSessions(periodId.value)
   }
-  fetchExercises() // banken — for bokmerke-dedupe og rask picker (loaded-guard i composablen)
+  fetchExercises() // banken — for dedupe og rask plukker (loaded-guard i composablen)
 })
 </script>
 
@@ -218,26 +204,18 @@ onMounted(async () => {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         Tilbake
       </button>
-      <div class="okt-view__nav-actions">
-        <button type="button" class="okt-view__icon-btn" aria-label="Rediger økt" @click="openEdit">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-        </button>
-        <button type="button" class="okt-view__icon-btn" aria-label="Dupliser økt" :disabled="duplicating" @click="duplicateOkt">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg>
-        </button>
-        <button type="button" class="okt-view__icon-btn okt-view__icon-btn--danger" aria-label="Slett økt" @click="showDelete = true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-        </button>
-      </div>
+      <button type="button" class="okt-view__icon-btn" aria-label="Rediger økt" @click="openEdit">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+      </button>
     </div>
 
     <!-- Farget kapittel-panel -->
     <div class="chapter">
-    <div class="chapter__hero" :class="{ 'chapter__hero--bare': !okt.illustration }">
-      <picture v-if="okt.illustration">
-        <source :srcset="illoSrc(okt.illustration)" type="image/webp" />
+    <div class="chapter__hero" :class="{ 'chapter__hero--bare': !heroIllo }">
+      <picture v-if="heroIllo">
+        <source :srcset="illoWebp(heroIllo)" type="image/webp" />
         <img
-          :src="illoPng(okt.illustration)"
+          :src="illoPng(heroIllo)"
           :alt="okt.title"
           class="chapter__img"
           :class="{ 'is-loaded': heroLoaded }"
@@ -246,7 +224,7 @@ onMounted(async () => {
           @load="heroLoaded = true"
         />
       </picture>
-      <div v-if="okt.illustration" class="chapter__scrim"></div>
+      <div v-if="heroIllo" class="chapter__scrim"></div>
       <header class="hero">
         <h1 class="hero__title">{{ okt.title }}</h1>
         <p v-if="okt.focus" class="hero__focus">{{ okt.focus }}</p>
@@ -254,9 +232,18 @@ onMounted(async () => {
     </div>
     <div class="chapter__body">
 
-    <!-- Øvelser -->
+    <!-- Øvelser: trykk på én for å redigere den alene -->
     <div v-if="drillCount" class="drills">
-      <div v-for="(d, di) in okt.drills" :key="di" class="drill">
+      <div
+        v-for="(d, di) in okt.drills"
+        :key="di"
+        class="drill"
+        role="button"
+        tabindex="0"
+        @click="openDrill(di)"
+        @keydown.enter.prevent="openDrill(di)"
+        @keydown.space.prevent="openDrill(di)"
+      >
         <div class="drill__head">
           <span
             v-if="d.type && d.type !== 'none'"
@@ -264,11 +251,7 @@ onMounted(async () => {
             :class="`drill__badge--${d.type}`"
           >{{ d.type === 'diff' ? 'Diff' : 'Mix' }}</span>
           <h3 class="drill__name">{{ d.text }}</h3>
-          <div class="drill__actions">
-            <button type="button" class="drill__action" aria-label="Fjern fra økta" title="Fjern fra økta" @click="removeDrillFromSession(di)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-            </button>
-          </div>
+          <svg class="drill__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
         </div>
         <p v-if="d.tema" class="drill__focus">{{ d.tema }}</p>
 
@@ -284,6 +267,7 @@ onMounted(async () => {
           target="_blank"
           rel="noopener"
           class="drill__link"
+          @click.stop
         >
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
           {{ d.link.label || d.link.url }}
@@ -293,114 +277,50 @@ onMounted(async () => {
 
     <div v-else class="okt-view__empty">
       <p>Ingen øvelser ennå.</p>
-      <div class="okt-view__empty-actions">
-        <button type="button" class="ds-btn ds-btn--primary" @click="showPicker = true">Velg øvelser</button>
-        <button type="button" class="ds-btn ds-btn--secondary" @click="openEdit">Skriv selv</button>
-      </div>
+      <button type="button" class="ds-btn ds-btn--primary" @click="showPicker = true">Legg til øvelse</button>
     </div>
 
     <button v-if="drillCount" type="button" class="drill-add" @click="showPicker = true">
       <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-      Velg øvelser
+      Legg til øvelse
     </button>
     </div>
     </div>
 
-    <!-- Rediger økt -->
+    <!-- Rediger økt: dag og fokus -->
     <Sheet :show="showSheet" title="Rediger økt" @close="showSheet = false">
       <form @submit.prevent="save">
         <div class="ds-form-group">
-          <label class="ds-label" for="okt-title">Dag / tittel</label>
-          <input id="okt-title" v-model="form.title" class="ds-input" type="text" placeholder="F.eks. Tirsdag" required @blur="suggestWeekdayFromTitle" />
-        </div>
-        <div class="ds-form-group">
-          <label class="ds-label">Ukedag</label>
-          <div class="weekday-picker">
-            <button
-              v-for="(label, i) in WEEKDAY_LABELS"
-              :key="label"
-              type="button"
-              :class="['weekday-pill', { 'weekday-pill--active': form.weekday === i + 1 }]"
-              :aria-pressed="form.weekday === i + 1"
-              @click="form.weekday = form.weekday === i + 1 ? null : i + 1"
-            >
-              {{ label.slice(0, 3) }}
-            </button>
-          </div>
-        </div>
-        <div class="ds-form-group">
-          <label class="ds-label">Farge</label>
-          <div class="accent-picker">
-            <button
-              v-for="a in ACCENTS"
-              :key="a.value"
-              type="button"
-              :data-accent="a.value"
-              :class="['accent-swatch', { 'accent-swatch--active': form.accent === a.value }]"
-              :aria-label="a.label"
-              :title="a.label"
-              @click="form.accent = a.value"
-            />
-          </div>
-        </div>
-        <div class="ds-form-group">
-          <label class="ds-label">Illustrasjon</label>
-          <div class="illo-picker">
-            <button type="button" :class="['illo-opt', 'illo-opt--none', { 'illo-opt--active': !form.illustration }]" @click="form.illustration = ''">
-              Ingen
-            </button>
-            <button
-              v-for="il in ILLUSTRATIONS"
-              :key="il.file"
-              type="button"
-              :class="['illo-opt', { 'illo-opt--active': form.illustration === il.file }]"
-              :title="il.label"
-              :aria-label="il.label"
-              @click="form.illustration = il.file"
-            >
-              <img :src="illoSrc(il.file)" :alt="il.label" loading="lazy" decoding="async" />
-            </button>
-          </div>
+          <label class="ds-label" for="okt-title">Dag</label>
+          <input id="okt-title" v-model="form.title" class="ds-input" type="text" placeholder="F.eks. Tirsdag" required />
         </div>
         <div class="ds-form-group">
           <label class="ds-label" for="okt-focus">Fokusområde</label>
           <textarea id="okt-focus" v-model="form.focus" class="ds-input" rows="3" placeholder="Hva økta bygger — fokus, hvorfor, hva de skal sitte igjen med."></textarea>
         </div>
-        <div class="ds-form-group">
-          <label class="ds-label">Øvelser</label>
-          <div v-for="(d, i) in form.drills" :key="i" class="drill-edit">
-            <div class="drill-edit__head">
-              <div class="type-toggle" role="radiogroup" aria-label="Type øvelse">
-                <button
-                  v-for="t in DRILL_TYPES"
-                  :key="t.value"
-                  type="button"
-                  role="radio"
-                  :aria-checked="d.type === t.value"
-                  :class="['type-toggle__opt', `type-toggle__opt--${t.value}`, { 'type-toggle__opt--active': d.type === t.value }]"
-                  @click="d.type = t.value"
-                >{{ t.label }}</button>
-              </div>
-              <button type="button" class="link-row__remove" aria-label="Fjern øvelse" @click="removeDrill(i)">
-                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </div>
-            <textarea v-model="d.text" class="ds-input" rows="2" placeholder="Navn på øvelsen"></textarea>
-            <input v-model="d.tema" class="ds-input" type="text" placeholder="Fokus (valgfri) — f.eks. Spille oss fremover" />
-            <span class="drill-edit__sublabel">Øver på — ett per linje (valgfri)</span>
-            <textarea v-model="d.laeringsmomenter" class="ds-input" rows="3" placeholder="Mykt medtak ut til siden&#10;Løft blikket, finn timing på finta"></textarea>
-            <span class="drill-edit__sublabel">Oppsett (valgfri)</span>
-            <textarea v-model="d.organisering" class="ds-input" rows="3" placeholder="Hvordan øvelsen settes opp og kjøres."></textarea>
-            <div class="link-row">
-              <input v-model="d.link.label" class="ds-input" type="text" placeholder="Lenketekst (valgfri)" />
-              <input v-model="d.link.url" class="ds-input" type="url" placeholder="https://… (valgfri)" />
-            </div>
-          </div>
-          <button type="button" class="ds-btn ds-btn--ghost ds-btn--sm" @click="addDrill">+ Øvelse</button>
+        <div class="sheet-actions">
+          <button type="button" class="ds-btn ds-btn--ghost sheet-actions__danger" @click="showDelete = true">
+            Slett økt
+          </button>
+          <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg sheet-actions__save" :disabled="!form.title.trim() || saving">
+            {{ saving ? 'Lagrer…' : 'Lagre endringer' }}
+          </button>
         </div>
-        <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg" :disabled="!form.title.trim() || saving" style="width: 100%; margin-top: var(--ds-space-sm);">
-          {{ saving ? 'Lagrer…' : 'Lagre endringer' }}
-        </button>
+      </form>
+    </Sheet>
+
+    <!-- Én øvelse -->
+    <Sheet :show="showDrill" :title="drillForm.name || 'Øvelse'" @close="showDrill = false">
+      <form @submit.prevent="saveDrill">
+        <ExerciseFields :form="drillForm" />
+        <div class="sheet-actions">
+          <button type="button" class="ds-btn ds-btn--ghost sheet-actions__danger" @click="removeDrillFromSession">
+            Fjern fra økta
+          </button>
+          <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg sheet-actions__save" :disabled="!drillForm.name.trim() || savingDrill">
+            {{ savingDrill ? 'Lagrer…' : 'Lagre' }}
+          </button>
+        </div>
       </form>
     </Sheet>
 
@@ -419,24 +339,25 @@ onMounted(async () => {
       :current-drills="okt.drills || []"
       @close="showPicker = false"
       @toggle="toggleExercise"
+      @create="createFromSearch"
     />
   </div>
 </template>
 
 <style scoped>
-.okt-view[data-accent="warm"],       .accent-swatch[data-accent="warm"]       { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
-.okt-view[data-accent="sage"],       .accent-swatch[data-accent="sage"]       { --accent-bg: #E2EDDE; --accent-text: #3D5C44; }
-.okt-view[data-accent="cornflower"], .accent-swatch[data-accent="cornflower"] { --accent-bg: #D6DDEF; --accent-text: #3D456B; }
-.okt-view[data-accent="peach"],      .accent-swatch[data-accent="peach"]      { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
-.okt-view[data-accent="sky"],        .accent-swatch[data-accent="sky"]        { --accent-bg: #DDE6EC; --accent-text: #3A4C5C; }
-.okt-view[data-accent="olive"],      .accent-swatch[data-accent="olive"]      { --accent-bg: #F0E7D6; --accent-text: #6B5630; }
+.okt-view[data-accent="warm"]       { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
+.okt-view[data-accent="sage"]       { --accent-bg: #E2EDDE; --accent-text: #3D5C44; }
+.okt-view[data-accent="cornflower"] { --accent-bg: #D6DDEF; --accent-text: #3D456B; }
+.okt-view[data-accent="peach"]      { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
+.okt-view[data-accent="sky"]        { --accent-bg: #DDE6EC; --accent-text: #3A4C5C; }
+.okt-view[data-accent="olive"]      { --accent-bg: #F0E7D6; --accent-text: #6B5630; }
 
-:global([data-theme="dark"] .okt-view[data-accent="warm"]),       :global([data-theme="dark"] .accent-swatch[data-accent="warm"]) { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
-:global([data-theme="dark"] .okt-view[data-accent="sage"]),       :global([data-theme="dark"] .accent-swatch[data-accent="sage"]) { --accent-bg: #1A241D; --accent-text: #B5D2B0; }
-:global([data-theme="dark"] .okt-view[data-accent="cornflower"]), :global([data-theme="dark"] .accent-swatch[data-accent="cornflower"]) { --accent-bg: #1A1F33; --accent-text: #B9C2E5; }
-:global([data-theme="dark"] .okt-view[data-accent="peach"]),      :global([data-theme="dark"] .accent-swatch[data-accent="peach"]) { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
-:global([data-theme="dark"] .okt-view[data-accent="sky"]),        :global([data-theme="dark"] .accent-swatch[data-accent="sky"]) { --accent-bg: #1A222A; --accent-text: #B0C5D8; }
-:global([data-theme="dark"] .okt-view[data-accent="olive"]),      :global([data-theme="dark"] .accent-swatch[data-accent="olive"]) { --accent-bg: #2A241A; --accent-text: #D9C99E; }
+:global([data-theme="dark"] .okt-view[data-accent="warm"]) { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
+:global([data-theme="dark"] .okt-view[data-accent="sage"]) { --accent-bg: #1A241D; --accent-text: #B5D2B0; }
+:global([data-theme="dark"] .okt-view[data-accent="cornflower"]) { --accent-bg: #1A1F33; --accent-text: #B9C2E5; }
+:global([data-theme="dark"] .okt-view[data-accent="peach"]) { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
+:global([data-theme="dark"] .okt-view[data-accent="sky"]) { --accent-bg: #1A222A; --accent-text: #B0C5D8; }
+:global([data-theme="dark"] .okt-view[data-accent="olive"]) { --accent-bg: #2A241A; --accent-text: #D9C99E; }
 
 /* Dyp, kinematisk header-palett (VG-aktig) — lik i lyst og mørkt tema */
 .okt-view[data-accent="warm"]       { --hero-bg: #4A1E14; --hero-accent: #E5A488; --hero-fg: #F6EAE3; }
@@ -532,14 +453,13 @@ onMounted(async () => {
 .okt-view__back svg { width: 14px; height: 14px; flex-shrink: 0; }
 .okt-view__back:hover { color: var(--ds-color-text-primary); }
 
-.okt-view__nav-actions { display: flex; gap: var(--ds-space-sm); flex-shrink: 0; }
-
 .okt-view__icon-btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   width: 34px;
   height: 34px;
+  flex-shrink: 0;
   border-radius: var(--ds-radius-md);
   border: 1px solid var(--ds-color-border);
   background: var(--ds-color-bg-elevated);
@@ -551,7 +471,6 @@ onMounted(async () => {
 
 .okt-view__icon-btn svg { width: 16px; height: 16px; }
 .okt-view__icon-btn:hover { border-color: var(--ds-color-border-strong); color: var(--ds-color-text-primary); }
-.okt-view__icon-btn--danger:hover { color: var(--ds-color-error); border-color: var(--ds-color-error); }
 
 /* ---- Header (over bildet, nederst i hero-sonen) ---- */
 .hero {
@@ -560,15 +479,6 @@ onMounted(async () => {
   display: flex;
   flex-direction: column;
   gap: 0;
-}
-
-.hero__eyebrow {
-  font-family: var(--ds-font-display-sans);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
-  color: var(--hero-accent);
 }
 
 .hero__title {
@@ -593,16 +503,6 @@ onMounted(async () => {
   max-width: 42ch;
 }
 
-.hero__meta {
-  font-family: var(--ds-font-display-sans);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
-  color: var(--hero-accent);
-  margin-top: var(--ds-space-md);
-}
-
 /* ---- Øvelser ---- */
 .drills {
   display: flex;
@@ -613,9 +513,17 @@ onMounted(async () => {
 .drill {
   padding: var(--ds-space-lg) 0;
   border-top: 1px solid rgba(255, 255, 255, 0.14);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--ds-duration-fast) var(--ds-ease-out);
 }
 
 .drill:first-child { padding-top: 0; border-top: 0; }
+.drill:active { opacity: 0.7; }
+
+@media (hover: hover) and (pointer: fine) {
+  .drill:hover .drill__chevron { opacity: 0.9; }
+}
 
 /* Scanne-linja: badge + navn */
 .drill__head {
@@ -653,33 +561,16 @@ onMounted(async () => {
   color: var(--hero-fg);
 }
 
-/* Stille handlinger per øvelse — skal ikke kjempe mot panelet */
-.drill__actions {
-  display: flex;
-  gap: 2px;
+/* Stille hint om at øvelsen kan åpnes — skal ikke kjempe mot panelet */
+.drill__chevron {
+  width: 16px;
+  height: 16px;
   flex-shrink: 0;
-  align-self: flex-start;
-}
-
-.drill__action {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  padding: 0;
-  border: none;
-  border-radius: var(--ds-radius-sm);
-  background: transparent;
+  align-self: center;
   color: var(--hero-fg);
-  opacity: 0.4;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
+  opacity: 0.45;
   transition: opacity var(--ds-duration-fast) var(--ds-ease-out);
 }
-
-.drill__action svg { width: 15px; height: 15px; }
-.drill__action:hover, .drill__action:active { opacity: 0.9; }
 
 /* Legg-til-rad nederst i panelet */
 .drill-add {
@@ -710,29 +601,14 @@ onMounted(async () => {
 .drill-add:hover { opacity: 1; border-color: rgba(255, 255, 255, 0.55); }
 .drill-add:active { opacity: 1; transform: scale(0.98); }
 
-.okt-view__empty-actions {
-  display: flex;
-  gap: var(--ds-space-sm);
-  justify-content: center;
-}
-
 /* Panelet er alltid mørkt — standardknappene (nesten svart primær, lys grå
-   sekundær) drukner eller gjørmer seg. Panel-lokale varianter i panelets språk. */
+   sekundær) drukner eller gjørmer seg. Panel-lokal variant i panelets språk. */
 .okt-view__empty .ds-btn--primary {
   background: var(--hero-fg);
   border-color: var(--hero-fg);
   color: var(--hero-bg);
 }
 .okt-view__empty .ds-btn--primary:hover { opacity: 0.92; }
-.okt-view__empty .ds-btn--secondary {
-  background: transparent;
-  border-color: rgba(255, 255, 255, 0.35);
-  color: var(--hero-fg);
-}
-.okt-view__empty .ds-btn--secondary:hover {
-  background: transparent;
-  border-color: rgba(255, 255, 255, 0.6);
-}
 
 /* Fokus — det vi øver på, fremhevet i aksent */
 .drill__focus {
@@ -814,176 +690,32 @@ onMounted(async () => {
 .drill__link svg { width: 15px; height: 15px; flex-shrink: 0; }
 .drill__link:active { transform: scale(0.98); }
 
-.drill-edit__sublabel {
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-tertiary);
-  letter-spacing: -0.005em;
-}
-
-/* ---- Illustrasjonsvelger ---- */
-.illo-picker {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: var(--ds-space-sm);
-}
-
-.illo-opt {
-  aspect-ratio: 1;
-  border: 2px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-md);
-  overflow: hidden;
-  cursor: pointer;
-  background: var(--ds-color-bg-subtle);
-  padding: 0;
-  -webkit-tap-highlight-color: transparent;
-  transition: border-color var(--ds-duration-fast) var(--ds-ease-out);
-}
-
-.illo-opt img { width: 100%; height: 100%; object-fit: cover; display: block; }
-
-.illo-opt--none {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-tertiary);
-}
-
-.illo-opt--active { border-color: var(--ds-color-accent); }
-
 .okt-view__empty {
   text-align: center;
-  padding: var(--ds-space-2xl) 0;
+  padding: var(--ds-space-lg) 0 var(--ds-space-sm);
   color: var(--hero-fg);
-  opacity: 0.8;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: var(--ds-space-md);
 }
 
-/* Global p-farge er mørk grå — usynlig på det alltid-mørke panelet. */
+/* Global p-farge er mørk grå — usynlig på det alltid-mørke panelet.
+   Dempingen ligger på teksten alene: lå den på hele blokka, arvet knappen
+   den og så deaktivert ut. */
 .okt-view__empty p {
   color: inherit;
+  opacity: 0.8;
   margin: 0;
 }
 
-/* ---- Øvelse-editor i skjema ---- */
-.drill-edit {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-sm);
-  padding: var(--ds-space-md);
-  margin-bottom: var(--ds-space-sm);
-  background: var(--ds-color-bg-subtle);
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-md);
-}
-
-.drill-edit__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ds-space-sm);
-}
-
-.type-toggle {
-  display: inline-flex;
-  padding: 3px;
-  background: var(--ds-color-bg-elevated);
-  border-radius: var(--ds-radius-sm);
-  gap: 2px;
-}
-
-.type-toggle__opt {
-  appearance: none;
-  border: 0;
-  background: transparent;
-  padding: 5px 12px;
-  border-radius: calc(var(--ds-radius-sm) - 2px);
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: background-color var(--ds-duration-fast) var(--ds-ease-out), color var(--ds-duration-fast) var(--ds-ease-out);
-}
-
-.type-toggle__opt:active { transform: scale(0.96); }
-.type-toggle__opt--active { font-weight: var(--ds-weight-semibold); box-shadow: var(--ds-shadow-xs); }
-.type-toggle__opt--diff.type-toggle__opt--active { background: #E2EDDE; color: #3D5C44; }
-.type-toggle__opt--mix.type-toggle__opt--active  { background: #F8E8E0; color: #7A3A24; }
-.type-toggle__opt--none.type-toggle__opt--active { background: var(--ds-color-bg-subtle); color: var(--ds-color-text-primary); }
-
-:global([data-theme="dark"] .type-toggle__opt--diff.type-toggle__opt--active) { background: #1A241D; color: #B5D2B0; }
-:global([data-theme="dark"] .type-toggle__opt--mix.type-toggle__opt--active) { background: #2A1E18; color: #F4C4A8; }
-
-.link-row {
+/* Sletting bor i redigeringen, ikke som ikon ved siden av den. */
+.sheet-actions {
   display: flex;
   gap: var(--ds-space-sm);
-  align-items: center;
+  margin-top: var(--ds-space-sm);
 }
 
-.link-row .ds-input:first-child { flex: 0 0 38%; }
-.link-row .ds-input:nth-child(2) { flex: 1; min-width: 0; }
-
-.link-row__remove {
-  flex-shrink: 0;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border-radius: var(--ds-radius-md);
-  border: 1px solid var(--ds-color-border);
-  background: transparent;
-  color: var(--ds-color-text-tertiary);
-  cursor: pointer;
-}
-
-.link-row__remove:hover { color: var(--ds-color-error); border-color: var(--ds-color-error); }
-
-/* ---- Accent-velger ---- */
-.accent-picker { display: flex; gap: var(--ds-space-sm); flex-wrap: wrap; }
-
-.weekday-picker { display: flex; gap: 6px; flex-wrap: wrap; }
-
-.weekday-pill {
-  padding: 7px 10px;
-  border-radius: var(--ds-radius-full);
-  border: 1px solid var(--ds-color-border);
-  background: var(--ds-color-surface);
-  color: var(--ds-color-text-secondary);
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-medium);
-  cursor: pointer;
-  transition:
-    background var(--ds-duration-fast) var(--ds-ease-out),
-    color var(--ds-duration-fast) var(--ds-ease-out),
-    border-color var(--ds-duration-fast) var(--ds-ease-out);
-}
-
-.weekday-pill--active {
-  background: var(--ds-color-accent);
-  border-color: var(--ds-color-accent);
-  color: var(--ds-color-accent-text);
-}
-
-.accent-swatch {
-  width: 36px;
-  height: 36px;
-  border-radius: var(--ds-radius-md);
-  background: var(--accent-bg);
-  border: 2px solid transparent;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform var(--ds-duration-fast) var(--ds-ease-out), border-color var(--ds-duration-fast) var(--ds-ease-out);
-}
-
-.accent-swatch:active { transform: scale(0.94); }
-.accent-swatch--active { border-color: var(--accent-text); }
+.sheet-actions__danger { flex-shrink: 0; color: var(--ds-color-error); }
+.sheet-actions__save { flex: 1; }
 </style>

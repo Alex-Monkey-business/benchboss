@@ -1,15 +1,16 @@
 <script setup>
 import { computed } from 'vue'
+import { sessionIllustration, illoWebp, illoPng as illoPngPath } from '../../lib/sessionVisuals'
 
 const props = defineProps({
   period: { type: Object, required: true },
   session: { type: Object, required: true }
 })
 
-// Samme asset-mønster som TreningsoktView.
-const ILLO_BASE = '/illustrations/bench-boss-exercise-illustrations/'
-const illoSrc = computed(() => props.session.illustration ? ILLO_BASE + props.session.illustration.replace(/\.png$/, '.webp') : null)
-const illoPng = computed(() => props.session.illustration ? ILLO_BASE + props.session.illustration : null)
+// Samme bilde som økta selv viser — ukedagen velger det (lib/sessionVisuals).
+const illo = computed(() => sessionIllustration(props.session))
+const illoSrc = computed(() => illoWebp(illo.value))
+const illoPng = computed(() => illoPngPath(illo.value))
 
 const drillCount = computed(() => (props.session.drills || []).length)
 const drillLabel = computed(() => drillCount.value === 1 ? '1 øvelse' : `${drillCount.value} øvelser`)
@@ -37,7 +38,7 @@ const focusParts = computed(() => {
       <p v-if="focusParts.detail" class="today-training__focus">{{ focusParts.detail }}</p>
       <span v-if="drillCount" class="today-training__meta">{{ drillLabel }}</span>
     </div>
-    <picture v-if="session.illustration" class="today-training__illo">
+    <picture v-if="illo" class="today-training__illo">
       <source :srcset="illoSrc" type="image/webp" />
       <img :src="illoPng" alt="" loading="lazy" />
     </picture>

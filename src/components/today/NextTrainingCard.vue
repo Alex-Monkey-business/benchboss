@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { relativeDateLabel } from '../../lib/dateLabels'
+import { sessionIllustration, illoWebp, illoPng as illoPngPath } from '../../lib/sessionVisuals'
 
 const props = defineProps({
   period: { type: Object, required: true },
@@ -8,10 +9,10 @@ const props = defineProps({
   date: { type: String, required: true }
 })
 
-// Samme asset-mønster som TreningsoktView.
-const ILLO_BASE = '/illustrations/bench-boss-exercise-illustrations/'
-const illoSrc = computed(() => props.session.illustration ? ILLO_BASE + props.session.illustration.replace(/\.png$/, '.webp') : null)
-const illoPng = computed(() => props.session.illustration ? ILLO_BASE + props.session.illustration : null)
+// Samme bilde som økta selv viser — ukedagen velger det (lib/sessionVisuals).
+const illo = computed(() => sessionIllustration(props.session))
+const illoSrc = computed(() => illoWebp(illo.value))
+const illoPng = computed(() => illoPngPath(illo.value))
 
 const when = computed(() => relativeDateLabel(props.date))
 const drillLine = computed(() => (props.session.drills || []).map(d => d.text).filter(Boolean).join(' · '))
@@ -31,7 +32,7 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
     <div class="next-training__main">
       <p v-if="session.focus" class="next-training__focus">{{ session.focus }}</p>
       <p v-else class="next-training__focus">{{ session.title }}</p>
-      <picture v-if="session.illustration" class="next-training__illo">
+      <picture v-if="illo" class="next-training__illo">
         <source :srcset="illoSrc" type="image/webp" />
         <img :src="illoPng" alt="" loading="lazy" />
       </picture>
