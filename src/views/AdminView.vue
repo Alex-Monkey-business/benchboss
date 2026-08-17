@@ -43,6 +43,7 @@ const links = computed(() => [
   { to: '/admin/dommerutlegg', label: 'Sesongoppgjør', icon: 'vipps' },
   { to: '/admin/sesong-kamper', label: 'Sesong & kampprogram', icon: 'calendar' },
   { to: '/admin/dommere', label: 'Dommere', icon: 'whistle' },
+  { to: '/admin/referater', label: 'Møtereferater', icon: 'notes' },
   { to: '/serie/tropp', label: 'Spillere & tropp', icon: 'jersey' },
   { to: '/cup', label: 'Turneringer', icon: 'trophy' }
 ])
@@ -85,6 +86,12 @@ const links = computed(() => [
           </svg>
           <svg v-else-if="link.icon === 'jersey'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M8.5 3 4 5.5 5.8 9l1.7-.8V21h9V8.2l1.7.8L20 5.5 15.5 3a3.5 3.5 0 0 1-7 0z"/>
+          </svg>
+          <svg v-else-if="link.icon === 'notes'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M5 3h14a1 1 0 0 1 1 1v16a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V4a1 1 0 0 1 1-1z"/>
+            <line x1="8" y1="8" x2="16" y2="8"/>
+            <line x1="8" y1="12" x2="16" y2="12"/>
+            <line x1="8" y1="16" x2="13" y2="16"/>
           </svg>
           <svg v-else-if="link.icon === 'trophy'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/>

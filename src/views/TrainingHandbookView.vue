@@ -23,7 +23,7 @@ function open(slug) {
       <span class="handbook__eyebrow">Trener-håndbok</span>
       <h1 class="handbook__title">Slik trener vi&nbsp;G2015</h1>
       <p class="handbook__lead">
-        Sju prinsipper som gjør at alle 24 utvikler seg —
+        Åtte prinsipper som gjør at alle 24 utvikler seg —
         ikke bare de elleve som allerede er fremme.
       </p>
     </header>

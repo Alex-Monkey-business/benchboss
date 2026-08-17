@@ -111,6 +111,18 @@ const routes = [
     name: 'admin-dommere',
     component: () => import('./views/AdminDommereView.vue')
   },
+  // Møtereferater. Ingen meta = trener-only, med vilje — her står spillernavn
+  // med vurderinger knyttet til seg, og det skal aldri nå en foreldreflate.
+  {
+    path: '/admin/referater',
+    name: 'referater',
+    component: () => import('./views/MoteReferaterView.vue')
+  },
+  {
+    path: '/admin/referater/:slug',
+    name: 'referat',
+    component: () => import('./views/MoteReferatView.vue')
+  },
   // Kull-nivå: hvem har tilgang. Rolle-sjekken bor i viewet, ikke i metaen —
   // en trener kan slippe inn hit når kullets allow_coach_invites er på, og det
   // er en DB-verdi routeren ikke kan kjenne.

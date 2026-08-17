@@ -136,6 +136,7 @@ export const principles = [
           'Vis først, snakk etterpå',
           'Én ting per økt — ikke seks',
           'Korte og konkrete beskjeder: "ta med ballen fram", "bruk utsiden"',
+          'Mindre til den som har ballen — coach heller de uten',
           'Ros når det skjer i kamp, ikke i pausen etterpå'
         ]
       }
@@ -164,6 +165,30 @@ export const principles = [
       }
     ],
     quote: 'Dette laget er ikke 11 stjerner. Det er 24 gutter vi vil ha med videre.'
+  },
+  {
+    slug: 'konsekvenstrappa',
+    number: 8,
+    accent: 'cornflower',
+    title: 'Vi tar det på trappa',
+    lead: 'Samme reaksjon hver gang, fra alle fem. Da vet han hva som skjer før det skjer.',
+    sections: [
+      {
+        heading: 'Hvorfor',
+        body: 'Reagerer vi ulikt fra gang til gang, lærer de ikke hva som er greit — de lærer hvem som er streng i dag. En fast trapp gjør konsekvensen forutsigbar, og da slipper vi å bli sinte for å bli hørt.'
+      },
+      {
+        heading: 'Slik gjør vi det',
+        items: [
+          'Først en advarsel — kort og konkret, ikke en preken',
+          'Så pause på sidelinja, med en samtale om hva som skjedde',
+          'Går det ikke, avsluttes treninga for ham',
+          'Han sendes aldri hjem — han blir hos oss til de andre er ferdige',
+          'Ved stygge taklinger tar vi ham av før dommeren må gripe inn'
+        ]
+      }
+    ],
+    quote: 'Han skal vite hva som skjer før det skjer.'
   }
 ]
 
