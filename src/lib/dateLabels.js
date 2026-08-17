@@ -17,6 +17,21 @@ function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
+// «Onsdag 19 aug» — én form, uansett hvor nær hendelsen er.
+//
+// relativeDateLabel har sin plass i påminnelser, men på et kampkort må dagen
+// kunne leses direkte. «I overmorgen» tvinger deg til å regne deg fram til
+// hvilken dag det faktisk er; «Onsdag» ER svaret. Uten betingelser blir det
+// dessuten samme form hver gang — det er hele grunnen til at radene under
+// «Andre lag» leser rolig.
+export function weekdayDateLabel(isoDate) {
+  if (!isoDate) return ''
+  const d = new Date(isoDate + 'T12:00:00')
+  if (Number.isNaN(d.getTime())) return ''
+  const s = d.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'short' })
+  return capitalize(s).replace(/\./g, '')
+}
+
 // Returns "I dag", "I morgen", "Mandag", "Neste mandag", "Mandag 15. mai", etc.
 // Used for date group headers and primary date displays.
 export function relativeDateLabel(isoDate, now = new Date()) {

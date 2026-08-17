@@ -1,5 +1,6 @@
 <script setup>
 import { teamLabel } from '../../lib/matchMeta'
+import { weekdayDateLabel } from '../../lib/dateLabels'
 
 // De andre lagenes neste kamp. Bevisst lettere enn NextMatchCard — samme
 // informasjon, mindre vekt, så egen kamp fortsatt er det øyet lander på.
@@ -9,10 +10,10 @@ defineProps({
 
 // Dag, ikke dato-klokkeslett-sted. Dette er lag du IKKE trener — du skal vite
 // at det skjer, ikke planlegge det. Klokkeslett og bane står inne på kampen.
-function dayLabel(iso) {
-  const s = new Date(iso + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'short' })
-  return (s.charAt(0).toUpperCase() + s.slice(1)).replace(/\./g, '')
-}
+//
+// Formatet lå duplisert her og i kampkortet. Nå én funksjon, så de ikke kan
+// begynne å sprike.
+const dayLabel = weekdayDateLabel
 
 // Møter to Halsen-lag hverandre, er det én kamp med to merkelapper — ikke to
 // rader. «Hjemme/borte» sier heller ingenting når begge er oss.

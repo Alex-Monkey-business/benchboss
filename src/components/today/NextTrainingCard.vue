@@ -150,4 +150,12 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
+
+/* Smal skjerm: kortene med bildekolonne har bare ~200px til teksten når
+   padding er lg. Da brekker «Onsdag 19 aug · 18:00» midt i. Strammere ramme
+   gir 16px tilbake til innholdet — samme regel for alle tre, så de ikke
+   begynner å oppføre seg ulikt igjen. */
+@media (max-width: 360px) {
+  .next-training { padding: var(--ds-space-md); }
+}
 </style>

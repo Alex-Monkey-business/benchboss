@@ -1,6 +1,6 @@
 <script setup>
 import { computed } from 'vue'
-import { relativeDateLabel, daysUntil } from '../../lib/dateLabels'
+import { weekdayDateLabel } from '../../lib/dateLabels'
 import { teamLabel } from '../../lib/matchMeta'
 
 // event fra useToday.nextMatch: { type: 'match'|'cup', date, time, opponent,
@@ -32,25 +32,19 @@ const missingLine = computed(() => {
 })
 
 
+// «Onsdag 19 aug · 18:00». Én form, ingen betingelser.
+//
+// Her sto det før tre regler i én linje: relativt dagsnavn, dato bare når
+// kampen var mer enn en uke unna, og hjemme/borte på slutten. Resultatet var
+// at linja endret form etter hvor nær kampen var, og at den ble lang nok til å
+// brekke. Hjemme/borte er en EGENSKAP ved kampen, ikke en del av «når» — den
+// står nå som merkelapp øverst, slik kampdag-kortet alt gjør det.
 const detailLine = computed(() => {
-  const d = new Date(props.event.date + 'T12:00:00')
+  const parts = [weekdayDateLabel(props.event.date)]
   const t = (props.event.time || '').slice(0, 5)
-  // Samme format som radene under («Man 17 aug · 18:00 · borte») — to ulike
-  // datoformater rett over hverandre er halve grunnen til at flaten ser
-  // ustelt ut.
-  const day = relativeDateLabel(props.event.date)
-  // Datoen er overflødig når kampen er denne uka — «Onsdag» er mer presist
-  // for en trener enn «19. aug». Den kommer tilbake så snart ukedagen alene
-  // ikke lenger peker entydig.
-  // nb-NO gir «19. aug.» — punktumet bak måneden finnes ikke i radene under.
-  const far = daysUntil(props.event.date) > 7
-  const dm = d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' }).replace(/\.$/, '')
-  const parts = [far ? `${day} ${dm}` : day]
   if (t && t !== '00:00') parts.push(t)
-  const where = props.event.type === 'cup'
-    ? props.event.pitch
-    : (props.event.isHome ? 'hjemme' : 'borte')
-  if (where) parts.push(where)
+  // Cup har ingen hjemme/borte — der er banen det som plasserer kampen.
+  if (props.event.type === 'cup' && props.event.pitch) parts.push(props.event.pitch)
   return parts.join(' · ')
 })
 </script>
@@ -67,6 +61,7 @@ const detailLine = computed(() => {
           :class="`next-match__team-tag--${color}`"
         >{{ teamLabel(color) }}</span>
         <span v-if="event.teamName" class="next-match__team-tag next-match__team-tag--cup">{{ event.teamName }}</span>
+        <span v-if="event.type !== 'cup'" class="next-match__venue">{{ event.isHome ? 'Hjemme' : 'Borte' }}</span>
         <span class="next-match__kicker">{{ event.type === 'cup' ? 'Neste cupkamp' : 'Neste kamp' }}</span>
       </span>
     </div>
@@ -176,6 +171,17 @@ const detailLine = computed(() => {
   color: var(--ds-color-text-secondary);
 }
 
+/* Identisk med kampdag-kortets venue-merkelapp — samme opplysning, samme form. */
+.next-match__venue {
+  font-size: 0.6875rem;
+  font-weight: 500;
+  padding: 1px 6px;
+  border-radius: var(--ds-radius-sm);
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-tertiary);
+  letter-spacing: 0.02em;
+}
+
 /* Det som står igjen. Prikk + tekst — samme språk som påminnelsene i «Å ordne»,
    ikke en ny pille. En fylt pille inne i et kort som allerede har bakgrunn og
    ramme blir en boks i en boks, og `radius-full` gir en kapsel som ser knekt
@@ -204,5 +210,13 @@ const detailLine = computed(() => {
   flex-shrink: 0;
   background: var(--ds-color-warm);
   box-shadow: 0 0 0 3px rgba(185, 96, 63, 0.16);
+}
+
+/* Smal skjerm: kortene med bildekolonne har bare ~200px til teksten når
+   padding er lg. Da brekker «Onsdag 19 aug · 18:00» midt i. Strammere ramme
+   gir 16px tilbake til innholdet — samme regel for alle tre, så de ikke
+   begynner å oppføre seg ulikt igjen. */
+@media (max-width: 360px) {
+  .next-match { padding: var(--ds-space-md); }
 }
 </style>
