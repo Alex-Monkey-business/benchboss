@@ -11,6 +11,7 @@ import { useCups } from './useCups'
 import { useCupMatches } from './useCupMatches'
 import { useTrainingPeriods } from './useTrainingPeriods'
 import { useTrainingSessions } from './useTrainingSessions'
+import { useSeasonTeams } from './useSeasonTeams'
 import { useMatchMode } from './useMatchMode'
 import { localISODate, isoWeekday, daysUntil } from '../lib/dateLabels'
 import { isHalsenMatch, isHomeMatch, teamColorsForMatch } from '../lib/matchMeta'
@@ -28,7 +29,7 @@ const loading = ref(false)
 registerReset(() => { prepSessions.value = []; loading.value = false })
 
 export function useToday() {
-  const { coach, preferredCupTeam } = useAuth()
+  const { coach, preferredTeam, preferredCupTeam, activeCohort } = useAuth()
   const { dismissed } = useDismissedReminders()
   const { activeSeason, fetchSeasons } = useSeasons()
   const { matches, fetchMatches, getCoachesForMatch, getPlayersForMatch } = useMatches()
@@ -38,7 +39,47 @@ export function useToday() {
   const { cupMatches, fetchCupMatches } = useCupMatches()
   const { periods, fetchPeriods } = useTrainingPeriods()
   const { sessions, fetchSessions } = useTrainingSessions()
+  const { seasonTeams, fetchSeasonTeams } = useSeasonTeams()
   const matchMode = useMatchMode()
+
+  // ── Hvilket lag trener JEG? ────────────────────────────────────────────────
+  //
+  // `team_coaches` er fasit (via useSeasonTeams, med den statiske lag-configen
+  // som fallback). Hjem spurte før aldri om dette — den utledet «mitt» av
+  // per-kamp-tilordninger i `match_coaches`. Det er en annen ting: det sier
+  // hvem som STILLER på en kamp, ikke hvilket lag som er ditt. Står du ikke
+  // oppført på noen kommende kamp, falt alt tilbake til «alle Halsen-kamper»,
+  // og da kunne Rød sin kamp lande øverst hos Grønn-treneren.
+  const myTeamColors = computed(() => {
+    // Har du valgt lag i profilen din, er det svaret. Ingen utledning slår
+    // et eksplisitt valg.
+    if (preferredTeam.value) return new Set([preferredTeam.value])
+
+    const name = coach.value?.name
+    if (!name) return new Set()
+    return new Set(
+      seasonTeams.value
+        .filter(t => (t.trainers || []).includes(name))
+        .map(t => t.slug)
+    )
+  })
+
+  const halsenMatches = computed(() => matches.value.filter(isHalsenMatch))
+
+  const assignedToMe = m => !!coach.value?.id && getCoachesForMatch(m.id).includes(coach.value.id)
+
+  const hasOwnAssignments = computed(() => halsenMatches.value.some(assignedToMe))
+
+  // Lagkobling først, per-kamp-tilordning som nødløsning, alt som siste utvei.
+  const myMatches = computed(() => {
+    if (myTeamColors.value.size) {
+      return halsenMatches.value.filter(m =>
+        teamColorsForMatch(m).some(c => myTeamColors.value.has(c))
+      )
+    }
+    if (hasOwnAssignments.value) return halsenMatches.value.filter(assignedToMe)
+    return halsenMatches.value
+  })
 
   const greeting = computed(() => {
     const h = new Date().getHours()
@@ -47,11 +88,21 @@ export function useToday() {
     return first ? `${word}, ${first}` : word
   })
 
+  // Hero-kortet er MIN kamp. Klubbens andre kamper i dag hører hjemme under
+  // «Andre lag» — de skal ikke være det første og største du ser.
   const todayMatches = computed(() => {
     const today = localISODate()
-    return matches.value
-      .filter(m => isHalsenMatch(m) && m.match_date === today)
+    return myMatches.value
+      .filter(m => m.match_date === today)
       .sort((a, b) => (a.match_time || '').localeCompare(b.match_time || ''))
+  })
+
+  // Alle Halsen-kamper i dag — brukes kun til å hindre at «Å ordne» gjentar
+  // noe som allerede står som kort. Snevret vi denne inn sammen med hero-kortet,
+  // ville påminnelser om andre lags kamper plutselig dukket opp igjen.
+  const todayHalsenMatches = computed(() => {
+    const today = localISODate()
+    return halsenMatches.value.filter(m => m.match_date === today)
   })
 
   // Cupkamper for MITT cup-lag. Med to lag i samme cup blir alle kampene støy
@@ -132,7 +183,7 @@ export function useToday() {
     getCoachesForMatch,
     getExpenseForMatch,
     periods: periods.value,
-    excludeMatchIds: todayMatches.value.map(m => m.id),
+    excludeMatchIds: todayHalsenMatches.value.map(m => m.id),
     // Kampen som står i kortet øverst — påminnelsen om den slipper å gjenta
     // motstanderen.
     primaryMatchId: nextMatch.value?.id || null,
@@ -193,21 +244,6 @@ export function useToday() {
     return { season: activeSeason.value?.name || '', date: first, days }
   })
 
-  // MINE kamper — grunnlaget for både uka og «neste kamp», så de to aldri
-  // kan bli uenige om hva som er mitt. Uten tilordninger vet vi ikke hvilket
-  // lag som er mitt, og da er alle Halsen-kamper mine.
-  const halsenMatches = computed(() => matches.value.filter(isHalsenMatch))
-
-  const hasOwnAssignments = computed(() =>
-    !!coach.value?.id && halsenMatches.value.some(m => getCoachesForMatch(m.id).includes(coach.value.id))
-  )
-
-  const myMatches = computed(() =>
-    hasOwnAssignments.value
-      ? halsenMatches.value.filter(m => getCoachesForMatch(m.id).includes(coach.value.id))
-      : halsenMatches.value
-  )
-
   // Resten av uka (i morgen → søndag): treninger fra ukerytmen + MINE seriekamper.
   // De andre lagenes kamper hører hjemme under «Andre lag» — sto de begge
   // steder, leste Hjem som om det skjedde dobbelt så mye.
@@ -248,7 +284,11 @@ export function useToday() {
   // Halsen Blå» og «Blå mot Halsen Hvit»). Det er én kamp, og den skal telles én gang.
   const MAX_OTHER_TEAMS = 3
 
-  const myColors = computed(() => new Set(myMatches.value.flatMap(teamColorsForMatch)))
+  const myColors = computed(() =>
+    myTeamColors.value.size
+      ? new Set(myTeamColors.value)
+      : new Set(myMatches.value.flatMap(teamColorsForMatch))
+  )
 
   const otherTeamsNext = computed(() => {
     const today = localISODate()
@@ -258,7 +298,9 @@ export function useToday() {
     const seen = new Set(myColors.value)
     const out = []
 
-    for (const m of halsenMatches.value.filter(x => x.match_date > today).sort(byDateTime)) {
+    // Fra og med i DAG: spiller et annet lag i dag, står det her — ikke som
+    // hero-kortet, men det skal ikke forsvinne helt heller.
+    for (const m of halsenMatches.value.filter(x => x.match_date >= today).sort(byDateTime)) {
       const fresh = teamColorsForMatch(m).filter(c => !seen.has(c))
       if (!fresh.length) continue
       fresh.forEach(c => seen.add(c))
@@ -302,6 +344,11 @@ export function useToday() {
 
     const jobs = []
     if (activeSeason.value) jobs.push(fetchMatches(activeSeason.value.id))
+    // Lag-til-trener: uten denne vet ikke Hjem hvilket lag som er mitt, og
+    // faller tilbake på den statiske configen i lib/seasonTeams.js.
+    if (activeCohort.value?.id && activeSeason.value) {
+      jobs.push(fetchSeasonTeams(activeCohort.value.id, activeSeason.value.id))
+    }
     // Ferdig cup trenger ikke lastes på Hjem — cup-sidene henter selv for historikken.
     if (cupInProgress.value) jobs.push(fetchCupMatches(activeCup.value.id))
     if (upcomingPeriod.value) jobs.push(fetchSessions(upcomingPeriod.value.id))
