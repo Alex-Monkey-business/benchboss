@@ -32,7 +32,7 @@ export function useToday() {
   const { coach, preferredTeam, preferredCupTeam, activeCohort } = useAuth()
   const { dismissed } = useDismissedReminders()
   const { activeSeason, fetchSeasons } = useSeasons()
-  const { matches, fetchMatches, getCoachesForMatch, getPlayersForMatch } = useMatches()
+  const { matches, fetchMatches, fetchAllMatchPlayers, getCoachesForMatch, getPlayersForMatch } = useMatches()
   const { fetchCoaches } = useCoaches()
   const { fetchExpenses, getExpenseForMatch } = useExpenses()
   const { activeCup, cupInProgress, fetchCups } = useCups()
@@ -365,9 +365,19 @@ export function useToday() {
     if (upcomingPeriod.value) jobs.push(fetchSessions(upcomingPeriod.value.id))
     await Promise.all(jobs)
 
+    // Prep for dagens kamp OG neste kamp — neste-kortet viser nå hva som
+    // mangler, og da må dataene faktisk være hentet.
+    const prepIds = [...new Set([
+      ...todayMatches.value.map(m => m.id),
+      ...(nextMatch.value ? [nextMatch.value.id] : [])
+    ])]
+
     await Promise.all([
       fetchExpenses(matches.value.map(m => m.id)),
-      fetchPrepSessions(todayMatches.value.map(m => m.id))
+      fetchPrepSessions(prepIds),
+      // Troppene ble aldri hentet på Hjem, så «tropp tatt ut» var alltid
+      // usann — også på kampdag-kortet.
+      prepIds.length ? fetchAllMatchPlayers() : Promise.resolve()
     ])
     loading.value = false
   }

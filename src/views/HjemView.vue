@@ -50,12 +50,21 @@ const hasToday = computed(() =>
 const matchToday = computed(() => todayMatches.value.length > 0 || todayCupMatches.value.length > 0)
 const cupMatchesToday = computed(() => (showCupEntry.value ? todayCupMatches.value.length : 0))
 
-// Det som kommer: uka dekker det meste, så neste-kortene er for hendelser
-// UTENFOR uka. Vi sjekker per hendelse om ukelista allerede har den — ikke
-// om lista er tom, ellers forsvinner neste kamp så snart uka har én trening.
-// En sammenslått treningsrad dekker flere økter — da må alle målene med, ellers
-// dukker «neste trening» opp igjen som eget kort for noe uka allerede viser.
-const weekTargets = computed(() => new Set(weekAhead.value.flatMap(i => i.targets || [i.to])))
+// Neste kamp er hovedsaken, og den får alltid kortet sitt — med hva som
+// mangler i det. Den lå før bare som en rad i ukelista når den var innenfor
+// uka, altså nesten alltid, og da forsvant både illustrasjonen og
+// mangel-varselet ned i en liste.
+const heroMatch = computed(() => (!matchToday.value && nextMatch.value) ? nextMatch.value : null)
+
+// Står kampen som kort, skal den ikke stå som rad også.
+const weekItems = computed(() =>
+  heroMatch.value ? weekAhead.value.filter(i => i.to !== heroMatch.value.to) : weekAhead.value
+)
+
+// Treningskortet er fortsatt for det uka IKKE dekker. En sammenslått
+// treningsrad dekker flere økter — da må alle målene med, ellers dukker
+// «neste trening» opp igjen som eget kort for noe uka allerede viser.
+const weekTargets = computed(() => new Set(weekItems.value.flatMap(i => i.targets || [i.to])))
 
 const upNext = computed(() => {
   const items = []
@@ -63,14 +72,12 @@ const upNext = computed(() => {
   if (!hasToday.value && t && !weekTargets.value.has(`/trening/${t.period.id}/okt/${t.session.id}`)) {
     items.push({ kind: 'training', date: t.date })
   }
-  if (!matchToday.value && nextMatch.value && !weekTargets.value.has(nextMatch.value.to)) {
-    items.push({ kind: 'match', date: nextMatch.value.date })
-  }
+  if (heroMatch.value) items.push({ kind: 'match', date: heroMatch.value.date })
   return items.sort((a, b) => a.date.localeCompare(b.date))
 })
 
 const showEmpty = computed(() =>
-  ready.value && !loading.value && !hasToday.value && weekAhead.value.length === 0 && upNext.value.length === 0 && reminders.value.length === 0 && !showCupEntry.value
+  ready.value && !loading.value && !hasToday.value && weekItems.value.length === 0 && upNext.value.length === 0 && reminders.value.length === 0 && !showCupEntry.value
 )
 
 function coachNamesForMatch(matchId) {
@@ -136,14 +143,15 @@ function coachNamesForMatch(matchId) {
         <NextMatchCard
           v-else
           :event="nextMatch"
+          :prep="prepFor(nextMatch.id)"
           class="ds-anim-fade-up ds-anim-delay-2"
         />
       </template>
 
       <!-- Resten av uka — bare dager med innhold, ingen fyll -->
-      <section v-if="weekAhead.length" class="ds-anim-fade-up ds-anim-delay-2">
+      <section v-if="weekItems.length" class="ds-anim-fade-up ds-anim-delay-2">
         <h2 class="hjem-section-kicker">Denne uka</h2>
-        <WeekList :items="weekAhead" />
+        <WeekList :items="weekItems" />
       </section>
 
       <section v-if="reminders.length" class="ds-anim-fade-up ds-anim-delay-3">

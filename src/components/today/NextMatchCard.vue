@@ -6,7 +6,30 @@ import { teamLabel } from '../../lib/matchMeta'
 // event fra useToday.nextMatch: { type: 'match'|'cup', date, time, opponent,
 // teams (fargeslugs), teamName (cup), isHome, pitch, round, to }
 const props = defineProps({
-  event: { type: Object, required: true }
+  event: { type: Object, required: true },
+  // prep fra useToday.prepFor — { isHome, referee, lineup, squad, status }.
+  // Null når kampen ikke er hentet ennå; da sier vi ingenting om den.
+  prep: { type: Object, default: null }
+})
+
+// Bare det som MANGLER. Kampdag-kortet har full sjekkliste med haker — der
+// er du i gang. Her er poenget å se på ett blikk om noe står igjen, og
+// er alt på plass skal kortet tie om det.
+const missing = computed(() => {
+  const p = props.prep
+  if (!p) return []
+  const out = []
+  if (p.referee === false) out.push('dommer')
+  if (!p.squad) out.push('tropp')
+  if (!p.lineup) out.push('oppstilling')
+  return out
+})
+
+// «dommer og tropp og oppstilling» er ikke norsk. Komma til det siste leddet.
+const missingLine = computed(() => {
+  const m = missing.value
+  if (m.length < 2) return m[0] || ''
+  return `${m.slice(0, -1).join(', ')} og ${m[m.length - 1]}`
 })
 
 
@@ -51,6 +74,11 @@ const detailLine = computed(() => {
 
     <span class="next-match__opponent">{{ event.opponent }}</span>
     <span class="next-match__detail">{{ detailLine }}</span>
+
+    <span v-if="missing.length" class="next-match__missing">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12" y2="16.6"/></svg>
+      Mangler {{ missingLine }}
+    </span>
     </div>
 
     <img
@@ -148,4 +176,23 @@ const detailLine = computed(() => {
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
 }
+
+/* Det som står igjen. Dempet varm, ikke rødt: dette er noe å gjøre, ikke
+   noe som ryker. Rødt er reservert for dommer på kampdag. */
+.next-match__missing {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  align-self: flex-start;
+  margin-top: 8px;
+  padding: 3px 9px 3px 7px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-warm-bg, #F8E8E0);
+  color: var(--ds-color-warm-text, #7A3A24);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  line-height: 1.3;
+}
+
+.next-match__missing svg { width: 13px; height: 13px; flex-shrink: 0; }
 </style>
