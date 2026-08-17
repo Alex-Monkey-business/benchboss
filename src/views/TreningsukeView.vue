@@ -95,6 +95,37 @@ function drillsFor(s) {
   return resolveDrills(s.drills, exercises.value)
 }
 
+// ── Lese øvelsen der den står ───────────────────────────────────────────────
+//
+// Navnet alene forteller ikke hvordan øvelsen gjennomføres. Før måtte du inn i
+// banken for å finne ut av det — planen din var en liste med titler. Nå står
+// temaet fast under navnet, og resten folder seg ut på stedet.
+//
+// Nøkkelen er øvelsen, ikke posisjonen: flytter du en rad opp, skal den åpne
+// raden følge med i stedet for at naboen plutselig står åpen.
+const openDrills = ref(new Set())
+
+function drillKey(s, d) {
+  return `${s.id}:${d.exercise_id || d.text}`
+}
+
+// Ingenting å folde ut ⇒ ingen chevron. Da ser du at øvelsen er tom i stedet
+// for å trykke deg gjennom banken for å oppdage det samme.
+function hasDetail(d) {
+  return !!(d.organisering || (d.laeringsmomenter && d.laeringsmomenter.length) || d.link?.url)
+}
+
+function isOpen(s, d) {
+  return openDrills.value.has(drillKey(s, d))
+}
+
+function toggleDrill(s, d) {
+  const k = drillKey(s, d)
+  const next = new Set(openDrills.value)
+  next.has(k) ? next.delete(k) : next.add(k)
+  openDrills.value = next
+}
+
 function dayLink(s) {
   return `/trening/${periodId.value}/okt/${s.id}`
 }
@@ -417,25 +448,61 @@ onMounted(async () => {
 
         <ul v-if="drillsFor(s).length" class="ovelser">
           <li v-for="(d, i) in drillsFor(s)" :key="i" class="ovelse">
-            <span v-if="d.type && d.type !== 'none'" class="ovelse__badge" :class="`ovelse__badge--${d.type}`">
-              {{ d.type === 'diff' ? 'Diff' : 'Mix' }}
-            </span>
-            <span class="ovelse__name">{{ d.text }}</span>
-            <!-- Faste kolonner: pilene forsvinner i endene av lista, men
-                 plassen består — ellers vandrer × sidelengs fra rad til rad. -->
-            <span class="ovelse__actions">
-              <button v-if="i > 0" type="button" class="ovelse__action" aria-label="Flytt opp" @click="moveDrill(s, i, 'up')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-              </button>
-              <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
-              <button v-if="i < drillsFor(s).length - 1" type="button" class="ovelse__action" aria-label="Flytt ned" @click="moveDrill(s, i, 'down')">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-              </button>
-              <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
-              <button type="button" class="ovelse__action" aria-label="Fjern fra dagen" @click="removeDrill(s, i)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-              </button>
-            </span>
+            <div class="ovelse__row">
+              <!-- Har øvelsen mer å si, er raden en knapp. Har den ikke det,
+                   er den bare tekst — ingen falsk lovnad om noe å åpne. -->
+              <component
+                :is="hasDetail(d) ? 'button' : 'div'"
+                :type="hasDetail(d) ? 'button' : null"
+                class="ovelse__main"
+                :class="{ 'ovelse__main--open': isOpen(s, d) }"
+                :aria-expanded="hasDetail(d) ? String(isOpen(s, d)) : null"
+                @click="hasDetail(d) && toggleDrill(s, d)"
+              >
+                <!-- Til venstre, ikke til høyre: her leses den som «det er mer
+                     her», ikke som en fjerde knapp ved siden av × -->
+                <svg v-if="hasDetail(d)" class="ovelse__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                <span v-else class="ovelse__chevron-slot" aria-hidden="true"></span>
+                <span class="ovelse__text">
+                  <span class="ovelse__line">
+                    <span v-if="d.type && d.type !== 'none'" class="ovelse__badge" :class="`ovelse__badge--${d.type}`">
+                      {{ d.type === 'diff' ? 'Diff' : 'Mix' }}
+                    </span>
+                    <span class="ovelse__name">{{ d.text }}</span>
+                  </span>
+                  <span v-if="d.tema" class="ovelse__tema">{{ d.tema }}</span>
+                </span>
+              </component>
+              <!-- Faste kolonner: pilene forsvinner i endene av lista, men
+                   plassen består — ellers vandrer × sidelengs fra rad til rad. -->
+              <span class="ovelse__actions">
+                <button v-if="i > 0" type="button" class="ovelse__action" aria-label="Flytt opp" @click="moveDrill(s, i, 'up')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                </button>
+                <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
+                <button v-if="i < drillsFor(s).length - 1" type="button" class="ovelse__action" aria-label="Flytt ned" @click="moveDrill(s, i, 'down')">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                </button>
+                <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
+                <button type="button" class="ovelse__action" aria-label="Fjern fra dagen" @click="removeDrill(s, i)">
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                </button>
+              </span>
+            </div>
+
+            <!-- Utfoldet: hvordan øvelsen faktisk gjennomføres -->
+            <div v-if="isOpen(s, d)" class="ovelse__detail">
+              <ul v-if="d.laeringsmomenter && d.laeringsmomenter.length" class="ovelse__points">
+                <li v-for="(p, pi) in d.laeringsmomenter" :key="pi">{{ p }}</li>
+              </ul>
+              <p v-if="d.organisering" class="ovelse__org">
+                <span class="ovelse__org-label">Oppsett</span>{{ d.organisering }}
+              </p>
+              <a v-if="d.link && d.link.url" :href="d.link.url" target="_blank" rel="noopener" class="ovelse__link">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+                {{ d.link.label || 'Se øvelsen' }}
+              </a>
+            </div>
           </li>
         </ul>
 
@@ -823,13 +890,154 @@ Torsdag
 }
 
 .ovelse {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-sm);
   padding: 7px 0;
   border-top: 1px solid var(--ds-color-border-light);
   min-width: 0;
 }
+
+.ovelse__row {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-sm);
+  min-width: 0;
+}
+
+/* Raden er lesbar først, klikkbar sekundært: ingen knappedrakt, bare tekst
+   som svarer når du tar på den. */
+.ovelse__main {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-sm);
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Egen kolonne for teksten, så temaet flukter med navnet og ikke med pila */
+.ovelse__text {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+button.ovelse__main { cursor: pointer; }
+button.ovelse__main:active .ovelse__name { opacity: 0.6; }
+
+.ovelse__line {
+  display: flex;
+  align-items: baseline;
+  gap: var(--ds-space-sm);
+  min-width: 0;
+}
+
+/* Wrapper navnet til to linjer, skal pila stå på den FØRSTE — «center» legger
+   den i sprekken mellom linjene. */
+.ovelse__chevron,
+.ovelse__chevron-slot {
+  flex-shrink: 0;
+  width: 12px;
+  height: 12px;
+  margin-top: 4px;
+}
+
+.ovelse__chevron {
+  color: var(--ds-color-text-tertiary);
+  transform: rotate(90deg);
+  transform-origin: 50% 50%;
+  transition: transform var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.ovelse__main--open .ovelse__chevron { transform: rotate(-90deg); }
+
+@media (prefers-reduced-motion: reduce) {
+  .ovelse__chevron { transition: none; }
+}
+
+/* Hva øvelsen handler om — står alltid, så planen kan leses uten et eneste trykk */
+.ovelse__tema {
+  display: block;
+  font-size: var(--ds-text-xs);
+  line-height: 1.4;
+  color: var(--ds-color-text-secondary);
+  letter-spacing: -0.005em;
+}
+
+/* ---- Utfoldet øvelse ---- */
+/* Flukter med navnet over: pilas bredde (12px) + gapet (8px) */
+.ovelse__detail {
+  padding: var(--ds-space-sm) 0 var(--ds-space-xs) 20px;
+}
+
+.ovelse__points {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.ovelse__points li {
+  position: relative;
+  padding-left: var(--ds-space-md);
+  font-size: var(--ds-text-sm);
+  line-height: 1.45;
+  color: var(--ds-color-text-secondary);
+  letter-spacing: -0.005em;
+}
+
+.ovelse__points li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.62em;
+  width: 8px;
+  height: 1px;
+  background: var(--ds-color-text-tertiary);
+}
+
+.ovelse__org {
+  margin: var(--ds-space-sm) 0 0;
+  font-size: var(--ds-text-sm);
+  line-height: 1.5;
+  color: var(--ds-color-text-secondary);
+  letter-spacing: -0.005em;
+}
+
+.ovelse__points + .ovelse__org { margin-top: var(--ds-space-sm); }
+
+.ovelse__org-label {
+  margin-right: 6px;
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+}
+
+.ovelse__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--ds-space-sm);
+  max-width: 100%;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  letter-spacing: -0.005em;
+}
+
+.ovelse__link svg { width: 14px; height: 14px; flex-shrink: 0; }
 
 .ovelse__badge {
   flex-shrink: 0;
@@ -858,6 +1066,9 @@ Torsdag
   display: grid;
   grid-template-columns: repeat(3, 28px);
   flex-shrink: 0;
+  /* Raden kan være to linjer nå. Ikonene skal stå på navnelinja, ikke midt i
+     blokka — 28px knapp mot 19px tekst gir ellers et synlig hopp nedover. */
+  margin-top: -5px;
 }
 
 .ovelse__action-slot { display: block; }
