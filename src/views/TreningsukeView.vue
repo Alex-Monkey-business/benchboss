@@ -564,49 +564,52 @@ onMounted(async () => {
                    sammen til én flate blir tida både synlig og stor nok å treffe
                    — som egen liten pille var den begge deler for lite. -->
               <div class="ovelse__eyebrow">
-                <template v-if="minutesOpen === minutesKey(s, i)">
-                  <!-- Åpen stepper får hele linja. Da er det plass til knapper
-                       du faktisk kan treffe med en tommel. -->
-                  <span class="ovelse__stepper">
-                    <button type="button" class="ovelse__step" aria-label="Kortere" @click="stepDrillMinutes(s, i, d, -MIN_STEP)">−</button>
-                    <span class="ovelse__step-value">{{ formatDuration(d.minutes) }}</span>
-                    <button type="button" class="ovelse__step" aria-label="Lengre" :disabled="(d.minutes || 0) >= MIN_MAX" @click="stepDrillMinutes(s, i, d, MIN_STEP)">+</button>
-                  </span>
-                  <button type="button" class="ovelse__done" @click="minutesOpen = null">Ferdig</button>
-                </template>
-
-                <template v-else>
-                  <button
-                    type="button"
-                    class="ovelse__meta"
-                    :aria-label="d.minutes ? `Endre tid på øvelse ${i + 1}` : `Sett tid på øvelse ${i + 1}`"
-                    @click="toggleMinutes(s, i, d)"
-                  >
-                    <span class="ovelse__num">{{ i + 1 }}</span>
+                <button
+                  type="button"
+                  class="ovelse__meta"
+                  :aria-label="d.minutes ? `Endre tid på øvelse ${i + 1}` : `Sett tid på øvelse ${i + 1}`"
+                  @click="toggleMinutes(s, i, d)"
+                >
+                  <span class="ovelse__num">{{ i + 1 }}</span>
+                  <!-- Mens stepperen står åpen står tallet der, stort. Å gjenta
+                       det oppe i hjørnet ville bare vært to sannheter. -->
+                  <template v-if="minutesOpen !== minutesKey(s, i)">
                     <span class="ovelse__meta-sep" aria-hidden="true">·</span>
                     <span class="ovelse__meta-time" :class="{ 'ovelse__meta-time--empty': !d.minutes }">
                       {{ d.minutes ? formatDuration(d.minutes) : 'Sett tid' }}
                     </span>
+                  </template>
+                </button>
+                <span v-if="d.type && d.type !== 'none'" class="ovelse__badge" :class="`ovelse__badge--${d.type}`">
+                  {{ d.type === 'diff' ? 'Diff' : 'Mix' }}
+                </span>
+                <!-- Faste kolonner: pilene forsvinner i endene av lista, men
+                     plassen består — ellers vandrer × sidelengs fra rad til rad. -->
+                <span class="ovelse__actions">
+                  <button v-if="i > 0" type="button" class="ovelse__action" aria-label="Flytt opp" @click="moveDrill(s, i, 'up')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
                   </button>
-                  <span v-if="d.type && d.type !== 'none'" class="ovelse__badge" :class="`ovelse__badge--${d.type}`">
-                    {{ d.type === 'diff' ? 'Diff' : 'Mix' }}
-                  </span>
-                  <!-- Faste kolonner: pilene forsvinner i endene av lista, men
-                       plassen består — ellers vandrer × sidelengs fra rad til rad. -->
-                  <span class="ovelse__actions">
-                    <button v-if="i > 0" type="button" class="ovelse__action" aria-label="Flytt opp" @click="moveDrill(s, i, 'up')">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-                    </button>
-                    <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
-                    <button v-if="i < drillsFor(s).length - 1" type="button" class="ovelse__action" aria-label="Flytt ned" @click="moveDrill(s, i, 'down')">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                    </button>
-                    <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
-                    <button type="button" class="ovelse__action" aria-label="Fjern fra dagen" @click="removeDrill(s, i)">
-                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                    </button>
-                  </span>
-                </template>
+                  <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
+                  <button v-if="i < drillsFor(s).length - 1" type="button" class="ovelse__action" aria-label="Flytt ned" @click="moveDrill(s, i, 'down')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
+                  <button type="button" class="ovelse__action" aria-label="Fjern fra dagen" @click="removeDrill(s, i)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </span>
+              </div>
+
+              <!-- Stepperen får hele bredden på egen rad. Klemt inn på metalinja
+                   ble knappene 26 px — og selv 44 px ser puslete ut når tegnet
+                   inni er 18 px. Her er den samme kontrollen som dagens lengde. -->
+              <div v-if="minutesOpen === minutesKey(s, i)" class="ovelse__timeset">
+                <div class="stepper">
+                  <button type="button" class="stepper__btn" aria-label="Kortere" @click="stepDrillMinutes(s, i, d, -MIN_STEP)">−</button>
+                  <span class="stepper__value">{{ formatDuration(d.minutes) }}</span>
+                  <button type="button" class="stepper__btn" aria-label="Lengre" :disabled="(d.minutes || 0) >= MIN_MAX" @click="stepDrillMinutes(s, i, d, MIN_STEP)">+</button>
+                </div>
+                <button type="button" class="ovelse__done" @click="minutesOpen = null">Ferdig</button>
               </div>
 
               <h3 class="ovelse__name">{{ d.text }}</h3>
@@ -1164,53 +1167,20 @@ Torsdag
   color: var(--ds-color-text-tertiary);
 }
 
-/* Åpen stepper får hele linja for seg — 44px knapper, ingen presisjonstrykk */
-.ovelse__stepper {
-  display: inline-flex;
-  align-items: stretch;
-  flex-shrink: 0;
-  margin-left: -4px;
-  border-radius: var(--ds-radius-md);
-  background: var(--accent-bg);
-  overflow: hidden;
-}
-
-.ovelse__step,
-.ovelse__step-value {
-  border: none;
-  background: none;
-  font-family: var(--ds-font-display-sans);
-  color: var(--accent-text);
-  font-variant-numeric: tabular-nums;
-}
-
-.ovelse__step {
-  width: 44px;
-  height: 44px;
-  padding: 0;
-  font-size: var(--ds-text-lg);
-  line-height: 1;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.ovelse__step:active { background: rgba(0, 0, 0, 0.06); }
-.ovelse__step:disabled { opacity: 0.3; cursor: default; }
-.ovelse__step:disabled:active { background: none; }
-
-.ovelse__step-value {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 68px;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-semibold);
+/* Stepperens egen rad: full bredde, og «Ferdig» under i stedet for ved siden av
+   — ved siden av spiser den bredden stepperen trenger. */
+.ovelse__timeset {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: var(--ds-space-sm) 0 var(--ds-space-md);
 }
 
 .ovelse__done {
-  margin-left: auto;
+  align-self: flex-end;
   min-height: 44px;
   padding: 0 var(--ds-space-sm);
+  margin-right: calc(var(--ds-space-sm) * -1);
   border: none;
   background: none;
   font-family: var(--ds-font-body);
@@ -1222,6 +1192,9 @@ Torsdag
 }
 
 .ovelse__done:hover { color: var(--ds-color-text-primary); }
+
+/* Ingen markering på nummeret: stepperen står rett under og sier alt. En grå
+   boks rundt en ensom «1» leses som et felt, ikke som en tilstand. */
 
 .ovelse__actions {
   display: grid;
@@ -1492,19 +1465,22 @@ Torsdag
   gap: var(--ds-space-sm);
 }
 
+/* 44 px var nok for tommelen, men tegnet inni var 18 px — kontrollen var
+   treffbar og likevel puslete. Flaten OG symbolet må være store. */
 .stepper__btn {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  width: 56px;
+  height: 56px;
   flex-shrink: 0;
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-md);
   background: var(--ds-color-bg-elevated);
   color: var(--ds-color-text-primary);
   font-family: var(--ds-font-body);
-  font-size: var(--ds-text-lg);
+  font-size: 1.75rem;
+  font-weight: var(--ds-weight-regular);
   line-height: 1;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -1514,11 +1490,15 @@ Torsdag
 .stepper__btn:disabled { opacity: 0.35; cursor: not-allowed; }
 .stepper__btn:not(:disabled):active { transform: scale(0.95); }
 
+/* Tallet er det du leser mens du justerer — da skal det være det største på
+   linja, ikke minste. */
 .stepper__value {
   flex: 1;
   text-align: center;
-  font-size: var(--ds-text-md);
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-xl);
   font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-tight);
   color: var(--ds-color-text-primary);
   font-variant-numeric: tabular-nums;
 }
