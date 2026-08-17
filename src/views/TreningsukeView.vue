@@ -560,41 +560,53 @@ onMounted(async () => {
                for å se innholdet — det er dagen du åpnet. -->
           <ol v-if="drillsFor(s).length" class="ovelser">
             <li v-for="(d, i) in drillsFor(s)" :key="i" class="ovelse">
+              <!-- Nummeret og tida hører sammen: «steg 2, tjue minutter». Slått
+                   sammen til én flate blir tida både synlig og stor nok å treffe
+                   — som egen liten pille var den begge deler for lite. -->
               <div class="ovelse__eyebrow">
-                <span class="ovelse__num">{{ i + 1 }}</span>
-                <span v-if="d.type && d.type !== 'none'" class="ovelse__badge" :class="`ovelse__badge--${d.type}`">
-                  {{ d.type === 'diff' ? 'Diff' : 'Mix' }}
-                </span>
+                <template v-if="minutesOpen === minutesKey(s, i)">
+                  <!-- Åpen stepper får hele linja. Da er det plass til knapper
+                       du faktisk kan treffe med en tommel. -->
+                  <span class="ovelse__stepper">
+                    <button type="button" class="ovelse__step" aria-label="Kortere" @click="stepDrillMinutes(s, i, d, -MIN_STEP)">−</button>
+                    <span class="ovelse__step-value">{{ formatDuration(d.minutes) }}</span>
+                    <button type="button" class="ovelse__step" aria-label="Lengre" :disabled="(d.minutes || 0) >= MIN_MAX" @click="stepDrillMinutes(s, i, d, MIN_STEP)">+</button>
+                  </span>
+                  <button type="button" class="ovelse__done" @click="minutesOpen = null">Ferdig</button>
+                </template>
 
-                <!-- Tida: en pille du leser, en stepper du justerer. Samme sted,
-                     så tallet ikke flytter seg når du tar på det. -->
-                <span v-if="minutesOpen === minutesKey(s, i)" class="ovelse__stepper">
-                  <button type="button" class="ovelse__step" aria-label="Kortere" @click="stepDrillMinutes(s, i, d, -MIN_STEP)">−</button>
-                  <button type="button" class="ovelse__step-value" aria-label="Ferdig" @click="minutesOpen = null">{{ formatDuration(d.minutes) }}</button>
-                  <button type="button" class="ovelse__step" aria-label="Lengre" :disabled="(d.minutes || 0) >= MIN_MAX" @click="stepDrillMinutes(s, i, d, MIN_STEP)">+</button>
-                </span>
-                <button
-                  v-else
-                  type="button"
-                  class="ovelse__time"
-                  :class="{ 'ovelse__time--empty': !d.minutes }"
-                  @click="toggleMinutes(s, i, d)"
-                >{{ d.minutes ? formatDuration(d.minutes) : 'Tid' }}</button>
-                <!-- Faste kolonner: pilene forsvinner i endene av lista, men
-                     plassen består — ellers vandrer × sidelengs fra rad til rad. -->
-                <span class="ovelse__actions">
-                  <button v-if="i > 0" type="button" class="ovelse__action" aria-label="Flytt opp" @click="moveDrill(s, i, 'up')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                <template v-else>
+                  <button
+                    type="button"
+                    class="ovelse__meta"
+                    :aria-label="d.minutes ? `Endre tid på øvelse ${i + 1}` : `Sett tid på øvelse ${i + 1}`"
+                    @click="toggleMinutes(s, i, d)"
+                  >
+                    <span class="ovelse__num">{{ i + 1 }}</span>
+                    <span class="ovelse__meta-sep" aria-hidden="true">·</span>
+                    <span class="ovelse__meta-time" :class="{ 'ovelse__meta-time--empty': !d.minutes }">
+                      {{ d.minutes ? formatDuration(d.minutes) : 'Sett tid' }}
+                    </span>
                   </button>
-                  <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
-                  <button v-if="i < drillsFor(s).length - 1" type="button" class="ovelse__action" aria-label="Flytt ned" @click="moveDrill(s, i, 'down')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                  </button>
-                  <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
-                  <button type="button" class="ovelse__action" aria-label="Fjern fra dagen" @click="removeDrill(s, i)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                  </button>
-                </span>
+                  <span v-if="d.type && d.type !== 'none'" class="ovelse__badge" :class="`ovelse__badge--${d.type}`">
+                    {{ d.type === 'diff' ? 'Diff' : 'Mix' }}
+                  </span>
+                  <!-- Faste kolonner: pilene forsvinner i endene av lista, men
+                       plassen består — ellers vandrer × sidelengs fra rad til rad. -->
+                  <span class="ovelse__actions">
+                    <button v-if="i > 0" type="button" class="ovelse__action" aria-label="Flytt opp" @click="moveDrill(s, i, 'up')">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                    </button>
+                    <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
+                    <button v-if="i < drillsFor(s).length - 1" type="button" class="ovelse__action" aria-label="Flytt ned" @click="moveDrill(s, i, 'down')">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    </button>
+                    <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
+                    <button type="button" class="ovelse__action" aria-label="Fjern fra dagen" @click="removeDrill(s, i)">
+                      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                    </button>
+                  </span>
+                </template>
               </div>
 
               <h3 class="ovelse__name">{{ d.text }}</h3>
@@ -1042,12 +1054,13 @@ Torsdag
 
 /* Nummer, type og handlinger på én dempet linje over navnet — slik holder de
    seg unna teksten du faktisk skal lese. */
+/* Knappene har egen høyde nå, så linja trenger ikke egen luft under */
 .ovelse__eyebrow {
   display: flex;
   align-items: center;
   gap: var(--ds-space-sm);
   min-width: 0;
-  margin-bottom: 6px;
+  margin-bottom: 2px;
 }
 
 .ovelse__num {
@@ -1102,38 +1115,62 @@ Torsdag
   border-top: 0;
 }
 
-/* Pille og stepper deler plass og form, så tallet ikke hopper når du tar på det */
-.ovelse__time,
-.ovelse__stepper {
+/* Nummer + tid som én flate. Første forsøk var en 22px pille med grå «Tid» i —
+   både usynlig og umulig å treffe. Nå er den 40px høy, aksentfarget, og sier
+   hva den gjør. Negativ venstremarg holder nummeret i flukt med navnet under. */
+.ovelse__meta {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   flex-shrink: 0;
-  height: 22px;
-  border-radius: var(--ds-radius-full);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.ovelse__time {
-  padding: 0 9px;
+  min-height: 44px;
+  margin-left: -10px;
+  padding: 0 10px;
   border: none;
-  background: var(--accent-bg);
-  color: var(--accent-text);
+  border-radius: var(--ds-radius-md);
+  background: none;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Uten tid er pilla en invitasjon, ikke en verdi — den skal ikke se satt ut */
-.ovelse__time--empty {
-  background: none;
-  padding: 0 2px;
+.ovelse__meta:active { background: var(--accent-bg); }
+
+.ovelse__meta-sep {
+  font-size: var(--ds-text-xs);
   color: var(--ds-color-text-tertiary);
-  font-weight: var(--ds-weight-regular);
+  opacity: 0.6;
 }
 
+.ovelse__meta-time {
+  padding: 2px 8px;
+  border-radius: var(--ds-radius-full);
+  background: var(--accent-bg);
+  color: var(--accent-text);
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* Uten tid er den en oppfordring, ikke en verdi — stiplet, så den leses som et
+   tomt felt du kan fylle, ikke som et tall som allerede står der. */
+.ovelse__meta-time--empty {
+  background: none;
+  border: 1px dashed var(--ds-color-border);
+  padding: 1px 7px;
+  color: var(--ds-color-text-tertiary);
+}
+
+/* Åpen stepper får hele linja for seg — 44px knapper, ingen presisjonstrykk */
 .ovelse__stepper {
   display: inline-flex;
   align-items: stretch;
+  flex-shrink: 0;
+  margin-left: -4px;
+  border-radius: var(--ds-radius-md);
   background: var(--accent-bg);
   overflow: hidden;
 }
@@ -1142,25 +1179,49 @@ Torsdag
 .ovelse__step-value {
   border: none;
   background: none;
-  font: inherit;
+  font-family: var(--ds-font-display-sans);
   color: var(--accent-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.ovelse__step {
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  font-size: var(--ds-text-lg);
+  line-height: 1;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
-.ovelse__step {
-  width: 26px;
-  padding: 0;
-  font-size: var(--ds-text-md);
-  line-height: 1;
-}
-
-.ovelse__step:disabled { opacity: 0.35; cursor: default; }
+.ovelse__step:active { background: rgba(0, 0, 0, 0.06); }
+.ovelse__step:disabled { opacity: 0.3; cursor: default; }
+.ovelse__step:disabled:active { background: none; }
 
 .ovelse__step-value {
-  min-width: 46px;
-  padding: 0 2px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 68px;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
 }
+
+.ovelse__done {
+  margin-left: auto;
+  min-height: 44px;
+  padding: 0 var(--ds-space-sm);
+  border: none;
+  background: none;
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ovelse__done:hover { color: var(--ds-color-text-primary); }
 
 .ovelse__actions {
   display: grid;
