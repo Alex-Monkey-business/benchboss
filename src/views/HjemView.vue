@@ -53,7 +53,9 @@ const cupMatchesToday = computed(() => (showCupEntry.value ? todayCupMatches.val
 // Det som kommer: uka dekker det meste, så neste-kortene er for hendelser
 // UTENFOR uka. Vi sjekker per hendelse om ukelista allerede har den — ikke
 // om lista er tom, ellers forsvinner neste kamp så snart uka har én trening.
-const weekTargets = computed(() => new Set(weekAhead.value.map(i => i.to)))
+// En sammenslått treningsrad dekker flere økter — da må alle målene med, ellers
+// dukker «neste trening» opp igjen som eget kort for noe uka allerede viser.
+const weekTargets = computed(() => new Set(weekAhead.value.flatMap(i => i.targets || [i.to])))
 
 const upNext = computed(() => {
   const items = []

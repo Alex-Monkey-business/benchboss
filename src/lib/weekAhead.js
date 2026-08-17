@@ -74,5 +74,25 @@ export function buildWeekAhead({ today = localISODate(), period, sessions = [], 
       to: `/cup/kamp/${m.id}`
     }))
 
-  return items.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
+  const sorted = items.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
+
+  // Treningene er rytmen, kampene er hendelsene. Med en full uke ble Hjem seks
+  // like «Trening»-kort etter hverandre — status, ikke noe å handle på. Fra tre
+  // og opp slås de sammen til én rad, så kampene faktisk stikker seg ut.
+  const trainings = sorted.filter(i => i.kind === 'training')
+  if (trainings.length < 3) return sorted
+
+  const merged = {
+    kind: 'training-week',
+    date: trainings[0].date,
+    count: trainings.length,
+    dates: trainings.map(t => t.date),
+    // Hjem bruker målene til å skjule «neste trening»-kortet for noe uka alt
+    // viser. Uten disse ville sammenslåingen bringt det kortet tilbake.
+    targets: trainings.map(t => t.to),
+    to: '/trening'
+  }
+
+  return [merged, ...sorted.filter(i => i.kind !== 'training')]
+    .sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
 }

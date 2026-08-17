@@ -13,13 +13,25 @@ function weekDayLabel(iso) {
   return (s.charAt(0).toUpperCase() + s.slice(1)).replace(/\./g, '')
 }
 
+// «Tir 18» — kort nok til at fem av dem får plass på én linje.
+function shortDay(iso) {
+  const s = new Date(iso + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric' })
+  return (s.charAt(0).toUpperCase() + s.slice(1)).replace(/\./g, '')
+}
+
+function dayColumn(item) {
+  return item.kind === 'training-week' ? 'Uka' : weekDayLabel(item.date)
+}
+
 function title(item) {
+  if (item.kind === 'training-week') return `${item.count} treninger`
   if (item.kind === 'training') return 'Trening'
   if (item.kind === 'cup') return `Cup mot ${item.opponent}`
   return `Kamp mot ${item.opponent}`
 }
 
 function sub(item) {
+  if (item.kind === 'training-week') return item.dates.map(shortDay).join(' · ')
   if (item.kind === 'training') return item.focus || ''
   const parts = []
   if (item.kind === 'match') parts.push(item.isHome ? 'Hjemme' : 'Borte')
@@ -38,7 +50,7 @@ function sub(item) {
       class="week-row"
       :class="{ 'week-row--static': !interactive }"
     >
-      <span class="week-row__day">{{ weekDayLabel(item.date) }}</span>
+      <span class="week-row__day">{{ dayColumn(item) }}</span>
       <span class="week-row__body">
         <span class="week-row__title">{{ title(item) }}</span>
         <span v-if="sub(item)" class="week-row__sub">{{ sub(item) }}</span>
