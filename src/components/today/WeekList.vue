@@ -5,18 +5,18 @@ defineProps({
   interactive: { type: Boolean, default: true }
 })
 
-import { isToday } from '../../lib/dateLabels'
+import { isToday, trimAbbrevDots } from '../../lib/dateLabels'
 
 function weekDayLabel(iso) {
   if (isToday(iso)) return 'I dag'
   const s = new Date(iso + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })
-  return (s.charAt(0).toUpperCase() + s.slice(1)).replace(/\./g, '')
+  return trimAbbrevDots(s.charAt(0).toUpperCase() + s.slice(1))
 }
 
 // «Tir 18» — kort nok til at fem av dem får plass på én linje.
 function shortDay(iso) {
   const s = new Date(iso + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric' })
-  return (s.charAt(0).toUpperCase() + s.slice(1)).replace(/\./g, '')
+  return trimAbbrevDots(s.charAt(0).toUpperCase() + s.slice(1))
 }
 
 function dayColumn(item) {

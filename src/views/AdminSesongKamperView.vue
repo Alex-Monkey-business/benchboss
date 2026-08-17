@@ -6,6 +6,7 @@ import { useExpenses } from '../composables/useExpenses'
 import { useToast } from '../composables/useToast'
 import { parseMatchFile, detectSeasonName } from '../lib/excelParser'
 import { isHalsen } from '../lib/matchMeta'
+import { trimAbbrevDots } from '../lib/dateLabels'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
 
@@ -254,7 +255,7 @@ async function saveDateTime() {
 function formatMatchDate(dateStr) {
   if (!dateStr) return ''
   const d = new Date(dateStr + 'T12:00:00')
-  return d.toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' })
+  return trimAbbrevDots(d.toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' }))
 }
 </script>
 

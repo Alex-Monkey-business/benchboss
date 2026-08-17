@@ -17,7 +17,18 @@ function capitalize(s) {
   return s.charAt(0).toUpperCase() + s.slice(1)
 }
 
-// «Onsdag 19 aug» — én form, uansett hvor nær hendelsen er.
+// Punktum etter BOKSTAVER er en forkortelse («ons.», «aug.») — den kan vi
+// droppe for et roligere uttrykk. Punktum etter SIFFER er ordenstallet i norsk
+// datoskriving («19.») — den SKAL stå. «19 aug» er feil, «19. aug» er riktig.
+//
+// Dette lå før som tre ulike `.replace()` rundt i kodebasen: to som strippet
+// alt, og én som strippet bare det første punktumet — altså ordenstallet, og
+// beholdt forkortelsen. Nøyaktig omvendt.
+export function trimAbbrevDots(s) {
+  return (s || '').replace(/([a-zæøå])\./gi, '$1')
+}
+
+// «Onsdag 19. aug» — én form, uansett hvor nær hendelsen er.
 //
 // relativeDateLabel har sin plass i påminnelser, men på et kampkort må dagen
 // kunne leses direkte. «I overmorgen» tvinger deg til å regne deg fram til
@@ -29,7 +40,7 @@ export function weekdayDateLabel(isoDate) {
   const d = new Date(isoDate + 'T12:00:00')
   if (Number.isNaN(d.getTime())) return ''
   const s = d.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'short' })
-  return capitalize(s).replace(/\./g, '')
+  return trimAbbrevDots(capitalize(s))
 }
 
 // Returns "I dag", "I morgen", "Mandag", "Neste mandag", "Mandag 15. mai", etc.
@@ -86,10 +97,10 @@ export function shortRelativeDate(isoDate, now = new Date()) {
   if (diff === -1) return 'I går'
 
   if (diff > 0 && diff < 7) {
-    return capitalize(d.toLocaleDateString('nb-NO', { weekday: 'short' })).replace('.', '')
+    return trimAbbrevDots(capitalize(d.toLocaleDateString('nb-NO', { weekday: 'short' })))
   }
 
-  return d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' }).replace('.', '')
+  return trimAbbrevDots(d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' }))
 }
 
 // Local ISO date (YYYY-MM-DD). Bruk denne, ikke toISOString().slice(0,10) —
