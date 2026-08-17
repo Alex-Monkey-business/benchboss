@@ -51,6 +51,7 @@ const detailLine = computed(() => {
 
 <template>
   <router-link :to="event.to" class="ds-card ds-card--interactive next-match">
+    <div class="next-match__row">
     <div class="next-match__body">
     <div class="next-match__top">
       <span class="next-match__tags">
@@ -68,11 +69,6 @@ const detailLine = computed(() => {
 
     <span class="next-match__opponent">{{ event.opponent }}</span>
     <span class="next-match__detail">{{ detailLine }}</span>
-
-    <span v-if="missing.length" class="next-match__missing">
-      <span class="next-match__missing-dot" aria-hidden="true"></span>
-      <span>Mangler {{ missingLine }}</span>
-    </span>
     </div>
 
     <img
@@ -83,6 +79,15 @@ const detailLine = computed(() => {
       height="88"
       decoding="async"
     />
+    </div>
+
+    <!-- Utenfor tekstkolonnen: mangelen gjelder hele kampen, ikke bare
+         teksten, og får da hele kortets bredde i stedet for å brekke mot
+         bildet. -->
+    <span v-if="missing.length" class="next-match__missing">
+      <span class="next-match__missing-dot" aria-hidden="true"></span>
+      <span>Mangler {{ missingLine }}</span>
+    </span>
   </router-link>
 </template>
 
@@ -92,11 +97,18 @@ const detailLine = computed(() => {
    den er tegnet med farge og dybde, og bak tekst blir den grumsete. */
 .next-match {
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: var(--ds-space-lg);
+  text-decoration: none;
+}
+
+/* Tekst og bilde side om side; mangel-linja under, i full bredde. */
+.next-match__row {
+  display: flex;
   flex-direction: row;
   align-items: center;
   gap: var(--ds-space-md);
-  padding: var(--ds-space-lg);
-  text-decoration: none;
 }
 
 .next-match__body {
