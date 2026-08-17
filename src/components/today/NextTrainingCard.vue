@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { relativeDateLabel } from '../../lib/dateLabels'
 import { sessionIllustration, illoWebp, illoPng as illoPngPath } from '../../lib/sessionVisuals'
+import { dagLink } from '../../lib/trainingLinks'
 
 const props = defineProps({
   period: { type: Object, required: true },
@@ -9,7 +10,7 @@ const props = defineProps({
   date: { type: String, required: true }
 })
 
-// Samme bilde som økta selv viser — ukedagen velger det (lib/sessionVisuals).
+// Ukedagen velger bildet (lib/sessionVisuals).
 const illo = computed(() => sessionIllustration(props.session))
 const illoSrc = computed(() => illoWebp(illo.value))
 const illoPng = computed(() => illoPngPath(illo.value))
@@ -20,7 +21,7 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
 
 <template>
   <router-link
-    :to="`/trening/${period.id}/okt/${session.id}`"
+    :to="dagLink(period.id, session.id)"
     class="ds-card ds-card--interactive next-training"
     :data-accent="session.accent || 'warm'"
   >
@@ -36,7 +37,7 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
         <source :srcset="illoSrc" type="image/webp" />
         <img :src="illoPng" alt="" loading="lazy" />
       </picture>
-      <!-- Har ikke økta egen illustrasjon, faller vi tilbake på state-ikonet,
+      <!-- Har ikke dagen egen illustrasjon, faller vi tilbake på state-ikonet,
            så kortet aldri står bildeløst ved siden av neste kamp. -->
       <img
         v-else
@@ -101,7 +102,7 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
   gap: var(--ds-space-md);
 }
 
-/* Skannbart glimt, ikke hele økten: fokus klippes til to linjer. */
+/* Skannbart glimt, ikke hele treninga: fokus klippes til to linjer. */
 .next-training__focus {
   margin: 0;
   font-family: var(--ds-font-heading);
@@ -112,8 +113,8 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
   letter-spacing: -0.01em;
   /* Kortet beholder sin LYSE aksentbakgrunn i mørk modus — derfor kan ikke
      blekket følge temaet. --ds-color-text-primary flipper til nesten hvitt,
-     og tittelen ble usynlig på lyseblått. Fast mørkt blekk, samme mønster som
-     kapittel-panelet i økt-visningen: lik i lyst og mørkt tema. */
+     og tittelen ble usynlig på lyseblått. Fast mørkt blekk: lik i lyst og
+     mørkt tema. */
   color: #0A0A0A;
   display: -webkit-box;
   -webkit-line-clamp: 2;

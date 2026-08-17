@@ -146,10 +146,14 @@ const routes = [
     name: 'ovelsesbank',
     component: () => import('./views/OvelsesbankView.vue')
   },
-  // ---- Trening: uka er landingssiden, dagen er lesevisningen ----
+  // ---- Trening: uka er hele flaten ----
   // Begge rutene rendrer samme uke-side: uten :id velger den måneden som
   // gjelder nå. Ingen redirect — en omdirigering til en id gjorde bare at
   // tilbake-knappen kastet deg rundt.
+  //
+  // Dagen hadde en egen side en stund. Den døde da uka begynte å vise dagen
+  // fullt ut: to renderinger av samme øvelse, og bare Hjem visste om den ene.
+  // Nå deeplinker Hjem inn i uka med ?dag=<id>.
   {
     path: '/trening',
     name: 'trening',
@@ -160,15 +164,12 @@ const routes = [
     name: 'treningsperiode',
     component: () => import('./views/TreningsukeView.vue')
   },
-  {
-    path: '/trening/:id/okt/:oktId',
-    name: 'treningsokt',
-    component: () => import('./views/TreningsoktView.vue')
-  },
   // Bakoverkompat: treningsplan + håndbok lå tidligere under /admin
   { path: '/admin/treningsplan', redirect: '/trening' },
   { path: '/admin/treningsplan/:id', redirect: to => `/trening/${to.params.id}` },
-  { path: '/admin/treningsplan/:id/okt/:oktId', redirect: to => `/trening/${to.params.id}/okt/${to.params.oktId}` },
+  // Gamle dags-lenker (bokmerker, delte lenker) åpner dagen i uka i stedet.
+  { path: '/admin/treningsplan/:id/okt/:oktId', redirect: to => ({ path: `/trening/${to.params.id}`, query: { dag: to.params.oktId } }) },
+  { path: '/trening/:id/okt/:oktId', redirect: to => ({ path: `/trening/${to.params.id}`, query: { dag: to.params.oktId } }) },
   { path: '/admin/handbok', redirect: '/trening/handbok' },
   { path: '/admin/handbok/:slug', redirect: to => `/trening/handbok/${to.params.slug}` },
   // Backwards-compat redirects for old paths

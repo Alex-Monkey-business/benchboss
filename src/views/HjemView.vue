@@ -14,6 +14,7 @@ import NextMatchCard from '../components/today/NextMatchCard.vue'
 import OtherTeamsList from '../components/today/OtherTeamsList.vue'
 import WeekList from '../components/today/WeekList.vue'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
+import { dagLink } from '../lib/trainingLinks'
 
 const {
   loading, refresh, greeting,
@@ -62,14 +63,14 @@ const weekItems = computed(() =>
 )
 
 // Treningskortet er fortsatt for det uka IKKE dekker. En sammenslått
-// treningsrad dekker flere økter — da må alle målene med, ellers dukker
+// treningsrad dekker flere treninger — da må alle målene med, ellers dukker
 // «neste trening» opp igjen som eget kort for noe uka allerede viser.
 const weekTargets = computed(() => new Set(weekItems.value.flatMap(i => i.targets || [i.to])))
 
 const upNext = computed(() => {
   const items = []
   const t = nextTraining.value
-  if (!hasToday.value && t && !weekTargets.value.has(`/trening/${t.period.id}/okt/${t.session.id}`)) {
+  if (!hasToday.value && t && !weekTargets.value.has(dagLink(t.period.id, t.session.id))) {
     items.push({ kind: 'training', date: t.date })
   }
   if (heroMatch.value) items.push({ kind: 'match', date: heroMatch.value.date })

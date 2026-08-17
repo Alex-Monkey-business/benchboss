@@ -62,10 +62,17 @@ const notStarted = computed(() => !!(period.value?.start_date && period.value.st
 
 const monthPlan = computed(() => nextMonthPlan(lastPeriod.value))
 
+// «1.–31. august», ikke «1. august – 31. august». Måneden står allerede i
+// chipen over; datolinja skal si spennet, ikke gjenta navnet to ganger.
 function dateRange(p) {
-  const fmt = d => new Date(d).toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' })
-  if (p?.start_date && p?.end_date) return `${fmt(p.start_date)} – ${fmt(p.end_date)}`
-  if (p?.start_date) return `Fra ${fmt(p.start_date)}`
+  const lang = d => new Date(d).toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' })
+  if (p?.start_date && p?.end_date) {
+    const a = new Date(p.start_date)
+    const b = new Date(p.end_date)
+    const sammeMåned = a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()
+    return sammeMåned ? `${a.getDate()}.–${lang(p.end_date)}` : `${lang(p.start_date)} – ${lang(p.end_date)}`
+  }
+  if (p?.start_date) return `Fra ${lang(p.start_date)}`
   return ''
 }
 
@@ -108,18 +115,32 @@ function drillsFor(s) {
 // ut. Det var et lag med trykk som bare fantes fordi plassen var for knapp.
 const openDayId = ref(null)
 
-async function toggleDay(s) {
+// Hjem lenker rett på en dag: /trening/:id?dag=<id>. Ønsket brukes ÉN gang —
+// ellers ville et månedsbytte senere kastet deg tilbake til dagen lenka pekte
+// på, lenge etter at du sluttet å tenke på den.
+const wantedDay = ref(route.query.dag || null)
+const skalRulleTilDag = ref(false)
+
+async function scrollToDay(id, behavior) {
+  await nextTick()
+  const el = document.getElementById(`dag-${id}`)
+  if (!el) return
+  const rolig = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  const rull = () => el.scrollIntoView({ behavior: rolig ? 'auto' : behavior, block: 'start' })
+  rull()
+  // Kaldstart (bokmerke, hjemskjerm-appen, refresh): dataene er inne før siden
+  // er ferdig lastet, og nettleseren nullstiller scrollen etter oss. Da lander
+  // du på toppen selv om riktig dag står åpen. Én gang til når lastingen er ferdig.
+  if (document.readyState !== 'complete') window.addEventListener('load', rull, { once: true })
+}
+
+function toggleDay(s) {
   const opening = openDayId.value !== s.id
   openDayId.value = opening ? s.id : null
-  if (!opening) return
   // Lukkes en dag ovenfor samtidig, faller kortet oppover mens du ser på det —
   // du trykker Lørdag og ender midt i Torsdag. Å hente kortet til toppen er
   // forskjellen på å åpne en dag og å miste den.
-  await nextTick()
-  const el = document.getElementById(`dag-${s.id}`)
-  if (!el) return
-  const rolig = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  el.scrollIntoView({ behavior: rolig ? 'auto' : 'smooth', block: 'start' })
+  if (opening) scrollToDay(s.id, 'smooth')
 }
 
 // Mandag = 1, søndag = 7 — samme skala som weekday-kolonnen.
@@ -128,10 +149,20 @@ function todayWeekday() {
   return js === 0 ? 7 : js
 }
 
-// Hvilken dag skal stå åpen når du kommer inn? Den du trenger nå: i dag hvis
-// det er treningsdag, ellers neste treningsdag i uka, ellers den første.
+// Hvilken dag skal stå åpen når du kommer inn? Den lenka ba om — ellers den du
+// trenger nå: i dag hvis det er treningsdag, så neste treningsdag, så den første.
 function defaultOpenDay(list) {
   if (!list.length) return null
+  if (wantedDay.value) {
+    const ønsket = list.find(s => s.id === wantedDay.value)
+    wantedDay.value = null
+    // Rullingen skjer ikke her: dagen velges mens skjelettet fortsatt står i
+    // DOM-en, så elementet finnes ikke ennå. Flagget hentes i onMounted.
+    if (ønsket) {
+      skalRulleTilDag.value = true
+      return ønsket.id
+    }
+  }
   const wd = todayWeekday()
   return (
     list.find(s => s.weekday === wd) ||
@@ -229,18 +260,44 @@ function queueDrills(sessionId, mutate) {
   return next
 }
 
-function moveDrill(s, i, dir) {
-  const j = dir === 'up' ? i - 1 : i + 1
-  const n = (s.drills || []).length
-  if (j < 0 || j >= n) return
+// Uka er én liste, ikke tre. Pilene stoppet før i endene av dagen — nå
+// fortsetter de inn i nabodagen, så «denne tar vi heller på lørdag» er ett
+// trykk i stedet for fjern-finn-i-banken-legg-til (som dessuten mistet tida).
+function naboDag(s, dir) {
+  const i = dager.value.findIndex(d => d.id === s.id)
+  if (i < 0) return null
+  return dager.value[dir === 'up' ? i - 1 : i + 1] || null
+}
+
+// «tir», «lør» — står på pila som krysser, så flyttingen aldri er en overraskelse.
+function kortDag(title) {
+  return (title || '').slice(0, 3).toLowerCase()
+}
+
+async function moveDrill(s, i, dir) {
   // Stepperen henger på plassen i lista, ikke på øvelsen. Flytter du raden, ville
   // den blitt stående åpen på naboen.
   minutesOpen.value = null
-  queueDrills(s.id, ds => {
-    const arr = [...ds]
-    ;[arr[i], arr[j]] = [arr[j], arr[i]]
-    return arr
-  })
+
+  const j = dir === 'up' ? i - 1 : i + 1
+  if (j >= 0 && j < (s.drills || []).length) {
+    queueDrills(s.id, ds => {
+      const arr = [...ds]
+      ;[arr[i], arr[j]] = [arr[j], arr[i]]
+      return arr
+    })
+    return
+  }
+
+  const nabo = naboDag(s, dir)
+  const drill = s.drills?.[i]
+  if (!nabo || !drill) return
+  // Hele drill-objektet flyttes, ikke bare navnet: tida og opphavet (exercise_id)
+  // følger med. Opp legger den nederst i dagen over, ned øverst i dagen under —
+  // uka leses fortsatt ovenfra og ned.
+  await queueDrills(s.id, ds => ds.filter((_, idx) => idx !== i))
+  await queueDrills(nabo.id, ds => (dir === 'up' ? [...ds, drill] : [drill, ...ds]))
+  showToast(`Flyttet til ${nabo.title.toLowerCase()}`, 'success')
 }
 
 // Fjerne fra dagen er ikke sletting — øvelsen blir liggende i banken.
@@ -474,6 +531,14 @@ onMounted(async () => {
   if (periodId.value) await fetchSessions(periodId.value)
   fetchExercises()
   loading.value = false
+
+  // Kommer du fra Hjem, skal dagen stå der med én gang — ikke gli forbi to
+  // andre dager på vei ned. Først her er skjelettet byttet ut med ekte dager.
+  await nextTick()
+  if (skalRulleTilDag.value) {
+    skalRulleTilDag.value = false
+    scrollToDay(openDayId.value, 'auto')
+  }
 })
 </script>
 
@@ -513,8 +578,12 @@ onMounted(async () => {
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
         </button>
       </header>
+      <!-- Modellen er en UKE som gjentar seg, ikke tre enkelttreninger i en
+           måned. Sto det bare «1.–31. august» over tre dager, leste man planen
+           som tre økter. «Hver uke» er hele forskjellen. -->
       <p class="uke__dates">
-        {{ dateRange(period) }}
+        <span class="uke__repeat">Hver uke</span>
+        <span v-if="dateRange(period)" class="uke__dates-span">{{ dateRange(period) }}</span>
         <span v-if="hasEnded" class="uke__flag">Avsluttet</span>
         <span v-else-if="notStarted" class="uke__flag">Starter {{ relativeDateLabel(period.start_date).toLowerCase() }}</span>
       </p>
@@ -538,7 +607,7 @@ onMounted(async () => {
           <span class="dag__head">
             <span class="dag__name">{{ s.title }}</span>
             <span class="dag__meta">
-              <span v-if="s.duration_min">{{ formatDuration(s.duration_min) }}</span>
+              <span v-if="s.duration_min" class="dag__len">{{ formatDuration(s.duration_min) }}</span>
               <span v-if="openDayId !== s.id" class="dag__count">{{ drillCountLabel(s) }}</span>
             </span>
             <svg class="dag__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
@@ -583,15 +652,33 @@ onMounted(async () => {
                 <span v-if="d.type && d.type !== 'none'" class="ovelse__badge" :class="`ovelse__badge--${d.type}`">
                   {{ d.type === 'diff' ? 'Diff' : 'Mix' }}
                 </span>
-                <!-- Faste kolonner: pilene forsvinner i endene av lista, men
-                     plassen består — ellers vandrer × sidelengs fra rad til rad. -->
+                <!-- I endene av dagen peker pilene videre inn i uka. Da står
+                     dagen den havner i på knappen — flytting over en grense
+                     skal aldri skje i det stille. Finnes ingen nabodag, står
+                     plassen tom, så × ikke vandrer sidelengs fra rad til rad. -->
                 <span class="ovelse__actions">
-                  <button v-if="i > 0" type="button" class="ovelse__action" aria-label="Flytt opp" @click="moveDrill(s, i, 'up')">
+                  <button
+                    v-if="i > 0 || naboDag(s, 'up')"
+                    type="button"
+                    class="ovelse__action"
+                    :class="{ 'ovelse__action--kryss': i === 0 }"
+                    :aria-label="i > 0 ? 'Flytt opp' : `Flytt til ${naboDag(s, 'up').title}`"
+                    @click="moveDrill(s, i, 'up')"
+                  >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                    <span v-if="i === 0" class="ovelse__action-day">{{ kortDag(naboDag(s, 'up').title) }}</span>
                   </button>
                   <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
-                  <button v-if="i < drillsFor(s).length - 1" type="button" class="ovelse__action" aria-label="Flytt ned" @click="moveDrill(s, i, 'down')">
+                  <button
+                    v-if="i < drillsFor(s).length - 1 || naboDag(s, 'down')"
+                    type="button"
+                    class="ovelse__action"
+                    :class="{ 'ovelse__action--kryss': i === drillsFor(s).length - 1 }"
+                    :aria-label="i < drillsFor(s).length - 1 ? 'Flytt ned' : `Flytt til ${naboDag(s, 'down').title}`"
+                    @click="moveDrill(s, i, 'down')"
+                  >
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    <span v-if="i === drillsFor(s).length - 1" class="ovelse__action-day">{{ kortDag(naboDag(s, 'down').title) }}</span>
                   </button>
                   <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
                   <button type="button" class="ovelse__action" aria-label="Fjern fra dagen" @click="removeDrill(s, i)">
@@ -906,6 +993,19 @@ Torsdag
   font-variant-numeric: tabular-nums;
 }
 
+/* Rytmen er hovedsaken, datoene er fotnoten — derfor bærer «Hver uke» blekket
+   og spennet står dempet ved siden av. */
+.uke__repeat {
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-secondary);
+}
+
+.uke__dates-span::before {
+  content: '·';
+  margin: 0 6px;
+  opacity: 0.6;
+}
+
 .uke__flag {
   display: inline-block;
   margin-left: 8px;
@@ -964,6 +1064,11 @@ Torsdag
 .dag__name {
   flex: 1;
   min-width: 0;
+  /* Uten klippingen renner «TORSDAG» rett inn i lengden på smale skjermer —
+     boksen krympet, teksten gjorde det ikke. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-family: var(--ds-font-display-sans);
   font-size: var(--ds-text-xl);
   font-weight: var(--ds-weight-bold);
@@ -989,6 +1094,14 @@ Torsdag
   content: '·';
   margin-right: 6px;
   opacity: 0.5;
+}
+
+/* På et lukket kort under 360 px konkurrerer «1 t 30 min · 3 øvelser» ut
+   dagsnavnet. Lengden viker: den står i dagen når du åpner den. Antallet
+   svarer på om dagen i det hele tatt er planlagt, og blir stående. */
+@media (max-width: 359px) {
+  .dag:not(.dag--open) .dag__len { display: none; }
+  .dag:not(.dag--open) .dag__count::before { content: none; }
 }
 
 .dag__chevron {
@@ -1058,9 +1171,14 @@ Torsdag
 /* Nummer, type og handlinger på én dempet linje over navnet — slik holder de
    seg unna teksten du faktisk skal lese. */
 /* Knappene har egen høyde nå, så linja trenger ikke egen luft under */
+/* Wrap, ikke klipp. «SETT TID» + badge + tre knapper går ikke opp på 320 px, og
+   kortet har overflow: hidden — så uten wrap forsvant × ut over kanten uten at
+   siden fikk vannrett scroll å avsløre det med. Handlingene faller ned på egen
+   linje, fortsatt høyrestilt, kun når de må. */
 .ovelse__eyebrow {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   gap: var(--ds-space-sm);
   min-width: 0;
   margin-bottom: 2px;
@@ -1196,20 +1314,24 @@ Torsdag
 /* Ingen markering på nummeret: stepperen står rett under og sier alt. En grå
    boks rundt en ensom «1» leses som et felt, ikke som en tilstand. */
 
+/* Pilene kan bære en dagsforkortelse og blir da bredere. Blokka er høyrestilt
+   (margin-left: auto), så det er × som står i ro — den destruktive knappen skal
+   ikke vandre sidelengs fra rad til rad. Pilene får flytte seg. */
 .ovelse__actions {
   display: grid;
-  grid-template-columns: repeat(3, 30px);
+  grid-template-columns: auto auto 30px;
+  align-items: center;
   flex-shrink: 0;
   margin-left: auto;
 }
 
-.ovelse__action-slot { display: block; }
+.ovelse__action-slot { display: block; width: 30px; }
 
 .ovelse__action {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 30px;
+  min-width: 30px;
   height: 30px;
   padding: 0;
   border: none;
@@ -1222,8 +1344,25 @@ Torsdag
   transition: opacity var(--ds-duration-fast) var(--ds-ease-out);
 }
 
-.ovelse__action svg { width: 15px; height: 15px; }
+.ovelse__action svg { width: 15px; height: 15px; flex-shrink: 0; }
 .ovelse__action:hover, .ovelse__action:active { opacity: 1; color: var(--ds-color-text-primary); }
+
+/* Krysser pila en dagegrense, står dagen den lander i på knappen. Uten den ville
+   øverste pil i en dag sett ut som en død knapp — og så plutselig flyttet
+   øvelsen ut av dagen du så på. */
+.ovelse__action--kryss {
+  gap: 3px;
+  padding: 0 6px 0 3px;
+}
+
+.ovelse__action-day {
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  line-height: 1;
+}
 
 /* Navnet er overskriften i øvelsen, ikke en rad i en liste */
 .ovelse__name {

@@ -151,7 +151,7 @@ onMounted(fetchExercises)
     <div v-if="exercises.length === 0" class="ds-empty">
       <img src="/illustrations/bench-boss-feature-icons/512/training-plan-transparent.png" alt="" class="ds-empty__illo" />
       <div class="ds-empty__title">Ingen øvelser ennå</div>
-      <div class="ds-empty__description">Øvelser du lager i øktene havner her automatisk.</div>
+      <div class="ds-empty__description">Øvelser du lager mens du planlegger uka havner her automatisk.</div>
       <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="openNew">Ny øvelse</button>
     </div>
 
@@ -242,7 +242,7 @@ onMounted(fetchExercises)
     <ConfirmDialog
       :show="showDelete"
       title="Slett øvelse?"
-      :message="`«${active?.name}» fjernes fra banken. Økter som bruker den beholder sin kopi.`"
+      :message="`«${active?.name}» fjernes fra banken. Treningsdager som bruker den beholder sin kopi.`"
       confirm-label="Slett"
       variant="warning"
       @confirm="confirmDelete"

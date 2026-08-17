@@ -2,6 +2,7 @@
 // resten av uka (i morgen → søndag), kun dager med innhold.
 import { localISODate, isoWeekday } from './dateLabels'
 import { isHalsenMatch, isHomeMatch } from './matchMeta'
+import { dagLink } from './trainingLinks'
 
 // Perioden som gjelder: dekker i dag (åpen slutt teller), ellers nærmeste fremtidige.
 export function resolveUpcomingPeriod(periods, today = localISODate()) {
@@ -47,7 +48,7 @@ export function buildWeekAhead({ today = localISODate(), period, sessions = [], 
             date,
             focus: session.focus || '',
             drillCount: (session.drills || []).length,
-            to: `/trening/${period.id}/okt/${session.id}`
+            to: dagLink(period.id, session.id)
           }))
       }
     }

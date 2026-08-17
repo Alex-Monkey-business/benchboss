@@ -104,7 +104,7 @@ function preview(ex) {
       <div class="picker-form-actions">
         <button type="button" class="ds-btn ds-btn--ghost" @click="mode = 'list'">Avbryt</button>
         <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg picker-form-actions__save" :disabled="!newForm.name.trim()">
-          Legg i banken og økta
+          Legg i banken og dagen
         </button>
       </div>
     </form>

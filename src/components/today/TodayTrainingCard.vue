@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { sessionIllustration, illoWebp, illoPng as illoPngPath } from '../../lib/sessionVisuals'
+import { dagLink } from '../../lib/trainingLinks'
 
 const props = defineProps({
   period: { type: Object, required: true },
@@ -28,7 +29,7 @@ const focusParts = computed(() => {
 
 <template>
   <router-link
-    :to="`/trening/${period.id}/okt/${session.id}`"
+    :to="dagLink(period.id, session.id)"
     class="ds-card ds-card--interactive today-training"
     :data-accent="session.accent || 'warm'"
   >
@@ -89,8 +90,8 @@ const focusParts = computed(() => {
   letter-spacing: -0.01em;
   /* Kortet beholder sin LYSE aksentbakgrunn i mørk modus — derfor kan ikke
      blekket følge temaet. --ds-color-text-primary flipper til nesten hvitt,
-     og tittelen ble usynlig på lyseblått. Fast mørkt blekk, samme mønster som
-     kapittel-panelet i økt-visningen: lik i lyst og mørkt tema. */
+     og tittelen ble usynlig på lyseblått. Fast mørkt blekk: lik i lyst og
+     mørkt tema. */
   color: #0A0A0A;
   display: -webkit-box;
   -webkit-line-clamp: 2;
