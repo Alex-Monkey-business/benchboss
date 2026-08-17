@@ -158,6 +158,64 @@ function drillCountLabel(s) {
   return n === 1 ? '1 øvelse' : `${n} øvelser`
 }
 
+// ── Tid per øvelse ──────────────────────────────────────────────────────────
+//
+// Tida bor på drillen i økta, ikke på bankøvelsen: samme rondo er 10 minutter
+// på tirsdag og 20 på lørdag. Lagres i drills-JSONB, så ingen migrasjon.
+// (resolveDrills må bevare feltet — se DRILL_OWN_FIELDS i useExercises.)
+const MIN_STEP = 5
+const MIN_MAX = 60
+const MIN_START = 10
+
+// Hvilken øvelse har stepperen åpen? Ett tall om gangen, ellers står dagen full
+// av pluss og minus.
+const minutesOpen = ref(null)
+
+function minutesKey(s, i) {
+  return `${s.id}:${i}`
+}
+
+function toggleMinutes(s, i, d) {
+  const k = minutesKey(s, i)
+  if (minutesOpen.value === k) { minutesOpen.value = null; return }
+  minutesOpen.value = k
+  // Første trykk skal gjøre noe: uten tid settes et utgangspunkt du kan justere
+  // fra, i stedet for en tom stepper som venter på deg.
+  if (!d.minutes) setDrillMinutes(s, i, MIN_START)
+}
+
+function setDrillMinutes(s, i, minutes) {
+  const m = Math.min(MIN_MAX, Math.max(0, minutes))
+  queueDrills(s.id, ds => ds.map((d, idx) => (idx === i ? { ...d, minutes: m || null } : d)))
+}
+
+function stepDrillMinutes(s, i, d, delta) {
+  const next = (d.minutes || 0) + delta
+  // Ned fra 5 er å fjerne tida, ikke å sette null minutter.
+  if (next <= 0) { minutesOpen.value = null; setDrillMinutes(s, i, 0); return }
+  setDrillMinutes(s, i, next)
+}
+
+const budgets = computed(() => {
+  const m = {}
+  for (const s of dager.value) m[s.id] = timeBudget(s)
+  return m
+})
+
+// Fordelingen er hele poenget med tid per øvelse: får planen plass i dagen?
+// Ingen tider satt ⇒ ingen linje. Vi maser ikke om en jobb ingen har begynt på.
+function timeBudget(s) {
+  const drills = drillsFor(s)
+  const sum = drills.reduce((t, d) => t + (d.minutes || 0), 0)
+  if (!sum) return null
+  const total = s.duration_min || 0
+  if (!total) return { text: `Til sammen ${formatDuration(sum)}`, over: false }
+  const diff = total - sum
+  if (diff === 0) return { text: `Fordelt: ${formatDuration(total)}`, over: false }
+  if (diff > 0) return { text: `${formatDuration(diff)} ledig av ${formatDuration(total)}`, over: false }
+  return { text: `${formatDuration(-diff)} over ${formatDuration(total)}`, over: true }
+}
+
 // Serialisert kø per dag: to raske trykk skal ikke overskrive hverandre.
 const queues = new Map()
 function queueDrills(sessionId, mutate) {
@@ -175,6 +233,9 @@ function moveDrill(s, i, dir) {
   const j = dir === 'up' ? i - 1 : i + 1
   const n = (s.drills || []).length
   if (j < 0 || j >= n) return
+  // Stepperen henger på plassen i lista, ikke på øvelsen. Flytter du raden, ville
+  // den blitt stående åpen på naboen.
+  minutesOpen.value = null
   queueDrills(s.id, ds => {
     const arr = [...ds]
     ;[arr[i], arr[j]] = [arr[j], arr[i]]
@@ -487,6 +548,14 @@ onMounted(async () => {
         </button>
 
         <div v-if="openDayId === s.id" class="dag__body">
+          <!-- Går planen opp i dagen? Det er hele grunnen til å sette tid per
+               øvelse — så svaret står der du fordeler, ikke i hodet ditt. -->
+          <p
+            v-if="budgets[s.id]"
+            class="dag__budget"
+            :class="{ 'dag__budget--over': budgets[s.id].over }"
+          >{{ budgets[s.id].text }}</p>
+
           <!-- Øvelsene: nummerert, luftig, ferdig lest. Ingenting å trykke på
                for å se innholdet — det er dagen du åpnet. -->
           <ol v-if="drillsFor(s).length" class="ovelser">
@@ -496,6 +565,21 @@ onMounted(async () => {
                 <span v-if="d.type && d.type !== 'none'" class="ovelse__badge" :class="`ovelse__badge--${d.type}`">
                   {{ d.type === 'diff' ? 'Diff' : 'Mix' }}
                 </span>
+
+                <!-- Tida: en pille du leser, en stepper du justerer. Samme sted,
+                     så tallet ikke flytter seg når du tar på det. -->
+                <span v-if="minutesOpen === minutesKey(s, i)" class="ovelse__stepper">
+                  <button type="button" class="ovelse__step" aria-label="Kortere" @click="stepDrillMinutes(s, i, d, -MIN_STEP)">−</button>
+                  <button type="button" class="ovelse__step-value" aria-label="Ferdig" @click="minutesOpen = null">{{ formatDuration(d.minutes) }}</button>
+                  <button type="button" class="ovelse__step" aria-label="Lengre" :disabled="(d.minutes || 0) >= MIN_MAX" @click="stepDrillMinutes(s, i, d, MIN_STEP)">+</button>
+                </span>
+                <button
+                  v-else
+                  type="button"
+                  class="ovelse__time"
+                  :class="{ 'ovelse__time--empty': !d.minutes }"
+                  @click="toggleMinutes(s, i, d)"
+                >{{ d.minutes ? formatDuration(d.minutes) : 'Tid' }}</button>
                 <!-- Faste kolonner: pilene forsvinner i endene av lista, men
                      plassen består — ellers vandrer × sidelengs fra rad til rad. -->
                 <span class="ovelse__actions">
@@ -990,6 +1074,93 @@ Torsdag
 .ovelse__badge--mix { background: #F8E8E0; color: #7A3A24; }
 :global([data-theme="dark"] .ovelse__badge--diff) { background: #1A241D; color: #B5D2B0; }
 :global([data-theme="dark"] .ovelse__badge--mix) { background: #2A1E18; color: #F4C4A8; }
+
+/* ---- Tid per øvelse ---- */
+
+/* Fordelingen: står over øvelsene og overtar skillelinja deres, så det ikke
+   blir to streker på rad. */
+.dag__budget {
+  margin: 0;
+  padding: var(--ds-space-md) 0 0;
+  border-top: 1px solid var(--ds-color-border-light);
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Over tida er ikke en feil — planen din er bare lengre enn dagen. Aksentfarget,
+   ikke rødt: det er en opplysning, ikke et alarm. */
+.dag__budget--over { color: var(--accent-text); }
+
+.dag__budget + .ovelser {
+  margin-top: var(--ds-space-md);
+  padding-top: 0;
+  border-top: 0;
+}
+
+/* Pille og stepper deler plass og form, så tallet ikke hopper når du tar på det */
+.ovelse__time,
+.ovelse__stepper {
+  flex-shrink: 0;
+  height: 22px;
+  border-radius: var(--ds-radius-full);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.ovelse__time {
+  padding: 0 9px;
+  border: none;
+  background: var(--accent-bg);
+  color: var(--accent-text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Uten tid er pilla en invitasjon, ikke en verdi — den skal ikke se satt ut */
+.ovelse__time--empty {
+  background: none;
+  padding: 0 2px;
+  color: var(--ds-color-text-tertiary);
+  font-weight: var(--ds-weight-regular);
+}
+
+.ovelse__stepper {
+  display: inline-flex;
+  align-items: stretch;
+  background: var(--accent-bg);
+  overflow: hidden;
+}
+
+.ovelse__step,
+.ovelse__step-value {
+  border: none;
+  background: none;
+  font: inherit;
+  color: var(--accent-text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ovelse__step {
+  width: 26px;
+  padding: 0;
+  font-size: var(--ds-text-md);
+  line-height: 1;
+}
+
+.ovelse__step:disabled { opacity: 0.35; cursor: default; }
+
+.ovelse__step-value {
+  min-width: 46px;
+  padding: 0 2px;
+}
 
 .ovelse__actions {
   display: grid;

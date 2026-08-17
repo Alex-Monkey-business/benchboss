@@ -55,13 +55,25 @@ export function exerciseToDrill(ex) {
   }
 }
 
+// Noen felt er dagens valg, ikke øvelsens egenskap. Tida er det tydeligste:
+// samme rondo kan være 10 minutter på tirsdag og 20 på lørdag. De hører på
+// drillen i økta, og må derfor overleve oppslaget mot banken under.
+const DRILL_OWN_FIELDS = ['minutes']
+
 // Øvelsen har én fasit, og den bor i banken. Retter du en skrivefeil der, slår
 // den gjennom overalt øvelsen er i bruk. Den lagrede kopien i dagens drills er
 // et sikkerhetsnett: slettes bank-raden, står planen igjen med det den hadde.
 export function resolveDrills(drills, bank) {
   return (drills || []).map(d => {
     const ex = d.exercise_id ? bank.find(e => e.id === d.exercise_id) : null
-    return ex ? exerciseToDrill(ex) : d
+    if (!ex) return d
+    const resolved = exerciseToDrill(ex)
+    // Uten denne blir alt øktspesifikt vasket bort hver gang siden tegnes:
+    // du setter 15 min, og de er borte ved neste rendring.
+    for (const k of DRILL_OWN_FIELDS) {
+      if (d[k] != null) resolved[k] = d[k]
+    }
+    return resolved
   })
 }
 

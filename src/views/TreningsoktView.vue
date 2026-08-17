@@ -29,15 +29,17 @@ const drills = computed(() => resolveDrills(okt.value?.drills, exercises.value))
 // Bildet velges av ukedagen, ikke av deg — se lib/sessionVisuals.
 const heroIllo = computed(() => sessionIllustration(okt.value))
 
-// Hvor lenge varer økta? Står i headeren, så du vet det før du begynner.
-const lengde = computed(() => {
-  const min = okt.value?.duration_min
+// «1 t 30 min» er slik folk snakker om det. «90 min» er slik databaser gjør.
+function formatMinutes(min) {
   if (!min) return ''
   const t = Math.floor(min / 60)
   const m = min % 60
   if (!t) return `${m} min`
   return m ? `${t} t ${m} min` : `${t} t`
-})
+}
+
+// Hvor lenge varer økta? Står i headeren, så du vet det før du begynner.
+const lengde = computed(() => formatMinutes(okt.value?.duration_min))
 
 // Ekte tilbake: dit du kom fra (Hjem, uka, banken …). Uka er bare fallback
 // ved direkte-lenke uten historikk.
@@ -97,6 +99,9 @@ onMounted(async () => {
                 :class="`drill__badge--${d.type}`"
               >{{ d.type === 'diff' ? 'Diff' : 'Mix' }}</span>
               <h3 class="drill__name">{{ d.text }}</h3>
+              <!-- Tida settes i uka, men det er her den brukes: med ballen i
+                   hånda vil du vite hvor lenge denne øvelsen skal vare. -->
+              <span v-if="d.minutes" class="drill__time">{{ formatMinutes(d.minutes) }}</span>
             </div>
             <p v-if="d.tema" class="drill__focus">{{ d.tema }}</p>
 
@@ -316,6 +321,25 @@ onMounted(async () => {
 
 :global([data-theme="dark"] .drill__badge--diff) { background: #1A241D; color: #B5D2B0; }
 :global([data-theme="dark"] .drill__badge--mix) { background: #2A1E18; color: #F4C4A8; }
+
+/* Panelet er alltid mørkt, så tida låner hero-aksenten i stedet for den lyse
+   pillebakgrunnen uka bruker. */
+/* Wrapper navnet over flere linjer, skal tida stå på den FØRSTE — «center»
+   plasserer den midt inni tittelen. */
+.drill__time {
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin-top: 2px;
+  padding: 2px 9px;
+  border-radius: var(--ds-radius-full);
+  background: rgba(255, 255, 255, 0.12);
+  color: var(--hero-fg);
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
 
 .drill__name {
   flex: 1;
