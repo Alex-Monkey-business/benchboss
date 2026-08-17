@@ -1,4 +1,4 @@
-import { ref } from 'vue'
+import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
 import { fetchRows, STATUS } from '../lib/query'
@@ -19,10 +19,23 @@ registerReset(() => {
 // Nye perioder seedes med disse tre øktene — tomme og uten illustrasjon:
 // bildet velges når dagen får innhold, en tom dag skal ikke love noe.
 export const DEFAULT_WEEK_SESSIONS = [
-  { title: 'Tirsdag', weekday: 2, accent: 'sky' },
-  { title: 'Torsdag', weekday: 4, accent: 'peach' },
-  { title: 'Lørdag', weekday: 6, accent: 'olive' }
+  { title: 'Tirsdag', weekday: 2, accent: 'sky', duration_min: 90 },
+  { title: 'Torsdag', weekday: 4, accent: 'peach', duration_min: 90 },
+  { title: 'Lørdag', weekday: 6, accent: 'olive', duration_min: 90 }
 ]
+
+// duration_min kommer først etter at supabase-trening-varighet.sql er kjørt.
+// Uten den: ingen lengde-velger, og feltet strippes før skriving — appen
+// knekker ikke av at migreringen ligger etter deployen.
+const supportsDuration = computed(() =>
+  sessions.value.length === 0 || 'duration_min' in (sessions.value[0] || {})
+)
+
+function stripUnsupported(payload) {
+  if (supportsDuration.value || !('duration_min' in payload)) return payload
+  const { duration_min, ...rest } = payload
+  return rest
+}
 
 // Demo-id-er må være unike også når flere rader lages i samme millisekund.
 export function demoId(prefix) {
@@ -33,7 +46,7 @@ export function demoId(prefix) {
 const DEMO_SESSIONS = [
   {
     id: 'dts-1', period_id: 'dtp-1', position: 0,
-    title: 'Tirsdag', weekday: 2,
+    title: 'Tirsdag', weekday: 2, duration_min: 90,
     accent: 'sky',
     illustration: 'tuesday_june_tranparent.png',
     focus: 'Ferdigheter under press. Bli sjef over ballen i trange rom — medtak, vending og første touch som tar deg ut av presset.',
@@ -56,7 +69,7 @@ const DEMO_SESSIONS = [
   },
   {
     id: 'dts-2', period_id: 'dtp-1', position: 1,
-    title: 'Torsdag', weekday: 4,
+    title: 'Torsdag', weekday: 4, duration_min: 90,
     accent: 'peach',
     illustration: 'thursday_june_transparent.png',
     focus: 'Grunnferdigheter og spill. Ferdighetssirkel for å bli sjef over ballen, så smålagsspill 3v3 med mye involvering.',
@@ -67,7 +80,7 @@ const DEMO_SESSIONS = [
   },
   {
     id: 'dts-3', period_id: 'dtp-1', position: 2,
-    title: 'Lørdag', weekday: 6,
+    title: 'Lørdag', weekday: 6, duration_min: 75,
     accent: 'olive',
     illustration: 'saturday_june_transparent.png',
     focus: 'Spill og mestring. Mye touch, små lag, mange mål — la dem prøve det vi har trent på.',
@@ -113,7 +126,7 @@ export function useTrainingSessions() {
   }
 
   async function createSession(periodId, payload) {
-    const data = { period_id: periodId, position: sessions.value.length, accent: 'warm', illustration: null, focus: null, drills: [], weekday: null, ...payload }
+    const data = stripUnsupported({ period_id: periodId, position: sessions.value.length, accent: 'warm', illustration: null, focus: null, drills: [], weekday: null, ...payload })
 
     if (!isSupabaseConfigured) {
       const row = { id: demoId('dts'), ...data }
@@ -132,7 +145,8 @@ export function useTrainingSessions() {
     return row
   }
 
-  async function updateSession(id, updates) {
+  async function updateSession(id, rawUpdates) {
+    const updates = stripUnsupported(rawUpdates)
     if (!isSupabaseConfigured) {
       const di = DEMO_SESSIONS.findIndex(s => s.id === id)
       if (di > -1) DEMO_SESSIONS[di] = { ...DEMO_SESSIONS[di], ...updates }
@@ -187,5 +201,5 @@ export function useTrainingSessions() {
     sessions.value = [...sessions.value].sort((x, y) => x.position - y.position)
   }
 
-  return { sessions, loading, loadedPeriod, status, fetchSessions, createSession, updateSession, removeSession, moveSession }
+  return { sessions, loading, loadedPeriod, status, supportsDuration, fetchSessions, createSession, updateSession, removeSession, moveSession }
 }

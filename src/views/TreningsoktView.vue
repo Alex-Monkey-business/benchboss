@@ -29,6 +29,16 @@ const drills = computed(() => resolveDrills(okt.value?.drills, exercises.value))
 // Bildet velges av ukedagen, ikke av deg — se lib/sessionVisuals.
 const heroIllo = computed(() => sessionIllustration(okt.value))
 
+// Hvor lenge varer økta? Står i headeren, så du vet det før du begynner.
+const lengde = computed(() => {
+  const min = okt.value?.duration_min
+  if (!min) return ''
+  const t = Math.floor(min / 60)
+  const m = min % 60
+  if (!t) return `${m} min`
+  return m ? `${t} t ${m} min` : `${t} t`
+})
+
 // Ekte tilbake: dit du kom fra (Hjem, uka, banken …). Uka er bare fallback
 // ved direkte-lenke uten historikk.
 function goBack() {
@@ -73,6 +83,7 @@ onMounted(async () => {
         <header class="hero">
           <h1 class="hero__title">{{ okt.title }}</h1>
           <p v-if="okt.focus" class="hero__focus">{{ okt.focus }}</p>
+          <p v-if="lengde" class="hero__meta">{{ lengde }}</p>
         </header>
       </div>
 
@@ -256,6 +267,16 @@ onMounted(async () => {
   color: var(--hero-fg);
   margin: var(--ds-space-md) 0 0;
   max-width: 42ch;
+}
+
+.hero__meta {
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  color: var(--hero-accent);
+  margin: var(--ds-space-md) 0 0;
 }
 
 /* ---- Øvelser ---- */

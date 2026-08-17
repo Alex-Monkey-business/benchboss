@@ -25,7 +25,7 @@ import Skeleton from '../components/Skeleton.vue'
 const route = useRoute()
 const router = useRouter()
 const { periods, getPeriod, fetchPeriods, createPeriod, updatePeriod, deletePeriod } = useTrainingPeriods()
-const { sessions, fetchSessions, createSession, updateSession, removeSession } = useTrainingSessions()
+const { sessions, supportsDuration, fetchSessions, createSession, updateSession, removeSession } = useTrainingSessions()
 const { exercises, supportsCategory, fetchExercises, createExercise } = useExercises()
 const { show: showToast } = useToast()
 
@@ -70,7 +70,26 @@ function dateRange(p) {
 watch(periodId, id => { if (id) fetchSessions(id) })
 
 // ── Dagene ──────────────────────────────────────────────────────────────────
-const dager = computed(() => [...sessions.value].sort((a, b) => a.position - b.position))
+//
+// Uka sorterer seg selv. Før lå dagene i den rekkefølgen de ble opprettet, så
+// en onsdag lagt til i ettertid havnet bakerst — etter lørdag. Ukedagen er
+// fasit; rader uten ukedag (gamle eller nyopprettede) legger seg til slutt.
+const dager = computed(() =>
+  [...sessions.value].sort((a, b) => {
+    const wa = a.weekday ?? 99
+    const wb = b.weekday ?? 99
+    return wa !== wb ? wa - wb : a.position - b.position
+  })
+)
+
+// «1 t 30 min» er slik folk snakker om det. «90 min» er slik databaser gjør.
+function formatDuration(min) {
+  if (!min) return ''
+  const t = Math.floor(min / 60)
+  const m = min % 60
+  if (!t) return `${m} min`
+  return m ? `${t} t ${m} min` : `${t} t`
+}
 
 function drillsFor(s) {
   return resolveDrills(s.drills, exercises.value)
@@ -145,30 +164,62 @@ async function createFromPicker(f) {
   }
 }
 
-// ── Rediger dag (navn + fokus) ──────────────────────────────────────────────
+// ── Dag: ukedag, lengde og fokus ────────────────────────────────────────────
+//
+// Ukedagen er en velger, ikke et tekstfelt. Da skriver du ikke «Tisdag», dagen
+// sorterer seg selv inn på riktig plass, og navnet trenger ikke tolkes.
+const DURATION_STEP = 15
+const DURATION_MIN = 30
+const DURATION_MAX = 150
+
 const dayForm = ref(null)
 const savingDay = ref(false)
 
-function weekdayFromTitle(title) {
-  const t = (title || '').trim().toLowerCase()
-  const idx = WEEKDAY_LABELS.findIndex(l => t.startsWith(l.toLowerCase()))
-  return idx > -1 ? idx + 1 : null
-}
+const usedWeekdays = computed(() =>
+  new Set(sessions.value.filter(s => s.id !== dayForm.value?.id).map(s => s.weekday).filter(Boolean))
+)
 
 function openDay(s) {
-  dayForm.value = { id: s.id, title: s.title, focus: s.focus || '' }
+  dayForm.value = {
+    id: s.id,
+    weekday: s.weekday ?? null,
+    duration_min: s.duration_min ?? 90,
+    focus: s.focus || '',
+    fallbackTitle: s.title
+  }
+}
+
+function openNewDay() {
+  dayForm.value = { id: null, weekday: null, duration_min: 90, focus: '', fallbackTitle: '' }
+}
+
+function stepDuration(delta) {
+  const next = (dayForm.value.duration_min || 90) + delta
+  dayForm.value.duration_min = Math.min(DURATION_MAX, Math.max(DURATION_MIN, next))
 }
 
 async function saveDay() {
   const f = dayForm.value
-  if (!f?.title.trim() || savingDay.value) return
+  if (!f || savingDay.value) return
+  // Ukedag er påkrevd for nye dager — det er den som gir både navn og plass.
+  if (!f.id && !f.weekday) return
   savingDay.value = true
-  const before = sessions.value.find(s => s.id === f.id)
-  await updateSession(f.id, {
-    title: f.title.trim(),
+  const payload = {
     focus: f.focus.trim() || null,
-    weekday: weekdayFromTitle(f.title) ?? before?.weekday ?? null
-  })
+    weekday: f.weekday,
+    duration_min: f.duration_min,
+    // Uten ukedag beholder vi navnet raden allerede har, i stedet for å blanke det.
+    title: f.weekday ? WEEKDAY_LABELS[f.weekday - 1] : f.fallbackTitle
+  }
+  if (f.id) {
+    await updateSession(f.id, payload)
+  } else {
+    await createSession(periodId.value, {
+      ...payload,
+      accent: accentForPosition(sessions.value.length),
+      position: sessions.value.length
+    })
+  }
   savingDay.value = false
   dayForm.value = null
 }
@@ -178,19 +229,6 @@ async function confirmDeleteDay() {
   await removeSession(deleteDayId.value)
   deleteDayId.value = null
   dayForm.value = null
-}
-
-const addingDay = ref(false)
-async function addDay() {
-  if (addingDay.value) return
-  addingDay.value = true
-  const row = await createSession(periodId.value, {
-    title: 'Ny dag',
-    accent: accentForPosition(sessions.value.length),
-    position: sessions.value.length
-  })
-  addingDay.value = false
-  if (row) openDay(row)
 }
 
 // ── Måned: bytt, lag ny, rediger ────────────────────────────────────────────
@@ -226,6 +264,9 @@ async function createMonth(reuse = true) {
       await createSession(row.id, {
         title: s.title,
         weekday: s.weekday ?? null,
+        // Lengden er en del av rytmen — arves videre som alt annet. Uten
+        // denne mistet hver ny måned lengdene du hadde satt.
+        duration_min: s.duration_min ?? 90,
         accent: s.accent || accentForPosition(i),
         illustration: s.illustration || null,
         focus: s.focus || null,
@@ -365,6 +406,7 @@ onMounted(async () => {
             {{ s.title }}
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </router-link>
+          <span v-if="s.duration_min" class="dag__length">{{ formatDuration(s.duration_min) }}</span>
           <button type="button" class="dag__edit" :aria-label="`Rediger ${s.title}`" @click="openDay(s)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
           </button>
@@ -404,7 +446,7 @@ onMounted(async () => {
       </section>
 
       <div class="uke__foot">
-        <button type="button" class="uke__foot-btn" :disabled="addingDay" @click="addDay">Legg til dag</button>
+        <button type="button" class="uke__foot-btn" @click="openNewDay">Legg til dag</button>
         <button type="button" class="uke__foot-btn" @click="showPaste = true">Lim inn plan</button>
       </div>
 
@@ -420,21 +462,59 @@ onMounted(async () => {
       </div>
     </template>
 
-    <!-- Rediger dag -->
-    <Sheet :show="!!dayForm" :title="dayForm ? `Rediger ${dayForm.title.toLowerCase()}` : ''" @close="dayForm = null">
+    <!-- Dag: ukedag, lengde, fokus -->
+    <Sheet :show="!!dayForm" :title="dayForm?.id ? 'Rediger dag' : 'Ny dag'" @close="dayForm = null">
       <form v-if="dayForm" @submit.prevent="saveDay">
         <div class="ds-form-group">
-          <label class="ds-label" for="dag-title">Dag</label>
-          <input id="dag-title" v-model="dayForm.title" class="ds-input" type="text" placeholder="F.eks. Tirsdag" required />
+          <label class="ds-label">Ukedag</label>
+          <div class="weekday-picker">
+            <button
+              v-for="(label, i) in WEEKDAY_LABELS"
+              :key="label"
+              type="button"
+              :class="['weekday-pill', {
+                'weekday-pill--active': dayForm.weekday === i + 1,
+                'weekday-pill--taken': usedWeekdays.has(i + 1)
+              }]"
+              :disabled="usedWeekdays.has(i + 1)"
+              :title="usedWeekdays.has(i + 1) ? `${label} ligger allerede i uka` : label"
+              :aria-label="label"
+              :aria-pressed="dayForm.weekday === i + 1"
+              @click="dayForm.weekday = i + 1"
+            >{{ label.slice(0, 3) }}</button>
+          </div>
         </div>
+
+        <div v-if="supportsDuration" class="ds-form-group">
+          <label class="ds-label">Lengde</label>
+          <div class="stepper">
+            <button
+              type="button"
+              class="stepper__btn"
+              aria-label="Kortere"
+              :disabled="dayForm.duration_min <= 30"
+              @click="stepDuration(-15)"
+            >−</button>
+            <span class="stepper__value">{{ formatDuration(dayForm.duration_min) }}</span>
+            <button
+              type="button"
+              class="stepper__btn"
+              aria-label="Lengre"
+              :disabled="dayForm.duration_min >= 150"
+              @click="stepDuration(15)"
+            >+</button>
+          </div>
+        </div>
+
         <div class="ds-form-group">
           <label class="ds-label" for="dag-focus">Fokus</label>
           <textarea id="dag-focus" v-model="dayForm.focus" class="ds-input" rows="3" placeholder="Hva dagen bygger — og hva de skal sitte igjen med."></textarea>
         </div>
+
         <div class="sheet-actions">
-          <button type="button" class="ds-btn ds-btn--ghost sheet-actions__danger" @click="deleteDayId = dayForm.id">Slett dagen</button>
-          <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg sheet-actions__save" :disabled="!dayForm.title.trim() || savingDay">
-            {{ savingDay ? 'Lagrer…' : 'Lagre' }}
+          <button v-if="dayForm.id" type="button" class="ds-btn ds-btn--ghost sheet-actions__danger" @click="deleteDayId = dayForm.id">Slett dagen</button>
+          <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg sheet-actions__save" :disabled="(!dayForm.id && !dayForm.weekday) || savingDay">
+            {{ savingDay ? 'Lagrer…' : dayForm.id ? 'Lagre' : 'Legg til dagen' }}
           </button>
         </div>
       </form>
@@ -675,6 +755,20 @@ Torsdag
 .dag__name svg { width: 16px; height: 16px; color: var(--ds-color-text-tertiary); flex-shrink: 0; }
 .dag__name:active { opacity: 0.7; }
 
+/* Lengden står ved dagen, ikke i et skjema du må åpne for å vite den. */
+.dag__length {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding: 2px 8px;
+  border-radius: var(--ds-radius-full);
+  background: var(--accent-bg);
+  color: var(--accent-text);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
 .dag__edit {
   display: inline-flex;
   align-items: center;
@@ -901,6 +995,75 @@ Torsdag
 
 .sheet-actions__danger { flex-shrink: 0; color: var(--ds-color-error); }
 .sheet-actions__save { flex: 1; }
+
+/* ---- Ukedagsvelger ---- */
+.weekday-picker { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.weekday-pill {
+  flex: 1;
+  min-width: 40px;
+  padding: 9px 4px;
+  border-radius: var(--ds-radius-md);
+  border: 1px solid var(--ds-color-border);
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-secondary);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: all var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.weekday-pill--active {
+  background: var(--ds-color-accent);
+  border-color: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+}
+
+/* Dagen ligger allerede i uka — to «lørdag» ville hett det samme. */
+.weekday-pill--taken {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
+
+/* ---- Lengde ---- */
+.stepper {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-sm);
+}
+
+.stepper__btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  flex-shrink: 0;
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-primary);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-lg);
+  line-height: 1;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.stepper__btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.stepper__btn:not(:disabled):active { transform: scale(0.95); }
+
+.stepper__value {
+  flex: 1;
+  text-align: center;
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
 
 .month-list {
   display: flex;
