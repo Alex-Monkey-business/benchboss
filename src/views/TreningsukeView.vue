@@ -1,13 +1,15 @@
 <script setup>
-// TRENINGSUKA — hele planen på én side.
+// TRENINGSUKA — uka på én side, én dag åpen.
 //
-// Før var dette tre nivåer du navigerte ned i: måned → dag → øvelse. Det gjorde
-// sammenhengen usynlig — du så aldri dagen, fokuset og øvelsene samtidig, og
-// måtte huske hvor du var. Nå er hierarkiet det du ser: uka består av dager,
-// dagen har et fokus, fokuset holdes oppe av øvelser.
+// Først var dette tre nivåer du navigerte ned i: måned → dag → øvelse. Det
+// gjorde sammenhengen usynlig — du så aldri dagen, fokuset og øvelsene samtidig.
+// Så la vi alt på én side, og da ble det motsatte problemet: tre fulle dager
+// samtidig er en vegg, ikke en plan.
 //
-// Måneden er en hatt på toppen (hvilken versjon av uka), ikke et sted du går.
-import { ref, computed, watch, onMounted } from 'vue'
+// Nå er hierarkiet synlig OG rolig: uka er dagene, én av dem er åpen. Lukket
+// sier hva dagen handler om; åpen er hele treninga med luft nok til å leses på
+// banen. Måneden er en hatt på toppen, ikke et sted du går.
+import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingPeriods } from '../composables/useTrainingPeriods'
 import { useTrainingSessions, DEFAULT_WEEK_SESSIONS } from '../composables/useTrainingSessions'
@@ -95,39 +97,65 @@ function drillsFor(s) {
   return resolveDrills(s.drills, exercises.value)
 }
 
-// ── Lese øvelsen der den står ───────────────────────────────────────────────
+// ── Én dag om gangen ────────────────────────────────────────────────────────
 //
-// Navnet alene forteller ikke hvordan øvelsen gjennomføres. Før måtte du inn i
-// banken for å finne ut av det — planen din var en liste med titler. Nå står
-// temaet fast under navnet, og resten folder seg ut på stedet.
+// Tre dager med fullt innhold på samme skjerm ble en vegg: du leste aldri én
+// trening, du skummet tre. Nå er dagen åpen eller lukket, og bare én er åpen.
+// Lukket sier hva dagen handler om og hvor mye som ligger i den; åpen er hele
+// treninga, ferdig lest, med luft nok til å faktisk brukes på banen.
 //
-// Nøkkelen er øvelsen, ikke posisjonen: flytter du en rad opp, skal den åpne
-// raden følge med i stedet for at naboen plutselig står åpen.
-const openDrills = ref(new Set())
+// Øvelsene folder seg ikke lenger ut hver for seg — i en åpen dag står de fullt
+// ut. Det var et lag med trykk som bare fantes fordi plassen var for knapp.
+const openDayId = ref(null)
 
-function drillKey(s, d) {
-  return `${s.id}:${d.exercise_id || d.text}`
+async function toggleDay(s) {
+  const opening = openDayId.value !== s.id
+  openDayId.value = opening ? s.id : null
+  if (!opening) return
+  // Lukkes en dag ovenfor samtidig, faller kortet oppover mens du ser på det —
+  // du trykker Lørdag og ender midt i Torsdag. Å hente kortet til toppen er
+  // forskjellen på å åpne en dag og å miste den.
+  await nextTick()
+  const el = document.getElementById(`dag-${s.id}`)
+  if (!el) return
+  const rolig = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  el.scrollIntoView({ behavior: rolig ? 'auto' : 'smooth', block: 'start' })
 }
 
-// Ingenting å folde ut ⇒ ingen chevron. Da ser du at øvelsen er tom i stedet
-// for å trykke deg gjennom banken for å oppdage det samme.
-function hasDetail(d) {
-  return !!(d.organisering || (d.laeringsmomenter && d.laeringsmomenter.length) || d.link?.url)
+// Mandag = 1, søndag = 7 — samme skala som weekday-kolonnen.
+function todayWeekday() {
+  const js = new Date().getDay()
+  return js === 0 ? 7 : js
 }
 
-function isOpen(s, d) {
-  return openDrills.value.has(drillKey(s, d))
+// Hvilken dag skal stå åpen når du kommer inn? Den du trenger nå: i dag hvis
+// det er treningsdag, ellers neste treningsdag i uka, ellers den første.
+function defaultOpenDay(list) {
+  if (!list.length) return null
+  const wd = todayWeekday()
+  return (
+    list.find(s => s.weekday === wd) ||
+    list.filter(s => s.weekday && s.weekday > wd).sort((a, b) => a.weekday - b.weekday)[0] ||
+    list[0]
+  )?.id || null
 }
 
-function toggleDrill(s, d) {
-  const k = drillKey(s, d)
-  const next = new Set(openDrills.value)
-  next.has(k) ? next.delete(k) : next.add(k)
-  openDrills.value = next
+// Dagene kommer inn etter at siden er tegnet, og de byttes når du skifter måned.
+// Holder vi ikke valget i live her, står uka helt lukket etter et månedsbytte.
+watch(dager, list => {
+  if (!list.some(s => s.id === openDayId.value)) openDayId.value = defaultOpenDay(list)
+}, { immediate: true })
+
+function drillCount(s) {
+  return (s.drills || []).length
 }
 
-function dayLink(s) {
-  return `/trening/${periodId.value}/okt/${s.id}`
+// «3 øvelser» på det lukkede kortet: du skal se om dagen er planlagt eller tom
+// uten å åpne den.
+function drillCountLabel(s) {
+  const n = drillCount(s)
+  if (!n) return 'Ingen øvelser'
+  return n === 1 ? '1 øvelse' : `${n} øvelser`
 }
 
 // Serialisert kø per dag: to raske trykk skal ikke overskrive hverandre.
@@ -210,7 +238,7 @@ const usedWeekdays = computed(() =>
   new Set(sessions.value.filter(s => s.id !== dayForm.value?.id).map(s => s.weekday).filter(Boolean))
 )
 
-function openDay(s) {
+function openDayForm(s) {
   dayForm.value = {
     id: s.id,
     weekday: s.weekday ?? null,
@@ -430,86 +458,91 @@ onMounted(async () => {
         <span v-else-if="notStarted" class="uke__flag">Starter {{ relativeDateLabel(period.start_date).toLowerCase() }}</span>
       </p>
 
-      <!-- Dagene: navn → fokus → øvelser, tre ganger. Sammenhengen ER layouten. -->
-      <section v-for="s in dager" :key="s.id" class="dag" :data-accent="s.accent || 'warm'">
-        <div class="dag__head">
-          <router-link :to="dayLink(s)" class="dag__name">
-            {{ s.title }}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </router-link>
-          <span v-if="s.duration_min" class="dag__length">{{ formatDuration(s.duration_min) }}</span>
-          <button type="button" class="dag__edit" :aria-label="`Rediger ${s.title}`" @click="openDay(s)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-          </button>
-        </div>
+      <!-- Dagene: én åpen om gangen. Lukket er en løfte om innhold, åpen er
+           hele treninga. Uka som helhet står fortsatt på siden. -->
+      <section
+        v-for="s in dager"
+        :key="s.id"
+        :id="'dag-' + s.id"
+        class="dag"
+        :class="{ 'dag--open': openDayId === s.id }"
+        :data-accent="s.accent || 'warm'"
+      >
+        <button
+          type="button"
+          class="dag__toggle"
+          :aria-expanded="String(openDayId === s.id)"
+          @click="toggleDay(s)"
+        >
+          <span class="dag__head">
+            <span class="dag__name">{{ s.title }}</span>
+            <span class="dag__meta">
+              <span v-if="s.duration_min">{{ formatDuration(s.duration_min) }}</span>
+              <span v-if="openDayId !== s.id" class="dag__count">{{ drillCountLabel(s) }}</span>
+            </span>
+            <svg class="dag__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+          </span>
+          <span v-if="s.focus" class="dag__focus" :class="{ 'dag__focus--clamp': openDayId !== s.id }">{{ s.focus }}</span>
+          <span v-else class="dag__focus dag__focus--empty">Ingen fokus satt</span>
+        </button>
 
-        <p v-if="s.focus" class="dag__focus">{{ s.focus }}</p>
-        <button v-else type="button" class="dag__focus dag__focus--empty" @click="openDay(s)">Hva er fokuset denne dagen?</button>
-
-        <ul v-if="drillsFor(s).length" class="ovelser">
-          <li v-for="(d, i) in drillsFor(s)" :key="i" class="ovelse">
-            <div class="ovelse__row">
-              <!-- Har øvelsen mer å si, er raden en knapp. Har den ikke det,
-                   er den bare tekst — ingen falsk lovnad om noe å åpne. -->
-              <component
-                :is="hasDetail(d) ? 'button' : 'div'"
-                :type="hasDetail(d) ? 'button' : null"
-                class="ovelse__main"
-                :class="{ 'ovelse__main--open': isOpen(s, d) }"
-                :aria-expanded="hasDetail(d) ? String(isOpen(s, d)) : null"
-                @click="hasDetail(d) && toggleDrill(s, d)"
-              >
-                <!-- Til venstre, ikke til høyre: her leses den som «det er mer
-                     her», ikke som en fjerde knapp ved siden av × -->
-                <svg v-if="hasDetail(d)" class="ovelse__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-                <span v-else class="ovelse__chevron-slot" aria-hidden="true"></span>
-                <span class="ovelse__text">
-                  <span class="ovelse__line">
-                    <span v-if="d.type && d.type !== 'none'" class="ovelse__badge" :class="`ovelse__badge--${d.type}`">
-                      {{ d.type === 'diff' ? 'Diff' : 'Mix' }}
-                    </span>
-                    <span class="ovelse__name">{{ d.text }}</span>
-                  </span>
-                  <span v-if="d.tema" class="ovelse__tema">{{ d.tema }}</span>
+        <div v-if="openDayId === s.id" class="dag__body">
+          <!-- Øvelsene: nummerert, luftig, ferdig lest. Ingenting å trykke på
+               for å se innholdet — det er dagen du åpnet. -->
+          <ol v-if="drillsFor(s).length" class="ovelser">
+            <li v-for="(d, i) in drillsFor(s)" :key="i" class="ovelse">
+              <div class="ovelse__eyebrow">
+                <span class="ovelse__num">{{ i + 1 }}</span>
+                <span v-if="d.type && d.type !== 'none'" class="ovelse__badge" :class="`ovelse__badge--${d.type}`">
+                  {{ d.type === 'diff' ? 'Diff' : 'Mix' }}
                 </span>
-              </component>
-              <!-- Faste kolonner: pilene forsvinner i endene av lista, men
-                   plassen består — ellers vandrer × sidelengs fra rad til rad. -->
-              <span class="ovelse__actions">
-                <button v-if="i > 0" type="button" class="ovelse__action" aria-label="Flytt opp" @click="moveDrill(s, i, 'up')">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-                </button>
-                <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
-                <button v-if="i < drillsFor(s).length - 1" type="button" class="ovelse__action" aria-label="Flytt ned" @click="moveDrill(s, i, 'down')">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                </button>
-                <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
-                <button type="button" class="ovelse__action" aria-label="Fjern fra dagen" @click="removeDrill(s, i)">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
-                </button>
-              </span>
-            </div>
+                <!-- Faste kolonner: pilene forsvinner i endene av lista, men
+                     plassen består — ellers vandrer × sidelengs fra rad til rad. -->
+                <span class="ovelse__actions">
+                  <button v-if="i > 0" type="button" class="ovelse__action" aria-label="Flytt opp" @click="moveDrill(s, i, 'up')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                  </button>
+                  <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
+                  <button v-if="i < drillsFor(s).length - 1" type="button" class="ovelse__action" aria-label="Flytt ned" @click="moveDrill(s, i, 'down')">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                  </button>
+                  <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
+                  <button type="button" class="ovelse__action" aria-label="Fjern fra dagen" @click="removeDrill(s, i)">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+                  </button>
+                </span>
+              </div>
 
-            <!-- Utfoldet: hvordan øvelsen faktisk gjennomføres -->
-            <div v-if="isOpen(s, d)" class="ovelse__detail">
+              <h3 class="ovelse__name">{{ d.text }}</h3>
+              <p v-if="d.tema" class="ovelse__tema">{{ d.tema }}</p>
+
               <ul v-if="d.laeringsmomenter && d.laeringsmomenter.length" class="ovelse__points">
                 <li v-for="(p, pi) in d.laeringsmomenter" :key="pi">{{ p }}</li>
               </ul>
+
               <p v-if="d.organisering" class="ovelse__org">
                 <span class="ovelse__org-label">Oppsett</span>{{ d.organisering }}
               </p>
+
               <a v-if="d.link && d.link.url" :href="d.link.url" target="_blank" rel="noopener" class="ovelse__link">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
                 {{ d.link.label || 'Se øvelsen' }}
               </a>
-            </div>
-          </li>
-        </ul>
+            </li>
+          </ol>
 
-        <button type="button" class="dag__add" @click="openPicker(s)">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-          Legg til øvelse
-        </button>
+          <!-- Redigering hører til den åpne dagen. Lukket er en leseflate. -->
+          <div class="dag__foot">
+            <button type="button" class="dag__action" @click="openPicker(s)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Legg til øvelse
+            </button>
+            <button type="button" class="dag__action" @click="openDayForm(s)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
+              Rediger dagen
+            </button>
+          </div>
+        </div>
       </section>
 
       <div class="uke__foot">
@@ -794,202 +827,234 @@ Torsdag
   border: 1px solid var(--ds-color-border);
   border-left: 4px solid var(--accent-text);
   border-radius: var(--ds-radius-lg);
-  padding: var(--ds-space-md) var(--ds-space-md) var(--ds-space-sm);
   margin-bottom: var(--ds-space-md);
+  overflow: hidden;
+  /* Pusterom når toggleDay scroller kortet til toppen */
+  scroll-margin-top: var(--ds-space-md);
 }
 
-.dag__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ds-space-sm);
+/* Den åpne dagen er dit blikket skal. Skyggen løfter den ut av rekka uten at
+   de lukkede trenger å dempes ned til grått. */
+.dag--open {
+  box-shadow: var(--ds-shadow-md);
+  margin-bottom: var(--ds-space-lg);
 }
 
-.dag__name {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  min-width: 0;
-  font-family: var(--ds-font-display-sans);
-  font-size: var(--ds-text-lg);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-tight);
-  color: var(--ds-color-text-primary);
-  text-decoration: none;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.dag__name svg { width: 16px; height: 16px; color: var(--ds-color-text-tertiary); flex-shrink: 0; }
-.dag__name:active { opacity: 0.7; }
-
-/* Lengden står ved dagen, ikke i et skjema du må åpne for å vite den. */
-.dag__length {
-  flex-shrink: 0;
-  margin-left: auto;
-  padding: 2px 8px;
-  border-radius: var(--ds-radius-full);
-  background: var(--accent-bg);
-  color: var(--accent-text);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.dag__edit {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 30px;
-  height: 30px;
-  flex-shrink: 0;
-  padding: 0;
-  border: none;
-  border-radius: var(--ds-radius-sm);
-  background: transparent;
-  color: var(--ds-color-text-tertiary);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.dag__edit svg { width: 15px; height: 15px; }
-.dag__edit:hover { color: var(--ds-color-text-primary); }
-
-/* Fokuset står mellom dagen og øvelsene, fordi det er nettopp det det er:
-   grunnen til at akkurat disse øvelsene ligger her. */
-.dag__focus {
-  margin: 4px 0 var(--ds-space-md);
-  font-size: var(--ds-text-sm);
-  line-height: 1.5;
-  color: var(--accent-text);
-  font-weight: var(--ds-weight-medium);
-  letter-spacing: -0.005em;
-}
-
-.dag__focus--empty {
+/* Hele toppen er trykkflaten — 44px+ uansett, og ingen jakt på et lite ikon */
+.dag__toggle {
   display: block;
   width: 100%;
-  text-align: left;
-  padding: 0;
-  border: none;
-  background: none;
-  font-family: var(--ds-font-body);
-  color: var(--ds-color-text-tertiary);
-  font-weight: var(--ds-weight-regular);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* ---- Øvelsene ---- */
-.ovelser {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-}
-
-.ovelse {
-  padding: 7px 0;
-  border-top: 1px solid var(--ds-color-border-light);
-  min-width: 0;
-}
-
-.ovelse__row {
-  display: flex;
-  align-items: flex-start;
-  gap: var(--ds-space-sm);
-  min-width: 0;
-}
-
-/* Raden er lesbar først, klikkbar sekundært: ingen knappedrakt, bare tekst
-   som svarer når du tar på den. */
-.ovelse__main {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  align-items: flex-start;
-  gap: var(--ds-space-sm);
-  padding: 0;
+  padding: var(--ds-space-lg) var(--ds-space-lg) var(--ds-space-md);
   border: none;
   background: none;
   text-align: left;
   font: inherit;
-  color: inherit;
+  cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
-/* Egen kolonne for teksten, så temaet flukter med navnet og ikke med pila */
-.ovelse__text {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
+.dag--open .dag__toggle { padding-bottom: var(--ds-space-sm); }
 
-button.ovelse__main { cursor: pointer; }
-button.ovelse__main:active .ovelse__name { opacity: 0.6; }
-
-.ovelse__line {
+.dag__head {
   display: flex;
   align-items: baseline;
   gap: var(--ds-space-sm);
   min-width: 0;
 }
 
-/* Wrapper navnet til to linjer, skal pila stå på den FØRSTE — «center» legger
-   den i sprekken mellom linjene. */
-.ovelse__chevron,
-.ovelse__chevron-slot {
-  flex-shrink: 0;
-  width: 12px;
-  height: 12px;
-  margin-top: 4px;
+.dag__name {
+  flex: 1;
+  min-width: 0;
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-xl);
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: var(--ds-tracking-tight);
+  text-transform: uppercase;
+  color: var(--ds-color-text-primary);
 }
 
-.ovelse__chevron {
+/* Lengde og antall står ved dagen, ikke i et skjema du må åpne for å vite det */
+.dag__meta {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  flex-shrink: 0;
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--accent-text);
+  white-space: nowrap;
+}
+
+.dag__count::before {
+  content: '·';
+  margin-right: 6px;
+  opacity: 0.5;
+}
+
+.dag__chevron {
+  flex-shrink: 0;
+  align-self: center;
+  width: 16px;
+  height: 16px;
   color: var(--ds-color-text-tertiary);
-  transform: rotate(90deg);
-  transform-origin: 50% 50%;
   transition: transform var(--ds-duration-fast) var(--ds-ease-out);
 }
 
-.ovelse__main--open .ovelse__chevron { transform: rotate(-90deg); }
+.dag--open .dag__chevron { transform: rotate(180deg); }
 
 @media (prefers-reduced-motion: reduce) {
-  .ovelse__chevron { transition: none; }
+  .dag__chevron { transition: none; }
 }
 
-/* Hva øvelsen handler om — står alltid, så planen kan leses uten et eneste trykk */
-.ovelse__tema {
+/* Fokuset er grunnen til at akkurat disse øvelsene ligger her — så det står
+   under dagen, ikke inne i den. */
+.dag__focus {
   display: block;
-  font-size: var(--ds-text-xs);
-  line-height: 1.4;
-  color: var(--ds-color-text-secondary);
+  margin-top: 6px;
+  font-size: var(--ds-text-md);
+  line-height: 1.5;
+  color: var(--accent-text);
+  font-weight: var(--ds-weight-medium);
   letter-spacing: -0.005em;
 }
 
-/* ---- Utfoldet øvelse ---- */
-/* Flukter med navnet over: pilas bredde (12px) + gapet (8px) */
-.ovelse__detail {
-  padding: var(--ds-space-sm) 0 var(--ds-space-xs) 20px;
+/* Lukket skal fokuset antyde, ikke fylle: to linjer, så er kortet forutsigbart
+   høyt uansett hvor mye noen har skrevet. */
+.dag__focus--clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.dag__focus--empty {
+  color: var(--ds-color-text-tertiary);
+  font-weight: var(--ds-weight-regular);
+  font-size: var(--ds-text-sm);
+}
+
+.dag__body {
+  padding: 0 var(--ds-space-lg) var(--ds-space-lg);
+}
+
+/* ---- Øvelsene ----
+
+   Øvelsene lå som tettpakkede rader med hårstrek mellom: en tabell, ikke en
+   trening. Nå er hver øvelse en blokk med luft rundt, nummerert i rekkefølgen
+   du gjennomfører den. Skillet mellom dem er avstanden, ikke en strek. */
+.ovelser {
+  list-style: none;
+  margin: 0;
+  padding: var(--ds-space-md) 0 0;
+  border-top: 1px solid var(--ds-color-border-light);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-xl);
+  counter-reset: none;
+}
+
+.ovelse { min-width: 0; }
+
+/* Nummer, type og handlinger på én dempet linje over navnet — slik holder de
+   seg unna teksten du faktisk skal lese. */
+.ovelse__eyebrow {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-sm);
+  min-width: 0;
+  margin-bottom: 6px;
+}
+
+.ovelse__num {
+  flex-shrink: 0;
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: var(--ds-tracking-wider);
+  color: var(--accent-text);
+}
+
+.ovelse__badge {
+  flex-shrink: 0;
+  padding: 2px 7px;
+  border-radius: var(--ds-radius-sm);
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.ovelse__badge--diff { background: #E2EDDE; color: #3D5C44; }
+.ovelse__badge--mix { background: #F8E8E0; color: #7A3A24; }
+:global([data-theme="dark"] .ovelse__badge--diff) { background: #1A241D; color: #B5D2B0; }
+:global([data-theme="dark"] .ovelse__badge--mix) { background: #2A1E18; color: #F4C4A8; }
+
+.ovelse__actions {
+  display: grid;
+  grid-template-columns: repeat(3, 30px);
+  flex-shrink: 0;
+  margin-left: auto;
+}
+
+.ovelse__action-slot { display: block; }
+
+.ovelse__action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  border-radius: var(--ds-radius-sm);
+  background: transparent;
+  color: var(--ds-color-text-tertiary);
+  opacity: 0.55;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.ovelse__action svg { width: 15px; height: 15px; }
+.ovelse__action:hover, .ovelse__action:active { opacity: 1; color: var(--ds-color-text-primary); }
+
+/* Navnet er overskriften i øvelsen, ikke en rad i en liste */
+.ovelse__name {
+  margin: 0;
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-lg);
+  font-weight: var(--ds-weight-semibold);
+  line-height: 1.25;
+  letter-spacing: -0.01em;
+  color: var(--ds-color-text-primary);
+}
+
+/* Hva øvelsen handler om — det første du leser etter navnet */
+.ovelse__tema {
+  margin: 4px 0 0;
+  font-size: var(--ds-text-sm);
+  line-height: 1.45;
+  font-weight: var(--ds-weight-medium);
+  color: var(--accent-text);
+  letter-spacing: -0.005em;
 }
 
 .ovelse__points {
   list-style: none;
-  margin: 0;
+  margin: var(--ds-space-md) 0 0;
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: 6px;
 }
 
 .ovelse__points li {
   position: relative;
   padding-left: var(--ds-space-md);
   font-size: var(--ds-text-sm);
-  line-height: 1.45;
+  line-height: 1.5;
   color: var(--ds-color-text-secondary);
   letter-spacing: -0.005em;
 }
@@ -998,24 +1063,26 @@ button.ovelse__main:active .ovelse__name { opacity: 0.6; }
   content: '';
   position: absolute;
   left: 0;
-  top: 0.62em;
+  top: 0.68em;
   width: 8px;
   height: 1px;
-  background: var(--ds-color-text-tertiary);
+  background: var(--accent-text);
+  opacity: 0.6;
 }
 
+/* Oppsettet er en blokk for seg: det leses på banen, med ballen i hånda */
 .ovelse__org {
-  margin: var(--ds-space-sm) 0 0;
+  margin: var(--ds-space-md) 0 0;
   font-size: var(--ds-text-sm);
-  line-height: 1.5;
+  line-height: 1.6;
   color: var(--ds-color-text-secondary);
   letter-spacing: -0.005em;
 }
 
-.ovelse__points + .ovelse__org { margin-top: var(--ds-space-sm); }
-
 .ovelse__org-label {
-  margin-right: 6px;
+  display: block;
+  margin-bottom: 2px;
+  font-family: var(--ds-font-display-sans);
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-wider);
@@ -1027,7 +1094,7 @@ button.ovelse__main:active .ovelse__name { opacity: 0.6; }
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  margin-top: var(--ds-space-sm);
+  margin-top: var(--ds-space-md);
   max-width: 100%;
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);
@@ -1039,74 +1106,22 @@ button.ovelse__main:active .ovelse__name { opacity: 0.6; }
 
 .ovelse__link svg { width: 14px; height: 14px; flex-shrink: 0; }
 
-.ovelse__badge {
-  flex-shrink: 0;
-  font-size: 0.65rem;
-  font-weight: 600;
-  padding: 2px 6px;
-  border-radius: var(--ds-radius-sm);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+/* ---- Foten i en åpen dag ---- */
+.dag__foot {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-lg);
+  margin-top: var(--ds-space-xl);
+  padding-top: var(--ds-space-md);
+  border-top: 1px solid var(--ds-color-border-light);
 }
 
-.ovelse__badge--diff { background: #E2EDDE; color: #3D5C44; }
-.ovelse__badge--mix { background: #F8E8E0; color: #7A3A24; }
-:global([data-theme="dark"] .ovelse__badge--diff) { background: #1A241D; color: #B5D2B0; }
-:global([data-theme="dark"] .ovelse__badge--mix) { background: #2A1E18; color: #F4C4A8; }
-
-.ovelse__name {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--ds-text-sm);
-  line-height: 1.35;
-  color: var(--ds-color-text-primary);
-}
-
-.ovelse__actions {
-  display: grid;
-  grid-template-columns: repeat(3, 28px);
-  flex-shrink: 0;
-  /* Raden kan være to linjer nå. Ikonene skal stå på navnelinja, ikke midt i
-     blokka — 28px knapp mot 19px tekst gir ellers et synlig hopp nedover. */
-  margin-top: -5px;
-}
-
-.ovelse__action-slot { display: block; }
-
-.ovelse__action {
+.dag__action {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
+  gap: 6px;
   padding: 0;
   border: none;
-  border-radius: var(--ds-radius-sm);
-  background: transparent;
-  color: var(--ds-color-text-tertiary);
-  opacity: 0.65;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: opacity var(--ds-duration-fast) var(--ds-ease-out);
-}
-
-.ovelse__action svg { width: 14px; height: 14px; }
-.ovelse__action:hover, .ovelse__action:active { opacity: 1; color: var(--ds-color-text-primary); }
-
-@media (max-width: 360px) {
-  .ovelse__actions { grid-template-columns: repeat(3, 24px); }
-  .ovelse__action { width: 24px; }
-}
-
-.dag__add {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  width: 100%;
-  margin-top: 4px;
-  padding: 10px 0 6px;
-  border: none;
-  border-top: 1px solid var(--ds-color-border-light);
   background: none;
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-sm);
@@ -1116,8 +1131,8 @@ button.ovelse__main:active .ovelse__name { opacity: 0.6; }
   -webkit-tap-highlight-color: transparent;
 }
 
-.dag__add svg { width: 14px; height: 14px; }
-.dag__add:hover { color: var(--ds-color-text-primary); }
+.dag__action svg { width: 14px; height: 14px; }
+.dag__action:hover { color: var(--ds-color-text-primary); }
 
 /* ---- Bunn ---- */
 .uke__foot {
