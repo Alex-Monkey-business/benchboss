@@ -52,7 +52,6 @@ const checklist = computed(() => {
   if (props.prep.referee !== null) {
     items.push({ key: 'referee', label: 'Dommer satt', done: props.prep.referee })
   }
-  items.push({ key: 'squad', label: 'Tropp tatt ut (vurder hospitanter)', done: props.prep.squad })
   items.push({ key: 'lineup', label: 'Lag satt opp', done: props.prep.lineup })
   return items
 })

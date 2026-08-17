@@ -20,7 +20,6 @@ const missing = computed(() => {
   if (!p) return []
   const out = []
   if (p.referee === false) out.push('dommer')
-  if (!p.squad) out.push('tropp')
   if (!p.lineup) out.push('oppstilling')
   return out
 })

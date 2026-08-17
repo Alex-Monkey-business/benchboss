@@ -32,7 +32,7 @@ export function useToday() {
   const { coach, preferredTeam, preferredCupTeam, activeCohort } = useAuth()
   const { dismissed } = useDismissedReminders()
   const { activeSeason, fetchSeasons } = useSeasons()
-  const { matches, fetchMatches, fetchAllMatchPlayers, getCoachesForMatch, getPlayersForMatch } = useMatches()
+  const { matches, fetchMatches, getCoachesForMatch } = useMatches()
   const { fetchCoaches } = useCoaches()
   const { fetchExpenses, getExpenseForMatch } = useExpenses()
   const { activeCup, cupInProgress, fetchCups } = useCups()
@@ -173,7 +173,12 @@ export function useToday() {
     return session ? { period, session } : null
   })
 
-  // Prep-status for én av dagens kamper. referee er null for bortekamper (ikke vår jobb).
+  // Prep-status for en kamp. referee er null for bortekamper (ikke vår jobb).
+  //
+  // «Tropp tatt ut» er BORTE, og det var aldri en ekte sjekk: laget avledes av
+  // players.primary_team mot kampens lagfarge — det finnes alltid, det er
+  // ingenting å ta ut. Sjekken testet `match_players`, som er hospitanter.
+  // Den kunne derfor aldri bli sann, og sto som et evig uløst punkt.
   function prepFor(matchId) {
     const match = matches.value.find(m => m.id === matchId)
     if (!match) return null
@@ -183,10 +188,16 @@ export function useToday() {
       isHome: home,
       referee: home ? !!(match.referee || '').trim() : null,
       lineup: !!s && Object.keys(s.lineup || {}).length > 0,
-      squad: getPlayersForMatch(matchId).length > 0,
       status: s?.status || null
     }
   }
+
+  // Kampen som står som kort på toppen — dagens, eller neste når det ikke er
+  // kamp i dag. Speiler `heroMatch` i HjemView.
+  const heroMatchId = computed(() => {
+    if (todayMatches.value.length || todayCupMatches.value.length) return null
+    return nextMatch.value?.id || null
+  })
 
   const reminders = computed(() => buildReminders({
     matches: matches.value,
@@ -194,7 +205,13 @@ export function useToday() {
     getCoachesForMatch,
     getExpenseForMatch,
     periods: periods.value,
-    excludeMatchIds: todayHalsenMatches.value.map(m => m.id),
+    // Alt som allerede står som kort. Kortet sier «Mangler dommer» — da skal
+    // ikke «Å ordne» si det samme 30 cm lenger ned. Det var Alex' poeng:
+    // «trenger vel nesten ikke Å ordne hvis det blir highlightet under kampen».
+    excludeMatchIds: [
+      ...todayHalsenMatches.value.map(m => m.id),
+      ...(heroMatchId.value ? [heroMatchId.value] : [])
+    ],
     // Kampen som står i kortet øverst — påminnelsen om den slipper å gjenta
     // motstanderen.
     primaryMatchId: nextMatch.value?.id || null,
@@ -374,10 +391,7 @@ export function useToday() {
 
     await Promise.all([
       fetchExpenses(matches.value.map(m => m.id)),
-      fetchPrepSessions(prepIds),
-      // Troppene ble aldri hentet på Hjem, så «tropp tatt ut» var alltid
-      // usann — også på kampdag-kortet.
-      prepIds.length ? fetchAllMatchPlayers() : Promise.resolve()
+      fetchPrepSessions(prepIds)
     ])
     loading.value = false
   }
