@@ -106,5 +106,10 @@ export function useSeasonTeams() {
     loadedKey.value = null
   }
 
-  return { seasonTeams, seasonTeam, fetchSeasonTeams, setSeasonTeams }
+  // Står lagene på ekte rader fra basen, eller er vi på den statiske
+  // fallbacken? Den forskjellen avgjør hvor mye `trainers` er verdt: DB-radene
+  // er sesongens fasit, configen er et hardkodet øyeblikksbilde.
+  const teamsFromDb = computed(() => rows.value.length > 0)
+
+  return { seasonTeams, seasonTeam, teamsFromDb, fetchSeasonTeams, setSeasonTeams }
 }

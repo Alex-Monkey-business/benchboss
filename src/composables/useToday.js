@@ -39,29 +39,40 @@ export function useToday() {
   const { cupMatches, fetchCupMatches } = useCupMatches()
   const { periods, fetchPeriods } = useTrainingPeriods()
   const { sessions, fetchSessions } = useTrainingSessions()
-  const { seasonTeams, fetchSeasonTeams } = useSeasonTeams()
+  const { seasonTeams, teamsFromDb, fetchSeasonTeams } = useSeasonTeams()
   const matchMode = useMatchMode()
 
   // ── Hvilket lag trener JEG? ────────────────────────────────────────────────
   //
-  // `team_coaches` er fasit (via useSeasonTeams, med den statiske lag-configen
-  // som fallback). Hjem spurte før aldri om dette — den utledet «mitt» av
-  // per-kamp-tilordninger i `match_coaches`. Det er en annen ting: det sier
-  // hvem som STILLER på en kamp, ikke hvilket lag som er ditt. Står du ikke
-  // oppført på noen kommende kamp, falt alt tilbake til «alle Halsen-kamper»,
-  // og da kunne Rød sin kamp lande øverst hos Grønn-treneren.
-  const myTeamColors = computed(() => {
-    // Har du valgt lag i profilen din, er det svaret. Ingen utledning slår
-    // et eksplisitt valg.
-    if (preferredTeam.value) return new Set([preferredTeam.value])
-
+  // Hjem spurte før aldri om dette — den utledet «mitt» av per-kamp-tilordninger
+  // i `match_coaches`. Det er en annen ting: det sier hvem som STILLER på en
+  // kamp, ikke hvilket lag som er ditt. Står du ikke oppført på noen kommende
+  // kamp, falt alt tilbake til «alle Halsen-kamper», og da kunne Rød sin kamp
+  // lande øverst hos Grønn-treneren.
+  //
+  // Rekkefølgen under er ikke tilfeldig. `team_coaches` og
+  // `cohort_members.preferred_team` settes til det SAMME når et medlem
+  // inviteres eller redigeres — men bare den første er per sesong. Roterer
+  // lagene til våren, skrives en ny team_coaches-rad, mens preferred_team blir
+  // stående på fjorårets lag til noen rører den. Derfor vinner sesongraden.
+  const teamByName = list => {
     const name = coach.value?.name
-    if (!name) return new Set()
-    return new Set(
-      seasonTeams.value
-        .filter(t => (t.trainers || []).includes(name))
-        .map(t => t.slug)
-    )
+    if (!name) return null
+    const hits = list.filter(t => (t.trainers || []).includes(name)).map(t => t.slug)
+    return hits.length ? new Set(hits) : null
+  }
+
+  const myTeamColors = computed(() => {
+    // 1. Sesongens lagkobling fra basen — den eneste kilden som roterer med sesongen.
+    if (teamsFromDb.value) {
+      const fromSeason = teamByName(seasonTeams.value)
+      if (fromSeason) return fromSeason
+    }
+    // 2. Ditt eget medlemskort. Ikke sesongbevisst, men ekte data om deg.
+    if (preferredTeam.value) return new Set([preferredTeam.value])
+    // 3. Den statiske lag-configen (lib/seasonTeams.js) — et hardkodet
+    //    øyeblikksbilde, siste utvei før vi gjetter på kamptilordninger.
+    return teamByName(seasonTeams.value) || new Set()
   })
 
   const halsenMatches = computed(() => matches.value.filter(isHalsenMatch))
