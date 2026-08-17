@@ -64,7 +64,7 @@ function sub(item) {
   display: flex;
   align-items: center;
   gap: var(--ds-space-md);
-  padding: 12px var(--ds-space-md);
+  padding: 14px var(--ds-space-md);
   background: var(--ds-color-bg-elevated);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);

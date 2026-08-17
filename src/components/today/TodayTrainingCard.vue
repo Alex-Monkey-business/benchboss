@@ -85,9 +85,13 @@ const focusParts = computed(() => {
   margin: 0;
   font-family: var(--ds-font-heading);
   font-size: var(--ds-text-lg);
-  line-height: 1.2;
+  line-height: 1.3;
   letter-spacing: -0.01em;
-  color: var(--ds-color-text-primary);
+  /* Kortet beholder sin LYSE aksentbakgrunn i mørk modus — derfor kan ikke
+     blekket følge temaet. --ds-color-text-primary flipper til nesten hvitt,
+     og tittelen ble usynlig på lyseblått. Fast mørkt blekk, samme mønster som
+     kapittel-panelet i økt-visningen: lik i lyst og mørkt tema. */
+  color: #0A0A0A;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -114,7 +118,10 @@ const focusParts = computed(() => {
 }
 
 .today-training__illo {
-  width: 88px;
+  /* 64 som de andre kortene. I 88 ble treningskortet fysisk STØRRE enn
+     kampkortet, som er skjermens viktigste — vekten sa det motsatte av
+     rekkefølgen. */
+  width: 64px;
   flex-shrink: 0;
 }
 
@@ -124,9 +131,10 @@ const focusParts = computed(() => {
   display: block;
 }
 
-@media (max-width: 380px) {
-  .today-training__illo {
-    display: none;
-  }
+/* Krymp, ikke skjul. Kampkortet krymper til 56 under 380px — at
+   treningskortene i stedet fjernet bildet gjorde at kortene så ut som to
+   ulike komponenter så snart skjermen ble smal. */
+@media (max-width: 379px) {
+  .today-training__illo { width: 56px; }
 }
 </style>

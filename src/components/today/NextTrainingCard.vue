@@ -105,10 +105,16 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
 .next-training__focus {
   margin: 0;
   font-family: var(--ds-font-heading);
-  font-size: var(--ds-text-base);
-  line-height: 1.4;
+  /* lg, som treningskortet for i dag. Samme slags innhold — et fokus-utdrag
+     — sto i to ulike størrelser på samme skjerm. */
+  font-size: var(--ds-text-lg);
+  line-height: 1.3;
   letter-spacing: -0.01em;
-  color: var(--ds-color-text-primary);
+  /* Kortet beholder sin LYSE aksentbakgrunn i mørk modus — derfor kan ikke
+     blekket følge temaet. --ds-color-text-primary flipper til nesten hvitt,
+     og tittelen ble usynlig på lyseblått. Fast mørkt blekk, samme mønster som
+     kapittel-panelet i økt-visningen: lik i lyst og mørkt tema. */
+  color: #0A0A0A;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -126,10 +132,11 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
   display: block;
 }
 
-@media (max-width: 380px) {
-  .next-training__illo {
-    display: none;
-  }
+/* Krymp, ikke skjul. Kampkortet krymper til 56 under 380px — at
+   treningskortene i stedet fjernet bildet gjorde at kortene så ut som to
+   ulike komponenter så snart skjermen ble smal. */
+@media (max-width: 379px) {
+  .next-training__illo { width: 56px; }
 }
 
 /* Øvelsene som én kompakt linje — maks to ved mange øvelser. */
