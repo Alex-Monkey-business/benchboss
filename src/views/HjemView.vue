@@ -140,12 +140,6 @@ function coachNamesForMatch(matchId) {
         />
       </template>
 
-      <!-- Klubben ellers: de andre lagenes neste kamp, dempet -->
-      <section v-if="otherTeamsNext.length" class="ds-anim-fade-up ds-anim-delay-2">
-        <h2 class="hjem-section-kicker">Andre lag</h2>
-        <OtherTeamsList :items="otherTeamsNext" />
-      </section>
-
       <!-- Resten av uka — bare dager med innhold, ingen fyll -->
       <section v-if="weekAhead.length" class="ds-anim-fade-up ds-anim-delay-2">
         <h2 class="hjem-section-kicker">Denne uka</h2>
@@ -155,6 +149,14 @@ function coachNamesForMatch(matchId) {
       <section v-if="reminders.length" class="ds-anim-fade-up ds-anim-delay-3">
         <h2 class="hjem-section-kicker">Å ordne</h2>
         <ReminderList :reminders="reminders" />
+      </section>
+
+      <!-- Klubben ellers, sist: dette er lag du IKKE trener. Seksjonen lå
+           øverst og ledet hele skjermen på dager uten kamp — stikk i strid
+           med at den skal ligge der «uten å ta fokus». -->
+      <section v-if="otherTeamsNext.length" class="ds-anim-fade-up ds-anim-delay-3">
+        <h2 class="hjem-section-kicker">Andre lag</h2>
+        <OtherTeamsList :items="otherTeamsNext" />
       </section>
 
       <div v-if="showEmpty" class="ds-empty ds-anim-fade-up ds-anim-delay-1">

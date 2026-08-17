@@ -13,6 +13,19 @@ function dayLabel(iso) {
   const s = new Date(iso + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'short' })
   return (s.charAt(0).toUpperCase() + s.slice(1)).replace(/\./g, '')
 }
+
+// Møter to Halsen-lag hverandre, er det én kamp med to merkelapper — ikke to
+// rader. «Hjemme/borte» sier heller ingenting når begge er oss.
+const tags = item => item.colors || [item.color]
+
+function line(item) {
+  return tags(item).length > 1 ? 'mot hverandre' : `mot ${item.opponent}`
+}
+
+function sub(item) {
+  const day = dayLabel(item.date)
+  return tags(item).length > 1 ? day : `${day} · ${item.isHome ? 'hjemme' : 'borte'}`
+}
 </script>
 
 <template>
@@ -23,10 +36,17 @@ function dayLabel(iso) {
       :to="item.to"
       class="other-row"
     >
-      <span class="other-row__tag" :class="`other-row__tag--${item.color}`">{{ teamLabel(item.color) }}</span>
+      <span class="other-row__tags">
+        <span
+          v-for="c in tags(item)"
+          :key="c"
+          class="other-row__tag"
+          :class="`other-row__tag--${c}`"
+        >{{ teamLabel(c) }}</span>
+      </span>
       <span class="other-row__body">
-        <span class="other-row__title">mot {{ item.opponent }}</span>
-        <span class="other-row__sub">{{ dayLabel(item.date) }} · {{ item.isHome ? 'hjemme' : 'borte' }}</span>
+        <span class="other-row__title">{{ line(item) }}</span>
+        <span class="other-row__sub">{{ sub(item) }}</span>
       </span>
       <svg class="other-row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </router-link>
@@ -60,6 +80,14 @@ function dayLabel(iso) {
 
 @media (hover: hover) and (pointer: fine) {
   .other-row:hover { border-color: var(--ds-color-border-strong); }
+}
+
+/* To merkelapper når to Halsen-lag møtes — én kamp, begge lagene navngitt. */
+.other-row__tags {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  flex-shrink: 0;
 }
 
 .other-row__tag {

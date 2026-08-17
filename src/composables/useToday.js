@@ -193,25 +193,39 @@ export function useToday() {
     return { season: activeSeason.value?.name || '', date: first, days }
   })
 
-  // Resten av uka (i morgen → søndag): treninger fra ukerytmen + seriekamper.
+  // MINE kamper — grunnlaget for både uka og «neste kamp», så de to aldri
+  // kan bli uenige om hva som er mitt. Uten tilordninger vet vi ikke hvilket
+  // lag som er mitt, og da er alle Halsen-kamper mine.
+  const halsenMatches = computed(() => matches.value.filter(isHalsenMatch))
+
+  const hasOwnAssignments = computed(() =>
+    !!coach.value?.id && halsenMatches.value.some(m => getCoachesForMatch(m.id).includes(coach.value.id))
+  )
+
+  const myMatches = computed(() =>
+    hasOwnAssignments.value
+      ? halsenMatches.value.filter(m => getCoachesForMatch(m.id).includes(coach.value.id))
+      : halsenMatches.value
+  )
+
+  // Resten av uka (i morgen → søndag): treninger fra ukerytmen + MINE seriekamper.
+  // De andre lagenes kamper hører hjemme under «Andre lag» — sto de begge
+  // steder, leste Hjem som om det skjedde dobbelt så mye.
   // Cup-kamper ramses IKKE opp her — cup-widgeten på Hjem er inngangen,
   // og aktiv cup demper treninger på cup-dagene (via cup-parameteren).
   const weekAhead = computed(() => buildWeekAhead({
     period: upcomingPeriod.value,
     sessions: sessions.value,
-    matches: matches.value,
+    matches: myMatches.value,
     cup: activeCup.value
   }))
 
-  // Neste kamp = MIN neste seriekamp (laget jeg er trener for). Cup dekkes
-  // av widgeten. Fallback til alle Halsen-kamper hvis tilordning mangler.
+  // Neste kamp = MIN neste seriekamp. Cup dekkes av widgeten.
   const nextMatch = computed(() => {
     const today = localISODate()
     const byDateTime = (a, b) => a.match_date.localeCompare(b.match_date) || (a.match_time || '').localeCompare(b.match_time || '')
 
-    const upcoming = matches.value.filter(m => isHalsenMatch(m) && m.match_date > today)
-    const mineUpcoming = upcoming.filter(m => getCoachesForMatch(m.id).includes(coach.value?.id))
-    const league = (mineUpcoming.length ? mineUpcoming : upcoming).sort(byDateTime)[0]
+    const league = myMatches.value.filter(m => m.match_date > today).sort(byDateTime)[0]
 
     if (!league) return null
     return {
@@ -228,27 +242,36 @@ export function useToday() {
 
   // De andre Halsen-lagenes neste kamp. Egen trening er hovedsaken på Hjem,
   // men klubben spiller uansett — dette gir oversikten uten å ta fokus.
+  //
+  // ÉN RAD PER KAMP. Møter to Halsen-lag hverandre, gir teamColorsForMatch to
+  // farger — og før ble den ene kampen listet to ganger, speilvendt («Hvit mot
+  // Halsen Blå» og «Blå mot Halsen Hvit»). Det er én kamp, og den skal telles én gang.
+  const MAX_OTHER_TEAMS = 3
+
+  const myColors = computed(() => new Set(myMatches.value.flatMap(teamColorsForMatch)))
+
   const otherTeamsNext = computed(() => {
     const today = localISODate()
     const byDateTime = (a, b) => a.match_date.localeCompare(b.match_date) || (a.match_time || '').localeCompare(b.match_time || '')
 
-    // Mine egne lagfarger er allerede dekket av nextMatch-kortet.
-    const seen = new Set(nextMatch.value?.teams || [])
+    // Mine egne lag er dekket av uka og neste-kamp-kortet.
+    const seen = new Set(myColors.value)
     const out = []
 
-    for (const m of matches.value.filter(x => isHalsenMatch(x) && x.match_date > today).sort(byDateTime)) {
-      for (const color of teamColorsForMatch(m)) {
-        if (seen.has(color)) continue
-        seen.add(color)
-        out.push({
-          color,
-          date: m.match_date,
-          time: (m.match_time || '').slice(0, 5),
-          opponent: isHomeMatch(m) ? m.away_team : m.home_team,
-          isHome: isHomeMatch(m),
-          to: `/kamp/${m.id}`
-        })
-      }
+    for (const m of halsenMatches.value.filter(x => x.match_date > today).sort(byDateTime)) {
+      const fresh = teamColorsForMatch(m).filter(c => !seen.has(c))
+      if (!fresh.length) continue
+      fresh.forEach(c => seen.add(c))
+      out.push({
+        colors: fresh,
+        color: fresh[0], // nøkkel + fallback for eldre markup
+        date: m.match_date,
+        time: (m.match_time || '').slice(0, 5),
+        opponent: isHomeMatch(m) ? m.away_team : m.home_team,
+        isHome: isHomeMatch(m),
+        to: `/kamp/${m.id}`
+      })
+      if (out.length === MAX_OTHER_TEAMS) break
     }
     return out
   })
