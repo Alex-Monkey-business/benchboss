@@ -75,8 +75,8 @@ const detailLine = computed(() => {
     <span class="next-match__detail">{{ detailLine }}</span>
 
     <span v-if="missing.length" class="next-match__missing">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="13"/><line x1="12" y1="16.5" x2="12" y2="16.6"/></svg>
-      Mangler {{ missingLine }}
+      <span class="next-match__missing-dot" aria-hidden="true"></span>
+      <span>Mangler {{ missingLine }}</span>
     </span>
     </div>
 
@@ -176,22 +176,33 @@ const detailLine = computed(() => {
   color: var(--ds-color-text-secondary);
 }
 
-/* Det som står igjen. Dempet varm, ikke rødt: dette er noe å gjøre, ikke
-   noe som ryker. Rødt er reservert for dommer på kampdag. */
+/* Det som står igjen. Prikk + tekst — samme språk som påminnelsene i «Å ordne»,
+   ikke en ny pille. En fylt pille inne i et kort som allerede har bakgrunn og
+   ramme blir en boks i en boks, og `radius-full` gir en kapsel som ser knekt
+   ut i det linja brytes.
+   Dempet varm, ikke rødt: dette er noe å gjøre, ikke noe som ryker. */
 .next-match__missing {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  align-self: flex-start;
-  margin-top: 8px;
-  padding: 3px 9px 3px 7px;
-  border-radius: var(--ds-radius-full);
-  background: var(--ds-color-warm-bg, #F8E8E0);
-  color: var(--ds-color-warm-text, #7A3A24);
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  /* Ingen margin-top: kolonnen har allerede gap. To lag luft ble dobbelt. */
+  /* xs, ikke sm: dette er en merknad på kampen, ikke overskriften. I sm brakk
+     linja i to og slo motstandernavnet i vekt. Fargen gjør jobben. */
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);
-  line-height: 1.3;
+  line-height: 1.4;
+  letter-spacing: -0.005em;
+  color: var(--ds-color-warm-text);
 }
 
-.next-match__missing svg { width: 13px; height: 13px; flex-shrink: 0; }
+/* Prikken sitter på FØRSTE linje, ikke midt i en tolinjes blokk. */
+.next-match__missing-dot {
+  width: 6px;
+  height: 6px;
+  margin-top: 5px;
+  border-radius: 50%;
+  flex-shrink: 0;
+  background: var(--ds-color-warm);
+  box-shadow: 0 0 0 3px rgba(185, 96, 63, 0.16);
+}
 </style>
