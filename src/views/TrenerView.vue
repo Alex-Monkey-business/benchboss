@@ -6,23 +6,30 @@
 //
 // Flata leser; sheeten redigerer. Samme deling som spillersiden — å lande rett
 // i redigeringsmodus er verre enn ett klikk ekstra.
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { useAuth } from '../stores/auth'
 import { useCoaches } from '../composables/useCoaches'
 import { useSeasons } from '../composables/useSeasons'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
+import { useMatches } from '../composables/useMatches'
+import { useExpenses } from '../composables/useExpenses'
 import { useResponsibilities } from '../composables/useResponsibilities'
 import { useToast } from '../composables/useToast'
+import { isHalsenMatch, isPlayed } from '../lib/matchMeta'
+import { shortRelativeDate } from '../lib/dateLabels'
 import { AREAS } from '../content/ansvar'
 import Sheet from '../components/Sheet.vue'
+import SeasonPicker from '../components/SeasonPicker.vue'
 
 const route = useRoute()
 const { activeCohort } = useAuth()
 const { coaches, fetchCoaches } = useCoaches()
-const { activeSeason, fetchSeasons } = useSeasons()
+const { activeSeason, viewingSeason, fetchSeasons } = useSeasons()
 const { seasonTeams, setSeasonTeams } = useSeasonTeams()
+const { matches, matchCoaches, fetchMatches } = useMatches()
+const { expenses, fetchExpenses } = useExpenses()
 const { fetchResponsibilities, areasForCoach, setAreasForCoach, supportsResponsibilities } = useResponsibilities()
 const { show: showToast } = useToast()
 
@@ -39,12 +46,54 @@ const teamNow = computed(() =>
 
 const areas = computed(() => (coach.value ? areasForCoach(coach.value.id) : []))
 
+// ── Kamper og utlegg ───────────────────────────────────────────────────────
+//
+// Tallene fantes fra før — trener-leaderboardet på Statistikk teller nøyaktig
+// dette. Her er de bare snudd andre veien: fra «hvem har flest» til «hva har
+// denne gjort». Samme kilde (`match_coaches`), samme spilte-definisjon.
+//
+// Alt er scopet til sesongen man ser på, som spillerprofilen.
+const mineKamper = computed(() => {
+  if (!coach.value) return []
+  const ids = new Set(matchCoaches.value.filter(mc => mc.coach_id === coach.value.id).map(mc => mc.match_id))
+  return matches.value.filter(m => ids.has(m.id) && isHalsenMatch(m))
+})
+
+const spilte = computed(() => mineKamper.value.filter(isPlayed))
+const kommende = computed(() =>
+  mineKamper.value.filter(m => !isPlayed(m)).sort((a, b) => a.match_date.localeCompare(b.match_date))
+)
+
+// Nyeste først. Spillerprofilen viser fem; samme her.
+const sisteKamper = computed(() =>
+  [...spilte.value].sort((a, b) => b.match_date.localeCompare(a.match_date)).slice(0, 5)
+)
+
+// Dommerutlegg lagt ut av denne treneren — sesongens kamper, ikke all tid.
+const utlegg = computed(() => {
+  if (!coach.value) return { antall: 0, kroner: 0 }
+  const ids = new Set(matches.value.map(m => m.id))
+  const mine = expenses.value.filter(e => e.paid_by === coach.value.id && ids.has(e.match_id))
+  return { antall: mine.length, kroner: mine.reduce((s, e) => s + (e.amount || 0), 0) }
+})
+
+async function lastSesongdata() {
+  if (!viewingSeason.value) return
+  await fetchMatches(viewingSeason.value.id)
+  await fetchExpenses(matches.value.map(m => m.id))
+}
+
 onMounted(async () => {
   const list = await fetchCoaches()
   await fetchSeasons()
+  await lastSesongdata()
   if (cohortId.value) await fetchResponsibilities(cohortId.value, list)
   ready.value = true
 })
+
+// Uten denne sto tallene fast på sesongen siden ble åpnet i, og velgeren
+// gjorde ingenting synlig — samme felle som ble lukket på spillerprofilen.
+watch(viewingSeason, lastSesongdata)
 
 // ── Rediger ────────────────────────────────────────────────────────────────
 const form = ref(null)
@@ -168,6 +217,44 @@ async function save() {
         <p v-if="!supportsResponsibilities" class="tr__note">
           Vises fra innholdsfila. Kjør <code>20260818090000_coach_responsibilities.sql</code> for å kunne endre den her.
         </p>
+      </section>
+
+      <!-- Sesongvelger, ikke bare en overskrift: tallene er sesongscopet, og
+           uten den fantes ingen vei til fjorårets tall herfra. -->
+      <section class="tr__section">
+        <div class="tr__seasonrow">
+          <h2 class="ds-section-label tr__h2">Sesong</h2>
+          <SeasonPicker />
+        </div>
+        <div class="tr__stats">
+          <div class="tr__stat">
+            <span class="tr__statnum">{{ spilte.length }}</span>
+            <span class="tr__statlabel">{{ spilte.length === 1 ? 'kamp' : 'kamper' }}</span>
+          </div>
+          <div class="tr__stat">
+            <span class="tr__statnum">{{ kommende.length }}</span>
+            <span class="tr__statlabel">kommende</span>
+          </div>
+          <div v-if="utlegg.antall" class="tr__stat">
+            <span class="tr__statnum">{{ utlegg.kroner }}</span>
+            <span class="tr__statlabel">kr lagt ut</span>
+          </div>
+        </div>
+        <p v-if="!spilte.length && !kommende.length" class="tr__note">
+          Ingen kamper denne sesongen. Trenere settes på kamper ut fra laget de trener.
+        </p>
+      </section>
+
+      <section v-if="sisteKamper.length" class="tr__section">
+        <h2 class="ds-section-label tr__h2">Siste kamper</h2>
+        <ul class="tr__matches">
+          <li v-for="m in sisteKamper" :key="m.id">
+            <router-link :to="`/kamp/${m.id}`" class="tr__match">
+              <span class="tr__matchname">{{ m.home_team }} – {{ m.away_team }}</span>
+              <span class="tr__matchdate">{{ shortRelativeDate(m.match_date) }}</span>
+            </router-link>
+          </li>
+        </ul>
       </section>
     </template>
 
@@ -327,6 +414,64 @@ async function save() {
   text-decoration: underline;
   cursor: pointer;
 }
+
+.tr__seasonrow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-md);
+  margin-bottom: var(--ds-space-md);
+}
+
+.tr__seasonrow .tr__h2 { margin: 0; }
+
+.tr__stats { display: flex; flex-wrap: wrap; gap: var(--ds-space-md); }
+
+.tr__stat {
+  flex: 1 1 0;
+  min-width: 88px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--ds-space-md);
+  border: 1.5px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-bg-elevated);
+}
+
+.tr__statnum {
+  font-size: var(--ds-text-xl);
+  font-weight: var(--ds-weight-semibold);
+  line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+
+.tr__statlabel { font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary); }
+
+.tr__matches { list-style: none; margin: 0; padding: 0; }
+
+.tr__match {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-md);
+  padding: 11px 0;
+  text-decoration: none;
+  color: inherit;
+  border-bottom: 1px solid var(--ds-color-border);
+}
+
+.tr__matches li:last-child .tr__match { border-bottom: 0; }
+
+.tr__matchname {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ds-text-sm);
+}
+
+.tr__matchdate { flex: none; font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary); }
 
 .tr__tags,
 .tr__pills {
