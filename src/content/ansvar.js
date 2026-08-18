@@ -14,12 +14,12 @@
 // trener og av personer i ansvarsoversikten. Headcoach først er med vilje.
 
 export const AREAS = [
-  { name: 'Headcoach', note: 'Siste ord når vi er uenige' },
-  { name: 'Kommunikasjon', note: 'Det foreldrene faktisk får vite' },
-  { name: 'Cup', note: 'Påmelding, betaling og hvem som kjører' },
+  { name: 'Headcoach', note: 'Siste ord ved uenighet' },
+  { name: 'Kommunikasjon', note: 'Det foreldrene får vite' },
+  { name: 'Cup', note: 'Påmelding, betaling, kjøring' },
   { name: 'Tech', note: 'BenchBoss og alt som blinker' },
-  { name: 'Øvelser', note: 'Ukas plan og øvelsesbanken' },
-  { name: 'Dommere', note: 'Skaffer dommer og legger ut for ham' },
+  { name: 'Øvelser', note: 'Ukas plan og banken' },
+  { name: 'Dommere', note: 'Skaffer dommer og legger ut' },
   { name: 'Rigg og Hoopit', note: 'Baner opp, oppmøte inn' },
   { name: 'Materialforvalter', note: 'Baller, vester og kjegler — og at de kommer hjem igjen' }
 ]

@@ -294,8 +294,12 @@ async function save() {
               :aria-pressed="form.areas.includes(a.name)"
               @click="toggleArea(a.name)"
             >
-              <span class="tr__pick-name">{{ a.name }}</span>
-              <span class="tr__pick-note">{{ a.note }}</span>
+              <span class="tr__pick-body">
+                <span class="tr__pick-name">{{ a.name }}</span>
+                <span class="tr__pick-note">{{ a.note }}</span>
+              </span>
+              <svg v-if="form.areas.includes(a.name)" class="tr__pick-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <svg v-else class="tr__pick-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
           </div>
         </div>
@@ -311,7 +315,13 @@ async function save() {
 </template>
 
 <style scoped>
-.tr__nav { margin-bottom: var(--ds-space-lg); }
+/* .desktop-container gir INGEN padding under 768 px — den setter bare
+   maksbredde. Hver blokk må derfor trekke seg inn selv, slik SpillerView gjør.
+   Her brukes margin, ikke padding: da følger skillelinja på .tr__section
+   innholdet i stedet for å gå fra kant til kant. */
+.tr__nav {
+  margin: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-lg);
+}
 
 .tr__back {
   display: inline-flex;
@@ -331,7 +341,7 @@ async function save() {
   display: flex;
   align-items: center;
   gap: var(--ds-space-md);
-  margin-bottom: var(--ds-space-xl);
+  margin: 0 var(--ds-space-lg) var(--ds-space-xl);
 }
 
 /* Samme avatar-språk som ansvarsblokka på referatsiden: utklippene er hele
@@ -383,7 +393,7 @@ async function save() {
 .tr__section {
   padding-top: var(--ds-space-lg);
   border-top: 1px solid var(--ds-color-border-light);
-  margin-bottom: var(--ds-space-lg);
+  margin: 0 var(--ds-space-lg) var(--ds-space-lg);
 }
 
 .tr__h2 { margin: 0 0 var(--ds-space-md); }
@@ -397,6 +407,9 @@ async function save() {
 }
 
 .tr__muted { color: var(--ds-color-text-tertiary); }
+
+/* Laster/fant-ikke står utenfor seksjonene og trenger egen innrykk. */
+.desktop-container > .tr__muted { margin: 0 var(--ds-space-lg); }
 
 .tr__note {
   margin: var(--ds-space-md) 0 0;
@@ -524,47 +537,63 @@ async function save() {
 }
 
 /* Plukkeren viser hva området ER, så man ikke huker av i blinde — samme
-   begrunnelse som øvelsesplukkeren i treningsmodulen. */
+   begrunnelse som øvelsesplukkeren i treningsmodulen, og nå samme form:
+   én rad per område med hake til høyre.
+   Åtte kort à to linjer var en vegg å scrolle gjennom før man nådde Lagre.
+   Navn og forklaring flyter på samme linje og bryter bare når de må. */
 .tr__picker {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-sm);
+  gap: 6px;
 }
 
 .tr__pick {
   display: flex;
-  flex-direction: column;
-  gap: 1px;
-  padding: var(--ds-space-md);
-  border: 1px solid var(--ds-color-border);
+  align-items: center;
+  gap: var(--ds-space-sm);
+  width: 100%;
+  padding: 11px 12px;
+  border: 1px solid transparent;
   border-radius: var(--ds-radius-md);
-  background: var(--ds-color-bg-elevated);
+  background: var(--ds-color-bg-subtle);
   text-align: left;
   font-family: var(--ds-font-body);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
+.tr__pick:active { transform: scale(0.99); }
+
+.tr__pick-body { flex: 1; min-width: 0; line-height: 1.4; }
+
 .tr__pick-name {
-  font-family: var(--ds-font-display-sans);
-  font-size: var(--ds-text-md);
   font-weight: var(--ds-weight-semibold);
+  font-size: var(--ds-text-sm);
   color: var(--ds-color-text-primary);
 }
 
 .tr__pick-note {
   font-size: var(--ds-text-sm);
-  line-height: 1.4;
+  color: var(--ds-color-text-tertiary);
+}
+
+/* Forklaringen henger på navnet med en prikk, ikke på egen linje. */
+.tr__pick-note::before { content: ' · '; }
+
+.tr__pick-check,
+.tr__pick-plus {
+  width: 17px;
+  height: 17px;
+  flex-shrink: 0;
   color: var(--ds-color-text-tertiary);
 }
 
 .tr__pick--on {
-  border-color: var(--ds-color-text-primary);
-  background: var(--ds-color-text-primary);
+  background: var(--ds-color-accent-light);
+  border-color: var(--ds-color-accent);
 }
 
-.tr__pick--on .tr__pick-name { color: var(--ds-color-bg); }
-.tr__pick--on .tr__pick-note { color: var(--ds-color-bg); opacity: 0.7; }
+.tr__pick--on .tr__pick-check { color: var(--ds-color-accent); }
 
 .tr__pill {
   padding: 9px 14px;
