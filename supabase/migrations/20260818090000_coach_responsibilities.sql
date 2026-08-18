@@ -43,8 +43,13 @@ drop policy if exists delete_unless_parent on public.coach_responsibilities;
 create policy delete_unless_parent on public.coach_responsibilities
   for delete to public using (not public.bb_is_parent());
 
--- Seed fra ansvar.js, slik det ble avtalt på trenermøtet 16. august 2026.
--- Idempotent: `on conflict do nothing` på (coach_id, area).
+-- Fordelingen slik den er nå (18. august 2026). NB: dette er IKKE tabellen fra
+-- referatet 16. august — ansvaret ble omfordelt etterpå. Dommere gikk fra Alex
+-- til Iver, Keepertrener utgikk, og Headcoach og Tech kom til. Referatet står
+-- som det ble skrevet; denne tabellen er hva som gjelder.
+--
+-- Sletter først kullets rader: da gir migrasjonen samme resultat enten den
+-- kjøres for første gang eller oppå den gamle fordelingen.
 do $$
 declare v_cohort uuid;
 begin
@@ -58,18 +63,19 @@ begin
     return;
   end if;
 
+  delete from public.coach_responsibilities where cohort_id = v_cohort;
+
   insert into public.coach_responsibilities (cohort_id, coach_id, area)
   select v_cohort, c.id, m.area
   from (values
-    ('Alex',  'Cuper'),
-    ('Trond', 'Cuper'),
+    ('Trond', 'Headcoach'),
     ('Trond', 'Kommunikasjon'),
-    ('Trond', 'Keepertrener'),
-    ('Alex',  'Dommere'),
+    ('Alex',  'Cup'),
+    ('Alex',  'Tech'),
+    ('Iver',  'Øvelser'),
+    ('Iver',  'Dommere'),
     ('Simon', 'Rigg og Hoopit'),
-    ('Jacob', 'Materiell og vester'),
-    ('Iver',  'Treningsopplegg og øvelser'),
-    ('Iver',  'Oppvarming')
+    ('Jacob', 'Materialforvalter')
   ) as m(coach_name, area)
   join public.coaches c on c.cohort_id = v_cohort and c.name = m.coach_name
   on conflict (coach_id, area) do nothing;

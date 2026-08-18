@@ -1,36 +1,44 @@
-// Ansvarsområdene i trenerteamet, avtalt på trenermøtet 16. august 2026.
+// Ansvarsområdene i trenerteamet.
 //
-// Fila er nå TO ting, og bare den ene er data:
+// Fila er TO ting, og bare den ene er data:
 //
-//   1. AREAS — den kanoniske lista over områder. Den blir stående i kode som
-//      forslag i velgeren, på samme måte som EXERCISE_CATEGORIES i
-//      useExercises.js. Et nytt område skal ikke koste en migrasjon.
-//   2. ANSVAR — fordelingen slik den var da referatet ble skrevet. Etter
-//      migrasjonen 20260818090000 er fasiten `coach_responsibilities` i basen;
-//      denne står igjen som seed og som fallback for demo-modus.
+//   1. AREAS — den kanoniske lista over områder, med én linje som sier hva
+//      jobben faktisk er. Den blir stående i kode, på samme måte som
+//      EXERCISE_CATEGORIES i useExercises.js. Et nytt område skal ikke koste
+//      en migrasjon, og forklaringen skal ikke koste en kolonne.
+//   2. ANSVAR — fordelingen, som seed til basen og som fallback i demo-modus.
+//      Fasiten er `coach_responsibilities`; den leses gjennom
+//      useResponsibilities, aldri herfra direkte.
 //
-// Fordelingen leses gjennom useResponsibilities, aldri herfra direkte.
+// Rekkefølgen er ikke tilfeldig: den styrer sorteringen både av områder på en
+// trener og av personer i ansvarsoversikten. Headcoach først er med vilje.
 
 export const AREAS = [
-  'Cuper',
-  'Kommunikasjon',
-  'Keepertrener',
-  'Dommere',
-  'Rigg og Hoopit',
-  'Materiell og vester',
-  'Treningsopplegg og øvelser',
-  'Oppvarming'
+  { name: 'Headcoach', note: 'Siste ord når vi er uenige' },
+  { name: 'Kommunikasjon', note: 'Det foreldrene faktisk får vite' },
+  { name: 'Cup', note: 'Påmelding, betaling og hvem som kjører' },
+  { name: 'Tech', note: 'BenchBoss og alt som blinker' },
+  { name: 'Øvelser', note: 'Ukas plan og øvelsesbanken' },
+  { name: 'Dommere', note: 'Skaffer dommer og legger ut for ham' },
+  { name: 'Rigg og Hoopit', note: 'Baner opp, oppmøte inn' },
+  { name: 'Materialforvalter', note: 'Baller, vester og kjegler — og at de kommer hjem igjen' }
 ]
 
+export const AREA_NAMES = AREAS.map(a => a.name)
+
+export function areaNote(name) {
+  return AREAS.find(a => a.name === name)?.note || ''
+}
+
 export const ANSVAR = [
-  { area: 'Cuper', coaches: ['Alex', 'Trond'] },
+  { area: 'Headcoach', coaches: ['Trond'] },
   { area: 'Kommunikasjon', coaches: ['Trond'] },
-  { area: 'Keepertrener', coaches: ['Trond'] },
-  { area: 'Dommere', coaches: ['Alex'] },
+  { area: 'Cup', coaches: ['Alex'] },
+  { area: 'Tech', coaches: ['Alex'] },
+  { area: 'Øvelser', coaches: ['Iver'] },
+  { area: 'Dommere', coaches: ['Iver'] },
   { area: 'Rigg og Hoopit', coaches: ['Simon'] },
-  { area: 'Materiell og vester', coaches: ['Jacob'] },
-  { area: 'Treningsopplegg og øvelser', coaches: ['Iver'] },
-  { area: 'Oppvarming', coaches: ['Iver'] }
+  { area: 'Materialforvalter', coaches: ['Jacob'] }
 ]
 
 // Områdene én person eier i seed-fordelingen. Navnekoblingen lever bare her —
@@ -49,8 +57,8 @@ export function joinNames(names) {
 // Områder i kanonisk rekkefølge, med ukjente (lagt til senere) bakerst.
 export function sortAreas(areas) {
   return [...(areas || [])].sort((a, b) => {
-    const ia = AREAS.indexOf(a)
-    const ib = AREAS.indexOf(b)
+    const ia = AREA_NAMES.indexOf(a)
+    const ib = AREA_NAMES.indexOf(b)
     return (ia < 0 ? 99 : ia) - (ib < 0 ? 99 : ib)
   })
 }

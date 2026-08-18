@@ -19,7 +19,7 @@ import { useResponsibilities } from '../composables/useResponsibilities'
 import { useToast } from '../composables/useToast'
 import { isHalsenMatch, isPlayed } from '../lib/matchMeta'
 import { shortRelativeDate } from '../lib/dateLabels'
-import { AREAS } from '../content/ansvar'
+import { AREAS, areaNote } from '../content/ansvar'
 import Sheet from '../components/Sheet.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
 
@@ -205,9 +205,14 @@ async function save() {
 
       <section class="tr__section">
         <h2 class="ds-section-label tr__h2">Ansvarsområder</h2>
-        <div v-if="areas.length" class="tr__tags">
-          <span v-for="a in areas" :key="a" class="tr__tag">{{ a }}</span>
-        </div>
+        <!-- Området alene sier ikke hva jobben er. «Dommere» kan være å dømme,
+             å skaffe dommer eller å betale ham. Linja under fjerner tvilen. -->
+        <ul v-if="areas.length" class="tr__areas">
+          <li v-for="a in areas" :key="a" class="tr__area">
+            <span class="tr__area-name">{{ a }}</span>
+            <span v-if="areaNote(a)" class="tr__area-note">{{ areaNote(a) }}</span>
+          </li>
+        </ul>
         <template v-else>
           <p class="tr__muted">Ingen ansvarsområder.</p>
           <button v-if="supportsResponsibilities" type="button" class="tr__inline-action" @click="openEdit">Sett ansvar</button>
@@ -280,15 +285,18 @@ async function save() {
 
         <div v-if="supportsResponsibilities" class="ds-form-group">
           <label class="ds-label">Ansvarsområder</label>
-          <div class="tr__pills">
+          <div class="tr__picker">
             <button
               v-for="a in AREAS"
-              :key="a"
+              :key="a.name"
               type="button"
-              :class="['tr__pill', { 'tr__pill--on': form.areas.includes(a) }]"
-              :aria-pressed="form.areas.includes(a)"
-              @click="toggleArea(a)"
-            >{{ a }}</button>
+              :class="['tr__pick', { 'tr__pick--on': form.areas.includes(a.name) }]"
+              :aria-pressed="form.areas.includes(a.name)"
+              @click="toggleArea(a.name)"
+            >
+              <span class="tr__pick-name">{{ a.name }}</span>
+              <span class="tr__pick-note">{{ a.note }}</span>
+            </button>
           </div>
         </div>
 
@@ -473,21 +481,90 @@ async function save() {
 
 .tr__matchdate { flex: none; font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary); }
 
-.tr__tags,
 .tr__pills {
   display: flex;
   flex-wrap: wrap;
   gap: var(--ds-space-sm);
 }
 
-.tr__tag {
-  padding: 5px 12px;
-  border-radius: var(--ds-radius-full);
-  background: var(--ds-color-bg-elevated);
-  border: 1px solid var(--ds-color-border);
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-secondary);
+/* Ansvar er ikke tagger lenger — en pille rommer ikke forklaringen, og det er
+   forklaringen som gjør lista verdt å lese. */
+.tr__areas {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
 }
+
+.tr__area {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--ds-space-md);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-bg-elevated);
+}
+
+.tr__area-name {
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-tight);
+  color: var(--ds-color-text-primary);
+}
+
+.tr__area-note {
+  font-size: var(--ds-text-sm);
+  line-height: 1.4;
+  color: var(--ds-color-text-tertiary);
+  letter-spacing: -0.005em;
+}
+
+/* Plukkeren viser hva området ER, så man ikke huker av i blinde — samme
+   begrunnelse som øvelsesplukkeren i treningsmodulen. */
+.tr__picker {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+}
+
+.tr__pick {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: var(--ds-space-md);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-bg-elevated);
+  text-align: left;
+  font-family: var(--ds-font-body);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tr__pick-name {
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-primary);
+}
+
+.tr__pick-note {
+  font-size: var(--ds-text-sm);
+  line-height: 1.4;
+  color: var(--ds-color-text-tertiary);
+}
+
+.tr__pick--on {
+  border-color: var(--ds-color-text-primary);
+  background: var(--ds-color-text-primary);
+}
+
+.tr__pick--on .tr__pick-name { color: var(--ds-color-bg); }
+.tr__pick--on .tr__pick-note { color: var(--ds-color-bg); opacity: 0.7; }
 
 .tr__pill {
   padding: 9px 14px;

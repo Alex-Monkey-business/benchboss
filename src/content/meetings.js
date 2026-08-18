@@ -21,13 +21,13 @@ export const meetings = [
           {
             text: 'Én cup etter serieslutt før jul og én innendørscup i januar vurderes.',
             open: true,
-            owner: 'Cuper'
+            owner: 'Cup'
           },
           { text: 'Innbetalte midler brukes til ekstra cuper. Cuper midt i sesongen prioriteres ikke.' },
           {
             text: 'Vi avventer informasjon fra klubben om Danmarkscup.',
             open: true,
-            owner: 'Cuper'
+            owner: 'Cup'
           }
         ]
       },
@@ -42,12 +42,12 @@ export const meetings = [
           {
             text: 'Trond undersøker om klubben kan bidra med keepertrener til én ukentlig økt, fortrinnsvis lørdag. Alternativt legges keeper- og avslutningsøvelser inn på lørdagene.',
             open: true,
-            owner: 'Keepertrener'
+            owner: 'Headcoach'
           },
           {
             text: 'Det vurderes å flytte torsdagstreningen til kl. 18.00 og utvide den til 90 minutter etter serieslutt.',
             open: true,
-            owner: 'Treningsopplegg og øvelser'
+            owner: 'Øvelser'
           }
         ]
       },
