@@ -6,6 +6,7 @@ import { usePlayers } from '../composables/usePlayers'
 import { usePlayerSeasonTeams } from '../composables/usePlayerSeasonTeams'
 import { useToast } from '../composables/useToast'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
+import { useCoaches } from '../composables/useCoaches'
 import { playerPositions } from '../lib/playerPositions'
 import Sheet from '../components/Sheet.vue'
 
@@ -14,6 +15,7 @@ const { activeSeason, fetchSeasons } = useSeasons()
 const { players, fetchPlayers, addPlayer, updatePlayer } = usePlayers()
 const { fetchPlayerSeasonTeams, isLoanEligible } = usePlayerSeasonTeams()
 const { seasonTeams } = useSeasonTeams()
+const { coaches, fetchCoaches } = useCoaches()
 const { show: showToast } = useToast()
 
 const canEdit = computed(() => !isParent.value)
@@ -25,9 +27,20 @@ const TEAM_OPTIONS = computed(() =>
   [{ value: '', label: 'Ingen' }, ...seasonTeams.value.map(t => ({ value: t.slug, label: t.name }))])
 
 onMounted(async () => {
-  await Promise.all([fetchSeasons(), fetchPlayers(), fetchPlayerSeasonTeams()])
+  await Promise.all([fetchSeasons(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchCoaches()])
   ready.value = true
 })
+
+// Trenernavnet på lagkortet blir en lenke til trenerprofilen — samme grep som
+// spiller-chipsene, samme `canEdit`-lås.
+//
+// `t.trainers` er NAVN, ikke id-er, og skal forbli det: både
+// defaultCoachIdsForMatch og useToday.teamByName slår opp på navn. Oppslaget
+// gjøres her i stedet. Står vi på den statiske SEASON_TEAMS-fallbacken finnes
+// ingen trenerrad, og da blir navnet stående som tekst.
+function coachId(name) {
+  return coaches.value.find(c => c.name === name)?.id || null
+}
 
 const byName = (a, b) => a.name.localeCompare(b.name, 'no')
 
@@ -115,7 +128,14 @@ async function handleAdd() {
             <span class="teamcard__name">{{ t.name }}</span>
             <span class="teamcard__count">{{ teamPlayers(t.slug).length }}</span>
           </header>
-          <p v-if="t.trainers?.length" class="teamcard__trainers">Trenere: {{ t.trainers.join(', ') }}</p>
+          <p v-if="t.trainers?.length" class="teamcard__trainers">
+            <span>Trenere: </span>
+            <template v-for="(n, i) in t.trainers" :key="n">
+              <span v-if="i > 0">, </span>
+              <router-link v-if="canEdit && coachId(n)" :to="`/trener/${coachId(n)}`" class="teamcard__trainer">{{ n }}</router-link>
+              <template v-else>{{ n }}</template>
+            </template>
+          </p>
           <p v-if="teamPlayers(t.slug).length === 0" class="teamcard__empty">Ingen spillere lagt til ennå.</p>
           <div v-else class="roster">
             <span v-for="p in teamPlayers(t.slug)" :key="p.id" class="chip chip--team">
@@ -256,6 +276,14 @@ async function handleAdd() {
   margin: calc(var(--ds-space-sm) * -1) 0 var(--ds-space-md);
   color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm);
 }
+/* Understreket, ikke farget: navnet skal se klikkbart ut uten å konkurrere
+   med spillerne under, som er kortets hovedsak. */
+.teamcard__trainer {
+  color: var(--ds-color-text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.teamcard__trainer:hover { color: var(--ds-color-text-primary); }
 .teamcard__empty { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); margin: 0; }
 
 .roster { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }

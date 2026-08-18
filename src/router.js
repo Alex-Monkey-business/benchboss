@@ -69,6 +69,13 @@ const routes = [
     name: 'spiller',
     component: () => import('./views/SpillerView.vue')
   },
+  // Trenerprofil: lag for sesongen og ansvarsområder. Ingen meta = trener-only,
+  // av samme grunn som spillerprofilen — foreldre ser troppen, ikke personene.
+  {
+    path: '/trener/:id',
+    name: 'trener',
+    component: () => import('./views/TrenerView.vue')
+  },
   // ---- Cup-modul: kampoversikt (trenere + foreldre, read-only) ----
   {
     path: '/cup',

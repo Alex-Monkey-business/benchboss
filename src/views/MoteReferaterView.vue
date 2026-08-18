@@ -5,24 +5,21 @@
 // overlever møtene og er det man faktisk slår opp («hvem tar dommerne?»),
 // referatene under fordi de leses én gang og refereres til sjelden.
 import { onMounted, computed } from 'vue'
+import { useAuth } from '../stores/auth'
 import { useCoaches } from '../composables/useCoaches'
-import { ansvarPerPerson } from '../content/ansvar'
+import { useResponsibilities } from '../composables/useResponsibilities'
 import { meetingsByDate, openPoints } from '../content/meetings'
 
+const { activeCohort } = useAuth()
 const { coaches, fetchCoaches } = useCoaches()
+const { fetchResponsibilities, byPerson } = useResponsibilities()
 
 const referater = computed(() => meetingsByDate())
 
-// Navnet er koblingsnøkkelen mot coaches-tabellen (UNIQUE der, og allerede
-// nøkkelen COACH_IMAGES bruker). Finnes ikke raden — feilstavet, sluttet,
-// aldri opprettet — står navnet likevel, med initial i stedet for foto.
-// Ansvaret skal ikke forsvinne fordi et oppslag bommet.
-const ansvarlige = computed(() =>
-  ansvarPerPerson().map(p => ({
-    ...p,
-    coach: coaches.value.find(c => c.name === p.name) || null
-  }))
-)
+// Ansvaret kobles nå på coach_id fra basen, ikke på navn — endres det på
+// trenersiden, endres det her. Har ingen ansvar, står de ikke i lista: dette
+// er en ansvarsoversikt, ikke en trenerliste.
+const ansvarlige = computed(() => byPerson(coaches.value))
 
 function initial(name) {
   return (name || '?').trim().charAt(0).toUpperCase()
@@ -39,7 +36,10 @@ function openLabel(m) {
   return n === 1 ? '1 åpen tråd' : `${n} åpne tråder`
 }
 
-onMounted(fetchCoaches)
+onMounted(async () => {
+  const list = await fetchCoaches()
+  if (activeCohort.value?.id) await fetchResponsibilities(activeCohort.value.id, list)
+})
 </script>
 
 <template>
@@ -59,13 +59,17 @@ onMounted(fetchCoaches)
     <section class="block">
       <h2 class="block__label">Ansvarsområder</h2>
       <ul class="ansvar">
-        <li v-for="p in ansvarlige" :key="p.name" class="ansvar__row">
-          <img v-if="p.coach?.image" :src="p.coach.image" alt="" class="ansvar__photo" />
-          <span v-else class="ansvar__initial" aria-hidden="true">{{ initial(p.name) }}</span>
-          <span class="ansvar__body">
-            <span class="ansvar__name">{{ p.name }}</span>
-            <span class="ansvar__areas">{{ p.areas.join(' · ') }}</span>
-          </span>
+        <!-- Raden går til trenerprofilen, der ansvaret faktisk settes. -->
+        <li v-for="p in ansvarlige" :key="p.id" class="ansvar__row">
+          <router-link :to="`/trener/${p.id}`" class="ansvar__link">
+            <img v-if="p.image" :src="p.image" alt="" class="ansvar__photo" />
+            <span v-else class="ansvar__initial" aria-hidden="true">{{ initial(p.name) }}</span>
+            <span class="ansvar__body">
+              <span class="ansvar__name">{{ p.name }}</span>
+              <span class="ansvar__areas">{{ p.areas.join(' · ') }}</span>
+            </span>
+            <svg class="ansvar__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </router-link>
         </li>
       </ul>
     </section>
@@ -160,14 +164,29 @@ onMounted(fetchCoaches)
 }
 
 .ansvar__row {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-md);
-  padding: var(--ds-space-md);
   border-top: 1px solid var(--ds-color-border-light);
 }
 
 .ansvar__row:first-child { border-top: 0; }
+
+.ansvar__link {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-md);
+  padding: var(--ds-space-md);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ansvar__link:active { background: var(--ds-color-surface); }
+
+.ansvar__chevron {
+  width: 16px;
+  height: 16px;
+  flex-shrink: 0;
+  margin-left: auto;
+  color: var(--ds-color-text-tertiary);
+}
 
 /* Samme avatar-språk som konto-kortet i Admin: aksentsirkel, bildet klippet
    inni. Utklippene er hele figurer, så toppen får styre — ellers krymper

@@ -153,10 +153,30 @@ Deno.serve(async (req) => {
   // Alle handlinger utenom invite peker på en medlemsrad; kullet hentes derfra
   // og aldri fra klienten, så man ikke kan oppgi et kull man er admin i og
   // handle på en rad i et annet.
+  //
+  // `set_team` kan i tillegg peke på en TRENERRAD. Det er ikke en bekvemmelighet:
+  // RLS-policyen own_membership_select gjør at en trener uten admin bare ser sin
+  // egen medlemsrad, så trenersiden (/trener/:id) kan ikke slå opp member_id for
+  // noen andre. Kullet hentes da fra `coaches.cohort_id` — fortsatt aldri fra
+  // klienten, så invarianten over står.
   let cohortId = body?.cohort_id
   let member: any = null
+  let coachId: string | null = null
 
-  if (action !== 'invite') {
+  if (action === 'set_team' && !body?.member_id && body?.coach_id) {
+    const { data: c } = await admin
+      .from('coaches').select('id, cohort_id').eq('id', body.coach_id).maybeSingle()
+    if (!c) return fail('Fant ikke treneren', 404)
+    cohortId = c.cohort_id
+    coachId = c.id
+    // Kan være null: en trenerrad uten medlemskap. Da settes laget likevel,
+    // og preferred_team hoppes over — den hører til medlemsraden som ikke finnes.
+    const { data: m } = await admin
+      .from('cohort_members')
+      .select('id, cohort_id, profile_id, role, status, name, email, coach_id')
+      .eq('cohort_id', c.cohort_id).eq('coach_id', c.id).maybeSingle()
+    member = m
+  } else if (action !== 'invite') {
     if (!body?.member_id) return fail('Mangler member_id')
     const { data } = await admin
       .from('cohort_members')
@@ -404,16 +424,26 @@ Deno.serve(async (req) => {
       }
 
       // -------------------------------------------------------------- set_team
+      // Lagoppsettet er noe hele trenerteamet steller med, ikke en admin-sak:
+      // åpnet for alle trenere 2026-08-18, samtidig som trenersiden kom.
+      // Merk hva det betyr: laget styrer hvilke kamper som havner på Hjem, og
+      // nå kan hvem som helst i teamet endre det for hvem som helst.
       case 'set_team': {
-        if (level === 'coach') return fail('Bare en admin kan endre lag', 403)
-        if (member.role === 'parent') return fail('En forelder hører ikke til et lag')
+        if (member?.role === 'parent') return fail('En forelder hører ikke til et lag')
+
+        const target = member?.coach_id || coachId
+        if (!target) return fail('Medlemmet har ingen trenerprofil')
 
         const slug = body.team || null
-        await setCoachTeam(admin, cohortId, member.coach_id, slug)
+        await setCoachTeam(admin, cohortId, target, slug)
 
-        const { error } = await admin.from('cohort_members')
-          .update({ preferred_team: slug }).eq('id', member.id)
-        if (error) return fail(`Kunne ikke lagre laget: ${error.message}`)
+        // Uten medlemsrad finnes ingen preferred_team å holde i sync. Da er
+        // team_coaches alene fasit, og det er den som styrer uansett.
+        if (member) {
+          const { error } = await admin.from('cohort_members')
+            .update({ preferred_team: slug }).eq('id', member.id)
+          if (error) return fail(`Kunne ikke lagre laget: ${error.message}`)
+        }
 
         return json({ ok: true })
       }

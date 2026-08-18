@@ -4,10 +4,27 @@
 // Punkter som ikke er vedtak, men noe noen skal finne ut av, er markert åpne
 // med eier. Det er den eneste grunnen til å åpne et referat på nytt: ikke å
 // lese hva vi bestemte, men å se hva som fortsatt henger.
-import { computed } from 'vue'
+import { computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
+import { useAuth } from '../stores/auth'
+import { useCoaches } from '../composables/useCoaches'
+import { useResponsibilities } from '../composables/useResponsibilities'
 import { findMeeting } from '../content/meetings'
-import { ownerLabel } from '../content/ansvar'
+
+const { activeCohort } = useAuth()
+const { coaches, fetchCoaches } = useCoaches()
+const { fetchResponsibilities, ownerLabel } = useResponsibilities()
+
+// Eieren av et åpent punkt utledes av ansvarsområdet, ikke skrevet inn som
+// navn — flyttes ansvaret på trenersiden, flytter eieren seg her.
+function eier(area) {
+  return ownerLabel(area, coaches.value)
+}
+
+onMounted(async () => {
+  const list = await fetchCoaches()
+  if (activeCohort.value?.id) await fetchResponsibilities(activeCohort.value.id, list)
+})
 
 const route = useRoute()
 const meeting = computed(() => findMeeting(route.params.slug))
@@ -63,11 +80,9 @@ function dateLabel(iso) {
         class="punkt"
         :class="{ 'punkt--open': p.open }"
       >
-        <!-- Eieren utledes av ansvarsområdet, ikke skrevet inn som navn.
-             Flyttes ansvaret, flytter eieren seg med. -->
         <span v-if="p.open" class="punkt__flag">
           <span class="punkt__dot" aria-hidden="true"></span>
-          Åpen<template v-if="ownerLabel(p.owner)"> · {{ ownerLabel(p.owner) }}</template>
+          Åpen<template v-if="eier(p.owner)"> · {{ eier(p.owner) }}</template>
         </span>
         <p class="punkt__text">{{ p.text }}</p>
         <router-link v-if="p.visLenke" :to="p.link.to" class="punkt__link">

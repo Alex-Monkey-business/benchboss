@@ -47,8 +47,9 @@ export function useCoaches() {
     //
     // Med '*' lastet hver eneste besøkende ned coaches.pin i klartekst for
     // alle fem trenerne — nøkkelen som gir tilgang til appen, servert til
-    // hvem som helst som åpnet devtools. Kolonnen forsvinner helt i fase 6;
-    // dette stopper lekkasjen nå, uten å vente på RLS.
+    // hvem som helst som åpnet devtools. Kolonnen ble droppet 2026-08-12
+    // (20260812193000_drop_coach_pin.sql); lista står igjen fordi tabellen
+    // fortsatt kan få felt som ikke angår klienten.
     const { rows } = await fetchRows(
       supabase.from('coaches').select('id, name').order('name'),
       'coaches'
