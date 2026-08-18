@@ -3,16 +3,20 @@
 // ingen rolle-meta, som i denne appen betyr trener-only (fail-closed).
 //
 // Teksten følger referatet ordrett. Punkter som IKKE er vedtak, men noe noen
-// skal finne ut av, får `open: true` + `owner` = ansvarsområdet det hører til
-// (se content/ansvar.js). Å peke på område i stedet for navn gjør at eieren
-// følger med hvis ansvaret flyttes.
+// skal finne ut av, får `open: true` og en eier — på én av to måter:
+//
+//   `owner` = ansvarsområdet (se content/ansvar.js). Da følger eieren med hvis
+//             ansvaret flyttes. Riktig når jobben hører til rollen.
+//   `who`   = et navn. Riktig når oppgaven ble gitt til en PERSON som ikke
+//             eier området — Alex skal ringe dommerkontakten selv om Iver
+//             eier Dommere. Område-som-eier ville pekt på feil mann.
 
 export const meetings = [
   {
     slug: 'trenermote-2026-08-16',
     date: '2026-08-16',
     title: 'Trenermøte',
-    lead: 'Høstsesongen: cuper, treningsopplegg, kampprinsipper, laginndeling og sonelag.',
+    lead: 'Høstsesongen: cuper, treningsopplegg, kampprinsipper, laginndeling, dommere og sonelag.',
     sections: [
       {
         heading: 'Cuper',
@@ -42,7 +46,7 @@ export const meetings = [
           {
             text: 'Trond undersøker om klubben kan bidra med keepertrener til én ukentlig økt, fortrinnsvis lørdag. Alternativt legges keeper- og avslutningsøvelser inn på lørdagene.',
             open: true,
-            owner: 'Headcoach'
+            who: 'Trond'
           },
           {
             text: 'Det vurderes å flytte torsdagstreningen til kl. 18.00 og utvide den til 90 minutter etter serieslutt.',
@@ -80,6 +84,17 @@ export const meetings = [
           { text: 'Kamper skjules i Hoopit for foreldre når spilleren ikke er tatt ut.' },
           { text: 'Ved hospitering til 2014-laget melder 2014-trenerne inn ønsket antall spillere. Trenerteamet velger spillere og sørger for rullering.' },
           { text: 'Vi tar med færre baller på kamp for å redusere tap av utstyr.' }
+        ]
+      },
+      {
+        heading: 'Dommere',
+        accent: 'peach',
+        points: [
+          {
+            text: 'Alex sjekker med Martin Iversen om han har noen dommere på blokka.',
+            open: true,
+            who: 'Alex'
+          }
         ]
       },
       {

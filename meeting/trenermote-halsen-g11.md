@@ -31,12 +31,20 @@
 - Ved hospitering til 2014-laget melder 2014-trenerne inn ønsket antall spillere. Trenerteamet velger spillere og sørger for rullering.
 - Vi tar med færre baller på kamp for å redusere tap av utstyr.
 
+## Dommere
+
+- Alex sjekker med Martin Iversen om han har noen dommere på blokka.
+
 ## Sonelag
 
 - Sonelagsnominasjoner kommer senere i høst.
 - Vi nominerer bredt på øverste nivå, uten å informere foreldre eller spillere på forhånd.
 
 ## Ansvarsområder
+
+> Omfordelt etter møtet (18. aug). Fasiten ligger nå i appen under Møtereferater
+> — Trond: Headcoach og kommunikasjon · Alex: Cup og tech · Iver: Øvelser og dommere ·
+> Simon: Rigg og Hoopit · Jacob: Materialforvalter. Tabellen under står som den ble skrevet.
 
 | Område | Ansvarlig |
 | --- | --- |

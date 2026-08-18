@@ -15,10 +15,11 @@ const { activeCohort } = useAuth()
 const { coaches, fetchCoaches } = useCoaches()
 const { fetchResponsibilities, ownerLabel } = useResponsibilities()
 
-// Eieren av et åpent punkt utledes av ansvarsområdet, ikke skrevet inn som
-// navn — flyttes ansvaret på trenersiden, flytter eieren seg her.
-function eier(area) {
-  return ownerLabel(area, coaches.value)
+// Et åpent punkt har eier på én av to måter, og rekkefølgen er poenget:
+// står det et NAVN på punktet, er oppgaven gitt til den personen og skal ikke
+// vandre. Ellers utledes eieren av ansvarsområdet, og flytter seg med det.
+function eier(p) {
+  return p.who || ownerLabel(p.owner, coaches.value)
 }
 
 onMounted(async () => {
@@ -82,7 +83,7 @@ function dateLabel(iso) {
       >
         <span v-if="p.open" class="punkt__flag">
           <span class="punkt__dot" aria-hidden="true"></span>
-          Åpen<template v-if="eier(p.owner)"> · {{ eier(p.owner) }}</template>
+          Åpen<template v-if="eier(p)"> · {{ eier(p) }}</template>
         </span>
         <p class="punkt__text">{{ p.text }}</p>
         <router-link v-if="p.visLenke" :to="p.link.to" class="punkt__link">
