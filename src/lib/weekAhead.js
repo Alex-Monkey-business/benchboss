@@ -36,9 +36,14 @@ export function buildWeekAhead({ today = localISODate(), period, sessions = [], 
     cup?.status === 'active' && cup.start_date && cup.end_date &&
     cup.start_date <= date && date <= cup.end_date
 
+  // Kamp trumfer trening samme dag — samme regel som cup allerede har, og av
+  // samme grunn: laget står på kamp, ikke på feltet. `matches` er MINE kamper
+  // (useToday sender myMatches), så en Rød-kamp demper ikke Grønn-treneren.
+  const kampdager = new Set(matches.filter(isHalsenMatch).map(m => m.match_date))
+
   if (period) {
     for (const date of dates) {
-      if (cupCovers(date)) continue
+      if (cupCovers(date) || kampdager.has(date)) continue
       if (period.start_date && period.start_date <= date && (!period.end_date || date <= period.end_date)) {
         const wd = isoWeekday(new Date(date + 'T12:00:00'))
         sessions
@@ -77,11 +82,15 @@ export function buildWeekAhead({ today = localISODate(), period, sessions = [], 
 
   const sorted = items.sort((a, b) => a.date.localeCompare(b.date) || (a.time || '').localeCompare(b.time || ''))
 
-  // Treningene er rytmen, kampene er hendelsene. Med en full uke ble Hjem seks
-  // like «Trening»-kort etter hverandre — status, ikke noe å handle på. Fra tre
-  // og opp slås de sammen til én rad, så kampene faktisk stikker seg ut.
+  // Treningene er rytmen, kampene er hendelsene. Rytmen skal aldri ta mer enn
+  // én linje: den er lik hver uke, så to like «Trening»-rader er status, ikke
+  // noe å handle på. Terskelen sto på tre, og da virket sammenslåingen bare på
+  // mandag — tirsdag og onsdag falt under og viste to rader hver.
+  //
+  // Fra TO og opp: én alene slås ikke sammen, for da ville raden si
+  // «1 treninger» under overskriften «Uka».
   const trainings = sorted.filter(i => i.kind === 'training')
-  if (trainings.length < 3) return sorted
+  if (trainings.length < 2) return sorted
 
   const merged = {
     kind: 'training-week',

@@ -164,6 +164,9 @@ export function useToday() {
 
   const todayTraining = computed(() => {
     if (cupCoversToday.value) return null
+    // Spiller mitt lag kamp i dag, er det kampen som fortjener toppen. Treninga
+    // er rytme; kampen er dagen. Samme prioritering som cup gjør over.
+    if (todayMatches.value.length) return null
     const period = activePeriod.value
     if (!period) return null
     const wd = isoWeekday()
