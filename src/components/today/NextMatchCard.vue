@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { weekdayDateLabel } from '../../lib/dateLabels'
 import { teamLabel } from '../../lib/matchMeta'
+import { matchCta } from '../../lib/matchCta'
 
 // event fra useToday.nextMatch: { type: 'match'|'cup', date, time, opponent,
 // teams (fargeslugs), teamName (cup), isHome, pitch, round, to }
@@ -24,12 +25,36 @@ const missing = computed(() => {
   return out
 })
 
-// «dommer og tropp og oppstilling» er ikke norsk. Komma til det siste leddet.
-const missingLine = computed(() => {
-  const m = missing.value
-  if (m.length < 2) return m[0] || ''
-  return `${m.slice(0, -1).join(', ')} og ${m[m.length - 1]}`
+// Statuslinja sier hva som ER gjort og hva som står igjen, ikke bare mangelen.
+// «Dommer satt · oppstilling mangler» svarer på ett blikk hvor langt du er —
+// mens «Mangler oppstilling» lot deg lure på om dommeren var i orden.
+//
+// Er ALT på plass, tier linja fortsatt. Da er det knappen som er saken.
+const statusLine = computed(() => {
+  const p = props.prep
+  if (!p || !missing.value.length) return ''
+  const deler = []
+  // referee er null på bortekamp — da er dommer ikke vår sak i det hele tatt.
+  if (p.referee !== null) deler.push(p.referee ? 'dommer satt' : 'dommer mangler')
+  deler.push(p.lineup ? 'oppstilling satt' : 'oppstilling mangler')
+  const s = deler.join(' · ')
+  return s.charAt(0).toUpperCase() + s.slice(1)
 })
+
+// Samme regel som knappen på kampsiden — se lib/matchCta.js. Cup har ingen
+// kampmodus, så der står kortet uten handling.
+const cta = computed(() => {
+  if (props.event.type === 'cup' || !props.prep) return null
+  return matchCta({
+    status: props.prep.status,
+    hasLineup: props.prep.lineup,
+    hasResult: false,
+    matchDate: props.event.date,
+    matchTime: props.event.time
+  })
+})
+
+const ctaTo = computed(() => (cta.value ? `/kamp/${props.event.id}/live` : null))
 
 
 // «Onsdag 19 aug · 18:00». Én form, ingen betingelser.
@@ -50,7 +75,11 @@ const detailLine = computed(() => {
 </script>
 
 <template>
-  <router-link :to="event.to" class="ds-card ds-card--interactive next-match">
+  <div class="ds-card next-match">
+    <!-- Kortet var én stor <router-link>. En handling inni en lenke er ugyldig
+         HTML og gir uforutsigbare trykk, så lenka dekker nå lesedelen og
+         handlingen står for seg. -->
+    <router-link :to="event.to" class="next-match__link">
     <div class="next-match__row">
     <div class="next-match__body">
     <div class="next-match__top">
@@ -84,11 +113,17 @@ const detailLine = computed(() => {
     <!-- Utenfor tekstkolonnen: mangelen gjelder hele kampen, ikke bare
          teksten, og får da hele kortets bredde i stedet for å brekke mot
          bildet. -->
-    <span v-if="missing.length" class="next-match__missing">
+    <span v-if="statusLine" class="next-match__missing">
       <span class="next-match__missing-dot" aria-hidden="true"></span>
-      <span>Mangler {{ missingLine }}</span>
+      <span>{{ statusLine }}</span>
     </span>
-  </router-link>
+    </router-link>
+
+    <router-link v-if="cta" :to="ctaTo" class="next-match__cta" :class="`next-match__cta--${cta.tone}`">
+      <span v-if="cta.icon === 'live'" class="next-match__cta-dot" aria-hidden="true"></span>
+      {{ cta.label }}
+    </router-link>
+  </div>
 </template>
 
 <style scoped>
@@ -101,6 +136,61 @@ const detailLine = computed(() => {
   gap: 10px;
   padding: var(--ds-space-lg);
   text-decoration: none;
+}
+
+/* Lesedelen er lenka. Trykkeffekten flyttet hit fra kortet, som nå er en ren
+   beholder — ellers ville hele kortet krympet når man trykket knappen. */
+.next-match__link {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  text-decoration: none;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.next-match__link:active { transform: scale(0.995); }
+
+/* Samme tone-skala som knappen på kampsiden (match-mode-cta), i kortformat:
+   live/start = full tyngde, prep = outline, quiet = nøytral. */
+.next-match__cta {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding: 12px;
+  border: 1.5px solid var(--ds-color-accent);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-bold);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.next-match__cta:active { transform: scale(0.98); }
+
+.next-match__cta--prep {
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-accent);
+}
+
+.next-match__cta--quiet {
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-secondary);
+  border-color: transparent;
+  font-weight: var(--ds-weight-semibold);
+}
+
+.next-match__cta-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: currentColor;
 }
 
 /* Tekst og bilde side om side; mangel-linja under, i full bredde. */

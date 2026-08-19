@@ -17,6 +17,7 @@ import Sheet from '../components/Sheet.vue'
 import Skeleton from '../components/Skeleton.vue'
 import DisclosureSection from '../components/DisclosureSection.vue'
 import { relativeDateLabel, isPast } from '../lib/dateLabels'
+import { matchCta } from '../lib/matchCta'
 import { colorFromName, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, isPlayed, TEAM_LABELS } from '../lib/matchMeta'
 import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 
@@ -475,42 +476,21 @@ const hasResult = computed(() => {
     && match.value?.away_score !== null && match.value?.away_score !== undefined
 })
 
-// ─── Match mode-CTA: label + tone følger kampens livsløp ──────────────────────
-// Knappen skal speile neste meningsfulle handling, ikke alltid skrike «start nå».
+// ─── Match mode-CTA ──────────────────────────────────────────────────────────
+// Regelen bor i lib/matchCta.js fordi Hjem-kortet bruker den samme. En kopi
+// her ville blitt en andre sannhet om samme kamp.
 const hasLineup = computed(() => {
   const l = mmSession.value?.lineup
   return !!l && Object.keys(l).length > 0
 })
 
-const minutesToKickoff = computed(() => {
-  if (!match.value?.match_date) return null
-  const t = (match.value.match_time || '').slice(0, 5)
-  const time = t && t !== '00:00' ? t : '12:00'
-  const d = new Date(`${match.value.match_date}T${time}:00`)
-  if (Number.isNaN(d.getTime())) return null
-  return Math.round((d.getTime() - Date.now()) / 60000)
-})
-
-// tone: 'live' | 'start' | 'prep' | 'quiet' — styrer både ordlyd og visuell tyngde
-const matchModeCta = computed(() => {
-  const status = mmSession.value?.status
-  if (status === 'finished' || hasResult.value) {
-    return { label: 'Se spilletid', tone: 'quiet', icon: 'bars' }
-  }
-  if (status === 'running' || status === 'paused') {
-    return { label: 'Tilbake til kampen', tone: 'live', icon: 'live' }
-  }
-  const mins = minutesToKickoff.value
-  if (mins !== null && mins <= 60) {
-    return { label: 'Start kamp', tone: 'start', icon: 'play' }
-  }
-  if (mins !== null && mins <= 180) {
-    return { label: 'Gjør klart til kamp', tone: 'prep', icon: 'clock' }
-  }
-  return hasLineup.value
-    ? { label: 'Se laget', tone: 'quiet', icon: 'grid' }
-    : { label: 'Sett opp lag', tone: 'prep', icon: 'grid' }
-})
+const matchModeCta = computed(() => matchCta({
+  status: mmSession.value?.status,
+  hasLineup: hasLineup.value,
+  hasResult: hasResult.value,
+  matchDate: match.value?.match_date,
+  matchTime: match.value?.match_time
+}))
 
 function isValidScore(v) {
   if (v === '' || v === null || v === undefined) return false
