@@ -22,7 +22,8 @@ const {
   startClockTick, stopClockTick,
   fetchSession, fetchStints,
   saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
-  isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer
+  isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer,
+  adjustPlayingTime, undoAdjustment, movableSeconds
 } = useMatchMode()
 const { show: showToast } = useToast()
 const { setSessionHold, sessionLost } = useAuth()
@@ -600,6 +601,70 @@ const summary = computed(() =>
     .filter(p => (p.totalSec || 0) > 0)
     .sort((a, b) => (b.totalSec || 0) - (a.totalSec || 0))
 )
+
+// ── Etterjustering ───────────────────────────────────────────────────────────
+// Bevisst uten inngang. Bommer man på et bytte live, oppdages det etter
+// kampen — men det er en sjelden reparasjon, ikke en funksjon foreldre skal
+// snuble i. Langtrykk på overskriften åpner den; ellers finnes den ikke.
+const adjusting = ref(false)
+const giver = ref(null)
+const taker = ref(null)
+const undoStack = ref([])
+let holdTimer = null
+
+function armAdjust() {
+  if (adjusting.value) return
+  holdTimer = setTimeout(() => {
+    adjusting.value = true
+    giver.value = null
+    taker.value = null
+    navigator.vibrate?.(12)
+  }, 700)
+}
+function disarmAdjust() {
+  clearTimeout(holdTimer)
+  holdTimer = null
+}
+function closeAdjust() {
+  adjusting.value = false
+  giver.value = null
+  taker.value = null
+  undoStack.value = []
+}
+
+// Første trykk velger den som gir, andre den som får. Trykk på en valgt
+// spiller angrer valget — ingen egen «fjern»-knapp for noe så lite.
+function pickRow(id) {
+  if (giver.value === id) { giver.value = taker.value; taker.value = null; return }
+  if (taker.value === id) { taker.value = null; return }
+  if (!giver.value) giver.value = id
+  else if (!taker.value) taker.value = id
+  else { giver.value = id; taker.value = null }
+}
+
+const movable = computed(() =>
+  giver.value && taker.value ? movableSeconds(matchId, giver.value, taker.value) : 0
+)
+
+async function moveTime(seconds) {
+  const from = giver.value
+  const to = taker.value
+  const res = await adjustPlayingTime(matchId, from, to, seconds)
+  if (!res.moved) {
+    showToast(`${firstName(playerById(to)?.name)} sto allerede på banen`, 'error')
+    return
+  }
+  undoStack.value.push(res.ops)
+  const partial = res.moved < seconds ? ' (så mye det var plass til)' : ''
+  showToast(`${fmt(res.moved)} fra ${firstName(playerById(from)?.name)} til ${firstName(playerById(to)?.name)}${partial}`, 'success')
+}
+
+async function undoMove() {
+  const ops = undoStack.value.pop()
+  if (!ops) return
+  await undoAdjustment(ops)
+  showToast('Angret', 'success')
+}
 </script>
 
 <template>
@@ -813,17 +878,32 @@ const summary = computed(() =>
     <!-- ── DONE ─────────────────────────────────────────────── -->
     <div v-else class="mm__wrap">
       <div class="mm__donehead">
-        <h1 class="mm__h1">Spilletid</h1>
+        <h1
+          class="mm__h1"
+          :class="{ 'mm__h1--adjusting': adjusting }"
+          @pointerdown="armAdjust"
+          @pointerup="disarmAdjust"
+          @pointerleave="disarmAdjust"
+          @pointercancel="disarmAdjust"
+          @contextmenu.prevent
+        >{{ adjusting ? 'Juster spilletid' : 'Spilletid' }}</h1>
         <div class="mm__totalpill">{{ fmt(currentClock) }} totalt</div>
       </div>
 
       <div class="summary">
-        <router-link
+        <component
+          :is="adjusting ? 'button' : 'router-link'"
           v-for="(p, i) in summary"
           :key="p.id"
-          :to="`/spiller/${p.id}`"
+          v-bind="adjusting ? { type: 'button' } : { to: `/spiller/${p.id}` }"
           class="srow"
+          :class="{
+            'srow--giver': giver === p.id,
+            'srow--taker': taker === p.id,
+            'srow--dim': adjusting && giver && taker && giver !== p.id && taker !== p.id
+          }"
           :data-team="p.primary_team || 'none'"
+          @click="adjusting && pickRow(p.id)"
         >
           <span class="srow__avatar">{{ initial(p.name) }}</span>
           <div class="srow__main">
@@ -838,7 +918,34 @@ const summary = computed(() =>
               <span class="srow__bar" :style="{ width: (currentClock ? Math.round((p.totalSec / currentClock) * 100) : 0) + '%' }"></span>
             </span>
           </div>
-        </router-link>
+        </component>
+      </div>
+
+      <div v-if="adjusting" class="adj">
+        <p v-if="!giver" class="adj__hint">Velg hvem som skal gi tid.</p>
+        <p v-else-if="!taker" class="adj__hint">Og hvem som skal få den.</p>
+        <template v-else>
+          <p class="adj__pair">
+            {{ firstName(playerById(giver)?.name) }} <span class="adj__arrow">→</span> {{ firstName(playerById(taker)?.name) }}
+          </p>
+          <div class="adj__chips">
+            <button
+              v-for="m in [1, 2, 3, 5]"
+              :key="m"
+              type="button"
+              class="adj__chip"
+              :disabled="movable < 60"
+              @click="moveTime(m * 60)"
+            >{{ m }} min</button>
+          </div>
+          <p v-if="movable < 60" class="adj__hint adj__hint--warn">
+            {{ firstName(playerById(taker)?.name) }} sto på banen hele tida {{ firstName(playerById(giver)?.name) }} sto. Ingen tid å flytte.
+          </p>
+        </template>
+        <div class="adj__foot">
+          <button v-if="undoStack.length" type="button" class="adj__link" @click="undoMove">Angre</button>
+          <button type="button" class="adj__link" @click="closeAdjust">Ferdig</button>
+        </div>
       </div>
 
       <div class="mm__doneactions">
@@ -1375,6 +1482,47 @@ const summary = computed(() =>
 .srow[data-team="hvit"]  { --team-bg: var(--ds-team-hvit-bg);  --team-fg: var(--ds-color-text-secondary); }
 .srow[data-team="hvit"] .srow { color: inherit; text-decoration: none; }
 .srow__avatar { border-color: var(--ds-team-hvit-border, var(--ds-color-border)); }
+
+/* ── Justering ──────────────────────────────────────────────────────────────
+   Skjult verktøy. Ingenting her skal tiltrekke seg oppmerksomhet — flata skal
+   se lik ut for alle andre enn den som vet at langtrykket finnes. */
+.srow { border: none; background: none; width: 100%; text-align: left; font: inherit; -webkit-tap-highlight-color: transparent; }
+button.srow { cursor: pointer; }
+.srow--giver, .srow--taker { background: var(--ds-color-bg-subtle); }
+.srow--giver .srow__name::after { content: 'gir'; }
+.srow--taker .srow__name::after { content: 'får'; }
+.srow--giver .srow__name::after, .srow--taker .srow__name::after {
+  margin-left: var(--ds-space-sm); padding: 1px 7px; border-radius: var(--ds-radius-full);
+  font-size: 10px; font-weight: var(--ds-weight-bold); letter-spacing: .04em; text-transform: uppercase;
+  border: 1px solid var(--ds-color-border); color: var(--ds-color-text-tertiary); background: var(--ds-color-bg-elevated);
+}
+.srow--dim { opacity: .4; }
+
+.mm__h1--adjusting { color: var(--ds-color-text-tertiary); }
+
+.adj {
+  margin-top: var(--ds-space-md); padding: var(--ds-space-lg);
+  background: var(--ds-color-bg-elevated); border: 1px solid var(--ds-color-border-light);
+  border-radius: var(--ds-radius-lg); box-shadow: var(--ds-shadow-xs);
+}
+.adj__hint { margin: 0; font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); }
+.adj__hint--warn { margin-top: var(--ds-space-md); }
+.adj__pair { margin: 0 0 var(--ds-space-md); font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
+.adj__arrow { color: var(--ds-color-text-tertiary); margin: 0 4px; }
+.adj__chips { display: flex; gap: var(--ds-space-sm); }
+.adj__chip {
+  flex: 1; padding: 14px 0; border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-md);
+  background: var(--ds-color-bg-elevated); color: var(--ds-color-text-primary);
+  font-family: var(--ds-font-body); font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold);
+  font-variant-numeric: tabular-nums; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.adj__chip:disabled { opacity: .35; cursor: default; }
+.adj__foot { display: flex; justify-content: flex-end; gap: var(--ds-space-lg); margin-top: var(--ds-space-lg); }
+.adj__link {
+  padding: 4px 0; border: none; background: transparent; color: var(--ds-color-text-tertiary);
+  font-family: var(--ds-font-body); font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium);
+  text-decoration: underline; cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
 
 .mm__doneactions { display: flex; gap: var(--ds-space-sm); margin-top: var(--ds-space-lg); }
 .mm__btn { flex: 1; padding: 16px; border-radius: var(--ds-radius-lg); font-family: var(--ds-font-body); font-size: var(--ds-text-md); font-weight: var(--ds-weight-bold); cursor: pointer; -webkit-tap-highlight-color: transparent; }

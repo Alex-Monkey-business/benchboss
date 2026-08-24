@@ -1,6 +1,7 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
+import { planTransfer, transferableSeconds } from '../lib/timeTransfer'
 
 // Event-sourced match mode. Spilletid telles ALDRI med en teller — den regnes
 // ut fra kampklokka (match_sessions) + opphold på banen (match_stints).
@@ -146,6 +147,16 @@ export function useMatchMode() {
       const idx = stints.value.findIndex(s => s.id === stintId)
       if (idx > -1) stints.value[idx] = data
     }
+  }
+
+  async function deleteStint(stintId) {
+    if (!isSupabaseConfigured) {
+      stints.value = stints.value.filter(s => s.id !== stintId)
+      return
+    }
+    const { error } = await supabase.from('match_stints').delete().eq('id', stintId)
+    if (error) throw error
+    stints.value = stints.value.filter(s => s.id !== stintId)
   }
 
   function openStintFor(matchId, playerId) {
@@ -298,6 +309,58 @@ export function useMatchMode() {
     if (session.value?.match_id === matchId) session.value = null
   }
 
+  // ── Etterjustering ──────────────────────────────────────────────────────────
+  // Bommer man på et bytte live, er kampen over før feilen oppdages. Da må tida
+  // kunne flyttes i etterkant — men bare FLYTTES. Aldri «gi Julian fem
+  // minutter»: noen må ha stått de fem minuttene, ellers var det seks mann på
+  // banen. Regnestykket ligger i lib/timeTransfer.js; her skrives det bare ned.
+  //
+  // Returnerer handlingene som ble utført, slik at de kan angres nøyaktig —
+  // ikke ved å flytte tilbake (som kunne landet i et annet vindu), men ved å
+  // sette radene tilbake til det de var.
+  async function adjustPlayingTime(matchId, fromId, toId, seconds) {
+    const mine = stints.value.filter(s => s.match_id === matchId)
+    const matchEnd = session.value?.clock_base_seconds || 0
+    const plan = planTransfer({ stints: mine, fromId, toId, seconds, matchEnd })
+    if (!plan.moved) return plan
+
+    const done = []
+    for (const op of plan.ops) {
+      if (op.kind === 'update') {
+        await patchStint(op.id, op.patch)
+        done.push(op)
+      } else if (op.kind === 'delete') {
+        await deleteStint(op.id)
+        done.push(op)
+      } else {
+        const [row] = await insertStints([op.row])
+        done.push({ ...op, id: row?.id })
+      }
+    }
+    return { ...plan, ops: done }
+  }
+
+  async function undoAdjustment(ops) {
+    for (const op of [...ops].reverse()) {
+      if (op.kind === 'update') await patchStint(op.id, op.before)
+      else if (op.kind === 'insert') { if (op.id) await deleteStint(op.id) }
+      else if (op.kind === 'delete') {
+        const { id, ...row } = op.before
+        await insertStints([row])
+      }
+    }
+  }
+
+  // Hvor mye som i det hele tatt lar seg flytte mellom to spillere — flata
+  // bruker den til å gråe ut valg den ellers ville tilbudt og så feilet på.
+  function movableSeconds(matchId, fromId, toId) {
+    return transferableSeconds({
+      stints: stints.value.filter(s => s.match_id === matchId),
+      fromId, toId,
+      matchEnd: session.value?.clock_base_seconds || 0
+    })
+  }
+
   // ── Avledet tilstand ─────────────────────────────────────────────────────────
   function matchStints(matchId) {
     return stints.value.filter(s => s.match_id === matchId)
@@ -345,6 +408,7 @@ export function useMatchMode() {
     startClockTick, stopClockTick,
     fetchSession, fetchStints, fetchAllStints,
     saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
-    matchStints, isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer
+    matchStints, isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer,
+    adjustPlayingTime, undoAdjustment, movableSeconds
   }
 }

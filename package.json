@@ -14,7 +14,8 @@
     "db:diff": "supabase db diff",
     "db:push": "supabase db push --dry-run",
     "db:migrations": "supabase migration list",
-    "db:reset-local": "supabase db reset"
+    "db:reset-local": "supabase db reset",
+    "check:time": "node scripts/check-time-transfer.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",
