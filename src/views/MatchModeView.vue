@@ -611,20 +611,47 @@ const giver = ref(null)
 const taker = ref(null)
 const undoStack = ref([])
 let holdTimer = null
+let holdFrom = null
 
-function armAdjust() {
+function openAdjust() {
+  adjusting.value = true
+  giver.value = null
+  taker.value = null
+  navigator.vibrate?.(12)
+}
+
+// Langtrykket avbrytes KUN av at fingeren slippes eller dras. Ikke av
+// `pointercancel`: iOS sender den når systemet selv overtar gesten (tekst-
+// markering, scroll), og den første versjonen tolket det som at brukeren hadde
+// ombestemt seg. Det hadde brukeren ikke — fingeren lå der fortsatt. CSS-en
+// under hindrer at iOS i det hele tatt prøver, men vi lar ikke gesten være
+// avhengig av at den hindringen holder på hver eneste enhet.
+function armAdjust(e) {
   if (adjusting.value) return
-  holdTimer = setTimeout(() => {
-    adjusting.value = true
-    giver.value = null
-    taker.value = null
-    navigator.vibrate?.(12)
-  }, 700)
+  holdFrom = { x: e.clientX, y: e.clientY }
+  // Pekerfangst er en forbedring — den holder `pointerup` på elementet om
+  // fingeren sklir litt. Den kaster hvis peker-ID-en ikke er aktiv, og et
+  // unntak her ville drept timeren under. Gesten skal aldri stå og falle med
+  // en finesse.
+  try { e.currentTarget.setPointerCapture(e.pointerId) } catch {}
+  holdTimer = setTimeout(openAdjust, 700)
 }
 function disarmAdjust() {
   clearTimeout(holdTimer)
   holdTimer = null
+  holdFrom = null
 }
+function holdMoved(e) {
+  if (!holdFrom) return
+  if (Math.hypot(e.clientX - holdFrom.x, e.clientY - holdFrom.y) > 12) disarmAdjust()
+}
+// Bakvei: /kamp/:id/live?juster åpner modusen direkte. En geste kan bli spist
+// av nettleseren; en URL kan ikke. Ingen kommer hit ved et uhell, og den lar
+// seg teste på hvilken som helst enhet.
+watch(() => [phase.value, route.query.juster], ([ph, q]) => {
+  if (ph === 'done' && q != null) adjusting.value = true
+}, { immediate: true })
+
 function closeAdjust() {
   adjusting.value = false
   giver.value = null
@@ -883,8 +910,7 @@ async function undoMove() {
           :class="{ 'mm__h1--adjusting': adjusting }"
           @pointerdown="armAdjust"
           @pointerup="disarmAdjust"
-          @pointerleave="disarmAdjust"
-          @pointercancel="disarmAdjust"
+          @pointermove="holdMoved"
           @contextmenu.prevent
         >{{ adjusting ? 'Juster spilletid' : 'Spilletid' }}</h1>
         <div class="mm__totalpill">{{ fmt(currentClock) }} totalt</div>
@@ -1498,6 +1524,9 @@ button.srow { cursor: pointer; }
 }
 .srow--dim { opacity: .4; }
 
+/* iOS starter tekstmarkering på langtrykk over tekst, og et scroll-dra ville
+   fått browseren til å overta gesten. Begge deler avlyser trykket vårt. */
+.mm__h1 { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; touch-action: none; }
 .mm__h1--adjusting { color: var(--ds-color-text-tertiary); }
 
 .adj {
