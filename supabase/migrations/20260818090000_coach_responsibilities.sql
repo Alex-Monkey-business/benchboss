@@ -48,8 +48,16 @@ create policy delete_unless_parent on public.coach_responsibilities
 -- til Iver, Keepertrener utgikk, og Headcoach og Tech kom til. Referatet står
 -- som det ble skrevet; denne tabellen er hva som gjelder.
 --
--- Sletter først kullets rader: da gir migrasjonen samme resultat enten den
--- kjøres for første gang eller oppå den gamle fordelingen.
+-- Seeden kjører BARE inn i en tom tabell (rettet 25. august 2026). Den slettet
+-- opprinnelig kullets rader først, for å gi samme resultat uansett hvor mange
+-- ganger den kjørte. Det var feil premiss: fra 18. august eier tabellen
+-- sannheten, og ansvar settes på `/trener/:id`. En omfordeling gjort i appen
+-- ville blitt rullet tilbake til lista under — stille, uten feilmelding — neste
+-- gang noen kjørte `supabase db push`.
+--
+-- Idempotens skal ikke koste levende data. En engangs-flytting fra innholdsfil
+-- til base har gjort jobben sin den dagen tabellen har rader; da er riktig
+-- oppførsel å holde fingrene av fatet.
 do $$
 declare v_cohort uuid;
 begin
@@ -63,7 +71,10 @@ begin
     return;
   end if;
 
-  delete from public.coach_responsibilities where cohort_id = v_cohort;
+  if exists (select 1 from public.coach_responsibilities where cohort_id = v_cohort) then
+    raise notice 'Ansvar finnes allerede — seeden hoppes over, fordelingen står som den er.';
+    return;
+  end if;
 
   insert into public.coach_responsibilities (cohort_id, coach_id, area)
   select v_cohort, c.id, m.area
