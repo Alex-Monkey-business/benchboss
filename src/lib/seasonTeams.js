@@ -1,14 +1,10 @@
-// Serielagene (Halsen Grønn/Rød/Hvit) + trenere. Statisk konfig.
-// Til forskjell fra cup-troppen ligger serie-tilhørigheten på spilleren selv
-// (players.primary_team) — denne configen gir bare navn, farge og trenere.
-import { COACH_TEAMS } from './coachTeams'
-
+// Demo-lagene — brukes KUN når appen kjører uten Supabase.
+//
+// I prod er lagene kullets `teams`-rader (se useSeasonTeams). Denne lista er
+// et øyeblikksbilde av Halsen G2015 som gjør demo-modus levende, ikke en kilde
+// noe i appen skal falle tilbake på.
 export const SEASON_TEAMS = [
-  { slug: 'gronn', name: 'Grønn', accent: 'sage', trainers: COACH_TEAMS.gronn },
-  { slug: 'rod',   name: 'Rød',   accent: 'warm', trainers: COACH_TEAMS.rod },
-  { slug: 'hvit',  name: 'Hvit',  accent: 'paper', trainers: COACH_TEAMS.hvit }
+  { slug: 'gronn', name: 'Grønn', accent: 'sage',  trainers: ['Simon', 'Alex'] },
+  { slug: 'rod',   name: 'Rød',   accent: 'warm',  trainers: ['Trond'] },
+  { slug: 'hvit',  name: 'Hvit',  accent: 'paper', trainers: ['Iver', 'Jacob'] }
 ]
-
-export function seasonTeam(slug) {
-  return SEASON_TEAMS.find(t => t.slug === slug) || null
-}

@@ -138,6 +138,13 @@ const routes = [
     name: 'admin-tilgang',
     component: () => import('./views/TilgangView.vue')
   },
+  // Plattform-nivå: klubber og kull. Kun plattform-admin — sjekken bor i
+  // viewet (is_platform_admin er et flagg på profilen, ikke en rolle).
+  {
+    path: '/admin/plattform',
+    name: 'admin-plattform',
+    component: () => import('./views/PlattformView.vue')
+  },
   // Spilleradministrasjon er flyttet inn i Tropp (/serie/tropp).
   { path: '/admin/hospitanter', redirect: '/serie/tropp' },
   { path: '/admin/hospitanter/:id', redirect: '/serie/tropp' },

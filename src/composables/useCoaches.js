@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
 import { fetchRows, STATUS } from '../lib/query'
+import { scoped } from '../lib/scope'
 
 const coaches = ref([])
 const loaded = ref(false)
@@ -9,26 +10,19 @@ const status = ref(STATUS.IDLE)
 
 registerReset(() => { coaches.value = []; loaded.value = false; status.value = STATUS.IDLE })
 
-// Profile images by coach name. Transparent PNG cutouts so the per-coach
-// background color shows through. Alex has no photo yet → initial fallback.
-const COACH_IMAGES = {
-  'Trond': '/coaches/trond.png',
-  'Iver': '/coaches/iver.png',
-  'Simon': '/coaches/simon.png',
-  'Jacob': '/coaches/jacob.png'
-}
-
-// Demo coaches for development without Supabase
+// Bildet ligger på trenerraden (coaches.photo_url), ikke i et navnekart her.
+// Kartet koblet «Simon» → simon.png for alle kull — en Simon i en annen klubb
+// ville fått Halsen-Simons ansikt.
 const DEMO_COACHES = [
-  { id: 'demo-1', name: 'Alex' },
-  { id: 'demo-2', name: 'Iver' },
-  { id: 'demo-3', name: 'Trond' },
-  { id: 'demo-4', name: 'Simon' },
-  { id: 'demo-5', name: 'Jacob' }
+  { id: 'demo-1', name: 'Alex', photo_url: null },
+  { id: 'demo-2', name: 'Iver', photo_url: '/coaches/iver.png' },
+  { id: 'demo-3', name: 'Trond', photo_url: '/coaches/trond.png' },
+  { id: 'demo-4', name: 'Simon', photo_url: '/coaches/simon.png' },
+  { id: 'demo-5', name: 'Jacob', photo_url: '/coaches/jacob.png' }
 ]
 
 function enrichWithImages(coachList) {
-  return coachList.map(c => ({ ...c, image: COACH_IMAGES[c.name] || null }))
+  return coachList.map(c => ({ ...c, image: c.photo_url || null }))
 }
 
 export function useCoaches() {
@@ -51,7 +45,7 @@ export function useCoaches() {
     // (20260812193000_drop_coach_pin.sql); lista står igjen fordi tabellen
     // fortsatt kan få felt som ikke angår klienten.
     const { rows } = await fetchRows(
-      supabase.from('coaches').select('id, name').order('name'),
+      scoped(supabase.from('coaches').select('id, name, photo_url')).order('name'),
       'coaches'
     )
 

@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { scoped } from '../lib/scope'
 import { registerReset } from '../stores/dataReset'
 import { fetchRows, STATUS } from '../lib/query'
 
@@ -29,7 +30,7 @@ export function usePlayerSeasonTeams() {
 
     status.value = STATUS.LOADING
     const { rows: data } = await fetchRows(
-      supabase.from('player_season_teams').select('*'),
+      scoped(supabase.from('player_season_teams').select('*')),
       'player_season_teams'
     )
 

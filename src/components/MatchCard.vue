@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { isPast, isToday } from '../lib/dateLabels'
-import { isHalsen, teamColorsForMatch, teamLabel, isPlayed, hasResult } from '../lib/matchMeta'
+import { isOurs, teamColorsForMatch, teamLabel, isPlayed, hasResult } from '../lib/matchMeta'
 
 const props = defineProps({
   match: { type: Object, required: true },
@@ -22,7 +22,7 @@ function daysUntil(dateStr) {
 // Utlegg + dommer is a HOME match concern only — away matches don't need either.
 const status = computed(() => {
   const m = props.match
-  const isHome = isHalsen(m.home_team)
+  const isHome = isOurs(m.home_team)
   const past = isPast(m.match_date)
   const days = daysUntil(m.match_date)
   const upcomingSoon = days >= 0 && days <= 7

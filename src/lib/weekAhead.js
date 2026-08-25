@@ -1,7 +1,7 @@
 // Ukeplan-logikk delt mellom trener-Hjem og foreldreflaten:
 // resten av uka (i morgen → søndag), kun dager med innhold.
 import { localISODate, isoWeekday } from './dateLabels'
-import { isHalsenMatch, isHomeMatch } from './matchMeta'
+import { isOurMatch, isHomeMatch } from './matchMeta'
 import { dagLink } from './trainingLinks'
 
 // Perioden som gjelder: dekker i dag (åpen slutt teller), ellers nærmeste fremtidige.
@@ -39,7 +39,7 @@ export function buildWeekAhead({ today = localISODate(), period, sessions = [], 
   // Kamp trumfer trening samme dag — samme regel som cup allerede har, og av
   // samme grunn: laget står på kamp, ikke på feltet. `matches` er MINE kamper
   // (useToday sender myMatches), så en Rød-kamp demper ikke Grønn-treneren.
-  const kampdager = new Set(matches.filter(isHalsenMatch).map(m => m.match_date))
+  const kampdager = new Set(matches.filter(isOurMatch).map(m => m.match_date))
 
   if (period) {
     for (const date of dates) {
@@ -60,7 +60,7 @@ export function buildWeekAhead({ today = localISODate(), period, sessions = [], 
   }
 
   matches
-    .filter(m => isHalsenMatch(m) && m.match_date >= first && m.match_date <= last)
+    .filter(m => isOurMatch(m) && m.match_date >= first && m.match_date <= last)
     .forEach(m => items.push({
       kind: 'match',
       date: m.match_date,

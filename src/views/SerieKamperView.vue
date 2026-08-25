@@ -7,7 +7,7 @@ import { useTrainingPeriods } from '../composables/useTrainingPeriods'
 import { useTrainingSessions } from '../composables/useTrainingSessions'
 import { useCups } from '../composables/useCups'
 import { relativeDateLabel, isToday, localISODate } from '../lib/dateLabels'
-import { teamColorsForMatch as teamColors, isHomeMatch, isHalsenMatch, teamLabel } from '../lib/matchMeta'
+import { teamColorsForMatch as teamColors, isHomeMatch, isOurMatch, teamLabel } from '../lib/matchMeta'
 import { resolveUpcomingPeriod, buildWeekAhead } from '../lib/weekAhead'
 import TeamFilter from '../components/TeamFilter.vue'
 import { useTeamFilter } from '../composables/useTeamFilter'
@@ -75,12 +75,12 @@ function coachNamesForMatch(matchId) {
 }
 
 // Kun Halsen-kamper (filtrer bort irrelevante rader fra Excel-importen).
-const halsenMatches = computed(() => matches.value.filter(isHalsenMatch))
+const ourMatches = computed(() => matches.value.filter(isOurMatch))
 
 const today = computed(() => localISODate())
 
 const counts = computed(() => {
-  const list = halsenMatches.value.filter(m =>
+  const list = ourMatches.value.filter(m =>
     timeFilter.value === 'past' ? m.match_date < today.value : m.match_date >= today.value
   )
   const c = { alle: list.length, gronn: 0, rod: 0, hvit: 0 }
@@ -89,7 +89,7 @@ const counts = computed(() => {
 })
 
 const filteredMatches = computed(() => {
-  let list = [...halsenMatches.value]
+  let list = [...ourMatches.value]
   if (teamFilter.value !== 'alle') {
     list = list.filter(m => teamColors(m).includes(teamFilter.value))
   }

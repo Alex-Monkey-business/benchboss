@@ -9,7 +9,7 @@ import { useRoute } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import { useCoaches } from '../composables/useCoaches'
 import { useResponsibilities } from '../composables/useResponsibilities'
-import { findMeeting } from '../content/meetings'
+import { useContent } from '../composables/useContent'
 
 const { activeCohort } = useAuth()
 const { coaches, fetchCoaches } = useCoaches()
@@ -28,6 +28,7 @@ onMounted(async () => {
 })
 
 const route = useRoute()
+const { findMeeting } = useContent()
 const meeting = computed(() => findMeeting(route.params.slug))
 
 // To punkter på rad som begge peker til konsekvenstrappa gir to like lenker

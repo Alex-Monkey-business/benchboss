@@ -5,7 +5,7 @@ import { useMatchMode } from './useMatchMode'
 import { useSeasons } from './useSeasons'
 import { usePlayers } from './usePlayers'
 import { usePlayerSeasonTeams } from './usePlayerSeasonTeams'
-import { isPlayed, isHalsen, teamColorsForMatch } from '../lib/matchMeta'
+import { isPlayed, isOurMatch, teamColorsForMatch } from '../lib/matchMeta'
 
 // Tallene om én spiller, ett sted.
 //
@@ -41,12 +41,10 @@ export function usePlayerStats() {
   }
 
   const seasonId = computed(() => viewingSeason.value?.id ?? null)
-  const halsenMatches = computed(() => matches.value.filter(m =>
-    isHalsen(m.home_team) || isHalsen(m.away_team)
-  ))
-  const playedMatches = computed(() => halsenMatches.value.filter(isPlayed))
+  const ourMatches = computed(() => matches.value.filter(isOurMatch))
+  const playedMatches = computed(() => ourMatches.value.filter(isPlayed))
   const playedIds = computed(() => new Set(playedMatches.value.map(m => m.id)))
-  const upcomingIds = computed(() => new Set(halsenMatches.value.filter(m => !isPlayed(m)).map(m => m.id)))
+  const upcomingIds = computed(() => new Set(ourMatches.value.filter(m => !isPlayed(m)).map(m => m.id)))
   // Spilletid gates på SESONGEN, ikke på isPlayed. En stint finnes bare hvis
   // klokka faktisk gikk, og en kamp kjørt før oppsatt tid ville ellers falt ut
   // av totalen. Dette speiler regelen Statistikk alltid har brukt.
@@ -131,5 +129,5 @@ export function usePlayerStats() {
       .sort((a, b) => String(b.match_date).localeCompare(String(a.match_date)))
   }
 
-  return { ensurePlayerStats, statsById, statsFor, matchesFor, playedIds, upcomingIds, halsenMatches }
+  return { ensurePlayerStats, statsById, statsFor, matchesFor, playedIds, upcomingIds, ourMatches }
 }

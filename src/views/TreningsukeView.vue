@@ -1,4 +1,5 @@
 <script setup>
+import { useContent } from '../composables/useContent'
 // TRENINGSUKA — uka på én side, én dag åpen.
 //
 // Først var dette tre nivåer du navigerte ned i: måned → dag → øvelse. Det
@@ -23,6 +24,8 @@ import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ExercisePicker from '../components/ExercisePicker.vue'
 import Skeleton from '../components/Skeleton.vue'
+
+const { hasHandbook } = useContent()
 
 const route = useRoute()
 const router = useRouter()
@@ -741,7 +744,7 @@ onMounted(async () => {
           <span class="uke__link-eyebrow">Øvelsesbank</span>
           <span class="uke__link-title">Alle øvelser</span>
         </router-link>
-        <router-link to="/trening/handbok" class="uke__link">
+        <router-link v-if="hasHandbook" to="/trening/handbok" class="uke__link">
           <span class="uke__link-eyebrow">Håndbok</span>
           <span class="uke__link-title">Slik trener vi</span>
         </router-link>

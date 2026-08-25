@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { demoId } from './useTrainingSessions'
 import { registerReset } from '../stores/dataReset'
+import { clubScoped, withClub } from '../lib/scope'
 
 // Øvelsesbank — gjenbrukbare øvelser (training_exercises).
 // Copy-on-add: banken er malen, økta eier sin egen kopi (drills-JSONB).
@@ -107,9 +108,10 @@ export function useExercises() {
       return exercises.value
     }
 
-    const { data, error } = await supabase
+    // Banken deles på KLUBB — Halsens kull deler øvelser, Stag har sine.
+    const { data, error } = await clubScoped(supabase
       .from('training_exercises')
-      .select('*')
+      .select('*'))
       .order('name')
 
     if (!error && data) {
@@ -133,7 +135,7 @@ export function useExercises() {
 
     const { data: row, error } = await supabase
       .from('training_exercises')
-      .insert(payload)
+      .insert(withClub(payload))
       .select()
       .single()
     if (!error && row) exercises.value = [...exercises.value, row].sort(byName)

@@ -11,7 +11,7 @@ import TeamFilter from '../components/TeamFilter.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
 import { useStaggerOnce } from '../composables/useStaggerOnce'
 import { relativeDateLabel, isToday, localISODate } from '../lib/dateLabels'
-import { teamColorsForMatch } from '../lib/matchMeta'
+import { teamColorsForMatch, isOurs, isOurMatch as isOurMatchMeta } from '../lib/matchMeta'
 
 
 const playStagger = useStaggerOnce('dashboard-matches')
@@ -45,30 +45,26 @@ watch(viewingSeason, async (s) => {
   }
 })
 
-function isHalsenTeam(teamName) {
-  return (teamName || '').toLowerCase().includes('halsen')
-}
-
-// Get all team colors for a match (can be 2 for internal Halsen matches)
+// Get all team colors for a match (can be 2 for internal matches)
 const getTeamColors = (match) => teamColorsForMatch(match)
 
 function isHomeMatch(match) {
-  return isHalsenTeam(match.home_team)
+  return isOurs(match.home_team)
 }
 
 function isAwayMatch(match) {
-  return isHalsenTeam(match.away_team)
+  return isOurs(match.away_team)
 }
 
-function isHalsenMatch(match) {
-  return isHomeMatch(match) || isAwayMatch(match)
+function isOurMatch(match) {
+  return isOurMatchMeta(match)
 }
 
-// Only Halsen matches — filter out irrelevant matches from the Excel import
-const halsenMatches = computed(() => matches.value.filter(m => isHalsenMatch(m)))
+// Only our matches — filter out irrelevant matches from the Excel import
+const ourMatches = computed(() => matches.value.filter(m => isOurMatch(m)))
 
 const filteredMatches = computed(() => {
-  let result = [...halsenMatches.value]
+  let result = [...ourMatches.value]
 
   // Venue filter
   if (venueFilter.value === 'hjemme') {
@@ -94,7 +90,7 @@ function isInCurrentTimeFilter(match) {
 }
 
 const timeScopedHalsenMatches = computed(() =>
-  halsenMatches.value.filter(isInCurrentTimeFilter)
+  ourMatches.value.filter(isInCurrentTimeFilter)
 )
 
 const venueFilteredMatches = computed(() => {

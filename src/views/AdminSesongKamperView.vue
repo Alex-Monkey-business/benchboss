@@ -5,7 +5,8 @@ import { useMatches } from '../composables/useMatches'
 import { useExpenses } from '../composables/useExpenses'
 import { useToast } from '../composables/useToast'
 import { parseMatchFile, detectSeasonName } from '../lib/excelParser'
-import { isHalsen } from '../lib/matchMeta'
+import { isOurMatch } from '../lib/matchMeta'
+import { useAuth } from '../stores/auth'
 import { trimAbbrevDots } from '../lib/dateLabels'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
@@ -14,6 +15,8 @@ const { seasons, activeSeason, viewingSeason, fetchSeasons, createSeason, setVie
 const { matches, fetchMatches, bulkAddMatches, addMatch, updateMatch, deleteAllMatches, backfillDefaultCoaches } = useMatches()
 const { fetchExpenses } = useExpenses()
 const { show: showToast } = useToast()
+const { activeCohort } = useAuth()
+const clubName = computed(() => activeCohort.value?.club_name?.split(' ')[0] || 'våre')
 
 const fileInput = ref(null)
 const loading = ref(false)
@@ -78,13 +81,13 @@ async function processFile(file) {
     const result = await parseMatchFile(file)
 
     // Serieoppsettet fra kretsen inneholder hele avdelingen. Bare kamper der
-    // et Halsen-lag faktisk spiller skal inn — resten er andre lags kamper.
-    const ours = result.filter(m => isHalsen(m.home_team) || isHalsen(m.away_team))
+    // et av våre lag faktisk spiller skal inn — resten er andre lags kamper.
+    const ours = result.filter(isOurMatch)
     skippedForeign.value = result.length - ours.length
 
     if (ours.length === 0) {
       loading.value = false
-      showToast('Fant ingen Halsen-kamper i filen', 'error')
+      showToast(`Fant ingen ${clubName.value}-kamper i filen`, 'error')
       return
     }
 

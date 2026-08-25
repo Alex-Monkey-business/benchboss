@@ -8,7 +8,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import InstallAppCard from '../components/InstallAppCard.vue'
 
 const router = useRouter()
-const { coach, logout, isAdmin, isPlatformAdmin } = useAuth()
+const { coach, logout, isAdmin, isPlatformAdmin, memberships, activeCohort, setActiveCohort } = useAuth()
 const { coaches, fetchCoaches } = useCoaches()
 const { theme, setTheme } = useTheme()
 
@@ -26,6 +26,15 @@ onMounted(async () => {
   await fetchCoaches()
 })
 
+// Kull-velgeren finnes bare for den som er medlem av flere. Bytte tømmer
+// data-composablene og sender deg til Hjem — der er det tydeligst at
+// alt du ser nå er et annet kull.
+function switchCohort(id) {
+  if (id === activeCohort.value?.id) return
+  setActiveCohort(id)
+  router.push('/')
+}
+
 function confirmLogout() {
   showLogoutDialog.value = false
   logout()
@@ -37,6 +46,9 @@ function confirmLogout() {
 // NB: skrus `allow_coach_invites` på for et kull, må både denne betingelsen og
 // select-policyen på cohort_members ta høyde for trenere.
 const links = computed(() => [
+  ...(isPlatformAdmin.value
+    ? [{ to: '/admin/plattform', label: 'Klubber og kull', icon: 'building' }]
+    : []),
   ...(isAdmin.value || isPlatformAdmin.value
     ? [{ to: '/admin/tilgang', label: 'Tilgang', icon: 'people' }]
     : []),
@@ -55,6 +67,23 @@ const links = computed(() => [
       <h1 class="page-header__title">Admin</h1>
     </div>
 
+    <div v-if="memberships.length > 1" class="px-lg" style="margin-bottom: var(--ds-space-xl);">
+      <div class="admin-section-label">Kull</div>
+      <div class="theme-toggle theme-toggle--wrap" role="radiogroup" aria-label="Velg kull">
+        <button
+          v-for="m in memberships"
+          :key="m.cohort_id"
+          type="button"
+          role="radio"
+          :aria-checked="m.cohort_id === activeCohort?.id"
+          :class="['theme-toggle__option', { 'theme-toggle__option--active': m.cohort_id === activeCohort?.id }]"
+          @click="switchCohort(m.cohort_id)"
+        >
+          {{ m.cohort_name }}
+        </button>
+      </div>
+    </div>
+
     <div class="px-lg" style="margin-bottom: 6px;">
       <span class="admin-section-label" style="margin-left: 4px;">Verktøy</span>
     </div>
@@ -67,7 +96,11 @@ const links = computed(() => [
         class="admin-row"
       >
         <span class="admin-row__icon">
-          <svg v-if="link.icon === 'people'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <svg v-if="link.icon === 'building'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <rect x="4" y="3" width="16" height="18" rx="1.5"/>
+            <path d="M9 21v-4h6v4M8 7h2M14 7h2M8 11h2M14 11h2"/>
+          </svg>
+          <svg v-else-if="link.icon === 'people'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/>
             <circle cx="9" cy="7" r="4"/>
             <path d="M22 21v-2a4 4 0 0 0-3-3.87M16 3.13a4 4 0 0 1 0 7.75"/>
@@ -139,7 +172,7 @@ const links = computed(() => [
     <ConfirmDialog
       :show="showLogoutDialog"
       title="Logg ut?"
-      message="Du kan logge inn igjen med PIN-koden din."
+      message="Du kan logge inn igjen med e-posten din."
       confirm-label="Logg ut"
       variant="warning"
       @confirm="confirmLogout"
@@ -295,6 +328,15 @@ const links = computed(() => [
   background: var(--ds-color-bg-subtle);
   border-radius: var(--ds-radius-md);
   gap: 2px;
+}
+
+.theme-toggle--wrap {
+  display: flex;
+  flex-wrap: wrap;
+}
+
+.theme-toggle--wrap .theme-toggle__option {
+  flex: 1 1 auto;
 }
 
 .theme-toggle__option {

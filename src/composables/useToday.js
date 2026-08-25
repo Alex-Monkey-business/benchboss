@@ -14,7 +14,7 @@ import { useTrainingSessions } from './useTrainingSessions'
 import { useSeasonTeams } from './useSeasonTeams'
 import { useMatchMode } from './useMatchMode'
 import { localISODate, isoWeekday, daysUntil } from '../lib/dateLabels'
-import { isHalsenMatch, isHomeMatch, teamColorsForMatch } from '../lib/matchMeta'
+import { isOurMatch, isHomeMatch, teamColorsForMatch } from '../lib/matchMeta'
 import { resolveUpcomingPeriod, buildWeekAhead } from '../lib/weekAhead'
 import { buildReminders } from '../lib/reminders'
 import { useDismissedReminders } from './useDismissedReminders'
@@ -75,21 +75,21 @@ export function useToday() {
     return teamByName(seasonTeams.value) || new Set()
   })
 
-  const halsenMatches = computed(() => matches.value.filter(isHalsenMatch))
+  const ourMatches = computed(() => matches.value.filter(isOurMatch))
 
   const assignedToMe = m => !!coach.value?.id && getCoachesForMatch(m.id).includes(coach.value.id)
 
-  const hasOwnAssignments = computed(() => halsenMatches.value.some(assignedToMe))
+  const hasOwnAssignments = computed(() => ourMatches.value.some(assignedToMe))
 
   // Lagkobling først, per-kamp-tilordning som nødløsning, alt som siste utvei.
   const myMatches = computed(() => {
     if (myTeamColors.value.size) {
-      return halsenMatches.value.filter(m =>
+      return ourMatches.value.filter(m =>
         teamColorsForMatch(m).some(c => myTeamColors.value.has(c))
       )
     }
-    if (hasOwnAssignments.value) return halsenMatches.value.filter(assignedToMe)
-    return halsenMatches.value
+    if (hasOwnAssignments.value) return ourMatches.value.filter(assignedToMe)
+    return ourMatches.value
   })
 
   const greeting = computed(() => {
@@ -111,9 +111,9 @@ export function useToday() {
   // Alle Halsen-kamper i dag — brukes kun til å hindre at «Å ordne» gjentar
   // noe som allerede står som kort. Snevret vi denne inn sammen med hero-kortet,
   // ville påminnelser om andre lags kamper plutselig dukket opp igjen.
-  const todayHalsenMatches = computed(() => {
+  const todayOurMatches = computed(() => {
     const today = localISODate()
-    return halsenMatches.value.filter(m => m.match_date === today)
+    return ourMatches.value.filter(m => m.match_date === today)
   })
 
   // Cupkamper for MITT cup-lag. Med to lag i samme cup blir alle kampene støy
@@ -212,7 +212,7 @@ export function useToday() {
     // ikke «Å ordne» si det samme 30 cm lenger ned. Det var Alex' poeng:
     // «trenger vel nesten ikke Å ordne hvis det blir highlightet under kampen».
     excludeMatchIds: [
-      ...todayHalsenMatches.value.map(m => m.id),
+      ...todayOurMatches.value.map(m => m.id),
       ...(heroMatchId.value ? [heroMatchId.value] : [])
     ],
     // Kampen som står i kortet øverst — påminnelsen om den slipper å gjenta
@@ -263,7 +263,7 @@ export function useToday() {
   const seasonKickoff = computed(() => {
     const today = localISODate()
     const dates = matches.value
-      .filter(m => isHalsenMatch(m) && m.match_date)
+      .filter(m => isOurMatch(m) && m.match_date)
       .map(m => m.match_date)
       .sort()
     const first = dates[0]
@@ -331,7 +331,7 @@ export function useToday() {
 
     // Fra og med i DAG: spiller et annet lag i dag, står det her — ikke som
     // hero-kortet, men det skal ikke forsvinne helt heller.
-    for (const m of halsenMatches.value.filter(x => x.match_date >= today).sort(byDateTime)) {
+    for (const m of ourMatches.value.filter(x => x.match_date >= today).sort(byDateTime)) {
       const fresh = teamColorsForMatch(m).filter(c => !seen.has(c))
       if (!fresh.length) continue
       fresh.forEach(c => seen.add(c))

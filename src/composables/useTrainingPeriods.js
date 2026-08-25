@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
 import { fetchRows, STATUS } from '../lib/query'
+import { scoped, withCohort } from '../lib/scope'
 
 const periods = ref([])
 const loading = ref(false)
@@ -27,7 +28,7 @@ export function useTrainingPeriods() {
 
     status.value = STATUS.LOADING
     const { rows } = await fetchRows(
-      supabase.from('training_periods').select('*').order('position'),
+      scoped(supabase.from('training_periods').select('*')).order('position'),
       'training_periods'
     )
     loading.value = false
@@ -59,7 +60,7 @@ export function useTrainingPeriods() {
 
     const { data: row, error } = await supabase
       .from('training_periods')
-      .insert(data)
+      .insert(withCohort(data))
       .select()
       .single()
     if (!error && row) periods.value.push(row)

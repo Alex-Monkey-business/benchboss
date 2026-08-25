@@ -1,4 +1,5 @@
 <script setup>
+import { isOurs } from '../lib/matchMeta'
 import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
@@ -61,7 +62,7 @@ const pendingCount = computed(() => {
   if (!coach.value || !matches.value?.length) return 0
   const today = localISODate()
   return matches.value.filter(m =>
-    (m.home_team || '').toLowerCase().includes('halsen') &&
+    isOurs(m.home_team) &&
     m.match_date < today &&
     !getExpenseForMatch(m.id) &&
     getCoachesForMatch(m.id).includes(coach.value.id)

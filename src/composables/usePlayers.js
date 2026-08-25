@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
 import { fetchRows, STATUS } from '../lib/query'
 import { normalizePositions } from '../lib/playerPositions'
+import { scoped, withCohort } from '../lib/scope'
 
 const players = ref([])
 const loaded = ref(false)
@@ -48,7 +49,7 @@ export function usePlayers() {
 
     status.value = STATUS.LOADING
     const { rows } = await fetchRows(
-      supabase.from('players').select('*').order('name'),
+      scoped(supabase.from('players').select('*')).order('name'),
       'players'
     )
 
@@ -76,7 +77,7 @@ export function usePlayers() {
 
     const { data, error } = await supabase
       .from('players')
-      .insert({ name: trimmed, primary_team: team })
+      .insert(withCohort({ name: trimmed, primary_team: team }))
       .select()
       .single()
 

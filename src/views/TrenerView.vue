@@ -17,7 +17,7 @@ import { useMatches } from '../composables/useMatches'
 import { useExpenses } from '../composables/useExpenses'
 import { useResponsibilities } from '../composables/useResponsibilities'
 import { useToast } from '../composables/useToast'
-import { isHalsenMatch, isPlayed } from '../lib/matchMeta'
+import { isOurMatch, isPlayed } from '../lib/matchMeta'
 import { shortRelativeDate } from '../lib/dateLabels'
 import { AREAS, areaNote } from '../content/ansvar'
 import Sheet from '../components/Sheet.vue'
@@ -56,7 +56,7 @@ const areas = computed(() => (coach.value ? areasForCoach(coach.value.id) : []))
 const mineKamper = computed(() => {
   if (!coach.value) return []
   const ids = new Set(matchCoaches.value.filter(mc => mc.coach_id === coach.value.id).map(mc => mc.match_id))
-  return matches.value.filter(m => ids.has(m.id) && isHalsenMatch(m))
+  return matches.value.filter(m => ids.has(m.id) && isOurMatch(m))
 })
 
 const spilte = computed(() => mineKamper.value.filter(isPlayed))

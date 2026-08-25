@@ -8,13 +8,14 @@ import { onMounted, computed } from 'vue'
 import { useAuth } from '../stores/auth'
 import { useCoaches } from '../composables/useCoaches'
 import { useResponsibilities } from '../composables/useResponsibilities'
-import { meetingsByDate, openPoints } from '../content/meetings'
+import { openPoints } from '../content/meetings'
+import { useContent } from '../composables/useContent'
 
 const { activeCohort } = useAuth()
 const { coaches, fetchCoaches } = useCoaches()
 const { fetchResponsibilities, byPerson } = useResponsibilities()
 
-const referater = computed(() => meetingsByDate())
+const { meetingsByDate: referater } = useContent()
 
 // Ansvaret kobles nå på coach_id fra basen, ikke på navn — endres det på
 // trenersiden, endres det her. Har ingen ansvar, står de ikke i lista: dette
@@ -76,6 +77,7 @@ onMounted(async () => {
 
     <section class="block">
       <h2 class="block__label">Referater</h2>
+      <p v-if="!referater.length" class="block__empty">Ingen referater ennå.</p>
       <div class="referat-liste">
         <router-link
           v-for="m in referater"
@@ -96,6 +98,12 @@ onMounted(async () => {
 </template>
 
 <style scoped>
+.block__empty {
+  margin: 0;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+}
+
 .referater {
   max-width: 680px;
   margin: 0 auto;

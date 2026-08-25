@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, onMounted, watch } from 'vue'
+import { useAuth } from '../stores/auth'
 import { useSeasons } from '../composables/useSeasons'
 import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
@@ -13,7 +14,7 @@ import AnimatedNumber from '../components/AnimatedNumber.vue'
 import Skeleton from '../components/Skeleton.vue'
 import FormCurve from '../components/FormCurve.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
-import { hasResult, isPlayed } from '../lib/matchMeta'
+import { hasResult, isOurMatch, isOurs, isPlayed, teamAccent, teamLabel, teamSlugFromName, teamSlugs } from '../lib/matchMeta'
 
 const { viewingSeason, fetchSeasons } = useSeasons()
 const { matches, matchCoaches, matchPlayers, fetchMatches } = useMatches()
@@ -44,33 +45,23 @@ watch(viewingSeason, async (s) => {
   if (s) await fetchMatches(s.id)
 })
 
-const TEAM_LABELS = { gronn: 'Grønn', rod: 'Rød', hvit: 'Hvit' }
-const TEAM_KEYS = ['gronn', 'rod', 'hvit']
+// Lagene er kullets egne (useSeasonTeams via matchMeta) — ingen fast liste.
+const { activeCohort } = useAuth()
+const clubShort = computed(() => activeCohort.value?.club_name?.split(' ')[0] || 'Klubben')
+const TEAM_KEYS = computed(() => teamSlugs())
+const isOursTeam = isOurs
+const colorOf = name => teamSlugFromName(name) || null
 
-function isHalsenTeam(name) {
-  return (name || '').toLowerCase().includes('halsen')
-}
-
-function colorOf(name) {
-  const n = (name || '').toLowerCase()
-  if (n.includes('grønn') || n.includes('gronn')) return 'gronn'
-  if (n.includes('rød') || n.includes('rod')) return 'rod'
-  if (n.includes('hvit')) return 'hvit'
-  return null
-}
-
-const halsenMatches = computed(() => matches.value.filter(m =>
-  isHalsenTeam(m.home_team) || isHalsenTeam(m.away_team)
-))
+const ourMatches = computed(() => matches.value.filter(isOurMatch))
 
 // Spilte kamper (tid-basert) — grunnlag for deltakelse. Resultat-avhengig
 // statistikk (tabell/mål) gates i tillegg på hasResult().
-const playedMatches = computed(() => halsenMatches.value.filter(isPlayed))
+const playedMatches = computed(() => ourMatches.value.filter(isPlayed))
 const playedMatchIds = computed(() => new Set(playedMatches.value.map(m => m.id)))
 
 // Kommende (ikke spilte) kamper — for å vise hvor booket en lånespiller alt er.
 const upcomingMatchIds = computed(() => new Set(
-  halsenMatches.value.filter(m => !isPlayed(m)).map(m => m.id)
+  ourMatches.value.filter(m => !isPlayed(m)).map(m => m.id)
 ))
 
 // Spilte kamper som mangler resultat — vises som varsel øverst.
@@ -78,13 +69,13 @@ const missingResultCount = computed(() =>
   playedMatches.value.filter(m => !hasResult(m)).length
 )
 
-// Halsen totalt: ekskluder internkamper (Halsen vs Halsen) for å unngå
+// Klubben totalt: ekskluder internkamper (oss mot oss) for å unngå
 // dobbel-telling — de bidrar bare til per-lag-statistikk.
 const halsenTotal = computed(() => {
   let played = 0, w = 0, d = 0, l = 0, gf = 0, ga = 0
   playedMatches.value.forEach(m => {
-    const home = isHalsenTeam(m.home_team)
-    const away = isHalsenTeam(m.away_team)
+    const home = isOursTeam(m.home_team)
+    const away = isOursTeam(m.away_team)
     if (home && away) return // internkamp
     played++
     if (!hasResult(m)) return // spilt, men resultat ikke lagt inn enda
@@ -102,14 +93,14 @@ const halsenTotal = computed(() => {
 function statsForColor(color) {
   let played = 0, w = 0, d = 0, l = 0, gf = 0, ga = 0
   playedMatches.value.forEach(m => {
-    const homeColor = isHalsenTeam(m.home_team) ? colorOf(m.home_team) : null
-    const awayColor = isHalsenTeam(m.away_team) ? colorOf(m.away_team) : null
+    const homeColor = isOursTeam(m.home_team) ? colorOf(m.home_team) : null
+    const awayColor = isOursTeam(m.away_team) ? colorOf(m.away_team) : null
     const onHome = homeColor === color
     const onAway = awayColor === color
     if (!onHome && !onAway) return
     played++
     if (!hasResult(m)) return // spilt, men resultat ikke lagt inn enda
-    // Internkamp Halsen vs Halsen der dette laget er på begge sider er umulig.
+    // Internkamp der dette laget er på begge sider er umulig.
     const teamScore = onHome ? m.home_score : m.away_score
     const oppScore = onHome ? m.away_score : m.home_score
     gf += teamScore
@@ -129,17 +120,17 @@ function statsForColor(color) {
 function recentResultsForColor(color, limit = 10) {
   const sorted = [...playedMatches.value]
     .filter(hasResult)
-    .filter(m => !(isHalsenTeam(m.home_team) && isHalsenTeam(m.away_team)))
+    .filter(m => !(isOursTeam(m.home_team) && isOursTeam(m.away_team)))
     .filter(m => {
-      const homeColor = isHalsenTeam(m.home_team) ? colorOf(m.home_team) : null
-      const awayColor = isHalsenTeam(m.away_team) ? colorOf(m.away_team) : null
+      const homeColor = isOursTeam(m.home_team) ? colorOf(m.home_team) : null
+      const awayColor = isOursTeam(m.away_team) ? colorOf(m.away_team) : null
       return homeColor === color || awayColor === color
     })
     .sort((a, b) => a.match_date.localeCompare(b.match_date))
     .slice(-limit)
 
   return sorted.map(m => {
-    const onHome = isHalsenTeam(m.home_team) && colorOf(m.home_team) === color
+    const onHome = isOursTeam(m.home_team) && colorOf(m.home_team) === color
     const teamScore = onHome ? m.home_score : m.away_score
     const oppScore = onHome ? m.away_score : m.home_score
     const opponent = onHome ? m.away_team : m.home_team
@@ -153,11 +144,11 @@ function recentResultsForColor(color, limit = 10) {
 const halsenRecentResults = computed(() => {
   const sorted = [...playedMatches.value]
     .filter(hasResult)
-    .filter(m => !(isHalsenTeam(m.home_team) && isHalsenTeam(m.away_team)))
+    .filter(m => !(isOursTeam(m.home_team) && isOursTeam(m.away_team)))
     .sort((a, b) => a.match_date.localeCompare(b.match_date))
     .slice(-10)
   return sorted.map(m => {
-    const home = isHalsenTeam(m.home_team)
+    const home = isOursTeam(m.home_team)
     const halsenScore = home ? m.home_score : m.away_score
     const oppScore = home ? m.away_score : m.home_score
     const opponent = home ? m.away_team : m.home_team
@@ -169,10 +160,10 @@ const halsenRecentResults = computed(() => {
 })
 
 const teamStats = computed(() =>
-  TEAM_KEYS
+  TEAM_KEYS.value
     .map(key => ({
       key,
-      label: TEAM_LABELS[key],
+      label: teamLabel(key),
       recent: recentResultsForColor(key),
       ...statsForColor(key)
     }))
@@ -252,17 +243,17 @@ const playtimeByTeam = computed(() => {
     })
     .filter(p => p.totalSec > 0)
 
-  const groups = TEAM_KEYS
+  const groups = TEAM_KEYS.value
     .map(key => {
       const teamRows = rows
         .filter(r => r.primary_team === key)
         .sort((a, b) => b.totalSec - a.totalSec || a.name.localeCompare(b.name))
-      return { key, label: TEAM_LABELS[key], max: teamRows[0]?.totalSec || 0, rows: teamRows }
+      return { key, label: teamLabel(key), max: teamRows[0]?.totalSec || 0, rows: teamRows }
     })
     .filter(g => g.rows.length > 0)
 
   const rest = rows
-    .filter(r => !TEAM_KEYS.includes(r.primary_team))
+    .filter(r => !TEAM_KEYS.value.includes(r.primary_team))
     .sort((a, b) => b.totalSec - a.totalSec || a.name.localeCompare(b.name))
   if (rest.length > 0) {
     groups.push({ key: 'annet', label: 'Uten lag', max: rest[0].totalSec, rows: rest })
@@ -348,7 +339,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 
     <!-- Halsen totalt -->
     <div v-if="hasPlayedMatches" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-1">
-      <div class="stat-section-label">Halsen totalt</div>
+      <div class="stat-section-label">{{ clubShort }} totalt</div>
       <div class="stat-card-large">
         <template v-if="hasPlayedMatches">
           <div class="stat-card-large__top">
@@ -444,7 +435,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
           <span class="leaderboard__rank">{{ i + 1 }}</span>
           <span class="leaderboard__name">
             <router-link :to="`/spiller/${item.id}`" class="leaderboard__link">{{ item.name }}</router-link>
-            <span v-if="item.primary_team" :class="['leaderboard__tag', `leaderboard__tag--${item.primary_team}`]">{{ TEAM_LABELS[item.primary_team] }}</span>
+            <span v-if="item.primary_team" :class="['leaderboard__tag', `leaderboard__tag--${teamAccent(item.primary_team)}`]">{{ teamLabel(item.primary_team) }}</span>
           </span>
           <span class="leaderboard__metric">{{ item.count || '–' }}</span>
           <span class="leaderboard__metric leaderboard__metric--upcoming">{{ item.upcoming || '–' }}</span>
@@ -463,7 +454,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
           <span class="leaderboard__rank">{{ i + 1 }}</span>
           <span class="leaderboard__name">
             <router-link :to="`/spiller/${item.id}`" class="leaderboard__link">{{ item.name }}</router-link>
-            <span v-if="item.primary_team" :class="['leaderboard__tag', `leaderboard__tag--${item.primary_team}`]">{{ TEAM_LABELS[item.primary_team] }}</span>
+            <span v-if="item.primary_team" :class="['leaderboard__tag', `leaderboard__tag--${teamAccent(item.primary_team)}`]">{{ teamLabel(item.primary_team) }}</span>
           </span>
           <span class="leaderboard__count">{{ item.count }} mål</span>
         </div>
@@ -1140,20 +1131,28 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   letter-spacing: 0.02em;
 }
 
-.leaderboard__tag--gronn {
+.leaderboard__tag--sage {
   background: var(--ds-team-gronn-bg);
   color: var(--ds-team-gronn);
 }
 
-.leaderboard__tag--rod {
+.leaderboard__tag--warm {
   background: var(--ds-team-rod-bg);
   color: var(--ds-team-rod);
 }
 
-.leaderboard__tag--hvit {
+.leaderboard__tag--paper {
   background: var(--ds-team-hvit-bg);
   color: var(--ds-team-hvit);
   border: 1px solid var(--ds-team-hvit-border);
+}
+
+.leaderboard__tag--sky,
+.leaderboard__tag--cornflower,
+.leaderboard__tag--olive,
+.leaderboard__tag--peach {
+  background: var(--ds-color-accent-light);
+  color: var(--ds-color-accent);
 }
 
 @media (max-width: 400px) {

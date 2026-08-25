@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from '../supabase'
 import { localISODate } from '../lib/dateLabels'
 import { registerReset } from '../stores/dataReset'
 import { fetchRows, STATUS } from '../lib/query'
+import { scoped } from '../lib/scope'
 
 const cups = ref([])
 const activeCup = ref(null)
@@ -43,7 +44,7 @@ export function useCups() {
 
     status.value = STATUS.LOADING
     const { rows } = await fetchRows(
-      supabase.from('cups').select('*').order('created_at', { ascending: false }),
+      scoped(supabase.from('cups').select('*')).order('created_at', { ascending: false }),
       'cups'
     )
 

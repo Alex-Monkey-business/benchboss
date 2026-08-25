@@ -1,28 +1,18 @@
 import { teamColorsForMatch } from './matchMeta'
 
-// Standard trener-oppsett per lagfarge.
-// Trenere settes automatisk ved import/oppretting av kamper ut fra hvilke
-// Halsen-lag som spiller. Endre rollene her hvis trenerne bytter lag.
-// Høst 2026: lag 1 = Rød, lag 2 = Hvit, lag 3 = Grønn.
-export const COACH_TEAMS = {
-  gronn: ['Simon', 'Alex'],
-  rod: ['Trond'],
-  hvit: ['Iver', 'Jacob'],
-}
-
-// Resolve hvilke trener-IDer som skal settes på en kamp, gitt trener-poolen.
-// Unionen av trenerne for hver lagfarge i kampen.
+// Hvilke trener-IDer skal settes på en kamp, gitt trener-poolen.
+// Unionen av trenerne for hvert av våre lag i kampen.
 //
-// `teams` er de oppløste lagene fra useSeasonTeams — altså team_coaches i
-// basen når de finnes. Uten dem faller vi tilbake på COACH_TEAMS, som er den
-// eneste kilden for kull som ikke har fått lagrader ennå.
-export function defaultCoachIdsForMatch(match, coaches, teams = null) {
+// `teams` er de oppløste lagene fra useSeasonTeams — team_coaches i basen for
+// sesongen. Et lag uten trenere gir tomt, ikke et gjett: før lå det en statisk
+// liste med Halsens navn her som fallback, og den ville satt Halsen-trenere på
+// et annet kulls kamper.
+export function defaultCoachIdsForMatch(match, coaches, teams = []) {
   const colors = teamColorsForMatch(match)
   if (!colors.length) return []
   const names = new Set()
   colors.forEach(color => {
-    const fromDb = teams?.find(t => t.slug === color)?.trainers
-    const list = fromDb ?? COACH_TEAMS[color] ?? []
+    const list = teams?.find(t => t.slug === color)?.trainers ?? []
     list.forEach(name => names.add(name))
   })
   return coaches.filter(c => names.has(c.name)).map(c => c.id)

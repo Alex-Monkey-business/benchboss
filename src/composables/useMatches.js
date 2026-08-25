@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { scoped } from '../lib/scope'
 import { useCoaches } from './useCoaches'
 import { defaultCoachIdsForMatch } from '../lib/coachTeams'
 import { useSeasonTeams } from './useSeasonTeams'
@@ -335,7 +336,7 @@ export function useMatches() {
   // Fetch all match_players rows — needed for cross-match conflict detection.
   async function fetchAllMatchPlayers() {
     if (!isSupabaseConfigured) return matchPlayers.value
-    const { data } = await supabase.from('match_players').select('match_id, player_id')
+    const { data } = await scoped(supabase.from('match_players').select('match_id, player_id'))
     if (data) matchPlayers.value = data
     return matchPlayers.value
   }
@@ -344,7 +345,7 @@ export function useMatches() {
   // Spillere fra laget som er ute av en kamp. Speiler match_players-mønsteret.
   async function fetchAllMatchAbsences() {
     if (!isSupabaseConfigured) return matchAbsences.value
-    const { data } = await supabase.from('match_absences').select('match_id, player_id')
+    const { data } = await scoped(supabase.from('match_absences').select('match_id, player_id'))
     if (data) matchAbsences.value = data
     return matchAbsences.value
   }

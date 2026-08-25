@@ -6,7 +6,7 @@
 // taket fordi dens sjekk lå sist i fila.
 
 import { relativeDateLabel, localISODate } from './dateLabels'
-import { isHomeMatch, isHalsenMatch, isPlayed, hasResult } from './matchMeta'
+import { isHomeMatch, isOurMatch, isPlayed, hasResult } from './matchMeta'
 
 const MAX_REMINDERS = 3
 const REF_WINDOW_DAYS = 7
@@ -97,7 +97,7 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
   const resultFloor = isoDaysFrom(today, -RESULT_LOOKBACK_DAYS)
   const resultLess = matches
     .filter(m =>
-      isHalsenMatch(m) &&
+      isOurMatch(m) &&
       !excluded.has(m.id) &&
       m.match_date >= resultFloor &&
       m.match_date <= today &&
@@ -159,7 +159,7 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
   const reportFloor = isoDaysFrom(today, -RESULT_LOOKBACK_DAYS)
   const reportLess = matches
     .filter(m =>
-      isHalsenMatch(m) &&
+      isOurMatch(m) &&
       !excluded.has(m.id) &&
       m.match_date >= reportFloor &&
       m.match_date <= today &&

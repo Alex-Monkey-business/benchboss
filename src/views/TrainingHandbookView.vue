@@ -1,8 +1,13 @@
 <script setup>
+import { computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { principles } from '../content/principles'
+import { useAuth } from '../stores/auth'
+import { useContent } from '../composables/useContent'
 
 const router = useRouter()
+const { activeCohort } = useAuth()
+const { principles, hasHandbook } = useContent()
+const cohortName = computed(() => activeCohort.value?.name || 'oss')
 
 function open(slug) {
   router.push(`/trening/handbok/${slug}`)
@@ -21,14 +26,18 @@ function open(slug) {
     <header class="handbook__hero">
       <img class="handbook__icon" src="/illustrations/bench-boss-feature-icons/512/training-handbook-transparent.png" alt="" />
       <span class="handbook__eyebrow">Trener-håndbok</span>
-      <h1 class="handbook__title">Slik trener vi&nbsp;G2015</h1>
-      <p class="handbook__lead">
+      <h1 class="handbook__title">Slik trener vi {{ cohortName }}</h1>
+      <p v-if="hasHandbook" class="handbook__lead">
         Åtte prinsipper som gjør at alle 24 utvikler seg —
         ikke bare de elleve som allerede er fremme.
       </p>
     </header>
 
-    <div class="handbook__list">
+    <div v-if="!hasHandbook" class="handbook__list">
+      <p class="handbook__empty">Håndboka for {{ cohortName }} er ikke skrevet ennå.</p>
+    </div>
+
+    <div v-else class="handbook__list">
       <button
         v-for="(p, i) in principles"
         :key="p.slug"
@@ -49,13 +58,19 @@ function open(slug) {
       </button>
     </div>
 
-    <footer class="handbook__footer">
+    <footer v-if="hasHandbook" class="handbook__footer">
       <p>Skrevet for oss fem, basert på det vi har lært. Endrer seg etter hvert som vi gjør det.</p>
     </footer>
   </div>
 </template>
 
 <style scoped>
+.handbook__empty {
+  margin: 0;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+}
+
 /* Per-accent palette for cards — matches coach color tokens */
 .handbook-card[data-accent="warm"]       { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
 .handbook-card[data-accent="sage"]       { --accent-bg: #E2EDDE; --accent-text: #3D5C44; }

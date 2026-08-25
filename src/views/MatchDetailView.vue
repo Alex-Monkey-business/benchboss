@@ -18,7 +18,7 @@ import Skeleton from '../components/Skeleton.vue'
 import DisclosureSection from '../components/DisclosureSection.vue'
 import { relativeDateLabel, isPast } from '../lib/dateLabels'
 import { matchCta } from '../lib/matchCta'
-import { colorFromName, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, isPlayed, TEAM_LABELS } from '../lib/matchMeta'
+import { teamSlugFromName, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, isPlayed, teamLabel, isOurs } from '../lib/matchMeta'
 import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 
 const route = useRoute()
@@ -397,7 +397,6 @@ const otherLoans = computed(() => {
   return availablePlayers.value.filter(p => !shown.has(p.id))
 })
 
-const teamLabels = TEAM_LABELS
 
 // Detect a same-day conflict for one player. Returns { time, opponent } or null.
 function getConflictForPlayer(p, currentMatchId, currentDate) {
@@ -405,7 +404,7 @@ function getConflictForPlayer(p, currentMatchId, currentDate) {
 
   function describeMatch(m) {
     const time = m.match_time?.slice(0, 5)
-    const opponentRaw = (m.home_team || '').toLowerCase().includes('halsen')
+    const opponentRaw = isOurs(m.home_team)
       ? m.away_team
       : m.home_team
     return {
@@ -421,15 +420,13 @@ function getConflictForPlayer(p, currentMatchId, currentDate) {
     .find(m => m && m.match_date === currentDate)
   if (guestMatch) return describeMatch(guestMatch)
 
-  // 2. Implicit: player's primary Halsen team plays same day
+  // 2. Implicit: player's primary team plays same day
   if (p.primary_team) {
     const primaryMatch = matches.value.find(m => {
       if (m.id === currentMatchId) return false
       if (m.match_date !== currentDate) return false
-      const homeColor = (m.home_team || '').toLowerCase().includes('halsen')
-        ? colorFromName(m.home_team) : null
-      const awayColor = (m.away_team || '').toLowerCase().includes('halsen')
-        ? colorFromName(m.away_team) : null
+      const homeColor = isOurs(m.home_team) ? teamSlugFromName(m.home_team) : null
+      const awayColor = isOurs(m.away_team) ? teamSlugFromName(m.away_team) : null
       return homeColor === p.primary_team || awayColor === p.primary_team
     })
     if (primaryMatch) return describeMatch(primaryMatch)
@@ -818,7 +815,7 @@ function focusSummaryGroup() {
               :key="color"
               class="match-card__team-tag"
               :class="`match-card__team-tag--${color}`"
-            >{{ teamLabels[color] }}</span>
+            >{{ teamLabel(color) }}</span>
             {{ formattedDate }}<template v-if="match.match_time && match.match_time.substring(0, 5) !== '00:00'"> · {{ match.match_time.substring(0, 5) }}</template><template v-if="match.round"> · Runde {{ match.round }}</template>
           </span>
           <button
@@ -1101,7 +1098,7 @@ function focusSummaryGroup() {
                   class="referee-pill loan-pill referee-pill--selected"
                   @click="togglePlayer(p.id)"
                 >
-                  {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabels[p.primary_team] }}</span>
+                  {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabel(p.primary_team) }}</span>
                   <span class="extra-badge" :class="{ 'extra-badge--zero': !extraCount(p.id) }" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
                 </button>
               </div>
@@ -1117,7 +1114,7 @@ function focusSummaryGroup() {
                   :class="['referee-pill loan-pill', { 'referee-pill--selected': matchPlayerIds.includes(p.id) }]"
                   @click="togglePlayer(p.id)"
                 >
-                  {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabels[p.primary_team] }}</span>
+                  {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabel(p.primary_team) }}</span>
                   <span class="extra-badge" :class="{ 'extra-badge--zero': !extraCount(p.id) }" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
                 </button>
               </div>
@@ -1139,7 +1136,7 @@ function focusSummaryGroup() {
                   ]"
                   @click="togglePlayer(p.id)"
                 >
-                  {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabels[p.primary_team] }}</span>
+                  {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabel(p.primary_team) }}</span>
                   <span v-if="!playerConflicts[p.id]" class="extra-badge" :class="{ 'extra-badge--zero': !extraCount(p.id) }" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
                   <span v-if="playerConflicts[p.id]" class="hospitant-pill__conflict" :title="`Også kamp ${playerConflicts[p.id].time || 'samme dag'} mot ${playerConflicts[p.id].opponent}`">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -1419,7 +1416,7 @@ function focusSummaryGroup() {
                 class="scorer-picker__group"
               >
                 <div class="scorer-picker__group-label">
-                  {{ team === 'other' ? 'Uten lag' : teamLabels[team] }}
+                  {{ team === 'other' ? 'Uten lag' : teamLabel(team) }}
                 </div>
                 <div class="scorer-picker__row">
                   <button
@@ -1473,7 +1470,7 @@ function focusSummaryGroup() {
               ]"
               @click="newPlayerTeam = newPlayerTeam === team ? '' : team"
             >
-              {{ teamLabels[team] }}
+              {{ teamLabel(team) }}
             </button>
           </div>
           <div class="scorer-form__newplayer-actions">

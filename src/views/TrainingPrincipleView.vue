@@ -1,15 +1,16 @@
 <script setup>
 import { computed } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { principles, findPrinciple } from '../content/principles'
+import { useContent } from '../composables/useContent'
 
 const route = useRoute()
 const router = useRouter()
+const { principles, findPrinciple } = useContent()
 
 const principle = computed(() => findPrinciple(route.params.slug))
-const index = computed(() => principles.findIndex(p => p.slug === route.params.slug))
-const next = computed(() => principles[index.value + 1] || null)
-const prev = computed(() => principles[index.value - 1] || null)
+const index = computed(() => principles.value.findIndex(p => p.slug === route.params.slug))
+const next = computed(() => principles.value[index.value + 1] || null)
+const prev = computed(() => principles.value[index.value - 1] || null)
 
 function goTo(slug) {
   router.push(`/trening/handbok/${slug}`)

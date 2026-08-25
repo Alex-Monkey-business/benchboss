@@ -7,7 +7,8 @@ import { useMatchMode } from '../composables/useMatchMode'
 import { useMatchGoals } from '../composables/useMatchGoals'
 import { useToast } from '../composables/useToast'
 import { useAuth } from '../stores/auth'
-import { teamColorsForMatch, isHomeMatch, TEAM_LABELS } from '../lib/matchMeta'
+import { teamColorsForMatch, isHomeMatch, teamLabel } from '../lib/matchMeta'
+import { formationFor } from '../lib/formations'
 import { positionForSlot, positionLabel, slotLabel, splitByFit } from '../lib/playerPositions'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -26,7 +27,7 @@ const {
   adjustPlayingTime, undoAdjustment, movableSeconds
 } = useMatchMode()
 const { show: showToast } = useToast()
-const { setSessionHold, sessionLost } = useAuth()
+const { setSessionHold, sessionLost, activeCohort } = useAuth()
 
 // En sesjon som utløper her skal ikke gi en redirect. Storen holder tilbake
 // opprydningen så lenge dette viewet lever; vi sier bare fra.
@@ -40,16 +41,9 @@ const matchPlayerIds = ref([])
 const matchAbsenceIds = ref([])
 const loading = ref(true)
 
-// 7er-formasjon 2-3-1. y måles fra topp; vi angriper oppover (spiss øverst).
-const FORMATION = [
-  { id: 'f1', role: 'field',  x: 50, y: 16 },
-  { id: 'm1', role: 'field',  x: 20, y: 42 },
-  { id: 'm2', role: 'field',  x: 50, y: 40 },
-  { id: 'm3', role: 'field',  x: 80, y: 42 },
-  { id: 'd1', role: 'field',  x: 30, y: 68 },
-  { id: 'd2', role: 'field',  x: 70, y: 68 },
-  { id: 'gk', role: 'keeper', x: 50, y: 89 }
-]
+// Formasjonen følger kullets spillform (5er/7er/9er/11er). y måles fra topp;
+// vi angriper oppover (spiss øverst). Slot-IDene er de lagrede stints kjenner.
+const FORMATION = formationFor(activeCohort.value?.players_on_pitch)
 
 // Setup
 const assignments = ref({})   // slotId -> playerId
@@ -251,7 +245,12 @@ async function handleStart() {
   clearTimeout(lineupTimer)
   lineupDirty = false
   try {
-    await startMatch(matchId, lineup)
+    // Kamplengden er kullets spillform — skrives på sesjonen sammen med
+    // avsparket, så en pågående kamp aldri endrer lengde om kullet justeres.
+    await startMatch(matchId, lineup, {
+      period_count: activeCohort.value?.period_count || 2,
+      period_minutes: activeCohort.value?.period_minutes || 30
+    })
     showToast('Kampen er i gang', 'success')
   } catch (e) { reportError(e) }
 }
@@ -474,10 +473,10 @@ async function finishDrag() {
 }
 
 // ── Omganger ───────────────────────────────────────────────────────────────
-// Kamplengde leses fra sesjonen (satt i setup, default 2×30) — cup-kamper
-// kan kjøre f.eks. 1×15 eller 2×12.
-const periodCount = computed(() => session.value?.period_count || 2)
-const halfSeconds = computed(() => (session.value?.period_minutes || 30) * 60)
+// Kamplengde leses fra sesjonen (skrevet ved avspark). Sesjoner fra før
+// kolonnene fantes faller tilbake til kullets spillform.
+const periodCount = computed(() => session.value?.period_count || activeCohort.value?.period_count || 2)
+const halfSeconds = computed(() => (session.value?.period_minutes || activeCohort.value?.period_minutes || 30) * 60)
 const period = computed(() => session.value?.period || 1)
 // Pauset eksakt på omgangsgrensen, og det er flere omganger igjen → pause.
 const atHalfBreak = computed(() =>
@@ -998,7 +997,7 @@ async function undoMove() {
           <div class="mm__bench">
             <button v-for="p in pickerGroups.fit" :key="p.id" type="button" class="mm__bchip" @click="pickForSlot(p.id)">
               <span class="mm__bname">{{ firstName(p.name) }}</span>
-              <span v-if="p.primary_team" class="mm__btag">{{ TEAM_LABELS[p.primary_team] }}</span>
+              <span v-if="p.primary_team" class="mm__btag">{{ teamLabel(p.primary_team) }}</span>
             </button>
           </div>
         </div>
@@ -1008,7 +1007,7 @@ async function undoMove() {
           <div class="mm__bench">
             <button v-for="p in pickerGroups.rest" :key="p.id" type="button" class="mm__bchip" @click="pickForSlot(p.id)">
               <span class="mm__bname">{{ firstName(p.name) }}</span>
-              <span v-if="p.primary_team" class="mm__btag">{{ TEAM_LABELS[p.primary_team] }}</span>
+              <span v-if="p.primary_team" class="mm__btag">{{ teamLabel(p.primary_team) }}</span>
             </button>
           </div>
         </div>

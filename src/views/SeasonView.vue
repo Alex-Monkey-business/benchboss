@@ -12,7 +12,8 @@ import AnimatedNumber from '../components/AnimatedNumber.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
 import { exportSeasonToExcel } from '../lib/excelExport'
 
-const { coach: currentCoach } = useAuth()
+const { coach: currentCoach, activeCohort } = useAuth()
+const clubShort = computed(() => activeCohort.value?.club_name?.split(' ')[0] || 'Klubben')
 const { seasons, viewingSeason, fetchSeasons, settleSeason } = useSeasons()
 const { matches, fetchMatches, getCoachesForMatch } = useMatches()
 const { expenses, fetchExpenses, getSettlement } = useExpenses()
@@ -111,7 +112,7 @@ function handleExport() {
       <!-- My balance card (Halsen owes me) -->
       <div v-if="currentCoach && !isSettled" class="px-lg mb-md">
         <div class="ds-card my-balance">
-          <div class="my-balance__eyebrow">Halsen skylder deg så langt</div>
+          <div class="my-balance__eyebrow">{{ clubShort }} skylder deg så langt</div>
           <div class="my-balance__amount">
             <AnimatedNumber :value="myOwed" /><span class="my-balance__currency"> kr</span>
           </div>

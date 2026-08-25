@@ -1,49 +1,90 @@
 // Avledet kamp-metadata fra lagnavn — én kilde, brukt av kort, lister og detalj.
 // Ingen ekstra data lagres; alt utledes av home_team/away_team.
+//
+// «Hvem er vi» var strengen 'halsen'. Nå er det klubbens kortnavn fra det
+// aktive kullet, og lagene er kullets `teams`-rader. Samme funksjoner, samme
+// kallsteder — men en Stag-trener ser sine kamper, ikke ingenting.
+import { useAuth } from '../stores/auth'
+import { useSeasonTeams } from '../composables/useSeasonTeams'
 
-export const TEAM_LABELS = { gronn: 'Grønn', rod: 'Rød', hvit: 'Hvit' }
-
-export function teamLabel(color) {
-  return TEAM_LABELS[color] || ''
+function clubKey() {
+  return useAuth().activeCohort.value?.club_key || ''
 }
 
-export function isHalsen(name) {
-  return (name || '').toLowerCase().includes('halsen')
+function teams() {
+  return useSeasonTeams().seasonTeams.value
 }
 
-export function colorFromName(name) {
-  const n = (name || '').toLowerCase()
-  if (n.includes('grønn') || n.includes('gronn')) return 'gronn'
-  if (n.includes('rød') || n.includes('rod')) return 'rod'
-  if (n.includes('hvit')) return 'hvit'
+// Kretsens oppsett skriver «Halsen Rød» og «Sandefjord BK RØD» om hverandre;
+// vi sammenligner uten skille på store bokstaver og uten æøå.
+function norm(s) {
+  return (s || '').toLowerCase().replace(/ø/g, 'o').replace(/æ/g, 'ae').replace(/å/g, 'a')
+}
+
+// Er dette et av VÅRE lag? Klubbens kortnavn i lagstrengen.
+export function isOurs(name) {
+  const key = norm(clubKey())
+  return !!key && norm(name).includes(key)
+}
+
+// Lagstreng → slug på et av kullets lag. Lengste navn først, så «Stag 1» ikke
+// stjeler «Stag 10». Tom streng når ingen treffer.
+export function teamSlugFromName(name) {
+  const n = norm(name)
+  if (!n) return ''
+  const list = [...teams()].sort((a, b) => norm(b.name).length - norm(a.name).length)
+  for (const t of list) {
+    const tn = norm(t.name)
+    if (tn && n.includes(tn)) return t.slug
+    if (t.slug && n.includes(norm(t.slug))) return t.slug
+  }
   return ''
 }
 
-// Halsen-lagfargene som er med i kampen (1 for vanlig kamp, 2 for intern kamp).
+export function teamLabel(slug) {
+  return teams().find(t => t.slug === slug)?.name || ''
+}
+
+export function teamAccent(slug) {
+  return teams().find(t => t.slug === slug)?.accent || ''
+}
+
+// Alle lag-slugs i kullet, i visningsrekkefølge.
+export function teamSlugs() {
+  return teams().map(t => t.slug)
+}
+
+// Våre lag som er med i kampen (1 for vanlig kamp, 2 for intern kamp).
 export function teamColorsForMatch(match) {
   if (!match) return []
   const colors = []
-  if (isHalsen(match.home_team)) {
-    const c = colorFromName(match.home_team)
+  if (isOurs(match.home_team)) {
+    const c = teamSlugFromName(match.home_team)
     if (c) colors.push(c)
   }
-  if (isHalsen(match.away_team)) {
-    const c = colorFromName(match.away_team)
+  if (isOurs(match.away_team)) {
+    const c = teamSlugFromName(match.away_team)
     if (c && !colors.includes(c)) colors.push(c)
   }
   return colors
 }
 
 export function isHomeMatch(match) {
-  return isHalsen(match?.home_team)
+  return isOurs(match?.home_team)
 }
 
 export function isAwayMatch(match) {
-  return !isHalsen(match?.home_team) && isHalsen(match?.away_team)
+  return !isOurs(match?.home_team) && isOurs(match?.away_team)
 }
 
-export function isHalsenMatch(match) {
-  return isHalsen(match?.home_team) || isHalsen(match?.away_team)
+export function isOurMatch(match) {
+  return isOurs(match?.home_team) || isOurs(match?.away_team)
+}
+
+// Motstanderen sett fra oss. Intern kamp → bortelaget.
+export function opponentOf(match) {
+  if (!match) return ''
+  return isOurs(match.home_team) ? (match.away_team || '') : (match.home_team || '')
 }
 
 export function hasResult(match) {

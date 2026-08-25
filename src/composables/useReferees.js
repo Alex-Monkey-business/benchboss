@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { parsePhone } from '../lib/phone'
 import { registerReset } from '../stores/dataReset'
+import { scoped, withCohort } from '../lib/scope'
 
 const referees = ref([])
 const loaded = ref(false)
@@ -26,9 +27,9 @@ export function useReferees() {
       return referees.value
     }
 
-    const { data, error } = await supabase
+    const { data, error } = await scoped(supabase
       .from('referees')
-      .select('*')
+      .select('*'))
       .order('name')
 
     if (!error && data) {
@@ -49,7 +50,7 @@ export function useReferees() {
 
     const { data, error } = await supabase
       .from('referees')
-      .insert({ name: name.trim(), phone: cleanPhone || null })
+      .insert(withCohort({ name: name.trim(), phone: cleanPhone || null }))
       .select()
       .single()
 

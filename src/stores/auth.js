@@ -96,14 +96,25 @@ const coach = computed(() => {
 // tilstand med banner på Hjem.
 const identityIncomplete = computed(() => isCoach.value && !coach.value?.id)
 
-// Preferanser, backfilt fra COACH_TEAMS og CUP_TEAMS i fase 2. De SEEDER
+// Preferanser, backfilt fra de gamle statiske lag-configene i fase 2. De SEEDER
 // filtrene — de låser ingenting.
 const preferredTeam = computed(() => activeMember.value?.preferred_team || null)
 const preferredCupTeam = computed(() => activeMember.value?.preferred_cup_team || null)
 
 const activeCohort = computed(() => {
   const m = activeMember.value
-  return m ? { id: m.cohort_id, name: m.cohort_name } : null
+  if (!m) return null
+  return {
+    id: m.cohort_id,
+    name: m.cohort_name,
+    slug: m.cohort_slug,
+    club_id: m.club_id,
+    club_name: m.club_name,
+    club_key: m.club_key,
+    players_on_pitch: m.players_on_pitch,
+    period_count: m.period_count,
+    period_minutes: m.period_minutes
+  }
 })
 
 // ---------------------------------------------------------------------------
@@ -134,6 +145,16 @@ function applyMemberships(profile, rows) {
     id: r.id,
     cohort_id: r.cohort_id,
     cohort_name: r.cohorts?.name || null,
+    cohort_slug: r.cohorts?.slug || null,
+    // Klubben og spillformen følger medlemskapet, så «hvem er vi» og «hvor
+    // mange på banen» er kjent i samme oppslag som rollen — og ligger i
+    // cachen ved kald start.
+    club_id: r.cohorts?.club_id || null,
+    club_name: r.cohorts?.clubs?.name || null,
+    club_key: (r.cohorts?.clubs?.short_name || '').toLowerCase() || null,
+    players_on_pitch: r.cohorts?.players_on_pitch || 7,
+    period_count: r.cohorts?.period_count || 2,
+    period_minutes: r.cohorts?.period_minutes || 30,
     role: r.role,
     coach_id: r.coach_id,
     name: r.name,
@@ -167,7 +188,7 @@ async function loadMember(user) {
       .maybeSingle(),
     supabase
       .from('cohort_members')
-      .select('id, cohort_id, role, coach_id, name, preferred_team, preferred_cup_team, cohorts(name)')
+      .select('id, cohort_id, role, coach_id, name, preferred_team, preferred_cup_team, cohorts(name, slug, club_id, players_on_pitch, period_count, period_minutes, clubs(name, short_name))')
       .eq('profile_id', user.id)
       .eq('status', 'active')
   ])
@@ -302,6 +323,13 @@ function demoLogin({ name, role: r, coachId = null, cohortId = 'demo-cohort' }) 
     id: 'demo-member',
     cohort_id: cohortId,
     cohort_name: 'Halsen G2015',
+    cohort_slug: 'g2015',
+    club_id: 'demo-club',
+    club_name: 'Halsen IL',
+    club_key: 'halsen',
+    players_on_pitch: 7,
+    period_count: 2,
+    period_minutes: 30,
     role: r,
     coach_id: coachId,
     name,

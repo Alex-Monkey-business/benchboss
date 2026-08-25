@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
 import { fetchRows, STATUS } from '../lib/query'
+import { scoped, withCohort } from '../lib/scope'
 
 const seasons = ref([])
 const activeSeason = ref(null)
@@ -37,7 +38,7 @@ export function useSeasons() {
 
     status.value = STATUS.LOADING
     const { rows } = await fetchRows(
-      supabase.from('seasons').select('*').order('created_at', { ascending: false }),
+      scoped(supabase.from('seasons').select('*')).order('created_at', { ascending: false }),
       'seasons'
     )
 
@@ -67,7 +68,7 @@ export function useSeasons() {
 
     const { data, error } = await supabase
       .from('seasons')
-      .insert({ name })
+      .insert(withCohort({ name }))
       .select()
       .single()
 

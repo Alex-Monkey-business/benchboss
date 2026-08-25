@@ -22,10 +22,10 @@ const ORDER = POSITIONS.map(p => p.value)
 // formasjon i live til den får sine egne rader her.
 const SLOT_POSITIONS = {
   gk: 'keeper',
-  d1: 'forsvar', d2: 'forsvar',
+  d1: 'forsvar', d2: 'forsvar', d3: 'forsvar', d4: 'forsvar',
   m1: 'ving', m3: 'ving',
   m2: 'sentral',
-  f1: 'angrep'
+  f1: 'angrep', f2: 'angrep', f3: 'angrep'
 }
 
 export function positionForSlot(slotId) {

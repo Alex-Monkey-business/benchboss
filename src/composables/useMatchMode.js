@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
+import { scoped } from '../lib/scope'
 import { registerReset } from '../stores/dataReset'
 import { planTransfer, transferableSeconds } from '../lib/timeTransfer'
 
@@ -96,7 +97,7 @@ export function useMatchMode() {
       ]
       return stints.value
     }
-    const { data } = await supabase.from('match_stints').select('*')
+    const { data } = await scoped(supabase.from('match_stints').select('*'))
     if (data) stints.value = data
     return stints.value
   }
