@@ -112,6 +112,13 @@ async function fetchSeasonTeams(cohortId, seasonId) {
   return linksInflight
 }
 
+// Etter at lag er opprettet/endret/slettet: hent på nytt for det aktive kullet.
+async function reloadTeams(cohortId) {
+  teamsCohort.value = null
+  teamsInflight = null
+  return fetchTeams(cohortId)
+}
+
 // Optimistisk oppdatering fra views (TrenerView etter «Bytt lag»). Radene kan
 // bære `trainers`; da oppdateres trenerkartet også, så det man nettopp gjorde
 // vises før neste henting.
@@ -134,5 +141,5 @@ export function useSeasonTeams() {
     return seasonTeams.value.find(t => t.slug === slug) || null
   }
 
-  return { seasonTeams, seasonTeam, teamsFromDb, fetchTeams, fetchSeasonTeams, setSeasonTeams }
+  return { seasonTeams, seasonTeam, teamsFromDb, fetchTeams, reloadTeams, fetchSeasonTeams, setSeasonTeams }
 }

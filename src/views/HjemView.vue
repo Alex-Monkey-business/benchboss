@@ -13,6 +13,8 @@ import NextTrainingCard from '../components/today/NextTrainingCard.vue'
 import NextMatchCard from '../components/today/NextMatchCard.vue'
 import OtherTeamsList from '../components/today/OtherTeamsList.vue'
 import WeekList from '../components/today/WeekList.vue'
+import OnboardingCards from '../components/today/OnboardingCards.vue'
+import { useOnboarding } from '../composables/useOnboarding'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import { dagLink } from '../lib/trainingLinks'
 
@@ -31,6 +33,10 @@ const { activeCup, cupInProgress: showCupEntry } = useCups()
 // ukjent, og bommet stille — man fikk et annet lags kamper og alt så riktig ut.
 // Nå står det her i stedet.
 const { identityIncomplete } = useAuth()
+
+// Et tomt kull skal fylles her, ikke lete etter Admin. Kortene forsvinner
+// ett og ett; er alt på plass, finnes de ikke.
+const { active: onboardingActive } = useOnboarding()
 
 const ready = ref(false)
 
@@ -78,7 +84,7 @@ const upNext = computed(() => {
 })
 
 const showEmpty = computed(() =>
-  ready.value && !loading.value && !hasToday.value && weekItems.value.length === 0 && upNext.value.length === 0 && reminders.value.length === 0 && !showCupEntry.value
+  ready.value && !loading.value && !onboardingActive.value && !hasToday.value && weekItems.value.length === 0 && upNext.value.length === 0 && reminders.value.length === 0 && !showCupEntry.value
 )
 
 function coachNamesForMatch(matchId) {
@@ -108,6 +114,8 @@ function coachNamesForMatch(matchId) {
     </div>
 
     <div v-else class="px-lg hjem-stack">
+      <OnboardingCards v-if="onboardingActive" class="ds-anim-fade-up ds-anim-delay-1" />
+
       <!-- Dagens hovedhendelser: kamp slår trening, men begge vises ved kollisjon -->
       <TodayMatchCard
         v-for="match in todayMatches"
@@ -155,7 +163,8 @@ function coachNamesForMatch(matchId) {
         <WeekList :items="weekItems" />
       </section>
 
-      <section v-if="reminders.length" class="ds-anim-fade-up ds-anim-delay-3">
+      <!-- Under onboarding er «Å ordne» støy: det eneste å ordne er å komme i gang. -->
+      <section v-if="reminders.length && !onboardingActive" class="ds-anim-fade-up ds-anim-delay-3">
         <h2 class="hjem-section-kicker">Å ordne</h2>
         <ReminderList :reminders="reminders" />
       </section>
@@ -163,7 +172,7 @@ function coachNamesForMatch(matchId) {
       <!-- Klubben ellers, sist: dette er lag du IKKE trener. Seksjonen lå
            øverst og ledet hele skjermen på dager uten kamp — stikk i strid
            med at den skal ligge der «uten å ta fokus». -->
-      <section v-if="otherTeamsNext.length" class="ds-anim-fade-up ds-anim-delay-3">
+      <section v-if="otherTeamsNext.length && !onboardingActive" class="ds-anim-fade-up ds-anim-delay-3">
         <h2 class="hjem-section-kicker">Andre lag</h2>
         <OtherTeamsList :items="otherTeamsNext" />
       </section>
