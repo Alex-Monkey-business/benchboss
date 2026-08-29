@@ -134,6 +134,10 @@ Krever hemmeligheten `RESEND_API_KEY` på prosjektet:
 npx supabase secrets set RESEND_API_KEY=... INVITE_FROM='BenchBoss <ikke-svar@benchboss.no>'
 ```
 
+Laget i e-posten er **klubben** så lenge kullet ikke er satt opp — arbeidsnavnet
+«Stag – nytt kull» skal aldri ut til noen. Klubben vet vi alltid: den er det ene
+admin oppgir. Er årgangen valgt, brukes kullnavnet.
+
 Mangler nøkkelen, faller invitasjonen tilbake på malen under — en invitasjon
 som ikke kommer fram er verre enn en med feil overskrift. Fallbacken logges i
 funksjonsloggen. Se den i nettleseren med

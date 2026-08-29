@@ -22,6 +22,9 @@ const SITE_URL = Deno.env.get('SITE_URL') ?? 'https://benchboss.no'
 // tilbake på innloggings-e-posten — en invitasjon som ikke kommer fram er
 // verre enn en med feil overskrift.
 const RESEND_KEY = Deno.env.get('RESEND_API_KEY')
+// Kan pekes et annet sted i test: nøkkelen vår er «send only» og kan ikke lese
+// en sendt e-post tilbake, så innholdet må fanges på vei ut.
+const RESEND_URL = Deno.env.get('RESEND_URL') ?? 'https://api.resend.com/emails'
 const INVITE_FROM = Deno.env.get('INVITE_FROM') ?? 'BenchBoss <ikke-svar@benchboss.no>'
 
 function json(body: unknown, status = 200) {
@@ -195,7 +198,7 @@ async function sendInviteEmail(
   const lenke = data?.properties?.action_link
   if (!kode || !lenke) return 'fikk ingen lenke fra Supabase'
 
-  const res = await fetch('https://api.resend.com/emails', {
+  const res = await fetch(RESEND_URL, {
     method: 'POST',
     headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -209,6 +212,20 @@ async function sendInviteEmail(
 
   const tekst = await res.text()
   return `Resend svarte ${res.status}: ${tekst.slice(0, 200)}`
+}
+
+/**
+ * Hva laget heter i e-posten.
+ *
+ * Et kull som ikke er satt opp heter «Stag – nytt kull» — et arbeidsnavn admin
+ * aldri valgte, og som treneren overskriver i det han velger årgang. Det skal
+ * ikke stå i den første e-posten han får. Da er klubben det eneste vi VET.
+ */
+async function lagNavn(admin: any, cohortId: string): Promise<string> {
+  const { data } = await admin
+    .from('cohorts').select('name, birth_year, clubs(name)').eq('id', cohortId).maybeSingle()
+  if (data?.birth_year) return data.name
+  return data?.clubs?.name || data?.name || 'laget'
 }
 
 Deno.serve(async (req) => {
@@ -362,11 +379,10 @@ Deno.serve(async (req) => {
           return fail(`Invitasjonen ble ikke sendt: ${konto.error}`)
         }
 
-        const [{ data: kull }, { data: avsender }] = await Promise.all([
-          admin.from('cohorts').select('name').eq('id', cohortId).maybeSingle(),
+        const [kullNavn, { data: avsender }] = await Promise.all([
+          lagNavn(admin, cohortId),
           admin.from('profiles').select('full_name').eq('id', callerId).maybeSingle(),
         ])
-        const kullNavn = kull?.name || 'laget'
 
         // Vår egen invitasjon først. Går den ikke ut — nøkkelen mangler, Resend
         // svarer noe rart — sendes innloggings-e-posten i stedet. Personen skal
@@ -401,12 +417,12 @@ Deno.serve(async (req) => {
         // «logg inn igjen»-e-post til noen som ikke vet hva appen er.
         let sendFeil: string | undefined
         if (member.status === 'invited') {
-          const [{ data: kull }, { data: avsender }] = await Promise.all([
-            admin.from('cohorts').select('name').eq('id', cohortId).maybeSingle(),
+          const [kullNavn, { data: avsender }] = await Promise.all([
+            lagNavn(admin, cohortId),
             admin.from('profiles').select('full_name').eq('id', callerId).maybeSingle(),
           ])
           sendFeil = await sendInviteEmail(
-            admin, member.email, member.name || '', kull?.name || 'laget', avsender?.full_name || '',
+            admin, member.email, member.name || '', kullNavn, avsender?.full_name || '',
           )
         }
         if (sendFeil || member.status !== 'invited') sendFeil = await sendLoginEmail(member.email)

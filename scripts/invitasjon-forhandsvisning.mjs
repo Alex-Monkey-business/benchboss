@@ -3,5 +3,7 @@
 import { inviteHtml } from '../supabase/functions/member-admin/invite-mail.ts'
 import { writeFileSync } from 'node:fs'
 const ut = process.argv[2] || 'invitasjon.html'
-writeFileSync(ut, inviteHtml('Sten', 'Stag G2018', 'Alexander Samnøy', '482913', 'https://benchboss.no'))
+// Slik den faktisk ser ut for Sten: kullet er ikke satt opp ennå, så det er
+// KLUBBEN som står der — arbeidsnavnet «Stag – nytt kull» skal aldri ut.
+writeFileSync(ut, inviteHtml('Sten', 'Sportsklubben Stag', 'Alexander Samnøy', '482913', 'https://benchboss.no'))
 console.log(ut)
