@@ -23,7 +23,12 @@ function isoDaysFrom(today, days) {
 // usesReferees: skaffer laget dommer selv? Av ⇒ verken «Dommer mangler» eller
 // «Utlegg ikke ført» er ærend som finnes. Default true, så kall uten den
 // oppfører seg som før.
-export function buildReminders({ matches, coachId, getCoachesForMatch, getExpenseForMatch, periods = [], today = localISODate(), excludeMatchIds = [], dismissedKeys = new Set(), primaryMatchId = null, usesReferees = true }) {
+//
+// sinceIso: fra når kullet har brukt appen. Terminlista hentes for HELE året,
+// så et lag som starter i august får fem måneder spilte kamper inn i basen.
+// De skal ikke bli en huskeliste — ingen kommer til å føre utlegg for en kamp
+// som ble spilt før klubben tok i bruk appen.
+export function buildReminders({ matches, coachId, getCoachesForMatch, getExpenseForMatch, periods = [], today = localISODate(), excludeMatchIds = [], dismissedKeys = new Set(), primaryMatchId = null, usesReferees = true, sinceIso = null }) {
   if (!coachId) return []
   const excluded = new Set(excludeMatchIds)
   const mine = (m) => getCoachesForMatch(m.id).includes(coachId)
@@ -102,6 +107,7 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
     .filter(m =>
       isOurMatch(m) &&
       !excluded.has(m.id) &&
+      (!sinceIso || m.match_date >= sinceIso) &&
       m.match_date >= resultFloor &&
       m.match_date <= today &&
       isPlayed(m) &&
@@ -135,6 +141,7 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
   const pendingExpense = matches
     .filter(m =>
       usesReferees &&
+      (!sinceIso || m.match_date >= sinceIso) &&
       isHomeMatch(m) &&
       !excluded.has(m.id) &&
       m.match_date < today &&

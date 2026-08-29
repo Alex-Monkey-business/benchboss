@@ -114,6 +114,7 @@ const activeCohort = computed(() => {
     club_fiks_id: m.club_fiks_id,
     birth_year: m.birth_year,
     uses_referees: m.uses_referees,
+    created_at: m.cohort_created_at,
     players_on_pitch: m.players_on_pitch,
     period_count: m.period_count,
     period_minutes: m.period_minutes
@@ -163,6 +164,7 @@ function applyMemberships(profile, rows) {
     // Default true når kolonnen ikke finnes ennå: en app som er deployet før
     // migrasjonen skal oppføre seg som før, ikke skjule dommerne.
     uses_referees: r.cohorts?.uses_referees ?? true,
+    cohort_created_at: r.cohorts?.created_at ?? null,
     players_on_pitch: r.cohorts?.players_on_pitch || 7,
     period_count: r.cohorts?.period_count || 2,
     period_minutes: r.cohorts?.period_minutes || 30,
@@ -199,7 +201,7 @@ async function loadMember(user) {
       .maybeSingle(),
     supabase
       .from('cohort_members')
-      .select('id, cohort_id, role, coach_id, name, preferred_team, preferred_cup_team, cohorts(name, slug, club_id, birth_year, uses_referees, players_on_pitch, period_count, period_minutes, clubs(name, short_name, fiks_id))')
+      .select('id, cohort_id, role, coach_id, name, preferred_team, preferred_cup_team, cohorts(name, slug, club_id, birth_year, uses_referees, created_at, players_on_pitch, period_count, period_minutes, clubs(name, short_name, fiks_id))')
       .eq('profile_id', user.id)
       .eq('status', 'active')
   ])

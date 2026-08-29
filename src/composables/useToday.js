@@ -223,7 +223,10 @@ export function useToday() {
     // motstanderen.
     primaryMatchId: nextMatch.value?.id || null,
     dismissedKeys: dismissed.value,
-    usesReferees: usesReferees.value
+    usesReferees: usesReferees.value,
+    // Kampene som ble spilt før kullet fantes i appen er historikk, ikke
+    // etterslep.
+    sinceIso: (activeCohort.value?.created_at || '').slice(0, 10) || null
   }))
 
   // Neste forekomst av en ukedag etter `after`, klippet til periodens slutt.
