@@ -1,5 +1,3 @@
-import * as XLSX from 'xlsx'
-
 // Spillerlister fra der de allerede finnes: limt inn fra Spond/Hoopit/et
 // regneark, eller lastet opp som Excel. Målet er at treneren aldri skriver
 // 18 navn én og én.
@@ -52,8 +50,12 @@ export function parsePlayerList(text) {
 
 // Excel/CSV: første ark, første kolonne med tekst. Har arket en «Navn»-
 // kolonne, brukes den.
+//
+// xlsx lastes først når noen faktisk velger en fil. Med en vanlig import på
+// toppen havner 142 kB gzip i Hjem-chunken — parseren brukes én gang i et
+// kulls levetid, Hjem åpnes hver dag.
 export async function parsePlayerWorkbook(file) {
-  const buf = await file.arrayBuffer()
+  const [XLSX, buf] = await Promise.all([import('xlsx'), file.arrayBuffer()])
   const wb = XLSX.read(buf, { type: 'array' })
   const ws = wb.Sheets[wb.SheetNames[0]]
   if (!ws) return []
