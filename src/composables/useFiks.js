@@ -65,6 +65,10 @@ export function useFiks() {
     if (q.length < 2) return []
     searching.value = true
     try {
+      // 25 s, ikke 12: et kort søkeord treffer bredt, og fotball.no bruker
+      // 6–8 sekunder på «stag» mot 0,8 på «Sportsklubben Stag». Med 12 s
+      // falt de korte søkene — altså de folk faktisk skriver — ut som
+      // «fikk ikke kontakt».
       const html = await fetchWithTimeout(CLUB_SEARCH_URL, {
         method: 'POST',
         // Skjemakoding er en av de tre typene nettleseren sender uten
@@ -72,7 +76,7 @@ export function useFiks() {
         // ikke svarer på.
         headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
         body: clubSearchBody(q)
-      })
+      }, 25000)
       return parseClubSearch(html).filter(usableClub)
     } finally {
       searching.value = false

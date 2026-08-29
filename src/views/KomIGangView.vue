@@ -91,8 +91,12 @@ watch(sok, q => {
   sokTimer = setTimeout(async () => {
     try {
       treff.value = await searchClubs(q)
-    } catch {
-      feil.value = 'Fikk ikke kontakt med fotball.no.'
+    } catch (e) {
+      // AbortError = vi ga opp å vente, ikke at fotball.no er nede. Å si
+      // «fikk ikke kontakt» om et tregt søk sender folk til feil løsning.
+      feil.value = e?.name === 'AbortError'
+        ? 'Søket tok for lang tid. Prøv hele klubbnavnet.'
+        : 'Fikk ikke kontakt med fotball.no.'
     }
   }, 350)
 })
@@ -313,7 +317,7 @@ function hoppOver() {
           aria-label="Søk etter klubben"
         />
 
-        <p v-if="searching" class="kig__status">Søker …</p>
+        <p v-if="searching" class="kig__status">Søker på fotball.no … korte søk kan ta noen sekunder.</p>
         <p v-else-if="feil" class="kig__status kig__status--feil">{{ feil }}</p>
         <p v-else-if="sok.trim().length >= 2 && !treff.length" class="kig__status">Ingen klubber med det navnet.</p>
 
