@@ -33,14 +33,16 @@ await p.locator('#nk-club-name').fill('Testklubben BK')
 await p.locator('#nk-club-short').fill('Test')
 await p.getByRole('button',{name:/Opprett kull/}).click()
 await p.waitForTimeout(2500)
-const rad=sql(`select c.name||'|'||c.slug||'|'||coalesce(c.birth_year::text,'-')||'|'||c.players_on_pitch||'|'||(select count(*) from teams t where t.cohort_id=c.id)||'|'||(select coalesce(s.name,'-') from seasons s where s.id=c.active_season_id) from cohorts c join clubs cl on cl.id=c.club_id where cl.name='Testklubben BK'`)
-const [navn,slug,ar,form,lag,sesong]=rad.split('|')
+const rad=sql(`select c.name||'|'||c.slug||'|'||coalesce(c.birth_year::text,'-')||'|'||c.players_on_pitch||'|'||(select count(*) from teams t where t.cohort_id=c.id)||'|'||(select coalesce(s.name,'-') from seasons s where s.id=c.active_season_id)||'|'||c.uses_referees from cohorts c join clubs cl on cl.id=c.club_id where cl.name='Testklubben BK'`)
+const [navn,slug,ar,form,lag,sesong,dommere]=rad.split('|')
 ok('kullet får midlertidig navn', navn==='Test – nytt kull', navn)
 ok('slugen er unik per skall', /^nytt-kull-/.test(slug), slug)
 ok('årskull står tomt', ar==='-', ar)
 ok('spillform får NFF-default', form==='7', form+'er')
 ok('ingen lag opprettet', lag==='0', lag)
 ok('sesongen er satt', sesong!=='-', sesong)
+// Dommere er en Halsen-greie. Nye kull starter uten.
+ok('dommere er av for et nytt kull', dommere==='false', dommere)
 ok('landet på Tilgang', p.url().includes('/admin/tilgang'), p.url())
 
 // to skall i samme klubb skal ikke kollidere på slug
