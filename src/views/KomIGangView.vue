@@ -25,7 +25,13 @@ const { show: showToast } = useToast()
 // Temavelgeren bor ellers i Admin — og dit kommer man ikke før oppsettet er
 // gjort, fordi guarden sender deg hit. Første skjerm er derfor eneste stedet
 // en ny trener kan velge lys eller mørk.
-const { theme, setTheme } = useTheme()
+const { theme, setTheme, systemDark } = useTheme()
+
+// Defaulten er 'system', ikke 'light'/'dark'. Uten dette sto ingen av de to
+// valgene markert, og pilla leste som to grå ord uten tilstand.
+const aktivtTema = computed(() =>
+  theme.value === 'system' ? (systemDark.value ? 'dark' : 'light') : theme.value
+)
 const {
   searching, searchClubs, fetchClubTeams, linkClub, setBirthYear,
   createTeams, linkSelfToTeams, importMatches, ageClass, teamsForAge, shortTeamName
@@ -241,7 +247,7 @@ function hoppOver() {
 </script>
 
 <template>
-  <div class="kig">
+  <div class="kig" :class="{ 'kig--velkomst': steg === 'velkommen' }">
     <div class="kig__inner" :class="{ 'kig__inner--velkomst': steg === 'velkommen' }">
       <!-- ---------------------------------------------- Velkommen -->
       <template v-if="steg === 'velkommen'">
@@ -251,9 +257,9 @@ function hoppOver() {
             :key="t.v"
             type="button"
             role="radio"
-            :aria-checked="theme === t.v"
+            :aria-checked="aktivtTema === t.v"
             class="kig-tema__valg"
-            :class="{ 'kig-tema__valg--aktiv': theme === t.v }"
+            :class="{ 'kig-tema__valg--aktiv': aktivtTema === t.v }"
             @click="setTheme(t.v)"
           >{{ t.l }}</button>
         </div>
@@ -610,6 +616,8 @@ function hoppOver() {
 
 .kig__handling { margin-top: var(--ds-space-xl); }
 
+.kig__inner--velkomst .kig__handling { margin-top: clamp(var(--ds-space-md), 2.5dvh, var(--ds-space-xl)); }
+
 .kig__hovedknapp {
   width: 100%;
   padding: var(--ds-space-md);
@@ -655,13 +663,16 @@ function hoppOver() {
   color: var(--ds-color-accent);
 }
 
-.kig__tittel--velkomst { font-size: 2.25rem; }
+.kig__tittel--velkomst {
+  font-size: clamp(1.75rem, 5.5dvh, 2.25rem);
+  margin-bottom: clamp(var(--ds-space-xs), 1.5dvh, var(--ds-space-sm));
+}
 
 .kig__velkomst {
-  font-size: var(--ds-text-lg);
+  font-size: clamp(var(--ds-text-base), 2.2dvh, var(--ds-text-lg));
   line-height: var(--ds-leading-snug);
   color: var(--ds-color-text-secondary);
-  margin: 0 0 var(--ds-space-md);
+  margin: 0 0 clamp(var(--ds-space-sm), 1.8dvh, var(--ds-space-md));
   max-width: 26ch;
 }
 
@@ -676,48 +687,67 @@ function hoppOver() {
 }
 
 .kig__signatur {
-  margin: var(--ds-space-xl) auto 0;
+  margin: clamp(var(--ds-space-md), 2.5dvh, var(--ds-space-xl)) auto 0;
   text-align: center;
   font-size: var(--ds-text-xs);
   letter-spacing: var(--ds-tracking-wide);
   color: var(--ds-color-text-tertiary);
 }
 
-/* ---- Velkomst-hero ---- */
-/* Velkomsten har en hero som fyller toppen — da skal ikke luften over den
-   også være 12 vh. */
-.kig__inner--velkomst { padding-top: 5vh; }
-
-.kig-hero {
-  position: relative;
-  height: 13rem;
-  margin: 0 0 var(--ds-space-xl);
+/* Velkomsten skal ALLTID få plass — den scrollet på alt under en Pro Max,
+   og «Kom i gang» lå under folden på SE, SE2 og mini. Sentrert i tilgjengelig
+   høyde, og luften rundt kuttet: xl + 2xl er 80 px en lav skjerm ikke har. */
+.kig--velkomst {
+  padding-top: var(--ds-space-md);
+  padding-bottom: var(--ds-space-md);
 }
 
-.kig-hero__trener {
-  position: absolute;
-  right: -1rem;
-  bottom: 0;
-  width: 12.5rem;
-  height: auto;
-  animation: kigFloat 5s ease-in-out infinite;
+.kig__inner--velkomst {
+  padding-top: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* ---- Velkomst-hero ---- */
+/* Ingen absolutt posisjonering og ingen fast høyde. Kortene var absolutt
+   plassert i en hero med clamp-høyde, og på lave skjermer vokste de OPPOVER
+   ut av boksen og la seg over temavelgeren — som dermed var usynlig uten å
+   være skjult. Nå bestemmer innholdet høyden. */
+.kig-hero {
+  display: flex;
+  align-items: flex-end;
+  gap: var(--ds-space-sm);
+  margin: 0 0 clamp(var(--ds-space-md), 3dvh, var(--ds-space-xl));
+  flex-shrink: 0;
 }
 
 .kig-hero__rader {
-  position: absolute;
-  left: 0;
-  bottom: 1.25rem;
+  flex: 1;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   gap: 6px;
-  width: 60%;
+}
+
+.kig-hero__trener {
+  width: clamp(7rem, 36%, 13rem);
+  /* Taket er det som holder heroen i sjakk: uten det bestemte maskotens
+     naturlige høyde hvor høy skjermen ble, og den vokste forbi folden på
+     mini og 14. */
+  max-height: clamp(6.5rem, 19dvh, 13rem);
+  height: auto;
+  object-fit: contain;
+  object-position: bottom right;
+  flex-shrink: 0;
+  animation: kigFloat 5s ease-in-out infinite;
 }
 
 .kig-hero__rad {
   display: flex;
   flex-direction: column;
   gap: 2px;
-  padding: 8px 10px;
+  padding: clamp(6px, 1dvh, 9px) 10px;
   background: var(--ds-color-bg-elevated);
   border: var(--ds-border-width) solid var(--ds-color-border);
   border-radius: var(--ds-radius-md);
@@ -761,20 +791,31 @@ function hoppOver() {
 }
 
 @media (min-width: 480px) {
-  .kig__inner--velkomst { padding-top: 8vh; }
-  .kig-hero { height: 15rem; }
-  .kig-hero__trener { width: 14rem; }
+  .kig-hero__trener { width: clamp(9rem, 38%, 15rem); }
+}
+
+/* Under ~600 px synlig høyde er maskoten det første som må vike — teksten
+   og knappen er jobben, illustrasjonen er innpakningen. */
+@media (max-height: 600px) {
+  /* Luften rundt er det billigste å gi fra seg. */
+  .kig { padding-top: var(--ds-space-md); padding-bottom: var(--ds-space-md); }
+  .kig__velkomst--dempet { display: none; }
+  .kig__signatur { display: none; }
 }
 
 .kig-tema {
   display: flex;
   gap: 2px;
   padding: 2px;
-  margin: 0 0 var(--ds-space-lg) auto;
+  /* Til VENSTRE: maskoten står til høyre og strekker seg oppover, og
+     pilla la seg rett ved hodet hans på lave skjermer. */
+  margin: 0 auto clamp(var(--ds-space-sm), 2dvh, var(--ds-space-lg)) 0;
+  flex-shrink: 0;
   width: fit-content;
-  background: var(--ds-color-bg-subtle);
-  border: var(--ds-border-width) solid var(--ds-color-border);
+  background: var(--ds-color-bg-elevated);
+  border: var(--ds-border-width) solid var(--ds-color-border-light, var(--ds-color-border));
   border-radius: var(--ds-radius-full);
+  box-shadow: var(--ds-shadow-sm);
 }
 
 .kig-tema__valg {
@@ -791,8 +832,7 @@ function hoppOver() {
 }
 
 .kig-tema__valg--aktiv {
-  color: var(--ds-color-text-primary);
-  background: var(--ds-color-bg-elevated);
-  box-shadow: var(--ds-shadow-sm);
+  color: var(--ds-color-bg);
+  background: var(--ds-color-text-primary);
 }
 </style>
