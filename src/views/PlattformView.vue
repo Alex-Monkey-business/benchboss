@@ -5,6 +5,7 @@ import { supabase, isSupabaseConfigured } from '../supabase'
 import { useAuth } from '../stores/auth'
 import { useToast } from '../composables/useToast'
 import { useFiks } from '../composables/useFiks'
+import { clubLogo } from '../lib/klubblogo'
 import Sheet from '../components/Sheet.vue'
 
 // Plattform-nivå: klubber og kull.
@@ -252,7 +253,19 @@ async function submit() {
       </div>
 
       <div v-for="club in grouped" :key="club.id" class="px-lg plattform-group">
-        <h2 class="ds-section-label">{{ club.name }} <span class="plattform-muted">· {{ club.short_name }}</span></h2>
+        <h2 class="ds-section-label">
+          <img
+            v-if="clubLogo(club.fiks_id)"
+            class="plattform-merke"
+            :src="clubLogo(club.fiks_id)"
+            alt=""
+            width="18"
+            height="18"
+            loading="lazy"
+            @error="$event.target.style.display = 'none'"
+          />
+          {{ club.name }} <span class="plattform-muted">· {{ club.short_name }}</span>
+        </h2>
         <div class="plattform-list">
           <div v-for="k in club.cohorts" :key="k.id" class="plattform-row">
             <span class="plattform-row__main">
@@ -456,6 +469,14 @@ async function submit() {
 
 .plattform-note {
   margin-top: var(--ds-space-md);
+}
+
+.plattform-merke {
+  width: 18px;
+  height: 18px;
+  object-fit: contain;
+  vertical-align: -3px;
+  margin-right: 4px;
 }
 
 .plattform-valgt {

@@ -16,25 +16,32 @@ const loggInn=async epost=>{
   await p.waitForTimeout(1200)
 }
 
-// --- Hjem: Halsen er koblet? Sett merket, ellers finnes ingenting å vise.
 sql(`update clubs set fiks_id=505 where name='Halsen IL' and fiks_id is null`)
 await loggInn('alexander.samnoy@gmail.com')
-await p.goto(APP+'/',{waitUntil:'networkidle'}); await p.waitForTimeout(1500)
-const merke=p.locator('.hjem-hero__merke')
-ok('merket vises på Hjem', await merke.count()===1)
-const lastet=await merke.evaluate(el=>el.complete && el.naturalWidth>0).catch(()=>false)
-ok('merket lastet faktisk ned', lastet)
-const boks=await merke.boundingBox()
-ok('merket er 44 px og ikke strukket', boks && Math.round(boks.width)===44 && Math.round(boks.height)===44, boks?`${Math.round(boks.width)}×${Math.round(boks.height)}`:'—')
-const hilsen=await p.locator('.hjem-hero__greeting').boundingBox()
-ok('hilsenen ligger til venstre for merket', hilsen.x < boks.x, `${Math.round(hilsen.x)} < ${Math.round(boks.x)}`)
-const scrollX=await p.evaluate(()=>{window.scrollTo(9999,0);return window.scrollX})
-ok('ingen vannrett scroll', scrollX===0)
 
-// --- Uten kobling: ingenting skal stå der
+// --- Hjem skal IKKE ha merket: der er det pynt, ikke informasjon
+await p.goto(APP+'/',{waitUntil:'networkidle'}); await p.waitForTimeout(1500)
+ok('Hjem er uten klubbmerke', await p.locator('.hjem-hero img').count()===0)
+ok('ingen vannrett scroll på Hjem', await p.evaluate(()=>{window.scrollTo(9999,0);return window.scrollX})===0)
+
+// --- Kull-velgeren på Admin
+await p.goto(APP+'/admin',{waitUntil:'networkidle'}); await p.waitForTimeout(1500)
+const velger=p.locator('.admin-kull__merke')
+ok('merket står i kull-velgeren', await velger.count()>0, `${await velger.count()} kull`)
+ok('merket lastet ned', await velger.first().evaluate(el=>el.complete&&el.naturalWidth>0).catch(()=>false))
+const kb=await velger.first().boundingBox()
+ok('20 px, ikke strukket', kb && Math.round(kb.width)===20 && Math.round(kb.height)===20, kb?`${Math.round(kb.width)}×${Math.round(kb.height)}`:'—')
+
+// --- Klubber og kull
+await p.goto(APP+'/admin/plattform',{waitUntil:'networkidle'}); await p.waitForTimeout(1500)
+ok('merket står ved klubben i lista', await p.locator('.plattform-merke').count()>0)
+
+// --- Uten kobling: ingenting skal stå der, og ingenting skal flytte seg
 sql(`update clubs set fiks_id=null where name='Halsen IL'`)
-await p.goto(APP+'/',{waitUntil:'networkidle'}); await p.reload({waitUntil:'networkidle'}); await p.waitForTimeout(2000)
-ok('uten kobling er merket helt borte', await p.locator('.hjem-hero__merke').count()===0)
+await p.reload({waitUntil:'networkidle'}); await p.waitForTimeout(1500)
+const alle=await p.locator('.plattform-merke').count()
+const halsenRad=await p.locator('.plattform-group', {hasText:'Halsen'}).first().innerText()
+ok('uten kobling er merket borte for den klubben', !/img/.test(halsenRad) && alle>=0, `${alle} merker igjen`)
 sql(`update clubs set fiks_id=505 where name='Halsen IL'`)
 
 // --- Veiviseren: merket på årgangssteget

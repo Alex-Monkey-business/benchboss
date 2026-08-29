@@ -7,6 +7,7 @@ import { useToast } from '../composables/useToast'
 import { supabase } from '../supabase'
 import { useCoaches } from '../composables/useCoaches'
 import { useTheme } from '../composables/useTheme'
+import { clubLogo } from '../lib/klubblogo'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import InstallAppCard from '../components/InstallAppCard.vue'
 
@@ -31,6 +32,10 @@ async function settDommere(pa) {
   showToast(pa ? 'Dommere er på' : 'Dommere er av', 'success')
 }
 const { coaches, fetchCoaches } = useCoaches()
+
+// Klubbmerket gjør kull-velgeren til noe man kjenner igjen på en halv
+// sekund. Mangler koblingen til fotball.no, står navnet alene.
+const klubbmerke = m => clubLogo(m.club_fiks_id)
 const { theme, setTheme } = useTheme()
 
 const THEME_OPTIONS = [
@@ -101,9 +106,19 @@ const links = computed(() => [
           type="button"
           role="radio"
           :aria-checked="m.cohort_id === activeCohort?.id"
-          :class="['theme-toggle__option', { 'theme-toggle__option--active': m.cohort_id === activeCohort?.id }]"
+          :class="['theme-toggle__option', 'admin-kull__valg', { 'theme-toggle__option--active': m.cohort_id === activeCohort?.id }]"
           @click="switchCohort(m.cohort_id)"
         >
+          <img
+            v-if="klubbmerke(m)"
+            class="admin-kull__merke"
+            :src="klubbmerke(m)"
+            alt=""
+            width="20"
+            height="20"
+            loading="lazy"
+            @error="$event.target.style.display = 'none'"
+          />
           {{ m.cohort_name }}
         </button>
       </div>
@@ -233,6 +248,22 @@ const links = computed(() => [
 </template>
 
 <style scoped>
+/* Merket og navnet er én linje. Uten dette la knappens sentrering merket
+   på egen rad over teksten. */
+.admin-kull__valg {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.admin-kull__merke {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  object-fit: contain;
+}
+
 .admin-list {
   display: flex;
   flex-direction: column;
