@@ -12,7 +12,9 @@ const route = useRoute()
 const { isLoggedIn, ready } = useAuth()
 const { toasts } = useToast()
 
-const AUTH_ROUTES = ['login', 'auth-callback']
+// 'kom-i-gang' er fullskjerm: en bunnmeny til fire tomme faner er ikke en
+// utvei, den er støy.
+const AUTH_ROUTES = ['login', 'auth-callback', 'kom-i-gang']
 
 // Både trenere og foreldre får navigasjonen (BottomNav viser rollebaserte faner).
 const showNav = computed(() => isLoggedIn.value && !AUTH_ROUTES.includes(route.name))

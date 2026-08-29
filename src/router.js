@@ -29,6 +29,11 @@ const routes = [
     component: () => import('./views/HjemView.vue')
   },
   {
+    path: '/kom-i-gang',
+    name: 'kom-i-gang',
+    component: () => import('./views/KomIGangView.vue')
+  },
+  {
     path: '/kamper',
     name: 'kamper',
     component: () => import('./views/DashboardView.vue')
@@ -208,6 +213,22 @@ export const router = createRouter({
   routes
 })
 
+// Et kull uten årgang er et kull ingen har satt opp ennå. Årgangen ligger i
+// medlemskapet som alt er lest, så sjekken koster ingen spørring — det er
+// derfor den kan stå i en guard som kjører ved hver navigasjon.
+function needsSetup(cohort) {
+  if (!cohort || cohort.birth_year != null) return false
+  try {
+    return localStorage.getItem(`bb_komigang_hoppet_${cohort.id}`) !== '1'
+  } catch {
+    return true
+  }
+}
+
+// Plattform-admin skal kunne opprette et kull og invitere den første treneren
+// uten å bli sendt inn i trenerens veiviser på veien.
+const SETUP_EXEMPT = ['/admin/plattform', '/admin/tilgang']
+
 function allows(meta, role) {
   const allowed = meta?.roles || ['coach']
   // `admin` er en trener med mer. Ingen rute trenger å nevne den for å slippe
@@ -221,7 +242,7 @@ router.beforeEach(async (to) => {
   // innlogget bruker til /login på hver kalde start.
   await authReady()
 
-  const { isLoggedIn, isParent, role } = useAuth()
+  const { isLoggedIn, isParent, role, activeCohort } = useAuth()
 
   if (to.meta?.public) {
     if (to.name === 'login' && isLoggedIn.value) {
@@ -236,5 +257,14 @@ router.beforeEach(async (to) => {
 
   if (!allows(to.meta, role.value)) {
     return isParent.value ? { name: 'cup' } : { name: 'hjem' }
+  }
+
+  if (
+    !isParent.value &&
+    to.name !== 'kom-i-gang' &&
+    !SETUP_EXEMPT.some(p => to.path.startsWith(p)) &&
+    needsSetup(activeCohort.value)
+  ) {
+    return { name: 'kom-i-gang' }
   }
 })

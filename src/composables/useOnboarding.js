@@ -21,7 +21,7 @@ registerReset(() => { memberCount.value = null; membersCohort.value = null })
 const ACCENTS = ['sage', 'warm', 'paper', 'sky', 'cornflower', 'olive', 'peach']
 
 export function useOnboarding() {
-  const { activeCohort, isCoach, isAdmin, isPlatformAdmin } = useAuth()
+  const { activeCohort, isCoach, isAdmin, isPlatformAdmin, coach } = useAuth()
   const { players, fetchPlayers } = usePlayers()
   const { seasonTeams, teamsFromDb, reloadTeams } = useSeasonTeams()
   const { matches } = useMatches()
@@ -44,10 +44,23 @@ export function useOnboarding() {
   }
 
   const teamsDone = computed(() => isSupabaseConfigured ? teamsFromDb.value : seasonTeams.value.length > 0)
-  const playersDone = computed(() => players.value.length > 0)
-  // Én rad er deg selv. Kortet står til noen andre er invitert. Kun admin
-  // ser andres rader (RLS), så for en vanlig trener regnes steget som gjort.
-  const coachesDone = computed(() => !canManageMembers.value || memberCount.value === null || memberCount.value > 1)
+
+  // «Har kullet spillere» var feil spørsmål. Ni spillere på Grønn markerte
+  // steget som gjort, kortet forsvant, og Gul og Hvit ble aldri spurt om.
+  // Steget er gjort når HVERT lag har noen på seg.
+  const lagMedSpillere = computed(() => new Set(players.value.map(p => p.primary_team).filter(Boolean)))
+  const lagUtenSpillere = computed(() => seasonTeams.value.filter(t => !lagMedSpillere.value.has(t.slug)))
+  const playersDone = computed(() =>
+    seasonTeams.value.length ? players.value.length > 0 && !lagUtenSpillere.value.length : players.value.length > 0
+  )
+  // Å invitere de andre trenerne er IKKE et oppsettsteg. Sten vil prøve appen
+  // før han drar med seg trenerteamet, og et kort som maser om det tar plass
+  // fra jobbene som faktisk må gjøres. Invitasjoner bor i Admin → Tilgang,
+  // der de hører hjemme som en løpende oppgave.
+  //
+  // Feltet blir stående fordi `steps` og nummereringen leser det — det er
+  // bare alltid sant nå.
+  const coachesDone = computed(() => true)
   const matchesDone = computed(() => matches.value.length > 0)
 
   const steps = computed(() => [
@@ -83,6 +96,19 @@ export function useOnboarding() {
       .select()
       .single()
     if (error) throw error
+
+    // Samme regel som i veiviseren: den som lager laget, trener det — til
+    // noe annet er sagt i Admin → Tilgang. Uten koblingen får kampene på
+    // laget ingen trener, og Hjem har ingenting å vise.
+    const coachId = coach.value?.id
+    const seasonId = activeSeason.value?.id
+    if (data?.id && coachId && seasonId) {
+      const { error: linkFeil } = await supabase.from('team_coaches').insert({
+        cohort_id: id, team_id: data.id, coach_id: coachId, season_id: seasonId
+      })
+      if (linkFeil && linkFeil.code !== '23505') console.warn('Kunne ikke koble trener til laget:', linkFeil.message)
+    }
+
     await reloadTeams(id)
     return data
   }
@@ -113,6 +139,7 @@ export function useOnboarding() {
   return {
     active, remaining, steps,
     teamsDone, playersDone, coachesDone, matchesDone, canManageMembers,
+    lagMedSpillere, lagUtenSpillere,
     memberCount, activeSeason,
     load, addTeam, renameTeam, removeTeam
   }

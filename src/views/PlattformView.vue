@@ -5,6 +5,7 @@ import { supabase, isSupabaseConfigured } from '../supabase'
 import { useAuth } from '../stores/auth'
 import { useToast } from '../composables/useToast'
 import { PLAYERS_ON_PITCH_OPTIONS } from '../lib/formations'
+import { formatFor, PERIODS } from '../lib/spillform'
 import Sheet from '../components/Sheet.vue'
 
 // Plattform-nivå: klubber og kull. Veiviseren bak et nytt kull.
@@ -62,18 +63,8 @@ onMounted(async () => {
 })
 
 // ---- Nytt kull ----
-// NFF-defaultene per alder. Forslag — alt kan endres.
-function formatFor(birthYear) {
-  const y = parseInt(birthYear, 10)
-  if (!y) return null
-  const age = new Date().getFullYear() - y
-  if (age <= 7) return 3
-  if (age <= 9) return 5
-  if (age <= 11) return 7
-  if (age <= 12) return 9
-  return 11
-}
-const PERIODS = { 3: [2, 15], 5: [2, 20], 7: [2, 30], 9: [2, 30], 11: [2, 35] }
+// NFF-defaultene ligger i lib/spillform.js — delt med veiviseren treneren
+// møter, så et kull får samme spillform uansett hvem som opprettet det.
 
 function defaultSeasonName() {
   const d = new Date()
@@ -228,6 +219,10 @@ async function submit() {
 
         <label class="plattform-label" for="nk-year">Årskull</label>
         <input id="nk-year" v-model="form.birth_year" type="number" inputmode="numeric" class="plattform-input" placeholder="2018" min="2005" :max="new Date().getFullYear()" />
+        <p class="plattform-hint">
+          La stå tom, så velger treneren årskullet selv første gang han logger inn — og får lagene
+          og terminlista fra fotball.no i samme slengen.
+        </p>
 
         <label class="plattform-label" for="nk-name">Kullets navn</label>
         <input id="nk-name" v-model="form.name" type="text" class="plattform-input" placeholder="Stag G2018" autocapitalize="words" @input="form.nameTouched = true" />
