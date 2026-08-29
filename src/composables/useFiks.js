@@ -100,12 +100,26 @@ export function useFiks() {
   // Årgangen bestemmer spillformen, og spillformen bestemmer kamplengden.
   // Treneren skal ikke svare på tre spørsmål der ett holder — NFF har alt
   // bestemt de to siste.
-  async function setBirthYear(year) {
+  // Årgangen bestemmer også NAVNET. Kullet het det Alex skrev da han lagde
+  // skallet — «Stag G2018» — mens treneren kan velge 2017. Da bar appen et
+  // navn som var feil for alltid, og velkomstskjermen lovet et kull vi ikke
+  // visste eksisterte ennå.
+  function cohortName(year, gender) {
+    const klubb = activeCohort.value?.club_short_name || activeCohort.value?.club_name?.split(' ')[0]
+    return klubb && year ? `${klubb} ${gender || 'G'}${year}` : null
+  }
+
+  async function setBirthYear(year, gender = 'G') {
     const id = activeCohort.value?.id
     if (!id || !isSupabaseConfigured) return
+    const navn = cohortName(year, gender)
     const { error } = await supabase
       .from('cohorts')
-      .update({ birth_year: Number(year), ...cohortFormat(year) })
+      .update({
+        birth_year: Number(year),
+        ...cohortFormat(year),
+        ...(navn ? { name: navn, slug: slugify(navn) } : {})
+      })
       .eq('id', id)
     if (error) throw error
   }

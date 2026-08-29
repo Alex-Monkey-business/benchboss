@@ -111,6 +111,7 @@ const activeCohort = computed(() => {
     club_id: m.club_id,
     club_name: m.club_name,
     club_key: m.club_key,
+    club_short_name: m.club_short_name,
     club_fiks_id: m.club_fiks_id,
     birth_year: m.birth_year,
     uses_referees: m.uses_referees,
@@ -156,6 +157,7 @@ function applyMemberships(profile, rows) {
     club_id: r.cohorts?.club_id || null,
     club_name: r.cohorts?.clubs?.name || null,
     club_key: (r.cohorts?.clubs?.short_name || '').toLowerCase() || null,
+    club_short_name: r.cohorts?.clubs?.short_name || null,
     // FIKS-koblingen og årskullet er det onboardingen spør om. De ligger her
     // fordi svaret «er dette kullet satt opp?» må være kjent før første
     // tegning — ellers blinker hjemskjermen innom før veiviseren tar over.
@@ -340,6 +342,7 @@ function demoLogin({ name, role: r, coachId = null, cohortId = 'demo-cohort' }) 
     club_id: 'demo-club',
     club_name: 'Halsen IL',
     club_key: 'halsen',
+    club_short_name: 'Halsen',
     club_fiks_id: 505,
     birth_year: 2015,
     uses_referees: true,

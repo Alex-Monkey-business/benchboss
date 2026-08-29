@@ -6,6 +6,7 @@ import { useFiks } from '../composables/useFiks'
 import { useSeasons } from '../composables/useSeasons'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
 import { useToast } from '../composables/useToast'
+import { useTheme } from '../composables/useTheme'
 import { clubLogo, teamAge, genderFromCohortName } from '../lib/fiks'
 
 // Første møte med et tomt kull. Fullskjerm, ett spørsmål av gangen, og
@@ -20,6 +21,11 @@ const { activeCohort, refreshMember, coach } = useAuth()
 const { activeSeason, createSeason, fetchSeasons } = useSeasons()
 const { seasonTeams } = useSeasonTeams()
 const { show: showToast } = useToast()
+
+// Temavelgeren bor ellers i Admin — og dit kommer man ikke før oppsettet er
+// gjort, fordi guarden sender deg hit. Første skjerm er derfor eneste stedet
+// en ny trener kan velge lys eller mørk.
+const { theme, setTheme } = useTheme()
 const {
   searching, searchClubs, fetchClubTeams, linkClub, setBirthYear,
   createTeams, linkSelfToTeams, importMatches, ageClass, teamsForAge, shortTeamName
@@ -147,7 +153,7 @@ function forhandsvalg() {
 async function bekreftArgang() {
   if (!argang.value) return
   try {
-    await setBirthYear(argang.value)
+    await setBirthYear(argang.value, kjonn.value)
     await refreshMember()
   } catch (e) {
     feil.value = e?.message || 'Kunne ikke lagre årgangen'
@@ -239,6 +245,19 @@ function hoppOver() {
     <div class="kig__inner" :class="{ 'kig__inner--velkomst': steg === 'velkommen' }">
       <!-- ---------------------------------------------- Velkommen -->
       <template v-if="steg === 'velkommen'">
+        <div class="kig-tema" role="radiogroup" aria-label="Lyst eller mørkt">
+          <button
+            v-for="t in [{ v: 'light', l: 'Lys' }, { v: 'dark', l: 'Mørk' }]"
+            :key="t.v"
+            type="button"
+            role="radio"
+            :aria-checked="theme === t.v"
+            class="kig-tema__valg"
+            :class="{ 'kig-tema__valg--aktiv': theme === t.v }"
+            @click="setTheme(t.v)"
+          >{{ t.l }}</button>
+        </div>
+
         <!-- Animasjonen ER løftet: tomme kamprader som fyller seg selv mens
              han ser på. Treneren peker på dem. Pynt hadde vært billigere,
              men dette viser det setningen påstår. -->
@@ -267,7 +286,7 @@ function hoppOver() {
           Vi henter hele terminlista fra fotball.no mens du ser på.
         </p>
         <p class="kig__velkomst kig__velkomst--dempet">
-          Tre spørsmål, så er {{ activeCohort?.name || 'kullet' }} oppe og går.
+          Tre spørsmål, så er laget ditt oppe og går.
         </p>
 
         <div class="kig__handling">
@@ -745,5 +764,35 @@ function hoppOver() {
   .kig__inner--velkomst { padding-top: 8vh; }
   .kig-hero { height: 15rem; }
   .kig-hero__trener { width: 14rem; }
+}
+
+.kig-tema {
+  display: flex;
+  gap: 2px;
+  padding: 2px;
+  margin: 0 0 var(--ds-space-lg) auto;
+  width: fit-content;
+  background: var(--ds-color-bg-subtle);
+  border: var(--ds-border-width) solid var(--ds-color-border);
+  border-radius: var(--ds-radius-full);
+}
+
+.kig-tema__valg {
+  min-height: 34px;
+  padding: 0 var(--ds-space-md);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-wide);
+  color: var(--ds-color-text-tertiary);
+  background: none;
+  border: 0;
+  border-radius: var(--ds-radius-full);
+  cursor: pointer;
+}
+
+.kig-tema__valg--aktiv {
+  color: var(--ds-color-text-primary);
+  background: var(--ds-color-bg-elevated);
+  box-shadow: var(--ds-shadow-sm);
 }
 </style>
