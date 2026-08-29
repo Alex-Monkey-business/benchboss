@@ -124,6 +124,50 @@ async function confirmUser(admin: any, userId: string): Promise<boolean> {
   return !!again?.user?.email_confirmed_at
 }
 
+/**
+ * Kontoen opprettes FERDIG BEKREFTET, og uten e-post.
+ *
+ * Rekkefølgen var lenge omvendt: inviteUserByEmail og så bekreft. Da var lenka
+ * i e-posten død i det den landet — e-postbekreftelsen nuller nettopp det
+ * `confirmation_token` lenka bærer. Uten bekreftelsen er kodeveien stengt,
+ * fordi prosjektet har disable_signup på. Altså: én av de to veiene inn var
+ * alltid ødelagt.
+ */
+async function ensureConfirmedUser(admin: any, email: string): Promise<{ id?: string; error?: string }> {
+  const { data, error } = await admin.auth.admin.createUser({ email, email_confirm: true })
+  if (!error) return { id: data?.user?.id }
+  if (!/already|registered|exist/i.test(error.message)) return { error: error.message }
+
+  // Finnes fra før. Profiles speiler auth.users, så e-posten kan slås opp der.
+  const { data: profile } = await admin
+    .from('profiles').select('id').ilike('email', email).maybeSingle()
+  if (profile?.id) await confirmUser(admin, profile.id)
+  return { id: profile?.id }
+}
+
+/**
+ * Den vanlige innloggings-e-posten — med både lenke og kode, slik /login
+ * sender den. Begge lever, og går de ut på dato kan personen be om en ny selv.
+ */
+async function sendLoginEmail(email: string): Promise<string | undefined> {
+  const anon = createClient(
+    Deno.env.get('SUPABASE_URL')!,
+    Deno.env.get('SUPABASE_ANON_KEY')!,
+    { auth: { persistSession: false } },
+  )
+  const { error } = await anon.auth.signInWithOtp({
+    email,
+    options: { shouldCreateUser: false, emailRedirectTo: `${SITE_URL}/auth/callback` },
+  })
+  if (!error) return undefined
+  // GoTrue sperrer flere e-poster til samme adresse rett etter hverandre.
+  // «you can only request this after 0 seconds» hjelper ingen.
+  if (/rate limit|only request this after/i.test(error.message)) {
+    return 'det gikk nettopp ut en e-post til denne adressen. Prøv igjen om et minutt.'
+  }
+  return error.message
+}
+
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: CORS })
   if (req.method !== 'POST') return fail('Bare POST', 405)
@@ -265,31 +309,25 @@ Deno.serve(async (req) => {
 
         await setCoachTeam(admin, cohortId, coachId, body.preferred_team || null)
 
-        // inviteUserByEmail gir «Kom i gang»-malen. createUser + signInWithOtp
-        // ville sendt INNLOGGINGS-malen til en person som aldri har sett appen.
-        const { data: invited, error: inviteError } = await admin.auth.admin.inviteUserByEmail(
-          email,
-          { redirectTo: `${SITE_URL}/auth/callback` },
-        )
-
-        if (inviteError) {
-          const already = /already/i.test(inviteError.message)
-          if (!already) {
-            // Slett bare raden hvis VI opprettet den. En seedet rad som fantes
-            // fra før skal ikke forsvinne fordi e-posten ikke gikk ut.
-            if (!seeded) await admin.from('cohort_members').delete().eq('id', row!.id)
-            return fail(`Invitasjonen ble ikke sendt: ${inviteError.message}`)
-          }
-          // Brukeren finnes fra før — koblingen skjer via e-posttriggeren.
-          return json({ ok: true, member_id: row!.id, note: 'Brukeren fantes fra før og ble koblet' })
+        // «Kom i gang»-malen kostet oss lenka. En e-post med riktig overskrift
+        // og en død lenke er verre enn en som virker.
+        const konto = await ensureConfirmedUser(admin, email)
+        if (konto.error) {
+          // Slett bare raden hvis VI opprettet den. En seedet rad som fantes
+          // fra før skal ikke forsvinne fordi e-posten ikke gikk ut.
+          if (!seeded) await admin.from('cohort_members').delete().eq('id', row!.id)
+          return fail(`Invitasjonen ble ikke sendt: ${konto.error}`)
         }
 
-        let warning: string | undefined
-        if (invited?.user?.id && !(await confirmUser(admin, invited.user.id))) {
-          warning = 'Invitasjonen er sendt, men kontoen ble ikke bekreftet. Utløper lenken, må den sendes på nytt.'
-        }
+        const sendFeil = await sendLoginEmail(email)
 
-        return json({ ok: true, member_id: row!.id, note: warning })
+        return json({
+          ok: true,
+          member_id: row!.id,
+          note: sendFeil
+            ? `Tilgangen er gitt, men e-posten gikk ikke ut: ${sendFeil}. Bruk «Send på nytt».`
+            : undefined,
+        })
       }
 
       // ---------------------------------------------------------------- resend
@@ -297,35 +335,17 @@ Deno.serve(async (req) => {
         if (member.status === 'revoked') return fail('Tilgangen er fjernet')
         if (!member.email) return fail('Medlemmet har ingen e-post')
 
-        const { error } = await admin.auth.admin.inviteUserByEmail(
-          member.email,
-          { redirectTo: `${SITE_URL}/auth/callback` },
-        )
+        // Samme vei som invite: kontoen finnes og er bekreftet, så går den
+        // vanlige innloggings-e-posten ut. Ligger det en gammel ubekreftet
+        // konto her fra før, bekreftes den nå — det er den som var låst ute.
+        const konto = await ensureConfirmedUser(admin, member.email)
+        if (konto.error) return fail(`Kunne ikke sende: ${konto.error}`)
 
-        if (error && !/already/i.test(error.message)) {
-          return fail(`Kunne ikke sende: ${error.message}`)
-        }
-
-        if (error) {
-          // Finnes fra før → send en vanlig innloggings-e-post i stedet.
-          const anon = createClient(
-            Deno.env.get('SUPABASE_URL')!,
-            Deno.env.get('SUPABASE_ANON_KEY')!,
-            { auth: { persistSession: false } },
-          )
-          const { error: otpError } = await anon.auth.signInWithOtp({
-            email: member.email,
-            options: { shouldCreateUser: false, emailRedirectTo: `${SITE_URL}/auth/callback` },
-          })
-          if (otpError) return fail(`Kunne ikke sende: ${otpError.message}`)
-        }
+        const sendFeil = await sendLoginEmail(member.email)
+        if (sendFeil) return fail(`Kunne ikke sende: ${sendFeil}`)
 
         await admin.from('cohort_members')
           .update({ invited_at: new Date().toISOString() }).eq('id', member.id)
-
-        // Også her: en invitasjon sendt på nytt til en ubekreftet konto må
-        // bekrefte den, ellers er lenken igjen eneste vei inn.
-        if (member.profile_id) await confirmUser(admin, member.profile_id)
 
         return json({ ok: true })
       }

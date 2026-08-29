@@ -125,6 +125,12 @@ lenken og koden kommer fra samme kall, og begge er gyldige:
 </p>
 ```
 
+**Denne malen er også invitasjonen.** «Invite»-malen brukes ikke lenger:
+`inviteUserByEmail` lager en lenke som dør i det kontoen bekreftes, og uten
+bekreftelse er kodeveien stengt (disable_signup). `member-admin` oppretter
+derfor kontoen ferdig bekreftet og sender denne e-posten i stedet — den som
+har både lenke og kode, og som personen kan be om på nytt selv fra /login.
+
 Koden står **først** med vilje. På iOS åpner magic links i Safari, ikke i den
 installerte appen — da får du en sesjon i Safari og en utlogget app på
 hjemskjermen. Koden er veien rundt, ikke en nødløsning.
