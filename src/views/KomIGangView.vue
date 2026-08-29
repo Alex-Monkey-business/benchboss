@@ -799,6 +799,11 @@ function hoppOver() {
    inn. Den spretter én gang — det er en bekreftelse, ikke en loop. */
 .kig__kvittering {
   display: block;
+  /* align-self er poenget: .kig__inner er flex column, og default
+     `align-items: stretch` strakk bildet ut i full bredde og overkjørte
+     `width: auto`. Ballen ble en ellipse. */
+  align-self: flex-start;
+  object-fit: contain;
   width: auto;
   height: clamp(7rem, 26dvh, 13rem);
   margin: 0 0 clamp(var(--ds-space-md), 3dvh, var(--ds-space-xl));
