@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useSeasons } from '../composables/useSeasons'
 import { useMatches } from '../composables/useMatches'
 import { useExpenses } from '../composables/useExpenses'
@@ -7,7 +7,8 @@ import { useToast } from '../composables/useToast'
 import { parseMatchFile, detectSeasonName } from '../lib/excelParser'
 import { isOurMatch } from '../lib/matchMeta'
 import { useAuth } from '../stores/auth'
-import { trimAbbrevDots } from '../lib/dateLabels'
+import { trimAbbrevDots, weekdayDateLabel } from '../lib/dateLabels'
+import { useFiks } from '../composables/useFiks'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
 
@@ -26,6 +27,100 @@ const skippedForeign = ref(0)
 const showPreview = ref(false)
 const importing = ref(false)
 const detectedSeason = ref(null)
+
+// ---- Terminliste fra fotball.no ----
+//
+// Kampene som ble lastet opp fra Excel kjenner ikke sin egen FIKS-id. Første
+// synk parer dem mot terminlista; etterpå er det bare en differanse.
+const { searchClubs, searching: fiksSearching, linkClub, refreshMember, synkTerminliste, applyChanges, leggTilNye } = useFiks()
+
+const klubbSok = ref('')
+const klubbTreff = ref([])
+const klubbFeil = ref('')
+let klubbTimer = null
+const synker = ref(false)
+const synk = ref(null)
+const oppdaterer = ref(false)
+
+watch(klubbSok, q => {
+  clearTimeout(klubbTimer)
+  klubbFeil.value = ''
+  if (q.trim().length < 2) { klubbTreff.value = []; return }
+  klubbTimer = setTimeout(async () => {
+    try {
+      klubbTreff.value = await searchClubs(q)
+    } catch (e) {
+      klubbFeil.value = e?.name === 'AbortError'
+        ? 'Søket tok for lang tid. Prøv hele klubbnavnet.'
+        : 'Fikk ikke kontakt med fotball.no.'
+    }
+  }, 350)
+})
+
+onUnmounted(() => clearTimeout(klubbTimer))
+
+async function velgKlubb(c) {
+  try {
+    await linkClub(c.fiksId)
+    await refreshMember()
+    klubbTreff.value = []
+    klubbSok.value = ''
+    showToast(`${c.name} er koblet til fotball.no`, 'success')
+  } catch (e) {
+    showToast(/duplicate|unique/i.test(e?.message || '')
+      ? 'Klubben er alt koblet til et annet lag i BenchBoss'
+      : 'Kunne ikke koble klubben', 'error')
+  }
+}
+
+async function sjekkTerminliste() {
+  synker.value = true
+  try {
+    synk.value = await synkTerminliste()
+    if (synk.value?.ingenLag) {
+      showToast('Fant ingen av lagene våre i klubbens lagliste', 'error')
+      synk.value = null
+    }
+  } catch (e) {
+    showToast('Fikk ikke kontakt med fotball.no', 'error')
+  } finally {
+    synker.value = false
+  }
+}
+
+const antallEndringer = computed(() =>
+  (synk.value?.endret?.length || 0) + (synk.value?.nye?.length || 0)
+)
+
+async function oppdaterFraFiks() {
+  oppdaterer.value = true
+  try {
+    const flyttet = await applyChanges(synk.value?.endret || [])
+    const lagt = await leggTilNye(synk.value?.nye || [], viewingSeason.value?.id)
+    await fetchMatches()
+    synk.value = null
+    const deler = []
+    if (flyttet) deler.push(`${flyttet} ${flyttet === 1 ? 'kamp' : 'kamper'} flyttet`)
+    if (lagt) deler.push(`${lagt} lagt inn`)
+    showToast(deler.join(' · ') || 'Ingenting å endre', 'success')
+  } catch (e) {
+    showToast('Kunne ikke oppdatere kampene', 'error')
+  } finally {
+    oppdaterer.value = false
+  }
+}
+
+// «2026-05-05 19:00 → 18:00» leses ikke. «tir 5. mai · 19:00 → 18:00» gjør det.
+function endringstekst(e) {
+  const fra = e.fra || {}
+  const dato = fra.match_date !== e.date
+    ? `${trimAbbrevDots(weekdayDateLabel(fra.match_date))} → ${trimAbbrevDots(weekdayDateLabel(e.date))}`
+    : trimAbbrevDots(weekdayDateLabel(e.date))
+  const tid = (fra.match_time || '').slice(0, 5) !== (e.time || '')
+    ? `${(fra.match_time || '').slice(0, 5) || 'uten tid'} → ${e.time || 'uten tid'}`
+    : e.time
+  return `${dato} · ${tid}`
+}
 
 const newSeasonName = ref('')
 const showNewSeason = ref(false)
@@ -389,6 +484,97 @@ function formatMatchDate(dateStr) {
       </div>
     </div>
 
+    <!-- ═══ TERMINLISTE FRA FOTBALL.NO ═══ -->
+    <div class="px-lg mb-lg">
+      <div class="section-label">Terminliste fra fotball.no</div>
+      <div class="ds-card">
+        <!-- Klubben er ikke koblet: da finnes ingen terminliste å se på. -->
+        <template v-if="!activeCohort?.club_fiks_id">
+          <p class="fiks-lead">
+            Koble klubben til fotball.no, så kan kampene holde seg selv oppdatert når kretsen
+            flytter dem.
+          </p>
+          <input
+            v-model="klubbSok"
+            type="search"
+            autocomplete="off"
+            class="fiks-input"
+            placeholder="Søk etter klubben"
+            aria-label="Søk etter klubben"
+          />
+          <p v-if="fiksSearching" class="fiks-lead">Søker … korte søkeord kan ta noen sekunder.</p>
+          <p v-else-if="klubbFeil" class="fiks-lead">{{ klubbFeil }}</p>
+          <p v-else-if="klubbSok.trim().length >= 2 && !klubbTreff.length" class="fiks-lead">Ingen klubber med det navnet.</p>
+          <ul v-if="klubbTreff.length" class="fiks-treff">
+            <li v-for="c in klubbTreff" :key="c.fiksId">
+              <button type="button" class="fiks-treff__rad" @click="velgKlubb(c)">
+                <span class="fiks-treff__navn">{{ c.name }}</span>
+                <span class="fiks-treff__meta">{{ c.district }} · {{ c.teams.length }} lag</span>
+              </button>
+            </li>
+          </ul>
+        </template>
+
+        <!-- Koblet, men ingen sjekk kjørt ennå -->
+        <template v-else-if="!synk">
+          <p class="fiks-lead">
+            Sammenligner kampene med terminlista og viser hva som er endret. Ingenting flyttes
+            før du sier fra.
+          </p>
+          <button class="ds-btn ds-btn--primary fiks-knapp" :disabled="synker" @click="sjekkTerminliste">
+            {{ synker ? 'Henter fra fotball.no…' : 'Sjekk terminlista' }}
+          </button>
+        </template>
+
+        <!-- Resultatet -->
+        <template v-else>
+          <p v-if="synk.parret" class="fiks-lead">
+            {{ synk.parret }} {{ synk.parret === 1 ? 'kamp' : 'kamper' }} er koblet til fotball.no.
+            Neste sjekk går rett på endringene.
+          </p>
+
+          <template v-if="synk.endret?.length">
+            <div class="fiks-gruppe">{{ synk.endret.length }} flyttet</div>
+            <div v-for="e in synk.endret" :key="e.fiksMatchId" class="fiks-rad">
+              <span class="fiks-rad__lag">{{ e.homeTeam }} – {{ e.awayTeam }}</span>
+              <span class="fiks-rad__nar">{{ endringstekst(e) }}</span>
+            </div>
+          </template>
+
+          <template v-if="synk.nye?.length">
+            <div class="fiks-gruppe">{{ synk.nye.length }} nye</div>
+            <div v-for="k in synk.nye" :key="k.fiksMatchId" class="fiks-rad">
+              <span class="fiks-rad__lag">{{ k.homeTeam }} – {{ k.awayTeam }}</span>
+              <span class="fiks-rad__nar">{{ trimAbbrevDots(weekdayDateLabel(k.date)) }} · {{ k.time || 'uten tid' }}</span>
+            </div>
+          </template>
+
+          <!-- Kamper vi har som fotball.no ikke har. De SLETTES ikke: en
+               cupkamp eller treningskamp står ikke i terminlista. -->
+          <template v-if="synk.borte?.length">
+            <div class="fiks-gruppe">{{ synk.borte.length }} finnes ikke i terminlista</div>
+            <div v-for="m in synk.borte" :key="m.id" class="fiks-rad">
+              <span class="fiks-rad__lag">{{ m.home_team }} – {{ m.away_team }}</span>
+              <span class="fiks-rad__nar">{{ trimAbbrevDots(weekdayDateLabel(m.match_date)) }} · blir stående</span>
+            </div>
+          </template>
+
+          <p v-if="!antallEndringer && !synk.borte?.length" class="fiks-lead">
+            Terminlista stemmer med det som ligger inne.
+          </p>
+
+          <div class="fiks-handling">
+            <button v-if="antallEndringer" class="ds-btn ds-btn--primary" :disabled="oppdaterer" @click="oppdaterFraFiks">
+              {{ oppdaterer ? 'Oppdaterer…' : `Oppdater ${antallEndringer} ${antallEndringer === 1 ? 'kamp' : 'kamper'}` }}
+            </button>
+            <button class="ds-btn ds-btn--secondary" @click="synk = null">
+              {{ antallEndringer ? 'Ikke nå' : 'Lukk' }}
+            </button>
+          </div>
+        </template>
+      </div>
+    </div>
+
     <!-- ═══ ADD MATCH ═══ -->
     <div class="px-lg mb-lg">
       <button class="action-row" @click="showAddMatch = true">
@@ -543,6 +729,84 @@ function formatMatchDate(dateStr) {
 </template>
 
 <style scoped>
+.fiks-lead {
+  margin: 0 0 var(--ds-space-md);
+  font-size: var(--ds-text-sm);
+  line-height: 1.5;
+  color: var(--ds-color-text-secondary);
+}
+
+.fiks-input {
+  width: 100%;
+  padding: var(--ds-space-md);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-base);
+  color: var(--ds-color-text-primary);
+  background: var(--ds-color-bg);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  margin-bottom: var(--ds-space-sm);
+}
+
+.fiks-treff {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-xs);
+}
+
+.fiks-treff__rad {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--ds-space-md);
+  text-align: left;
+  background: var(--ds-color-bg);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  cursor: pointer;
+}
+
+.fiks-treff__navn { font-size: var(--ds-text-base); color: var(--ds-color-text-primary); }
+.fiks-treff__meta { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+
+.fiks-knapp { width: 100%; }
+
+.fiks-gruppe {
+  margin: var(--ds-space-md) 0 var(--ds-space-xs);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-primary);
+}
+
+.fiks-rad {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--ds-space-sm) 0;
+  border-top: 1px solid var(--ds-color-border);
+}
+
+.fiks-rad__lag {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-primary);
+}
+
+.fiks-rad__nar {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+}
+
+.fiks-handling {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-lg);
+}
+
 .section-label {
   font-size: var(--ds-text-xs);
   font-weight: 600;

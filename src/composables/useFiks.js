@@ -5,8 +5,10 @@ import { useSeasonTeams } from './useSeasonTeams'
 import { useMatches } from './useMatches'
 import {
   FIKS_BASE, CLUB_SEARCH_URL, clubSearchBody, parseClubSearch, usableClub,
-  parseClubTeams, parseTerminliste, diffTerminliste, ageClass, teamsForAge, shortTeamName
+  parseClubTeams, parseTerminliste, diffTerminliste, parKamper, ageClass,
+  teamsForAge, teamAge, genderFromCohortName, shortTeamName
 } from '../lib/fiks'
+import { isOurs, teamSlugFromName } from '../lib/matchMeta'
 import { slugify } from '../lib/playerList'
 import { cohortFormat } from '../lib/spillform'
 
@@ -256,6 +258,77 @@ export function useFiks() {
       .in('id', teams.map(t => t.id))
   }
 
+  // ---------------------------------------------------------- Kobling
+
+  // Lagene i kullet mot lagene i FIKS. Kortnavnet vårt («Grønn») er nettopp
+  // det som blir igjen av FIKS-navnet («Halsen G11 Grønn») når klubb og
+  // aldersklasse er strøket, så treffet er eksakt — ikke en gjetning.
+  async function koblLagTilFiks() {
+    const cohort = activeCohort.value
+    const klubb = cohort?.club_fiks_id
+    const ukoblede = seasonTeams.value.filter(t => !t.fiks_team_id)
+    if (!klubb || !ukoblede.length || !isSupabaseConfigured) return 0
+
+    const alder = ageClass(cohort.birth_year)
+    const kjonn = genderFromCohortName(cohort.name)
+    const alle = await fetchClubTeams(klubb)
+    const iKlassen = teamsForAge(alle, alder)
+      .filter(t => !kjonn || teamAge(t.name)?.gender === kjonn)
+
+    const kort = t => shortTeamName(t.name, cohort.club_short_name || '')
+    let n = 0
+    for (const vårt of ukoblede) {
+      const treff = iKlassen.filter(t => slugify(kort(t)) === vårt.slug)
+      if (treff.length !== 1) continue
+      const { error } = await supabase
+        .from('teams')
+        .update({ fiks_team_id: Number(treff[0].fiksId), fiks_name: treff[0].name })
+        .eq('id', vårt.id)
+      if (!error) n++
+    }
+    // Med kull-id: reloadTeams() uten den henter ingenting, og lagene ville
+    // stått uten fiks_team_id i minnet rett etter at de fikk den i basen.
+    if (n) { invalidateTeamCoaches(); await reloadTeams(cohort.id) }
+    return n
+  }
+
+  // Hvilket av VÅRE lag hører kampen til? Vår side først: «Store Bergan
+  // grønn – Halsen Rød» ville ellers blitt Grønn sin kamp, fordi
+  // motstanderen har samme fargenavn som et av lagene våre.
+  function lagAvKamp(x) {
+    if (x.lag) return x.lag
+    const vår = [x.home_team, x.away_team].find(navn => isOurs(navn))
+    return vår ? teamSlugFromName(vår) : ''
+  }
+
+  // Kampene fra Excel kjenner ikke sin egen FIKS-id. Uten den kan de aldri
+  // oppdatere seg selv — så første synk må la dem finne seg selv igjen.
+  async function parKamperMotFiks(alleKamper) {
+    const teams = seasonTeams.value.filter(t => t.fiks_team_id)
+    if (!teams.length) return { hentet: [], par: [] }
+
+    const lister = await Promise.all(teams.map(async t => {
+      const liste = await fetchTerminliste(t.fiks_team_id)
+      return liste.map(k => ({ ...k, lag: t.slug }))
+    }))
+    const hentet = [...new Map(lister.flat().map(k => [k.fiksMatchId, k])).values()]
+
+    const { par } = parKamper(alleKamper, hentet, lagAvKamp)
+    for (const p of par) {
+      await supabase
+        .from('matches')
+        .update({
+          fiks_match_id: Number(p.fiks.fiksMatchId),
+          venue: p.fiks.venue,
+          division: p.fiks.division,
+          round: p.fiks.round
+        })
+        .eq('id', p.id)
+    }
+    await markSynced(teams)
+    return { hentet, par }
+  }
+
   // ---------------------------------------------------------- Synk
 
   // Hva har fotball.no endret siden sist. Returnerer differansen — den
@@ -276,6 +349,84 @@ export function useFiks() {
     return diffTerminliste(matches.value, hentet)
   }
 
+  /**
+   * Én knapp, hele jobben.
+   *
+   * 1. Lagene kobles til FIKS om de ikke er det.
+   * 2. Kamper uten FIKS-id får den — ellers er de usynlige for synken.
+   * 3. Differansen leses og RETURNERES. Ingenting flyttes før noen har sett
+   *    hva som flyttes.
+   */
+  async function synkTerminliste() {
+    const cohort = activeCohort.value
+    if (!cohort?.club_fiks_id || !isSupabaseConfigured) return null
+
+    working.value = true
+    try {
+      const koblet = await koblLagTilFiks()
+      const teams = seasonTeams.value.filter(t => t.fiks_team_id)
+      if (!teams.length) return { ingenLag: true, koblet }
+
+      // Kampene leses fra basen, ikke fra minnet: synken kan kjøre på en
+      // flate som viser én sesong mens kullet har flere.
+      const { data: alle } = await supabase
+        .from('matches')
+        .select('id, match_date, match_time, home_team, away_team, division, round, venue, fiks_match_id, season_id')
+        .eq('cohort_id', cohort.id)
+
+      const { hentet, par } = await parKamperMotFiks(alle || [])
+
+      // Radene vi nettopp ga en FIKS-id må se ut som om de har den, ellers
+      // melder differansen dem som nye.
+      const oppdatert = (alle || []).map(m => {
+        const p = par.find(x => x.id === m.id)
+        return p ? { ...m, fiks_match_id: Number(p.fiks.fiksMatchId), venue: p.fiks.venue } : m
+      })
+
+      return { ...diffTerminliste(oppdatert, hentet), parret: par.length, koblet }
+    } finally {
+      working.value = false
+    }
+  }
+
+  // Kamper fotball.no har som vi ikke har.
+  //
+  // Sesongen tas fra kampen som ligger NÆRMEST I TID, ikke fra den man ser
+  // på: Halsen har vinter, vår og høst i samme kull, og en ny februarkamp
+  // som havner i høstsesongen er verre enn ingen kamp.
+  async function leggTilNye(nye, fallbackSeason = null) {
+    const cohort = activeCohort.value
+    if (!nye?.length || !cohort?.id || !isSupabaseConfigured) return 0
+
+    const { data: kjente } = await supabase
+      .from('matches')
+      .select('match_date, season_id')
+      .eq('cohort_id', cohort.id)
+      .not('season_id', 'is', null)
+
+    const sesongFor = dato => {
+      let best = fallbackSeason
+      let minst = Infinity
+      for (const m of kjente || []) {
+        const avstand = Math.abs(new Date(m.match_date) - new Date(dato))
+        if (avstand < minst) { minst = avstand; best = m.season_id }
+      }
+      return best
+    }
+
+    const rader = nye
+      .map(k => ({ k, season: sesongFor(k.date) }))
+      .filter(x => x.season)
+      .map(x => toMatchRow(x.k, x.season, cohort.id))
+    if (!rader.length) return 0
+
+    await bulkAddMatches(rader)
+    for (const season of new Set(rader.map(r => r.season_id))) {
+      await backfillDefaultCoaches(season)
+    }
+    return rader.length
+  }
+
   async function applyChanges(endret) {
     if (!endret?.length || !isSupabaseConfigured) return 0
     let n = 0
@@ -293,7 +444,8 @@ export function useFiks() {
     searching, working,
     searchClubs, fetchClubTeams, linkClub, setBirthYear, refreshMember,
     createTeams, linkSelfToTeams, fetchTerminliste, importMatches,
-    checkForChanges, applyChanges,
+    koblLagTilFiks, parKamperMotFiks, synkTerminliste,
+    checkForChanges, applyChanges, leggTilNye,
     ageClass, teamsForAge, shortTeamName
   }
 }

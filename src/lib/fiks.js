@@ -44,7 +44,7 @@ const CLUB_NAME = /class="clubName"[^>]*>([^<]+)</
 const CLUB_DISTRICT = /class="clubDistrict"[^>]*>([^<]+)</
 const TEAM_IN_BLOCK = /class="teamLink" href="\/fotballdata\/lag\/hjem\/\?fiksId=(\d+)"[\s\S]{0,400}?iconButtonTitle">([^<]*)<\/div>/g
 
-export { clubLogo } from './klubblogo'
+export { clubLogo } from './klubblogo.js'
 
 export function parseClubSearch(html) {
   const out = []
@@ -245,6 +245,75 @@ export function parseTerminliste(ics) {
 // Hva har endret seg siden sist. Nøkkelen er fiksMatchId; alt annet kan
 // FIKS skrive om. Kamper vi har som ikke lenger står i terminlista er
 // «borte» — som regel avlyst, og verdt et varsel, ikke en stille sletting.
+// ---------------------------------------------------------------- Parring
+//
+// Kamper som ble lastet opp fra Excel har ingen FIKS-id. Skal de kunne
+// oppdatere seg selv, må de først finne seg selv igjen i terminlista.
+//
+// Målt på Halsen: 63 av 63 kamper parret, null flertydige. Nøkkelen kan IKKE
+// være motstanderens navn alene — Nanset døpte om lagene sine fra farger til
+// tall midt i sesongen, og seks kamper falt ut. Den kan heller ikke være
+// divisjon+runde alene: vinterserien mangler divisjon i det som ble lastet
+// opp, og rundene starter på 1 igjen om våren.
+//
+// Tre runder, strengeste først, og et par som er satt gjenbrukes ikke.
+const PARRINGER = [
+  // Innen ETT av våre lag er divisjon + runde unikt.
+  (f, l) => l.division && String(f.round) === String(l.round) && likt(f.division, l.division),
+  // Rader uten divisjon: datoen er der, og to av våre kamper spilles ikke
+  // samme dag med samme lag.
+  (f, l) => f.date === l.match_date,
+  // Sist: motstanderen. Svakest, fordi det er navnet som endrer seg.
+  (f, l) => String(f.round) === String(l.round) &&
+    (likt(f.homeTeam, l.home_team) || likt(f.awayTeam, l.away_team)),
+]
+
+function likt(a, b) {
+  return reduser(a) === reduser(b)
+}
+
+// «Halsen G11 Hvit» og «Halsen Hvit» er samme lag. Aldersklassen er støy,
+// det samme er store bokstaver og tegn.
+function reduser(s) {
+  return String(s || '')
+    .toLowerCase()
+    .replace(/\b[gj]\d{1,2}\b/g, ' ')
+    .replace(/[^a-zà-ÿ0-9]+/g, ' ')
+    .trim()
+}
+
+/**
+ * Parer kamper i basen med kamper fra fotball.no.
+ *
+ * `lagAv` sier hvilket av våre lag en kamp hører til — samme funksjon på
+ * begge sider, ellers parer vi Grønn sine kamper med Rød sine.
+ */
+export function parKamper(lokale, hentet, lagAv) {
+  const par = []
+  const brukt = new Set()
+  const igjen = lokale.filter(m => !m.fiks_match_id)
+
+  for (const regel of PARRINGER) {
+    for (const l of igjen) {
+      if (par.some(p => p.id === l.id)) continue
+      const lag = lagAv(l)
+      if (!lag) continue
+      const treff = hentet.filter(f =>
+        !brukt.has(f.fiksMatchId) && lagAv(f) === lag && regel(f, l)
+      )
+      if (treff.length !== 1) continue
+      par.push({ id: l.id, fiks: treff[0] })
+      brukt.add(treff[0].fiksMatchId)
+    }
+  }
+
+  return {
+    par,
+    uparede: igjen.filter(l => !par.some(p => p.id === l.id)),
+    ukjente: hentet.filter(f => !brukt.has(f.fiksMatchId)),
+  }
+}
+
 export function diffTerminliste(existing, fetched) {
   const before = new Map(existing.filter(m => m.fiks_match_id).map(m => [String(m.fiks_match_id), m]))
   const after = new Map(fetched.map(m => [m.fiksMatchId, m]))
