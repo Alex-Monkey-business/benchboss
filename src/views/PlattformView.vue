@@ -1,9 +1,10 @@
 <script setup>
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { useAuth } from '../stores/auth'
 import { useToast } from '../composables/useToast'
+import { useFiks } from '../composables/useFiks'
 import Sheet from '../components/Sheet.vue'
 
 // Plattform-nivå: klubber og kull.
@@ -17,10 +18,17 @@ import Sheet from '../components/Sheet.vue'
 // bb_create_cohort skriver alt i én transaksjon: klubb (om ny) → kull →
 // sesong → den som oppretter blir admin. Etterpå står kullet i kull-velgeren
 // på /admin, og /admin/tilgang er stedet man inviterer treneren.
+//
+// KLUBBEN VELGES FRA FOTBALL.NO ALT HER. Skrev admin den fritt, tok treneren
+// den samme avgjørelsen en gang til i veiviseren — og navnene trengte ikke å
+// være de samme («Stag IF» mot «Sportsklubben Stag»). Nå kobles klubben i det
+// skallet lages, og veiviseren starter på årskullet.
 
 const router = useRouter()
 const { isPlatformAdmin, memberships, refreshMember, setActiveCohort } = useAuth()
 const { show: showToast } = useToast()
+
+const { searchClubs, searching } = useFiks()
 
 const clubs = ref([])
 const cohorts = ref([])
@@ -42,7 +50,7 @@ async function load() {
     return
   }
   const [clubRes, cohortRes] = await Promise.all([
-    supabase.from('clubs').select('id, name, short_name, slug').order('name'),
+    supabase.from('clubs').select('id, name, short_name, slug, fiks_id').order('name'),
     supabase
       .from('cohorts')
       .select('id, club_id, name, slug, birth_year, players_on_pitch, period_count, period_minutes')
@@ -82,9 +90,74 @@ function openNew() {
     club_id: '',
     club_name: '',
     club_short_name: '',
+    fiks_id: null,
     season_name: defaultSeasonName()
   }
+  sok.value = ''
+  treff.value = []
+  sokFeil.value = ''
+  friTekst.value = false
   open.value = true
+}
+
+// ---- Klubbsøk på fotball.no ----
+const sok = ref('')
+const treff = ref([])
+const sokFeil = ref('')
+const friTekst = ref(false)
+let sokTimer = null
+
+// Klubbene FIKS skriver ut heter «Sportsklubben Stag» og «Ørn Horten, FK».
+// Kortnavnet er det som blir igjen når klubbordene er borte — og det er det
+// laget heter i kampoppsettet. Feltet står åpent for å rettes.
+const KLUBBORD = /\b(sportsklubben|sportsklubb|idrettslaget|idrettslag|idrettsforening|fotballklubben|fotballklubb|ballklubben|ballklubb|fotball|il|if|fk|sk|bk|ik|tif|fil)\b/gi
+function foreslattKortnavn(navn) {
+  const rensket = String(navn).replace(/[,.]/g, ' ').replace(KLUBBORD, ' ').replace(/\s+/g, ' ').trim()
+  return (rensket || String(navn)).split(' ')[0]
+}
+
+watch(sok, q => {
+  clearTimeout(sokTimer)
+  sokFeil.value = ''
+  if (q.trim().length < 2) { treff.value = []; return }
+  sokTimer = setTimeout(async () => {
+    try {
+      treff.value = await searchClubs(q)
+    } catch (e) {
+      sokFeil.value = e?.name === 'AbortError'
+        ? 'Søket tok for lang tid. Prøv hele klubbnavnet.'
+        : 'Fikk ikke kontakt med fotball.no.'
+    }
+  }, 350)
+})
+
+onUnmounted(() => clearTimeout(sokTimer))
+
+// Er klubben alt i BenchBoss, skal den velges — ikke opprettes en gang til.
+// clubs.fiks_id er globalt unik, så rad nummer to ville uansett aldri fått
+// koblingen, og treneren hadde stått uten lag.
+const finnesFra = fiksId => clubs.value.find(c => String(c.fiks_id) === String(fiksId))
+
+function velgKlubb(c) {
+  const gammel = finnesFra(c.fiksId)
+  if (gammel) {
+    form.value.club_id = gammel.id
+    form.value.fiks_id = null
+    showToast(`${gammel.name} ligger allerede i BenchBoss`, 'info')
+    return
+  }
+  form.value.club_name = c.name
+  form.value.club_short_name = foreslattKortnavn(c.name)
+  form.value.fiks_id = c.fiksId
+  treff.value = []
+  sok.value = ''
+}
+
+function nullstillKlubb() {
+  form.value.club_name = ''
+  form.value.club_short_name = ''
+  form.value.fiks_id = null
+  friTekst.value = false
 }
 
 // Kortnavnet på klubben man har valgt — brukes i det midlertidige kullnavnet.
@@ -108,6 +181,21 @@ const canSubmit = computed(() => {
   if (!f) return false
   return Boolean(f.club_id || f.club_name.trim())
 })
+
+// Koblingen legges på klubben etter at kullet finnes — clubs har ingen
+// klient-skrivepolicy, så den går gjennom RPC-en. Feiler den, er kullet
+// fortsatt riktig opprettet: treneren får bare klubbsøket sitt tilbake.
+async function koblKlubb(cohortId, fiksId) {
+  if (!fiksId) return
+  const { data: kull } = await supabase
+    .from('cohorts').select('club_id').eq('id', cohortId).maybeSingle()
+  if (!kull?.club_id) return
+  const { error } = await supabase.rpc('bb_set_club_fiks_id', {
+    p_club_id: kull.club_id,
+    p_fiks_id: Number(fiksId)
+  })
+  if (error) showToast('Kullet er opprettet, men klubben ble ikke koblet til fotball.no', 'error')
+}
 
 async function submit() {
   const f = form.value
@@ -133,6 +221,8 @@ async function submit() {
     showToast(error.message || 'Kunne ikke opprette kullet', 'error')
     return
   }
+
+  await koblKlubb(data, f.fiks_id)
 
   open.value = false
   // Medlemskapet finnes nå — hent det, gå inn i kullet, og rett til Tilgang
@@ -195,19 +285,64 @@ async function submit() {
         </select>
 
         <template v-if="!form.club_id">
-          <label class="plattform-label" for="nk-club-name">Klubbnavn</label>
-          <input id="nk-club-name" v-model="form.club_name" type="text" class="plattform-input" placeholder="Stag IF" autocapitalize="words" />
+          <!-- Valgt klubb -->
+          <template v-if="form.club_name">
+            <div class="plattform-valgt">
+              <span class="plattform-valgt__navn">{{ form.club_name }}</span>
+              <button type="button" class="plattform-tekstknapp" @click="nullstillKlubb">Bytt</button>
+            </div>
 
-          <label class="plattform-label" for="nk-club-short">Kortnavn <span class="plattform-muted">slik det står i kampoppsettet</span></label>
-          <input id="nk-club-short" v-model="form.club_short_name" type="text" class="plattform-input" :placeholder="form.club_name.split(' ')[0] || 'Stag'" autocapitalize="words" />
+            <label class="plattform-label" for="nk-club-short">Kortnavn <span class="plattform-muted">slik det står i kampoppsettet</span></label>
+            <input id="nk-club-short" v-model="form.club_short_name" type="text" class="plattform-input" autocapitalize="words" />
+          </template>
+
+          <!-- Søk på fotball.no -->
+          <template v-else-if="!friTekst">
+            <label class="plattform-label" for="nk-club-sok">Søk etter klubben på fotball.no</label>
+            <input id="nk-club-sok" v-model="sok" type="search" autocomplete="off" class="plattform-input" placeholder="Stag" />
+
+            <p v-if="searching" class="plattform-hint">Søker … korte søkeord kan ta noen sekunder.</p>
+            <p v-else-if="sokFeil" class="plattform-hint">{{ sokFeil }}</p>
+            <p v-else-if="sok.trim().length >= 2 && !treff.length" class="plattform-hint">Ingen klubber med det navnet.</p>
+
+            <ul v-if="treff.length" class="plattform-treff">
+              <li v-for="c in treff" :key="c.fiksId">
+                <button type="button" class="plattform-treff__rad" @click="velgKlubb(c)">
+                  <span class="plattform-treff__navn">{{ c.name }}</span>
+                  <span class="plattform-treff__meta">{{ c.district }} · {{ c.teams.length }} lag</span>
+                </button>
+              </li>
+            </ul>
+
+            <button type="button" class="plattform-tekstknapp" @click="friTekst = true">
+              Finner ikke klubben — skriv navnet selv
+            </button>
+          </template>
+
+          <!-- Utvei: klubben finnes ikke i FIKS -->
+          <template v-else>
+            <label class="plattform-label" for="nk-club-name">Klubbnavn</label>
+            <input id="nk-club-name" v-model="form.club_name" type="text" class="plattform-input" placeholder="Stag IF" autocapitalize="words" />
+
+            <label class="plattform-label" for="nk-club-short">Kortnavn <span class="plattform-muted">slik det står i kampoppsettet</span></label>
+            <input id="nk-club-short" v-model="form.club_short_name" type="text" class="plattform-input" :placeholder="form.club_name.split(' ')[0] || 'Stag'" autocapitalize="words" />
+
+            <button type="button" class="plattform-tekstknapp" @click="friTekst = false">Søk på fotball.no likevel</button>
+          </template>
         </template>
 
         <label class="plattform-label" for="nk-season">Første sesong</label>
         <input id="nk-season" v-model="form.season_name" type="text" class="plattform-input" autocapitalize="words" />
 
         <p class="plattform-hint plattform-note">
-          Årskull, lag, spillform og terminliste settes av treneren første gang han logger inn.
-          Alt hentes fra fotball.no.
+          <template v-if="form.fiks_id">
+            Klubben er koblet til fotball.no. Treneren velger årskull første gang han logger inn, og
+            får lagene og terminlista derfra.
+          </template>
+          <template v-else>
+            Årskull, lag, spillform og terminliste settes av treneren første gang han logger inn.
+            Uten kobling til fotball.no må han finne klubben selv.
+          </template>
         </p>
 
         <button type="button" class="plattform-primary plattform-submit" :disabled="pending || !canSubmit" @click="submit">
@@ -321,5 +456,69 @@ async function submit() {
 
 .plattform-note {
   margin-top: var(--ds-space-md);
+}
+
+.plattform-valgt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-sm);
+  padding: var(--ds-space-md);
+  background: var(--ds-color-bg-elevated);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+}
+
+.plattform-valgt__navn {
+  font-size: var(--ds-text-base);
+  font-weight: var(--ds-weight-semibold);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.plattform-tekstknapp {
+  align-self: flex-start;
+  min-height: 44px;
+  padding: var(--ds-space-xs) 0;
+  background: none;
+  border: 0;
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+}
+
+.plattform-treff {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-xs);
+}
+
+.plattform-treff__rad {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: var(--ds-space-md);
+  text-align: left;
+  background: var(--ds-color-bg-elevated);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  cursor: pointer;
+}
+
+.plattform-treff__navn {
+  font-size: var(--ds-text-base);
+  color: var(--ds-color-text-primary);
+}
+
+.plattform-treff__meta {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
 }
 </style>

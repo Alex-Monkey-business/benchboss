@@ -53,7 +53,15 @@ let sokTimer = null
 // kull nr. 2 i samme klubb.
 let klubbHenting = null
 
+// Kom klubben ferdig koblet fra admin, er veiviseren to steg, ikke tre.
+// Fanges ved oppstart: velger han klubb selv, skal telleren ikke krympe
+// under beina på ham når koblingen lagres.
+const klubbFraAdmin = ref(false)
+const stegTotalt = computed(() => (klubbFraAdmin.value ? 2 : 3))
+const stegNr = n => (klubbFraAdmin.value ? n - 1 : n)
+
 onMounted(() => {
+  klubbFraAdmin.value = !!activeCohort.value?.club_fiks_id
   klubbHenting = hentKoblet()
 })
 
@@ -253,7 +261,11 @@ function ferdig() {
 // tilbake. Velkomsten er ikke et steg med et spørsmål i seg, så den er ikke
 // med i kjeden.
 const FORRIGE = { argang: 'klubb', lag: 'argang' }
-const kanGaTilbake = computed(() => !!FORRIGE[steg.value])
+// Kom klubben fra admin, er årgangen første steg — og et førstesteg har
+// ingenting bak seg. Er klubben feil, retter admin den; det er hans valg.
+const kanGaTilbake = computed(() =>
+  !!FORRIGE[steg.value] && !(steg.value === 'argang' && klubbFraAdmin.value)
+)
 
 function tilbake() {
   const f = FORRIGE[steg.value]
@@ -331,7 +343,7 @@ function hoppOver() {
 
       <!-- ------------------------------------------------- Klubb -->
       <template v-else-if="steg === 'klubb'">
-        <p class="kig__steg">Steg 1 av 3</p>
+        <p v-if="!klubbFraAdmin" class="kig__steg">Steg 1 av {{ stegTotalt }}</p>
         <h1 class="kig__tittel">Hvilken klubb?</h1>
         <!-- Løftet om fotball.no bor HER, ikke på velkomsten: det er dette
              steget det faktisk skjer i. Velkomsten sier hva appen er. -->
@@ -365,7 +377,7 @@ function hoppOver() {
 
       <!-- ------------------------------------------------ Årgang -->
       <template v-else-if="steg === 'argang'">
-        <p class="kig__steg">Steg 2 av 3</p>
+        <p class="kig__steg">Steg {{ stegNr(2) }} av {{ stegTotalt }}</p>
         <h1 class="kig__tittel">Hvilket årskull?</h1>
         <p class="kig__lead">{{ klubb?.name }}</p>
 
@@ -399,7 +411,7 @@ function hoppOver() {
 
       <!-- --------------------------------------------------- Lag -->
       <template v-else-if="steg === 'lag'">
-        <p class="kig__steg">Steg 3 av 3</p>
+        <p class="kig__steg">Steg {{ stegNr(3) }} av {{ stegTotalt }}</p>
         <h1 class="kig__tittel">{{ valgteLag.length }} lag</h1>
         <p class="kig__lead">
           <template v-if="lagVises.length && !viserAlle">Ta bort dem du ikke trener. Kampene til resten kommer med.</template>
