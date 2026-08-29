@@ -1,11 +1,22 @@
 <script setup>
 // Én øvelse — ett sett felt. Samme skjema enten du redigerer den i banken
 // eller i en økt, så du aldri må lære to versjoner av samme greie.
+//
+// Feltene ER kategoriene, og de heter det samme i skjemaet som på skjermen:
+// navn, lengde, diff/mix, hva vi øver på, hvordan vi deler opp gruppa, hva du
+// må ha med ut, og hva øvelsen går ut på. «Fokus» og «Øver på» var to etiketter for samme kategori;
+// nå er den ene overskriften og den andre momentene under.
+//
+// Lengden ligger ikke her: den er dagens valg, ikke øvelsens egenskap. Samme
+// rondo er 10 minutter på tirsdag og 20 på lørdag — den settes i planmodus.
 import { EXERCISE_CATEGORIES } from '../composables/useExercises'
 
 const props = defineProps({
   form: { type: Object, required: true },
-  showCategory: { type: Boolean, default: false }
+  showCategory: { type: Boolean, default: false },
+  // Kolonnene finnes først etter migrasjonen — da skal feltene holde seg unna.
+  showGruppe: { type: Boolean, default: false },
+  showUtstyr: { type: Boolean, default: false }
 })
 
 const DRILL_TYPES = [
@@ -54,18 +65,28 @@ function pickCategory(value) {
   </div>
 
   <div class="ds-form-group">
-    <label class="ds-label" for="ex-tema">Fokus</label>
+    <label class="ds-label" for="ex-tema">Hva vi øver på</label>
     <input id="ex-tema" v-model="form.tema" class="ds-input" type="text" placeholder="F.eks. Spille oss fremover (valgfri)" />
   </div>
 
   <div class="ds-form-group">
-    <label class="ds-label" for="ex-moments">Øver på — ett per linje</label>
+    <label class="ds-label" for="ex-moments">Momenter — ett per linje</label>
     <textarea id="ex-moments" v-model="form.laeringsmomenter" class="ds-input" rows="3" placeholder="Mykt medtak ut til siden&#10;Løft blikket (valgfri)"></textarea>
   </div>
 
+  <div v-if="showGruppe" class="ds-form-group">
+    <label class="ds-label" for="ex-gruppe">Hvordan vi deler opp gruppa</label>
+    <textarea id="ex-gruppe" v-model="form.gruppe" class="ds-input" rows="2" placeholder="F.eks. To baner med småmål, tre lag à tre (valgfri)"></textarea>
+  </div>
+
+  <div v-if="showUtstyr" class="ds-form-group">
+    <label class="ds-label" for="ex-utstyr">Utstyr og bane</label>
+    <textarea id="ex-utstyr" v-model="form.utstyr" class="ds-input" rows="2" placeholder="F.eks. 12 småmål, kjegler, 27 baller. 25x20 meter (valgfri)"></textarea>
+  </div>
+
   <div class="ds-form-group">
-    <label class="ds-label" for="ex-org">Oppsett</label>
-    <textarea id="ex-org" v-model="form.organisering" class="ds-input" rows="3" placeholder="Hvordan øvelsen settes opp og kjøres (valgfri)."></textarea>
+    <label class="ds-label" for="ex-org">Beskrivelse av øvelsen</label>
+    <textarea id="ex-org" v-model="form.organisering" class="ds-input" rows="4" placeholder="Hva som skjer, steg for steg. Tomme linjer blir avsnitt (valgfri)."></textarea>
   </div>
 
   <div class="ds-form-group">

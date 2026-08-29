@@ -7,7 +7,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ExerciseFields from '../components/ExerciseFields.vue'
 
 const router = useRouter()
-const { exercises, supportsCategory, fetchExercises, createExercise, updateExercise, deleteExercise } = useExercises()
+const { exercises, supportsCategory, supportsGruppe, supportsUtstyr, fetchExercises, createExercise, updateExercise, deleteExercise } = useExercises()
 
 // Ekte tilbake: dit du kom fra (perioden, en økt …); /trening som fallback.
 function goBack() {
@@ -45,7 +45,7 @@ const categoryLabel = computed(() =>
 )
 
 function emptyForm() {
-  return { name: '', type: 'none', category: '', tema: '', organisering: '', laeringsmomenter: '', link: { label: '', url: '' } }
+  return { name: '', type: 'none', category: '', tema: '', gruppe: '', utstyr: '', organisering: '', laeringsmomenter: '', link: { label: '', url: '' } }
 }
 
 function openView(ex) {
@@ -68,6 +68,8 @@ function startEdit() {
     type: ex.type || 'none',
     category: ex.category || '',
     tema: ex.tema || '',
+    gruppe: ex.gruppe || '',
+    utstyr: ex.utstyr || '',
     organisering: ex.organisering || '',
     laeringsmomenter: (ex.laeringsmomenter || []).join('\n'),
     link: ex.link ? { label: ex.link.label || '', url: ex.link.url || '' } : { label: '', url: '' }
@@ -82,6 +84,8 @@ async function save() {
     name: form.value.name.trim(),
     type: form.value.type,
     tema: form.value.tema.trim() || null,
+    gruppe: form.value.gruppe.trim() || null,
+    utstyr: form.value.utstyr.trim() || null,
     organisering: form.value.organisering.trim() || null,
     laeringsmomenter: form.value.laeringsmomenter.split('\n').map(s => s.trim()).filter(Boolean),
     link: form.value.link.url.trim() ? { label: form.value.link.label.trim(), url: form.value.link.url.trim() } : null
@@ -192,14 +196,24 @@ onMounted(fetchExercises)
           <p v-if="active.tema" class="ex-view__tema">{{ active.tema }}</p>
 
           <div v-if="(active.laeringsmomenter || []).length" class="ex-view__section">
-            <div class="ex-view__label">Øver på</div>
+            <div class="ex-view__label">Momenter</div>
             <ul class="ex-view__points">
               <li v-for="(p, i) in active.laeringsmomenter" :key="i">{{ p }}</li>
             </ul>
           </div>
 
+          <div v-if="active.gruppe" class="ex-view__section">
+            <div class="ex-view__label">Gruppa</div>
+            <p class="ex-view__text">{{ active.gruppe }}</p>
+          </div>
+
+          <div v-if="active.utstyr" class="ex-view__section">
+            <div class="ex-view__label">Utstyr og bane</div>
+            <p class="ex-view__text">{{ active.utstyr }}</p>
+          </div>
+
           <div v-if="active.organisering" class="ex-view__section">
-            <div class="ex-view__label">Oppsett</div>
+            <div class="ex-view__label">Øvelsen</div>
             <p class="ex-view__text">{{ active.organisering }}</p>
           </div>
 
@@ -222,7 +236,7 @@ onMounted(fetchExercises)
 
       <!-- REDIGERING / NY -->
       <form v-else @submit.prevent="save">
-        <ExerciseFields :form="form" :show-category="supportsCategory" />
+        <ExerciseFields :form="form" :show-category="supportsCategory" :show-gruppe="supportsGruppe" :show-utstyr="supportsUtstyr" />
         <div class="bank__form-actions">
           <button
             v-if="mode === 'edit'"
@@ -425,7 +439,9 @@ onMounted(fetchExercises)
   line-height: 1.6;
 }
 
+/* Avsnittene er skrevet av en trener med tomme linjer — de skal stå. */
 .ex-view__text {
+  white-space: pre-line;
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-primary);
   line-height: 1.55;

@@ -31,8 +31,8 @@ export function groupByCategory(list) {
 }
 
 const DEMO_EXERCISES = [
-  { id: 'dex-1', category: 'sjef-over-ballen', name: 'Medtak, dribling, vending og pasning', type: 'diff', tema: 'Spille oss fremover', organisering: 'To og to per stasjon. Pasning gjennom port, retningsbestemt medtak, dribling forbi kjegler, finte mot passivt press, vending ved siste kjegle. Bytt roller.', laeringsmomenter: ['Mykt medtak ut til siden — fremover på andre touch', 'Løft blikket og finn timing på finta', 'Finte med tempo og store bevegelser for å passere'], link: { label: 'Medtak, dribling, vending, pasning', url: 'https://tiim.no/ovelse/medtak-dribling-vending-pasning' } },
-  { id: 'dex-2', category: 'spill', name: '3v3 med press i ryggen', type: 'diff', tema: 'Fart i angrep, hold overtaket', organisering: 'To baner med småmål. To forsvarere ved eget mål; den siste jager i press straks angriperne får ballen.', laeringsmomenter: [], link: null },
+  { id: 'dex-1', category: 'sjef-over-ballen', name: 'Medtak, dribling, vending og pasning', type: 'diff', tema: 'Spille oss fremover', gruppe: 'To og to per stasjon.', organisering: 'Pasning gjennom port, retningsbestemt medtak, dribling forbi kjegler, finte mot passivt press, vending ved siste kjegle. Bytt roller.', laeringsmomenter: ['Mykt medtak ut til siden — fremover på andre touch', 'Løft blikket og finn timing på finta', 'Finte med tempo og store bevegelser for å passere'], link: { label: 'Medtak, dribling, vending, pasning', url: 'https://tiim.no/ovelse/medtak-dribling-vending-pasning' } },
+  { id: 'dex-2', category: 'spill', name: '3v3 med press i ryggen', type: 'diff', tema: 'Fart i angrep, hold overtaket', gruppe: 'To baner med småmål.', utstyr: 'Fire småmål, vester.', organisering: 'To forsvarere ved eget mål; den siste jager i press straks angriperne får ballen.', laeringsmomenter: [], link: null },
   { id: 'dex-3', category: 'spill', name: 'Vinneren står', type: 'mix', tema: 'Tempo og lite dødtid', organisering: 'To lag spiller kort 7er — ny kamp straks det er mål.', laeringsmomenter: [], link: null },
   { id: 'dex-4', category: 'sjef-over-ballen', name: 'Ferdighetssirkel', type: 'mix', tema: 'Sjef over ballen', organisering: 'Avsluttes med press.', laeringsmomenter: [], link: null },
   { id: 'dex-5', category: 'spill', name: 'Eggs (transition game)', type: 'diff', tema: null, organisering: '4v4, 3v3 eller 2v2 ut fra antall.', laeringsmomenter: [], link: { label: 'Eggs Transition Game – 4v4 til 4v3', url: 'https://tiim.no/ovelse/eggs-transition-game-4v4-til-4v3' } },
@@ -49,6 +49,8 @@ export function exerciseToDrill(ex) {
     type: ex.type || 'none',
     text: ex.name,
     tema: ex.tema || null,
+    gruppe: ex.gruppe || null,
+    utstyr: ex.utstyr || null,
     organisering: ex.organisering || null,
     laeringsmomenter: [...(ex.laeringsmomenter || [])],
     link: ex.link ? { label: ex.link.label || '', url: ex.link.url || '' } : null,
@@ -84,6 +86,8 @@ export function drillToExercise(d) {
     name: d.text,
     type: d.type || 'none',
     tema: d.tema || null,
+    gruppe: d.gruppe || null,
+    utstyr: d.utstyr || null,
     organisering: d.organisering || null,
     laeringsmomenter: [...(d.laeringsmomenter || [])],
     link: d.link ? { label: d.link.label || '', url: d.link.url || '' } : null
@@ -95,6 +99,25 @@ export function drillToExercise(d) {
 const supportsCategory = computed(() =>
   exercises.value.length === 0 || 'category' in (exercises.value[0] || {})
 )
+
+// Samme sikring for gruppeinndelingen: kolonnen finnes først etter at
+// 20260830090000_ovelse_gruppeinndeling.sql er kjørt. Uten den skal appen
+// oppføre seg som før, ikke feile på hver lagring.
+const supportsGruppe = computed(() =>
+  exercises.value.length === 0 || 'gruppe' in (exercises.value[0] || {})
+)
+
+const supportsUtstyr = computed(() =>
+  exercises.value.length === 0 || 'utstyr' in (exercises.value[0] || {})
+)
+
+function utenUstottede(payload) {
+  const p = { ...payload }
+  if (!supportsGruppe.value) delete p.gruppe
+  if (!supportsUtstyr.value) delete p.utstyr
+  if (!supportsCategory.value) delete p.category
+  return p
+}
 
 export function useExercises() {
   async function fetchExercises() {
@@ -126,7 +149,7 @@ export function useExercises() {
 
   async function createExercise(payload) {
     if (!isSupabaseConfigured) {
-      const row = { id: demoId('dex'), laeringsmomenter: [], link: null, tema: null, organisering: null, type: 'none', ...payload }
+      const row = { id: demoId('dex'), laeringsmomenter: [], link: null, tema: null, gruppe: null, utstyr: null, organisering: null, type: 'none', ...payload }
       // DEMO_EXERCISES er demo-«databasen» — uten denne forsvinner raden ved reload.
       DEMO_EXERCISES.push(row)
       exercises.value = [...exercises.value, row].sort(byName)
@@ -135,7 +158,7 @@ export function useExercises() {
 
     const { data: row, error } = await supabase
       .from('training_exercises')
-      .insert(withClub(payload))
+      .insert(withClub(utenUstottede(payload)))
       .select()
       .single()
     if (!error && row) exercises.value = [...exercises.value, row].sort(byName)
@@ -154,7 +177,7 @@ export function useExercises() {
 
     const { data, error } = await supabase
       .from('training_exercises')
-      .update(updates)
+      .update(utenUstottede(updates))
       .eq('id', id)
       .select()
       .single()
@@ -198,5 +221,5 @@ export function useExercises() {
     return createExercise(drillToExercise(d))
   }
 
-  return { exercises, loading, loaded, supportsCategory, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill }
+  return { exercises, loading, loaded, supportsCategory, supportsGruppe, supportsUtstyr, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill }
 }

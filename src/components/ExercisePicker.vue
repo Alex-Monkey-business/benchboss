@@ -21,14 +21,14 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'toggle', 'create'])
 
-const { exercises, loaded, supportsCategory, fetchExercises } = useExercises()
+const { exercises, loaded, supportsCategory, supportsGruppe, supportsUtstyr, fetchExercises } = useExercises()
 
 const search = ref('')
 const mode = ref('list') // 'list' | 'new'
 const newForm = ref(emptyForm())
 
 function emptyForm() {
-  return { name: '', type: 'none', category: '', tema: '', organisering: '', laeringsmomenter: '', link: { label: '', url: '' } }
+  return { name: '', type: 'none', category: '', tema: '', gruppe: '', utstyr: '', organisering: '', laeringsmomenter: '', link: { label: '', url: '' } }
 }
 
 watch(() => props.show, (open) => {
@@ -45,7 +45,8 @@ const filtered = computed(() => {
   return exercises.value.filter(e =>
     e.name.toLowerCase().includes(q) ||
     (e.tema || '').toLowerCase().includes(q) ||
-    (e.organisering || '').toLowerCase().includes(q)
+    (e.organisering || '').toLowerCase().includes(q) ||
+    (e.gruppe || '').toLowerCase().includes(q)
   )
 })
 
@@ -100,7 +101,7 @@ function preview(ex) {
   >
     <!-- NY ØVELSE — det eneste skjemaet i plukkeren -->
     <form v-if="mode === 'new'" @submit.prevent="submitNew">
-      <ExerciseFields :form="newForm" :show-category="supportsCategory" />
+      <ExerciseFields :form="newForm" :show-category="supportsCategory" :show-gruppe="supportsGruppe" :show-utstyr="supportsUtstyr" />
       <div class="picker-form-actions">
         <button type="button" class="ds-btn ds-btn--ghost" @click="mode = 'list'">Avbryt</button>
         <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg picker-form-actions__save" :disabled="!newForm.name.trim()">
