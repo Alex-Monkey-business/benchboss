@@ -240,8 +240,8 @@ function hoppOver() {
 </script>
 
 <template>
-  <div class="kig" :class="{ 'kig--velkomst': steg === 'velkommen' }">
-    <div class="kig__inner" :class="{ 'kig__inner--velkomst': steg === 'velkommen' }">
+  <div class="kig" :class="{ 'kig--velkomst': steg === 'velkommen' || steg === 'ferdig' }">
+    <div class="kig__inner" :class="{ 'kig__inner--velkomst': steg === 'velkommen' || steg === 'ferdig' }">
       <!-- ---------------------------------------------- Velkommen -->
       <template v-if="steg === 'velkommen'">
         <div class="kig-tema" role="radiogroup" aria-label="Lyst eller mørkt">
@@ -415,6 +415,13 @@ function hoppOver() {
 
       <!-- ------------------------------------------------ Ferdig -->
       <template v-else-if="steg === 'ferdig'">
+        <img
+          class="kig__kvittering"
+          src="/illustrations/bench-boss-feature-icons/season-import-420.png"
+          alt=""
+          width="420"
+          height="420"
+        />
         <h1 class="kig__tittel">Klart.</h1>
         <!-- Sto før: «de ligger som kort på Hjem». Det beskrev hvordan VI har
              bygget det, ikke hva han skal gjøre. Og det var feil: trenerkortet
@@ -785,5 +792,25 @@ function hoppOver() {
 .kig-tema__valg--aktiv {
   color: var(--ds-color-bg);
   background: var(--ds-color-text-primary);
+}
+
+/* Kvitteringen på at terminlista faktisk landet. Samme leire-stil som
+   maskoten, og motivet er bokstavelig: kalender, ball og en pil som peker
+   inn. Den spretter én gang — det er en bekreftelse, ikke en loop. */
+.kig__kvittering {
+  display: block;
+  width: auto;
+  height: clamp(7rem, 26dvh, 13rem);
+  margin: 0 0 clamp(var(--ds-space-md), 3dvh, var(--ds-space-xl));
+  animation: kigKvitteringInn 0.5s var(--ds-ease-pop) both;
+}
+
+@keyframes kigKvitteringInn {
+  from { opacity: 0; transform: scale(0.86) translateY(10px); }
+  to   { opacity: 1; transform: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kig__kvittering { animation: none; }
 }
 </style>
