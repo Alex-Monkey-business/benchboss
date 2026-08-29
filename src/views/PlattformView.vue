@@ -1,19 +1,22 @@
 <script setup>
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { useAuth } from '../stores/auth'
 import { useToast } from '../composables/useToast'
-import { PLAYERS_ON_PITCH_OPTIONS } from '../lib/formations'
-import { formatFor, PERIODS } from '../lib/spillform'
 import Sheet from '../components/Sheet.vue'
 
-// Plattform-nivå: klubber og kull. Veiviseren bak et nytt kull.
+// Plattform-nivå: klubber og kull.
 //
-// Alt skrives av bb_create_cohort i én transaksjon: klubb (om ny) → kull →
-// lag → sesong → den som oppretter blir admin. Etterpå står kullet i
-// kull-velgeren på /admin, og /admin/tilgang er stedet man inviterer den
-// første treneren.
+// Her opprettes bare skallet: klubb + første sesong. Årskull, lag, spillform
+// og terminliste settes av treneren i /kom-i-gang, som henter alt fra
+// fotball.no. Derfor spør vi ikke om noe av det her — et gjett fra admin blir
+// likevel overskrevet, og `birth_year is null` er nettopp signalet veiviseren
+// leser for å vite at kullet ikke er satt opp.
+//
+// bb_create_cohort skriver alt i én transaksjon: klubb (om ny) → kull →
+// sesong → den som oppretter blir admin. Etterpå står kullet i kull-velgeren
+// på /admin, og /admin/tilgang er stedet man inviterer treneren.
 
 const router = useRouter()
 const { isPlatformAdmin, memberships, refreshMember, setActiveCohort } = useAuth()
@@ -79,54 +82,31 @@ function openNew() {
     club_id: '',
     club_name: '',
     club_short_name: '',
-    name: '',
-    birth_year: '',
-    players_on_pitch: 7,
-    period_count: 2,
-    period_minutes: 30,
-    teams: '',
     season_name: defaultSeasonName()
   }
   open.value = true
 }
 
-// Årskull → spillform → kamplengde. Hver følger den over, til man rører den.
-watch(() => form.value?.birth_year, y => {
-  if (!form.value) return
-  const f = formatFor(y)
-  if (f) form.value.players_on_pitch = f
-})
-watch(() => form.value?.players_on_pitch, n => {
-  if (!form.value) return
-  const p = PERIODS[n]
-  if (p) [form.value.period_count, form.value.period_minutes] = p
-})
-// Kullnavn foreslås fra klubb + årskull («Stag G2018»). Overskrives fritt.
-watch(() => [form.value?.club_id, form.value?.club_name, form.value?.birth_year], () => {
-  if (!form.value || form.value.nameTouched) return
-  const club = form.value.club_id
-    ? clubs.value.find(c => c.id === form.value.club_id)?.short_name
-    : (form.value.club_short_name || form.value.club_name.split(' ')[0])
-  const y = form.value.birth_year
-  form.value.name = club && y ? `${club} G${y}` : ''
+// Kortnavnet på klubben man har valgt — brukes i det midlertidige kullnavnet.
+const clubShort = computed(() => {
+  const f = form.value
+  if (!f) return ''
+  if (f.club_id) return clubs.value.find(c => c.id === f.club_id)?.short_name || ''
+  return f.club_short_name.trim() || f.club_name.trim().split(' ')[0] || ''
 })
 
-const ACCENTS = ['sage', 'warm', 'paper', 'sky', 'cornflower', 'olive', 'peach']
-
-const teamList = computed(() =>
-  (form.value?.teams || '')
-    .split(/[,\n]/)
-    .map(s => s.trim())
-    .filter(Boolean)
-    .map((name, i) => ({ name, accent: ACCENTS[i % ACCENTS.length] }))
+// Kullet må ha et navn i basen, men treneren gir det det riktige («Stag G2018»)
+// i det han velger årskull. Fram til da heter det dette. Slug-en får et
+// tilfeldig haleheng fordi (club_id, slug) er unik og admin kan opprette to
+// skall for samme klubb før noen har logget inn.
+const placeholderName = computed(() =>
+  clubShort.value ? `${clubShort.value} – nytt kull` : 'Nytt kull'
 )
 
 const canSubmit = computed(() => {
   const f = form.value
   if (!f) return false
-  if (!f.name.trim()) return false
-  if (!f.club_id && !f.club_name.trim()) return false
-  return true
+  return Boolean(f.club_id || f.club_name.trim())
 })
 
 async function submit() {
@@ -136,13 +116,15 @@ async function submit() {
     p_club_id: f.club_id || null,
     p_club_name: f.club_id ? null : f.club_name.trim(),
     p_club_short_name: f.club_id ? null : (f.club_short_name.trim() || null),
-    p_name: f.name.trim(),
-    p_slug: null,
-    p_birth_year: parseInt(f.birth_year, 10) || null,
-    p_players_on_pitch: Number(f.players_on_pitch),
-    p_period_count: Number(f.period_count),
-    p_period_minutes: Number(f.period_minutes),
-    p_teams: teamList.value,
+    p_name: placeholderName.value,
+    p_slug: `nytt-kull-${Date.now().toString(36)}`,
+    // Alt dette setter treneren i veiviseren. Tallene er bare NFF-defaultene
+    // kolonnene har fra før, så kullet er gyldig om noen hopper over.
+    p_birth_year: null,
+    p_players_on_pitch: null,
+    p_period_count: null,
+    p_period_minutes: null,
+    p_teams: [],
     p_season_name: f.season_name.trim() || null
   })
   pending.value = false
@@ -157,7 +139,7 @@ async function submit() {
   // der den første treneren inviteres.
   await refreshMember()
   setActiveCohort(data)
-  showToast(`${f.name.trim()} er opprettet`, 'success')
+  showToast('Kullet er opprettet', 'success')
   router.push('/admin/tilgang')
 }
 </script>
@@ -188,7 +170,10 @@ async function submit() {
                 {{ k.name }}<template v-if="memberOf.has(k.id)"> · deg</template>
               </span>
               <span class="plattform-row__meta">
-                {{ k.players_on_pitch }}er · {{ k.period_count }}×{{ k.period_minutes }} min
+                <template v-if="k.birth_year">
+                  {{ k.players_on_pitch }}er · {{ k.period_count }}×{{ k.period_minutes }} min
+                </template>
+                <template v-else>Venter på treneren</template>
               </span>
             </span>
           </div>
@@ -217,40 +202,13 @@ async function submit() {
           <input id="nk-club-short" v-model="form.club_short_name" type="text" class="plattform-input" :placeholder="form.club_name.split(' ')[0] || 'Stag'" autocapitalize="words" />
         </template>
 
-        <label class="plattform-label" for="nk-year">Årskull</label>
-        <input id="nk-year" v-model="form.birth_year" type="number" inputmode="numeric" class="plattform-input" placeholder="2018" min="2005" :max="new Date().getFullYear()" />
-        <p class="plattform-hint">
-          La stå tom, så velger treneren årskullet selv første gang han logger inn — og får lagene
-          og terminlista fra fotball.no i samme slengen.
-        </p>
-
-        <label class="plattform-label" for="nk-name">Kullets navn</label>
-        <input id="nk-name" v-model="form.name" type="text" class="plattform-input" placeholder="Stag G2018" autocapitalize="words" @input="form.nameTouched = true" />
-
-        <label class="plattform-label" for="nk-format">Spillform</label>
-        <select id="nk-format" v-model="form.players_on_pitch" class="plattform-input">
-          <option v-for="n in PLAYERS_ON_PITCH_OPTIONS" :key="n" :value="n">{{ n }}er</option>
-        </select>
-
-        <div class="plattform-pair">
-          <div class="plattform-pair__half">
-            <label class="plattform-label" for="nk-periods">Omganger</label>
-            <input id="nk-periods" v-model="form.period_count" type="number" inputmode="numeric" min="1" max="4" class="plattform-input" />
-          </div>
-          <div class="plattform-pair__half">
-            <label class="plattform-label" for="nk-minutes">Minutter per omgang</label>
-            <input id="nk-minutes" v-model="form.period_minutes" type="number" inputmode="numeric" min="5" max="45" class="plattform-input" />
-          </div>
-        </div>
-
-        <label class="plattform-label" for="nk-teams">Lag <span class="plattform-muted">ett per linje, eller komma</span></label>
-        <textarea id="nk-teams" v-model="form.teams" rows="3" class="plattform-input" placeholder="Stag 1&#10;Stag 2"></textarea>
-        <p v-if="teamList.length" class="plattform-hint">
-          {{ teamList.map(t => t.name).join(' · ') }}
-        </p>
-
         <label class="plattform-label" for="nk-season">Første sesong</label>
         <input id="nk-season" v-model="form.season_name" type="text" class="plattform-input" autocapitalize="words" />
+
+        <p class="plattform-hint plattform-note">
+          Årskull, lag, spillform og terminliste settes av treneren første gang han logger inn.
+          Alt hentes fra fotball.no.
+        </p>
 
         <button type="button" class="plattform-primary plattform-submit" :disabled="pending || !canSubmit" @click="submit">
           {{ pending ? 'Oppretter…' : 'Opprett kull' }}
@@ -361,16 +319,7 @@ async function submit() {
   resize: vertical;
 }
 
-.plattform-pair {
-  display: flex;
-  gap: var(--ds-space-sm);
-}
-
-.plattform-pair__half {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-xs);
-  min-width: 0;
+.plattform-note {
+  margin-top: var(--ds-space-md);
 }
 </style>

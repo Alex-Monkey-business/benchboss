@@ -51,7 +51,13 @@ let sokTimer = null
 
 // Er klubben allerede koblet, er spørsmålet besvart for godt — også for
 // kull nr. 2 i samme klubb.
-onMounted(async () => {
+let klubbHenting = null
+
+onMounted(() => {
+  klubbHenting = hentKoblet()
+})
+
+async function hentKoblet() {
   await fetchSeasons()
   const koblet = activeCohort.value?.club_fiks_id
   if (!koblet) return
@@ -71,7 +77,7 @@ onMounted(async () => {
   } catch {
     klubb.value = null
   }
-})
+}
 
 // Velkomstskjermen er ett trykk, ikke et steg med et spørsmål i seg. Den
 // finnes for å si hva som skal skje — at lagene og kampene hentes, og at han
@@ -79,7 +85,15 @@ onMounted(async () => {
 // som skryter.
 const fornavn = computed(() => (coach.value?.name || '').split(' ')[0])
 
-function start() {
+// Trykker han før hentingen er ferdig, skal han vente et blunk på «Henter
+// lagene …» — ikke havne i klubbsøket for en klubb appen alt kjenner.
+async function start() {
+  if (!klubb.value && activeCohort.value?.club_fiks_id) {
+    steg.value = 'klubb'
+    laster.value = true
+    try { await klubbHenting } catch { /* hentKoblet svelger sine egne feil */ }
+    laster.value = false
+  }
   steg.value = klubb.value ? 'argang' : 'klubb'
 }
 

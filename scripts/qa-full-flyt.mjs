@@ -38,6 +38,10 @@ if (gamleKull) {
   sql(`delete from cohorts where id in (${gamleKull})`)
 }
 sql(`delete from clubs where name='${KLUBB}'`)
+// Sten skal være helt fersk. Har han en medlemsrad liggende i et annet kull
+// lokalt (manuell testing), kobles den på idet brukeren gjenopprettes, og han
+// våkner i DET kullet — som alt er satt opp — i stedet for i veiviseren.
+sql(`delete from cohort_members where email='${STEN}'`)
 sql(`delete from auth.users where email='${STEN}'`)
 
 // Tøm postkassa: gamle invitasjoner til samme adresse ville blitt plukket
@@ -96,9 +100,18 @@ const b=await chromium.launch()
 const c=await b.newContext({viewport:{width:390,height:844},isMobile:true,hasTouch:true})
 const p=await c.newPage()
 const sidefeil=[]; p.on('pageerror',e=>sidefeil.push(e.message))
-await p.goto(lokalLenke,{waitUntil:'networkidle'}); await p.waitForTimeout(1500)
+await p.goto(lokalLenke,{waitUntil:'networkidle'})
+// Guarden kjører først når sesjonen er lest. Vent på at ruten faktisk lander,
+// ikke på en fast tid — 1,5 s holdt av og til, og ikke av og til.
+await p.waitForFunction(() => !location.hash.includes('access_token'), null, {timeout:20000}).catch(()=>{})
+await p.waitForURL(/\/(kom-i-gang|hjem)/,{timeout:20000}).catch(()=>{})
+await p.waitForTimeout(800)
 ok('innlogget som Sten', await p.locator('body').innerText().then(t=>!/Logg inn/i.test(t)))
 ok('sendes rett i veiviseren', p.url().includes('/kom-i-gang'), p.url())
+
+// Veiviseren åpner på velkomstskjermen — den må klikkes bort først.
+await p.getByRole('button',{name:'Kom i gang'}).click()
+await p.waitForTimeout(400)
 
 await p.locator('.kig__sok').fill(KLUBB)
 await p.locator('.kig__klubb').first().waitFor({timeout:20000})
@@ -120,6 +133,10 @@ ok('tomt lag-steg forklarer hvorfor', /ingen lag registrert/i.test(tomLead), tom
 ok('hele klubbens lagliste er tilgjengelig som utvei', await p.getByRole('button',{name:/Vis alle \d+ lagene/}).count()===1)
 await p.goBack().catch(()=>{})
 await p.goto(APP+'/kom-i-gang',{waitUntil:'networkidle'}); await p.waitForTimeout(1200)
+// Etter en reload står velkomsten der igjen. Klubben er lagret i basen, så
+// veiviseren hopper videre til årgang av seg selv.
+const igjen=p.getByRole('button',{name:'Kom i gang'})
+if (await igjen.count()) { await igjen.click(); await p.waitForTimeout(600) }
 
 await p.getByRole('button',{name:String(ARGANG),exact:true}).click()
 await p.waitForTimeout(300)

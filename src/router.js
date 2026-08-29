@@ -229,8 +229,11 @@ function needsSetup(cohort) {
 }
 
 // Plattform-admin skal kunne opprette et kull og invitere den første treneren
-// uten å bli sendt inn i trenerens veiviser på veien.
+// uten å bli sendt inn i trenerens veiviser på veien. `/admin` selv er med
+// fordi kull-velgeren står der: uten den ville den som nettopp opprettet et
+// tomt kull ikke komme seg tilbake til sitt eget.
 const SETUP_EXEMPT = ['/admin/plattform', '/admin/tilgang']
+const SETUP_EXEMPT_EXACT = ['/admin']
 
 function allows(meta, role) {
   const allowed = meta?.roles || ['coach']
@@ -265,6 +268,7 @@ router.beforeEach(async (to) => {
   if (
     !isParent.value &&
     to.name !== 'kom-i-gang' &&
+    !SETUP_EXEMPT_EXACT.includes(to.path) &&
     !SETUP_EXEMPT.some(p => to.path.startsWith(p)) &&
     needsSetup(activeCohort.value)
   ) {
