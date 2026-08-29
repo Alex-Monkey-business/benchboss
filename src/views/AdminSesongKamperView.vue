@@ -9,6 +9,7 @@ import { isOurMatch } from '../lib/matchMeta'
 import { useAuth } from '../stores/auth'
 import { trimAbbrevDots, weekdayDateLabel } from '../lib/dateLabels'
 import { useFiks } from '../composables/useFiks'
+import { useTerminlisteVarsel } from '../composables/useTerminlisteVarsel'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
 
@@ -33,6 +34,8 @@ const detectedSeason = ref(null)
 // Kampene som ble lastet opp fra Excel kjenner ikke sin egen FIKS-id. Første
 // synk parer dem mot terminlista; etterpå er det bare en differanse.
 const { searchClubs, searching: fiksSearching, linkClub, refreshMember, synkTerminliste, applyChanges, leggTilNye } = useFiks()
+
+const { nullstill: nullstillVarsel, sett: settVarsel } = useTerminlisteVarsel()
 
 const klubbSok = ref('')
 const klubbTreff = ref([])
@@ -77,6 +80,8 @@ async function sjekkTerminliste() {
   synker.value = true
   try {
     synk.value = await synkTerminliste()
+    // Hjem viser samme nyhet. Sjekker man her, er den lest.
+    if (synk.value && !synk.value.ingenLag) settVarsel(synk.value)
     if (synk.value?.ingenLag) {
       showToast('Fant ingen av lagene våre i klubbens lagliste', 'error')
       synk.value = null
@@ -98,6 +103,7 @@ async function oppdaterFraFiks() {
     const flyttet = await applyChanges(synk.value?.endret || [])
     const lagt = await leggTilNye(synk.value?.nye || [], viewingSeason.value?.id)
     await fetchMatches()
+    nullstillVarsel()
     synk.value = null
     const deler = []
     if (flyttet) deler.push(`${flyttet} ${flyttet === 1 ? 'kamp' : 'kamper'} flyttet`)

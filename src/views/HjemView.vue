@@ -9,6 +9,8 @@ import TodayMatchCard from '../components/today/TodayMatchCard.vue'
 import CupEntryCard from '../components/today/CupEntryCard.vue'
 import TodayTrainingCard from '../components/today/TodayTrainingCard.vue'
 import ReminderList from '../components/today/ReminderList.vue'
+import TerminlisteCard from '../components/today/TerminlisteCard.vue'
+import { useTerminlisteVarsel } from '../composables/useTerminlisteVarsel'
 import NextTrainingCard from '../components/today/NextTrainingCard.vue'
 import NextMatchCard from '../components/today/NextMatchCard.vue'
 import OtherTeamsList from '../components/today/OtherTeamsList.vue'
@@ -40,9 +42,14 @@ const { active: onboardingActive } = useOnboarding()
 
 const ready = ref(false)
 
+const { endringer: terminlisteEndringer, sjekkNarLedig } = useTerminlisteVarsel()
+
 onMounted(async () => {
   await refresh()
   ready.value = true
+  // Etter tegningen, aldri før: en treg fotball.no skal ikke kunne holde
+  // igjen hjemskjermen.
+  sjekkNarLedig()
 })
 
 const dateLine = computed(() => {
@@ -115,6 +122,13 @@ function coachNamesForMatch(matchId) {
 
     <div v-else class="px-lg hjem-stack">
       <OnboardingCards v-if="onboardingActive" class="ds-anim-fade-up ds-anim-delay-1" />
+
+      <!-- Kretsen har flyttet noe. Står øverst: det endrer når man møter opp. -->
+      <TerminlisteCard
+        v-if="terminlisteEndringer && !onboardingActive"
+        :endringer="terminlisteEndringer"
+        class="ds-anim-fade-up ds-anim-delay-1"
+      />
 
       <!-- Dagens hovedhendelser: kamp slår trening, men begge vises ved kollisjon -->
       <TodayMatchCard

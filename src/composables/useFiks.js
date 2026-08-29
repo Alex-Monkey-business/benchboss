@@ -339,20 +339,37 @@ export function useFiks() {
 
   // Hva har fotball.no endret siden sist. Returnerer differansen — den
   // SKRIVER ikke. Treneren skal se hva som flyttes før det flyttes.
-  async function checkForChanges() {
-    const teams = seasonTeams.value.filter(t => t.fiks_team_id)
-    if (!teams.length || !isSupabaseConfigured) return null
-    const lister = await Promise.all(teams.map(t => fetchTerminliste(t.fiks_team_id)))
-    const hentet = []
-    const sett = new Set()
-    for (const liste of lister) {
-      for (const k of liste) {
-        if (sett.has(k.fiksMatchId)) continue
-        sett.add(k.fiksMatchId)
-        hentet.push(k)
-      }
+  // SPILTE KAMPER RØRES IKKE. Der ligger resultat, spilletid, dommer og
+  // utlegg. At fotball.no i ettertid skriver et annet klokkeslett på en kamp
+  // i mai er en historisk detalj, ikke noe å rette.
+  function baraFramover(d) {
+    const idag = localISODate()
+    const framover = m => (m.match_date || m.date || '') >= idag
+    return {
+      nye: d.nye.filter(framover),
+      // Flyttet TIL eller FRA en dato som ennå ikke er passert.
+      endret: d.endret.filter(e => framover(e) || framover(e.fra || {})),
+      borte: d.borte.filter(framover)
     }
-    return diffTerminliste(matches.value, hentet)
+  }
+
+  async function checkForChanges() {
+    const cohort = activeCohort.value
+    const teams = seasonTeams.value.filter(t => t.fiks_team_id)
+    if (!cohort?.id || !teams.length || !isSupabaseConfigured) return null
+
+    const lister = await Promise.all(teams.map(t => fetchTerminliste(t.fiks_team_id)))
+    const hentet = [...new Map(lister.flat().map(k => [k.fiksMatchId, k])).values()]
+
+    // Kampene leses fra BASEN, ikke fra `matches.value`. Sjekken kjøres fra
+    // Hjem, som bare har lest sesongen den viser — og en kamp som ikke er
+    // lastet ville sett ut som en helt ny kamp fra fotball.no.
+    const { data: alle } = await supabase
+      .from('matches')
+      .select('id, match_date, match_time, home_team, away_team, venue, fiks_match_id')
+      .eq('cohort_id', cohort.id)
+
+    return baraFramover(diffTerminliste(alle || [], hentet))
   }
 
   /**
@@ -389,21 +406,7 @@ export function useFiks() {
         return p ? { ...m, fiks_match_id: Number(p.fiks.fiksMatchId), venue: p.fiks.venue } : m
       })
 
-      // SPILTE KAMPER RØRES IKKE. Der ligger resultat, spilletid, dommer og
-      // utlegg. At fotball.no i ettertid skriver et annet klokkeslett på en
-      // kamp i mai er en historisk detalj, ikke noe å rette.
-      const idag = localISODate()
-      const framover = m => (m.match_date || m.date || '') >= idag
-      const d = diffTerminliste(oppdatert, hentet)
-
-      return {
-        nye: d.nye.filter(framover),
-        // Flyttet TIL eller FRA en dato som ennå ikke er passert.
-        endret: d.endret.filter(e => framover(e) || framover(e.fra || {})),
-        borte: d.borte.filter(framover),
-        parret: par.length,
-        koblet
-      }
+      return { ...baraFramover(diffTerminliste(oppdatert, hentet)), parret: par.length, koblet }
     } finally {
       working.value = false
     }
