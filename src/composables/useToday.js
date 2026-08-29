@@ -3,6 +3,7 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { useAuth } from '../stores/auth'
+import { useFeatures } from './useFeatures'
 import { useSeasons } from './useSeasons'
 import { useMatches } from './useMatches'
 import { useCoaches } from './useCoaches'
@@ -30,6 +31,7 @@ registerReset(() => { prepSessions.value = []; loading.value = false })
 
 export function useToday() {
   const { coach, preferredTeam, preferredCupTeam, activeCohort } = useAuth()
+  const { usesReferees } = useFeatures()
   const { dismissed } = useDismissedReminders()
   const { activeSeason, fetchSeasons } = useSeasons()
   const { matches, fetchMatches, getCoachesForMatch } = useMatches()
@@ -189,7 +191,9 @@ export function useToday() {
     const home = isHomeMatch(match)
     return {
       isHome: home,
-      referee: home ? !!(match.referee || '').trim() : null,
+      // null betyr «ikke vår jobb» — kortene hopper over punktet. Samme svar
+      // for bortekamp og for et kull som ikke skaffer dommer selv.
+      referee: home && usesReferees.value ? !!(match.referee || '').trim() : null,
       lineup: !!s && Object.keys(s.lineup || {}).length > 0,
       status: s?.status || null
     }
@@ -218,7 +222,8 @@ export function useToday() {
     // Kampen som står i kortet øverst — påminnelsen om den slipper å gjenta
     // motstanderen.
     primaryMatchId: nextMatch.value?.id || null,
-    dismissedKeys: dismissed.value
+    dismissedKeys: dismissed.value,
+    usesReferees: usesReferees.value
   }))
 
   // Neste forekomst av en ukedag etter `after`, klippet til periodens slutt.

@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMatches } from '../composables/useMatches'
+import { useFeatures } from '../composables/useFeatures'
 import { useExpenses } from '../composables/useExpenses'
 import { useCoaches } from '../composables/useCoaches'
 import { useReferees } from '../composables/useReferees'
@@ -33,6 +34,7 @@ const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals(
 const { session: mmSession, fetchSession: fetchMmSession } = useMatchMode()
 const { seasons, fetchSeasons } = useSeasons()
 const { coach: currentCoach } = useAuth()
+const { usesReferees } = useFeatures()
 const { show: showToast } = useToast()
 
 // Try cache first — instant render when arriving from Dashboard.
@@ -113,7 +115,11 @@ function applySmartOpen() {
   const isPast = !Number.isNaN(matchDate.getTime()) && matchDate < today
   const hasResult = match.value.home_score != null && match.value.away_score != null
   // Dommer satt + utlegg registrert → logistikken er gjort, ikke relevant å åpne.
-  const logisticsDone = !!match.value.referee && !!expense.value
+  //
+  // Skaffer laget ikke dommer selv, finnes ikke logistikken. Da må denne være
+  // SANN — ellers ville hver kommende hjemmekamp åpnet en seksjon som ikke
+  // vises, og laget aldri fått fokus.
+  const logisticsDone = !usesReferees.value || (!!match.value.referee && !!expense.value)
 
   if (isPast || hasResult) {
     // Spilt (resultat ført) eller skulle vært spilt — coach kom sannsynligvis
@@ -886,7 +892,7 @@ function focusSummaryGroup() {
 
       <!-- Gruppe 1: Dommer & utlegg (kun på hjemmekamper — vi har ikke dommer-ansvar borte) -->
       <DisclosureSection
-        v-if="isHomeMatch"
+        v-if="isHomeMatch && usesReferees"
         v-model="open.logistics"
         :style="{ order: sectionOrder.logistics }"
         label="Dommer & utlegg"

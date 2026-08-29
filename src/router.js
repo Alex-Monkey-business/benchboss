@@ -121,7 +121,10 @@ const routes = [
   {
     path: '/admin/dommere',
     name: 'admin-dommere',
-    component: () => import('./views/AdminDommereView.vue')
+    component: () => import('./views/AdminDommereView.vue'),
+    // Dommerlista finnes ikke for et kull som ikke skaffer dommer selv.
+    // Ruta blir stående (gamle lenker, bokmerker) men sender til Admin.
+    beforeEnter: () => (useAuth().activeCohort.value?.uses_referees === false ? { name: 'admin' } : true)
   },
   // Møtereferater. Ingen meta = trener-only, med vilje — her står spillernavn
   // med vurderinger knyttet til seg, og det skal aldri nå en foreldreflate.

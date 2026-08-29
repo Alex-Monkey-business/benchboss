@@ -4,6 +4,7 @@ import { computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import { useMatches } from '../composables/useMatches'
+import { useFeatures } from '../composables/useFeatures'
 import { useExpenses } from '../composables/useExpenses'
 import { useCups } from '../composables/useCups'
 import { localISODate } from '../lib/dateLabels'
@@ -11,6 +12,7 @@ import { localISODate } from '../lib/dateLabels'
 const route = useRoute()
 const router = useRouter()
 const { coach, isParent, logout } = useAuth()
+const { usesReferees } = useFeatures()
 const { matches, getCoachesForMatch } = useMatches()
 const { getExpenseForMatch } = useExpenses()
 const { cupInProgress, fetchCups } = useCups()
@@ -59,6 +61,9 @@ function onTabClick(tab) {
 
 // Pending = past HOME matches where I'm assigned as coach AND no expense logged.
 const pendingCount = computed(() => {
+  // Skaffer laget ikke dommer selv, føres det aldri utlegg — da ville prikken
+  // stått rød for alltid uten at det fantes noe å gjøre med den.
+  if (!usesReferees.value) return 0
   if (!coach.value || !matches.value?.length) return 0
   const today = localISODate()
   return matches.value.filter(m =>

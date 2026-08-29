@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAuth } from '../stores/auth'
 import { useSeasons } from '../composables/useSeasons'
+import { useFeatures } from '../composables/useFeatures'
 import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
 import { useReferees } from '../composables/useReferees'
@@ -20,6 +21,7 @@ const { viewingSeason, fetchSeasons } = useSeasons()
 const { matches, matchCoaches, matchPlayers, fetchMatches } = useMatches()
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees } = useReferees()
+const { usesReferees } = useFeatures()
 const { players, fetchPlayers } = usePlayers()
 const { fetchPlayerSeasonTeams, teamForSeason } = usePlayerSeasonTeams()
 const { goals: allGoals, fetchAllGoals } = useMatchGoals()
@@ -34,7 +36,7 @@ const teamOf = p => teamForSeason(p, viewingSeason.value?.id)
 const loading = ref(matches.value.length === 0)
 
 onMounted(async () => {
-  await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllGoals(), fetchAllStints()])
+  await Promise.all([fetchSeasons(), fetchCoaches(), (usesReferees.value ? fetchReferees() : Promise.resolve()), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllGoals(), fetchAllStints()])
   if (viewingSeason.value) {
     await fetchMatches(viewingSeason.value.id)
   }

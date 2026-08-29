@@ -20,7 +20,10 @@ function isoDaysFrom(today, days) {
 
 // Returnerer maks 3 påminnelser: { kind, title, body, matchId }.
 // excludeMatchIds: dagens kamper — de dekkes av kampkortets egen sjekkliste.
-export function buildReminders({ matches, coachId, getCoachesForMatch, getExpenseForMatch, periods = [], today = localISODate(), excludeMatchIds = [], dismissedKeys = new Set(), primaryMatchId = null }) {
+// usesReferees: skaffer laget dommer selv? Av ⇒ verken «Dommer mangler» eller
+// «Utlegg ikke ført» er ærend som finnes. Default true, så kall uten den
+// oppfører seg som før.
+export function buildReminders({ matches, coachId, getCoachesForMatch, getExpenseForMatch, periods = [], today = localISODate(), excludeMatchIds = [], dismissedKeys = new Set(), primaryMatchId = null, usesReferees = true }) {
   if (!coachId) return []
   const excluded = new Set(excludeMatchIds)
   const mine = (m) => getCoachesForMatch(m.id).includes(coachId)
@@ -28,7 +31,7 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
 
   // 1. Dommer mangler på kommende hjemmekamp innen 7 dager.
   const refDeadline = isoDaysFrom(today, REF_WINDOW_DAYS)
-  const refLess = matches
+  const refLess = !usesReferees ? [] : matches
     .filter(m =>
       isHomeMatch(m) &&
       !excluded.has(m.id) &&
@@ -131,6 +134,7 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
   // 3. Utlegg ikke ført på forbi hjemmekamp der jeg var trener.
   const pendingExpense = matches
     .filter(m =>
+      usesReferees &&
       isHomeMatch(m) &&
       !excluded.has(m.id) &&
       m.match_date < today &&

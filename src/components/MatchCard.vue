@@ -1,7 +1,10 @@
 <script setup>
 import { computed } from 'vue'
+import { useFeatures } from '../composables/useFeatures'
 import { isPast, isToday } from '../lib/dateLabels'
 import { isOurs, teamColorsForMatch, teamLabel, isPlayed, hasResult } from '../lib/matchMeta'
+
+const { usesReferees } = useFeatures()
 
 const props = defineProps({
   match: { type: Object, required: true },
@@ -34,12 +37,12 @@ const status = computed(() => {
   }
 
   // 2. Kommende hjemmekamp uten dommer
-  if (isHome && !played && upcomingSoon && !m.referee) {
+  if (usesReferees.value && isHome && !played && upcomingSoon && !m.referee) {
     return { label: 'Trenger dommer', tone: 'warn' }
   }
 
   // 3. Spilt hjemmekamp uten utlegg
-  if (isHome && past && !props.expense) {
+  if (usesReferees.value && isHome && past && !props.expense) {
     return { label: 'Mangler utlegg', tone: 'warn' }
   }
 

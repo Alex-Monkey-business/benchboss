@@ -2,6 +2,7 @@
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAuth } from '../stores/auth'
 import { useSeasons } from '../composables/useSeasons'
+import { useFeatures } from '../composables/useFeatures'
 import { useMatches } from '../composables/useMatches'
 import { useExpenses } from '../composables/useExpenses'
 import { useCoaches } from '../composables/useCoaches'
@@ -13,6 +14,7 @@ import SeasonPicker from '../components/SeasonPicker.vue'
 import { exportSeasonToExcel } from '../lib/excelExport'
 
 const { coach: currentCoach, activeCohort } = useAuth()
+const { usesReferees } = useFeatures()
 const clubShort = computed(() => activeCohort.value?.club_name?.split(' ')[0] || 'Klubben')
 const { seasons, viewingSeason, fetchSeasons, settleSeason } = useSeasons()
 const { matches, fetchMatches, getCoachesForMatch } = useMatches()
@@ -85,7 +87,7 @@ function handleExport() {
 <template>
   <div class="desktop-container">
     <div class="page-header">
-      <h1 class="page-header__title">Sesongoppgjør</h1>
+      <h1 class="page-header__title">{{ usesReferees ? 'Sesongoppgjør' : 'Sesong' }}</h1>
       <SeasonPicker />
     </div>
 
@@ -110,7 +112,7 @@ function handleExport() {
 
     <template v-else>
       <!-- My balance card (Halsen owes me) -->
-      <div v-if="currentCoach && !isSettled" class="px-lg mb-md">
+      <div v-if="usesReferees && currentCoach && !isSettled" class="px-lg mb-md">
         <div class="ds-card my-balance">
           <div class="my-balance__eyebrow">{{ clubShort }} skylder deg så langt</div>
           <div class="my-balance__amount">
@@ -123,7 +125,7 @@ function handleExport() {
       </div>
 
       <!-- Summary stats -->
-      <div class="px-lg mb-lg">
+      <div v-if="usesReferees" class="px-lg mb-lg">
         <div class="stat-row" style="grid-template-columns: repeat(2, 1fr);">
           <div class="stat-card">
             <div class="stat-card__value">{{ registeredCount }}</div>
@@ -144,7 +146,7 @@ function handleExport() {
       </div>
 
       <!-- Expense summary per coach -->
-      <div class="px-lg mb-lg">
+      <div v-if="usesReferees" class="px-lg mb-lg">
         <div class="ds-card">
           <h3 style="font-family: var(--ds-font-heading); font-size: 1rem; font-weight: 500; margin-bottom: 16px;">Utlegg per trener</h3>
 
@@ -173,8 +175,8 @@ function handleExport() {
         </div>
       </div>
 
-      <!-- Export button -->
-      <div class="px-lg mb-lg">
+      <!-- Eksporten er en dommerutlegg-rapport. Uten utlegg er arket tomt. -->
+      <div v-if="usesReferees" class="px-lg mb-lg">
         <button class="ds-btn ds-btn--secondary" style="width: 100%;" @click="handleExport">
           <svg style="width: 18px; height: 18px; margin-right: 6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
           Eksporter til Excel

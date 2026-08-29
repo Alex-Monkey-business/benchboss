@@ -2,13 +2,34 @@
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
+import { useFeatures } from '../composables/useFeatures'
+import { useToast } from '../composables/useToast'
+import { supabase } from '../supabase'
 import { useCoaches } from '../composables/useCoaches'
 import { useTheme } from '../composables/useTheme'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import InstallAppCard from '../components/InstallAppCard.vue'
 
 const router = useRouter()
-const { coach, logout, isAdmin, isPlatformAdmin, memberships, activeCohort, setActiveCohort } = useAuth()
+const { coach, logout, isAdmin, isPlatformAdmin, memberships, activeCohort, setActiveCohort, refreshMember } = useAuth()
+const { usesReferees } = useFeatures()
+const { show: showToast } = useToast()
+
+// Bryteren for dommere. Kun admin — RLS sier det samme (admin_cohort_update),
+// så en vanlig trener ville uansett fått 403.
+const kanStyreKullet = computed(() => isAdmin.value || isPlatformAdmin.value)
+const lagrerDommere = ref(false)
+
+async function settDommere(pa) {
+  const id = activeCohort.value?.id
+  if (!id || pa === usesReferees.value || lagrerDommere.value) return
+  lagrerDommere.value = true
+  const { error } = await supabase.from('cohorts').update({ uses_referees: pa }).eq('id', id)
+  lagrerDommere.value = false
+  if (error) { showToast('Kunne ikke lagre', 'error'); return }
+  await refreshMember()
+  showToast(pa ? 'Dommere er på' : 'Dommere er av', 'success')
+}
 const { coaches, fetchCoaches } = useCoaches()
 const { theme, setTheme } = useTheme()
 
@@ -52,9 +73,13 @@ const links = computed(() => [
   ...(isAdmin.value || isPlatformAdmin.value
     ? [{ to: '/admin/tilgang', label: 'Tilgang', icon: 'people' }]
     : []),
-  { to: '/admin/dommerutlegg', label: 'Sesongoppgjør', icon: 'vipps' },
+  // Sesongoppgjøret er IKKE bare utlegg — det er eneste stedet en sesong
+  // avsluttes. Raden blir stående uansett; bare navnet og innholdet endrer seg
+  // når laget ikke skaffer dommer selv.
+  { to: '/admin/dommerutlegg', label: usesReferees.value ? 'Sesongoppgjør' : 'Sesong', icon: usesReferees.value ? 'vipps' : 'calendar' },
   { to: '/admin/sesong-kamper', label: 'Sesong & kampprogram', icon: 'calendar' },
-  { to: '/admin/dommere', label: 'Dommere', icon: 'whistle' },
+  // Dommerlista har derimot ingen annen jobb.
+  ...(usesReferees.value ? [{ to: '/admin/dommere', label: 'Dommere', icon: 'whistle' }] : []),
   { to: '/admin/referater', label: 'Møtereferater', icon: 'notes' },
   { to: '/serie/tropp', label: 'Spillere & tropp', icon: 'jersey' },
   { to: '/cup', label: 'Turneringer', icon: 'trophy' }
@@ -137,6 +162,32 @@ const links = computed(() => [
     </div>
 
     <InstallAppCard />
+
+    <div v-if="kanStyreKullet" class="px-lg" style="margin-top: var(--ds-space-xl);">
+      <div class="admin-section-label">Dommere</div>
+      <div class="theme-toggle" role="radiogroup" aria-label="Skaffer laget dommer selv?">
+        <button
+          type="button"
+          role="radio"
+          :aria-checked="usesReferees"
+          :disabled="lagrerDommere"
+          :class="['theme-toggle__option', { 'theme-toggle__option--active': usesReferees }]"
+          @click="settDommere(true)"
+        >Vi skaffer dommer</button>
+        <button
+          type="button"
+          role="radio"
+          :aria-checked="!usesReferees"
+          :disabled="lagrerDommere"
+          :class="['theme-toggle__option', { 'theme-toggle__option--active': !usesReferees }]"
+          @click="settDommere(false)"
+        >Trenger ikke</button>
+      </div>
+      <p class="admin-hint">
+        Av: dommerfeltet på kampen, dommerlista og sesongoppgjøret forsvinner. Det som alt er
+        registrert blir stående.
+      </p>
+    </div>
 
     <div class="px-lg" style="margin-top: var(--ds-space-xl);">
       <div class="admin-section-label">Utseende</div>
@@ -366,5 +417,12 @@ const links = computed(() => [
   color: var(--ds-color-text-primary);
   font-weight: var(--ds-weight-semibold);
   box-shadow: var(--ds-shadow-xs);
+}
+
+.admin-hint {
+  margin: var(--ds-space-sm) 0 0;
+  font-size: var(--ds-text-sm);
+  line-height: var(--ds-leading-snug);
+  color: var(--ds-color-text-tertiary);
 }
 </style>
