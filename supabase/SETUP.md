@@ -125,7 +125,21 @@ lenken og koden kommer fra samme kall, og begge er gyldige:
 </p>
 ```
 
-**Denne malen er også invitasjonen.** «Invite»-malen brukes ikke lenger:
+**Denne malen er innlogginger. Invitasjonen sender vi selv** gjennom Resend
+(`supabase/functions/member-admin/invite-mail.ts`) — «Velkommen til BenchBoss»
+med kode og lenke, laget med `generateLink` som ikke sender noe av seg selv.
+Krever hemmeligheten `RESEND_API_KEY` på prosjektet:
+
+```
+npx supabase secrets set RESEND_API_KEY=... INVITE_FROM='BenchBoss <ikke-svar@benchboss.no>'
+```
+
+Mangler nøkkelen, faller invitasjonen tilbake på malen under — en invitasjon
+som ikke kommer fram er verre enn en med feil overskrift. Fallbacken logges i
+funksjonsloggen. Se den i nettleseren med
+`node scripts/invitasjon-forhandsvisning.mjs ut.html`.
+
+**Malen under er også fallbacken.** «Invite»-malen brukes ikke lenger:
 `inviteUserByEmail` lager en lenke som dør i det kontoen bekreftes, og uten
 bekreftelse er kodeveien stengt (disable_signup). `member-admin` oppretter
 derfor kontoen ferdig bekreftet og sender denne e-posten i stedet — den som

@@ -7,6 +7,7 @@
 // Handlinger: invite, resend, set_role, revoke.
 
 import { createClient } from 'jsr:@supabase/supabase-js@2'
+import { inviteHtml } from './invite-mail.ts'
 
 const CORS = {
   'Access-Control-Allow-Origin': '*',
@@ -16,6 +17,12 @@ const CORS = {
 
 const ROLES = ['admin', 'coach', 'parent']
 const SITE_URL = Deno.env.get('SITE_URL') ?? 'https://benchboss.no'
+
+// Invitasjonen sendes av oss, ikke av Supabase. Mangler nøkkelen, faller vi
+// tilbake på innloggings-e-posten — en invitasjon som ikke kommer fram er
+// verre enn en med feil overskrift.
+const RESEND_KEY = Deno.env.get('RESEND_API_KEY')
+const INVITE_FROM = Deno.env.get('INVITE_FROM') ?? 'BenchBoss <ikke-svar@benchboss.no>'
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -166,6 +173,42 @@ async function sendLoginEmail(email: string): Promise<string | undefined> {
     return 'det gikk nettopp ut en e-post til denne adressen. Prøv igjen om et minutt.'
   }
   return error.message
+}
+
+async function sendInviteEmail(
+  admin: any,
+  email: string,
+  navn: string,
+  kull: string,
+  fra: string,
+): Promise<string | undefined> {
+  if (!RESEND_KEY) return 'mangler RESEND_API_KEY'
+
+  const { data, error } = await admin.auth.admin.generateLink({
+    type: 'magiclink',
+    email,
+    options: { redirectTo: `${SITE_URL}/auth/callback` },
+  })
+  if (error) return error.message
+
+  const kode = data?.properties?.email_otp
+  const lenke = data?.properties?.action_link
+  if (!kode || !lenke) return 'fikk ingen lenke fra Supabase'
+
+  const res = await fetch('https://api.resend.com/emails', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${RESEND_KEY}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      from: INVITE_FROM,
+      to: [email],
+      subject: `Du har tilgang til ${kull} i BenchBoss`,
+      html: inviteHtml(navn.split(' ')[0], kull, fra, kode, lenke),
+    }),
+  })
+  if (res.ok) return undefined
+
+  const tekst = await res.text()
+  return `Resend svarte ${res.status}: ${tekst.slice(0, 200)}`
 }
 
 Deno.serve(async (req) => {
@@ -319,7 +362,20 @@ Deno.serve(async (req) => {
           return fail(`Invitasjonen ble ikke sendt: ${konto.error}`)
         }
 
-        const sendFeil = await sendLoginEmail(email)
+        const [{ data: kull }, { data: avsender }] = await Promise.all([
+          admin.from('cohorts').select('name').eq('id', cohortId).maybeSingle(),
+          admin.from('profiles').select('full_name').eq('id', callerId).maybeSingle(),
+        ])
+        const kullNavn = kull?.name || 'laget'
+
+        // Vår egen invitasjon først. Går den ikke ut — nøkkelen mangler, Resend
+        // svarer noe rart — sendes innloggings-e-posten i stedet. Personen skal
+        // uansett komme inn.
+        let sendFeil = await sendInviteEmail(admin, email, name, kullNavn, avsender?.full_name || '')
+        if (sendFeil) {
+          console.warn('Invitasjonen falt tilbake på innloggings-e-posten:', sendFeil)
+          sendFeil = await sendLoginEmail(email)
+        }
 
         return json({
           ok: true,
@@ -341,7 +397,19 @@ Deno.serve(async (req) => {
         const konto = await ensureConfirmedUser(admin, member.email)
         if (konto.error) return fail(`Kunne ikke sende: ${konto.error}`)
 
-        const sendFeil = await sendLoginEmail(member.email)
+        // Har hen aldri logget inn, er dette fortsatt en invitasjon — ikke en
+        // «logg inn igjen»-e-post til noen som ikke vet hva appen er.
+        let sendFeil: string | undefined
+        if (member.status === 'invited') {
+          const [{ data: kull }, { data: avsender }] = await Promise.all([
+            admin.from('cohorts').select('name').eq('id', cohortId).maybeSingle(),
+            admin.from('profiles').select('full_name').eq('id', callerId).maybeSingle(),
+          ])
+          sendFeil = await sendInviteEmail(
+            admin, member.email, member.name || '', kull?.name || 'laget', avsender?.full_name || '',
+          )
+        }
+        if (sendFeil || member.status !== 'invited') sendFeil = await sendLoginEmail(member.email)
         if (sendFeil) return fail(`Kunne ikke sende: ${sendFeil}`)
 
         await admin.from('cohort_members')
