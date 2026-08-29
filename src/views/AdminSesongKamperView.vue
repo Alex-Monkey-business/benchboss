@@ -518,8 +518,8 @@ function formatMatchDate(dateStr) {
         <!-- Koblet, men ingen sjekk kjørt ennå -->
         <template v-else-if="!synk">
           <p class="fiks-lead">
-            Sammenligner kampene med terminlista og viser hva som er endret. Ingenting flyttes
-            før du sier fra.
+            Sammenligner kampene som ligger foran oss med terminlista og viser hva som er endret.
+            Spilte kamper røres ikke, og ingenting flyttes før du sier fra.
           </p>
           <button class="ds-btn ds-btn--primary fiks-knapp" :disabled="synker" @click="sjekkTerminliste">
             {{ synker ? 'Henter fra fotball.no…' : 'Sjekk terminlista' }}

@@ -10,6 +10,7 @@ import {
 } from '../lib/fiks'
 import { isOurs, teamSlugFromName } from '../lib/matchMeta'
 import { slugify } from '../lib/playerList'
+import { localISODate } from '../lib/dateLabels'
 import { cohortFormat } from '../lib/spillform'
 
 // Henting fra fotball.no. Parsing ligger i lib/fiks.js; her er nettet og
@@ -313,17 +314,22 @@ export function useFiks() {
     }))
     const hentet = [...new Map(lister.flat().map(k => [k.fiksMatchId, k])).values()]
 
+    const idag = localISODate()
     const { par } = parKamper(alleKamper, hentet, lagAvKamp)
     for (const p of par) {
-      await supabase
-        .from('matches')
-        .update({
-          fiks_match_id: Number(p.fiks.fiksMatchId),
-          venue: p.fiks.venue,
-          division: p.fiks.division,
-          round: p.fiks.round
-        })
-        .eq('id', p.id)
+      const spilt = (alleKamper.find(m => m.id === p.id)?.match_date || '') < idag
+      // En spilt kamp får BARE nøkkelen. Bane, divisjon og runde er data
+      // noen har ført, og en kamp som er over skal ikke endre seg fordi
+      // fotball.no skriver noe litt annet i dag.
+      const felt = spilt
+        ? { fiks_match_id: Number(p.fiks.fiksMatchId) }
+        : {
+            fiks_match_id: Number(p.fiks.fiksMatchId),
+            venue: p.fiks.venue,
+            division: p.fiks.division,
+            round: p.fiks.round
+          }
+      await supabase.from('matches').update(felt).eq('id', p.id)
     }
     await markSynced(teams)
     return { hentet, par }
@@ -383,7 +389,21 @@ export function useFiks() {
         return p ? { ...m, fiks_match_id: Number(p.fiks.fiksMatchId), venue: p.fiks.venue } : m
       })
 
-      return { ...diffTerminliste(oppdatert, hentet), parret: par.length, koblet }
+      // SPILTE KAMPER RØRES IKKE. Der ligger resultat, spilletid, dommer og
+      // utlegg. At fotball.no i ettertid skriver et annet klokkeslett på en
+      // kamp i mai er en historisk detalj, ikke noe å rette.
+      const idag = localISODate()
+      const framover = m => (m.match_date || m.date || '') >= idag
+      const d = diffTerminliste(oppdatert, hentet)
+
+      return {
+        nye: d.nye.filter(framover),
+        // Flyttet TIL eller FRA en dato som ennå ikke er passert.
+        endret: d.endret.filter(e => framover(e) || framover(e.fra || {})),
+        borte: d.borte.filter(framover),
+        parret: par.length,
+        koblet
+      }
     } finally {
       working.value = false
     }
