@@ -416,9 +416,13 @@ function hoppOver() {
       <!-- ------------------------------------------------ Ferdig -->
       <template v-else-if="steg === 'ferdig'">
         <h1 class="kig__tittel">Klart.</h1>
+        <!-- Sto før: «de ligger som kort på Hjem». Det beskrev hvordan VI har
+             bygget det, ikke hva han skal gjøre. Og det var feil: trenerkortet
+             er ute av onboardingen, og treninger har aldri vært et kort. Det
+             eneste som faktisk står igjen er spillerne. -->
         <p class="kig__lead">
           {{ resultat?.lag }} lag og {{ resultat?.kamper }} kamper er inne.
-          Nå mangler bare spillerne, de andre trenerne og treningene — de ligger som kort på Hjem.
+          Nå mangler bare spillerne — det ordner du på Hjem.
         </p>
         <div class="kig__handling">
           <button type="button" class="ds-btn ds-btn--primary kig__hovedknapp" @click="ferdig">Til Hjem</button>
