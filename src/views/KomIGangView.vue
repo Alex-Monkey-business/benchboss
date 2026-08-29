@@ -272,7 +272,7 @@ function hoppOver() {
         </div>
 
         <h1 class="kig__tittel kig__tittel--velkomst">
-          Hei{{ fornavn ? ', ' + fornavn : '' }}.
+          Velkommen til <span class="kig__merke">BenchBoss</span>{{ fornavn ? ', ' + fornavn : '' }}!
         </h1>
         <p class="kig__velkomst">
           Du skal ikke taste inn <strong>én eneste kamp.</strong>
@@ -430,7 +430,7 @@ function hoppOver() {
       Sett opp for hånd i stedet
     </button>
 
-    <p v-if="steg === 'velkommen'" class="kig__signatur">BenchBoss · Alex Monkey Business</p>
+    <p v-if="steg === 'velkommen'" class="kig__signatur">Alex Monkey Business</p>
   </div>
 </template>
 
@@ -651,9 +651,18 @@ function hoppOver() {
 }
 
 .kig__tittel--velkomst {
-  font-size: clamp(1.75rem, 5.5dvh, 2.25rem);
+  /* «Velkommen til BenchBoss, Sten!» er tre ganger så langt som «Hei, Sten.»
+     — men det sier hvor du har havnet, som er hele jobben til en skjerm man
+     kommer til fra en e-post. */
+  font-size: clamp(1.5rem, 4.6dvh, 2rem);
   margin-bottom: clamp(var(--ds-space-xs), 1.5dvh, var(--ds-space-sm));
 }
+
+/* --ds-color-accent er nøytral (nesten hvit i mørk, nesten svart i lys) —
+   den ga ingen synlig forskjell. --ds-color-warm er appens ekte aksent:
+   terrakotta i lys, varm oransje i mørk, og den samme fargen som kjegla
+   maskoten står ved. */
+.kig__merke { color: var(--ds-color-warm); }
 
 .kig__velkomst {
   font-size: clamp(var(--ds-text-base), 2.2dvh, var(--ds-text-lg));
