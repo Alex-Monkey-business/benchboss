@@ -67,6 +67,13 @@ onMounted(async () => {
 // som skryter.
 const fornavn = computed(() => (coach.value?.name || '').split(' ')[0])
 
+// Ekte kamper fra ekte terminlister — det er det han får om et halvminutt.
+const HERO_KAMPER = [
+  { dato: 'tir 1. sep', lag: 'Fram G10 blå' },
+  { dato: 'lør 5. sep', lag: 'Store Bergan' },
+  { dato: 'tir 8. sep', lag: 'Runar G10 hvit' }
+]
+
 function start() {
   steg.value = klubb.value ? 'argang' : 'klubb'
 }
@@ -229,18 +236,38 @@ function hoppOver() {
 
 <template>
   <div class="kig">
-    <div class="kig__inner">
+    <div class="kig__inner" :class="{ 'kig__inner--velkomst': steg === 'velkommen' }">
       <!-- ---------------------------------------------- Velkommen -->
       <template v-if="steg === 'velkommen'">
+        <!-- Animasjonen ER løftet: tomme kamprader som fyller seg selv mens
+             han ser på. Treneren peker på dem. Pynt hadde vært billigere,
+             men dette viser det setningen påstår. -->
+        <div class="kig-hero" aria-hidden="true">
+          <div class="kig-hero__rader">
+            <div v-for="(k, i) in HERO_KAMPER" :key="i" class="kig-hero__rad" :style="{ '--i': i }">
+              <span class="kig-hero__dato">{{ k.dato }}</span>
+              <span class="kig-hero__lag">{{ k.lag }}</span>
+            </div>
+          </div>
+          <img
+            class="kig-hero__trener"
+            src="/illustrations/bench-boss-transparent-library/coach-mascot-520.png"
+            alt=""
+            width="520"
+            height="520"
+            fetchpriority="high"
+          />
+        </div>
+
         <h1 class="kig__tittel kig__tittel--velkomst">
           Hei{{ fornavn ? ', ' + fornavn : '' }}.
         </h1>
         <p class="kig__velkomst">
-          Vi henter lagene dine og hele terminlista fra fotball.no.
-          <strong>Du skriver ingenting inn.</strong>
+          Du skal ikke taste inn <strong>én eneste kamp.</strong>
+          Vi henter hele terminlista fra fotball.no mens du ser på.
         </p>
         <p class="kig__velkomst kig__velkomst--dempet">
-          Tre spørsmål, så er {{ activeCohort?.name || 'kullet' }} satt opp.
+          Tre spørsmål, så er {{ activeCohort?.name || 'kullet' }} oppe og går.
         </p>
 
         <div class="kig__handling">
@@ -635,5 +662,88 @@ function hoppOver() {
   font-size: var(--ds-text-xs);
   letter-spacing: var(--ds-tracking-wide);
   color: var(--ds-color-text-tertiary);
+}
+
+/* ---- Velkomst-hero ---- */
+/* Velkomsten har en hero som fyller toppen — da skal ikke luften over den
+   også være 12 vh. */
+.kig__inner--velkomst { padding-top: 5vh; }
+
+.kig-hero {
+  position: relative;
+  height: 13rem;
+  margin: 0 0 var(--ds-space-xl);
+}
+
+.kig-hero__trener {
+  position: absolute;
+  right: -1rem;
+  bottom: 0;
+  width: 12.5rem;
+  height: auto;
+  animation: kigFloat 5s ease-in-out infinite;
+}
+
+.kig-hero__rader {
+  position: absolute;
+  left: 0;
+  bottom: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  width: 60%;
+}
+
+.kig-hero__rad {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 10px;
+  background: var(--ds-color-bg-elevated);
+  border: var(--ds-border-width) solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  box-shadow: var(--ds-shadow-sm);
+  /* Kommer inn fra venstre, én etter én — som om de lander fra fotball.no. */
+  opacity: 0;
+  animation: kigRadInn 0.55s var(--ds-ease-pop) forwards;
+  animation-delay: calc(0.35s + var(--i) * 0.22s);
+}
+
+.kig-hero__dato {
+  font-size: 0.625rem;
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+}
+
+.kig-hero__lag {
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-primary);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+@keyframes kigRadInn {
+  from { opacity: 0; transform: translateX(-14px) scale(0.96); }
+  to   { opacity: 1; transform: none; }
+}
+
+@keyframes kigFloat {
+  0%, 100% { transform: translateY(0); }
+  50%      { transform: translateY(-8px); }
+}
+
+/* Bevegelsen er poenget, men ikke på bekostning av noen. */
+@media (prefers-reduced-motion: reduce) {
+  .kig-hero__rad { animation: none; opacity: 1; }
+  .kig-hero__trener { animation: none; }
+}
+
+@media (min-width: 480px) {
+  .kig__inner--velkomst { padding-top: 8vh; }
+  .kig-hero { height: 15rem; }
+  .kig-hero__trener { width: 14rem; }
 }
 </style>
