@@ -116,7 +116,7 @@ lenken og koden kommer fra samme kall, og begge er gyldige:
 
 <p>Koden din er:</p>
 <p style="font-size:28px;letter-spacing:6px;font-weight:700">{{ .Token }}</p>
-<p>Den er gyldig i 10 minutter.</p>
+<p>Den er gyldig i én time.</p>
 
 <hr>
 <p>Eller trykk her: <a href="{{ .ConfirmationURL }}">Logg inn</a></p>
@@ -130,6 +130,12 @@ lenken og koden kommer fra samme kall, og begge er gyldige:
 bekreftelse er kodeveien stengt (disable_signup). `member-admin` oppretter
 derfor kontoen ferdig bekreftet og sender denne e-posten i stedet — den som
 har både lenke og kode, og som personen kan be om på nytt selv fra /login.
+
+**Levetiden settes i Authentication → Providers → Email → «Email OTP
+Expiration»**, og gjelder lenka og koden under ett. Står den på 3600 må også
+teksten over si «én time» — en mal som lyver om utløpet sender folk til
+support. Vil du ha et døgn (86400), sett `otp_length` til 8 først: 6 sifre som
+lever et døgn er for svakt.
 
 Koden står **først** med vilje. På iOS åpner magic links i Safari, ikke i den
 installerte appen — da får du en sesjon i Safari og en utlogget app på

@@ -221,8 +221,11 @@ max_frequency = "1s"
 # Number of characters used in the email OTP.
 otp_length = 6
 # Number of seconds before the email OTP expires (defaults to 1 hour).
-# 10 minutter: en 6-sifret kode som lever en time er svak.
-otp_expiry = 600
+# Lenka og koden deler denne. 10 minutter var satt for kodens skyld, men det
+# er lenka folk bruker — og en invitasjon som åpnes i lunsjen var da død.
+# 1 time: 6 sifre og maks 30 forsøk per 5 min per IP gir 360 gjett mot en
+# million. Vil vi ha et døgn, må koden opp i 8 sifre først.
+otp_expiry = 3600
 
 # SMTP settes IKKE opp lokalt med vilje: `supabase start` kjører Inbucket, en falsk
 # innboks på http://localhost:54324 der du ser alle e-poster uten å sende noe.
