@@ -534,6 +534,9 @@ function formatMatchDate(dateStr) {
 
         <!-- Resultatet -->
         <template v-else>
+          <p v-if="synk.spillform" class="fiks-lead">
+            Banene sier {{ synk.spillform }}er. Spillformen er rettet, og kamplengden med den.
+          </p>
           <p v-if="synk.parret" class="fiks-lead">
             {{ synk.parret }} {{ synk.parret === 1 ? 'kamp' : 'kamper' }} er koblet til fotball.no.
             Neste sjekk går rett på endringene.

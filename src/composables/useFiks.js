@@ -6,12 +6,12 @@ import { useMatches } from './useMatches'
 import {
   FIKS_BASE, CLUB_SEARCH_URL, clubSearchBody, parseClubSearch, usableClub,
   parseClubTeams, parseTerminliste, diffTerminliste, parKamper, ageClass,
-  teamsForAge, teamAge, genderFromCohortName, shortTeamName
+  teamsForAge, teamAge, genderFromCohortName, shortTeamName, spillformFraKamper
 } from '../lib/fiks'
 import { isOurs, teamSlugFromName } from '../lib/matchMeta'
 import { slugify } from '../lib/playerList'
 import { localISODate } from '../lib/dateLabels'
-import { cohortFormat } from '../lib/spillform'
+import { cohortFormat, formatFor, periodsFor } from '../lib/spillform'
 
 // Henting fra fotball.no. Parsing ligger i lib/fiks.js; her er nettet og
 // basen.
@@ -245,10 +245,41 @@ export function useFiks() {
       const rader = [...nye.values()]
       if (rader.length) await bulkAddMatches(rader)
       await markSynced(teams)
-      return { lagt: rader.length, hoppet: finnes.size }
+      const spillform = await oppdaterSpillform(lister.flat())
+      return { lagt: rader.length, hoppet: finnes.size, spillform }
     } finally {
       working.value = false
     }
+  }
+
+  /**
+   * Spillformen leses av banene kampene spilles på.
+   *
+   * Årskullet gir NFF-defaulten, og den stemmer nesten alltid. Men et lag kan
+   * spille et år opp eller ned, og da er banen fasit — «Borre KG 7er B» sier
+   * hva som faktisk skjer.
+   *
+   * Retter BARE når verdien fortsatt er defaulten. Har noen satt den bevisst
+   * i Admin, skal ikke en banestreng overkjøre det.
+   */
+  async function oppdaterSpillform(kamper) {
+    const cohort = activeCohort.value
+    if (!cohort?.id || !isSupabaseConfigured) return null
+
+    const fraFiks = spillformFraKamper(kamper)
+    if (!fraFiks || fraFiks === cohort.players_on_pitch) return null
+
+    const standard = formatFor(cohort.birth_year)
+    if (standard && cohort.players_on_pitch !== standard) return null
+
+    const [period_count, period_minutes] = periodsFor(fraFiks)
+    const { error } = await supabase
+      .from('cohorts')
+      .update({ players_on_pitch: fraFiks, period_count, period_minutes })
+      .eq('id', cohort.id)
+    if (error) return null
+    await refreshMember()
+    return fraFiks
   }
 
   async function markSynced(teams) {
@@ -406,7 +437,8 @@ export function useFiks() {
         return p ? { ...m, fiks_match_id: Number(p.fiks.fiksMatchId), venue: p.fiks.venue } : m
       })
 
-      return { ...baraFramover(diffTerminliste(oppdatert, hentet)), parret: par.length, koblet }
+      const spillform = await oppdaterSpillform(hentet)
+      return { ...baraFramover(diffTerminliste(oppdatert, hentet)), parret: par.length, koblet, spillform }
     } finally {
       working.value = false
     }
@@ -467,7 +499,7 @@ export function useFiks() {
     searching, working,
     searchClubs, fetchClubTeams, linkClub, setBirthYear, refreshMember,
     createTeams, linkSelfToTeams, fetchTerminliste, importMatches,
-    koblLagTilFiks, parKamperMotFiks, synkTerminliste,
+    koblLagTilFiks, parKamperMotFiks, synkTerminliste, oppdaterSpillform,
     checkForChanges, applyChanges, leggTilNye,
     ageClass, teamsForAge, shortTeamName
   }

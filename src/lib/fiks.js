@@ -245,6 +245,27 @@ export function parseTerminliste(ics) {
 // Hva har endret seg siden sist. Nøkkelen er fiksMatchId; alt annet kan
 // FIKS skrive om. Kamper vi har som ikke lenger står i terminlista er
 // «borte» — som regel avlyst, og verdt et varsel, ikke en stille sletting.
+// Spillformen står i banenavnet: «Borre KG 7er B», «Stag - Frostløkka 5er».
+// Det er ikke et felt, det er en konvensjon — men den holder på tvers av
+// klubbene vi har sjekket, og en bane lyver ikke om hvor mange som spiller.
+//
+// Fra 14 år står det ingenting: da er banen full størrelse og det er 11er.
+// Årskullet dekker dem.
+const FORM_I_TEKST = /\b(3|5|7|9|11)\s?er\b/i
+
+export function spillformFraKamper(kamper) {
+  const teller = new Map()
+  for (const k of kamper || []) {
+    const m = FORM_I_TEKST.exec(`${k.venue || ''} ${k.division || ''}`)
+    if (!m) continue
+    const n = Number(m[1])
+    teller.set(n, (teller.get(n) || 0) + 1)
+  }
+  if (!teller.size) return null
+  // Flertallet. En enkelt kamp på en 5er-bane gjør ikke laget til et 5er-lag.
+  return [...teller.entries()].sort((a, b) => b[1] - a[1])[0][0]
+}
+
 // ---------------------------------------------------------------- Parring
 //
 // Kamper som ble lastet opp fra Excel har ingen FIKS-id. Skal de kunne

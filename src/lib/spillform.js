@@ -4,6 +4,9 @@
 // da må de samme tallene gjelde begge steder — ellers får et kull opprettet
 // av treneren 7er mens ett opprettet av deg får 5er.
 
+// Grensene er sjekket mot ekte baner i FIKS hos Halsen, Stag, Sandefjord BK
+// og Nanset: banenavnet sier «5er», «7er» eller «9er». Alle fire spiller 9er
+// som 13-åringer — tabellen sa 11er, og det var feil.
 export function formatFor(birthYear, year = new Date().getFullYear()) {
   const y = parseInt(birthYear, 10)
   if (!y) return null
@@ -11,7 +14,7 @@ export function formatFor(birthYear, year = new Date().getFullYear()) {
   if (age <= 7) return 3
   if (age <= 9) return 5
   if (age <= 11) return 7
-  if (age <= 12) return 9
+  if (age <= 13) return 9
   return 11
 }
 

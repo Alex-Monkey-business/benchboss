@@ -244,7 +244,7 @@ async function hent() {
     // sesong, ikke denne — og et tomt kull skal ikke fylles med historikk.
     const fra = `${NAA}-01-01`
     const r = sesong ? await importMatches(sesong.id, { from: fra, teams: opprettede }) : { lagt: 0 }
-    resultat.value = { lag: valgteLag.value.length, kamper: r.lagt }
+    resultat.value = { lag: valgteLag.value.length, kamper: r.lagt, spillform: r.spillform }
     steg.value = 'ferdig'
   } catch (e) {
     feil.value = e?.message || 'Noe gikk galt under hentingen'
@@ -488,6 +488,9 @@ function hoppOver() {
              eneste som faktisk står igjen er spillerne. -->
         <p class="kig__lead">
           {{ resultat?.lag }} lag og {{ resultat?.kamper }} kamper er inne.
+          <!-- Spillformen leses av banene kampene spilles på. Sier vi det
+               ikke her, ser det ut som et tall vi fant på. -->
+          <template v-if="resultat?.spillform">Banene sier {{ resultat.spillform }}er, så det er satt.</template>
           Nå mangler bare spillerne — det ordner du på Hjem.
         </p>
         <div class="kig__handling">
