@@ -249,6 +249,17 @@ function ferdig() {
   router.replace('/')
 }
 
+// Velger han feil årgang, var lag-steget en blindvei: reload var eneste vei
+// tilbake. Velkomsten er ikke et steg med et spørsmål i seg, så den er ikke
+// med i kjeden.
+const FORRIGE = { argang: 'klubb', lag: 'argang' }
+const kanGaTilbake = computed(() => !!FORRIGE[steg.value])
+
+function tilbake() {
+  const f = FORRIGE[steg.value]
+  if (f) { feil.value = ''; steg.value = f }
+}
+
 function hoppOver() {
   // Kullet kan settes opp for hånd på Hjem. Vi husker valget så veiviseren
   // ikke tar over skjermen igjen ved neste innlogging.
@@ -260,6 +271,10 @@ function hoppOver() {
 <template>
   <div class="kig" :class="{ 'kig--velkomst': steg === 'velkommen' || steg === 'ferdig' }">
     <div class="kig__inner" :class="{ 'kig__inner--velkomst': steg === 'velkommen' || steg === 'ferdig' }">
+      <button v-if="kanGaTilbake && !laster" type="button" class="kig__tilbake" @click="tilbake">
+        Tilbake
+      </button>
+
       <!-- ---------------------------------------------- Velkommen -->
       <template v-if="steg === 'velkommen'">
         <div class="kig-tema" role="radiogroup" aria-label="Lyst eller mørkt">
@@ -638,6 +653,19 @@ function hoppOver() {
   width: 100%;
   padding: var(--ds-space-md);
   font-size: var(--ds-text-lg);
+}
+
+.kig__tilbake {
+  align-self: flex-start;
+  margin-bottom: var(--ds-space-md);
+  padding: var(--ds-space-xs) 0;
+  min-height: 44px;
+  background: none;
+  border: 0;
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
 }
 
 .kig__hopp {
