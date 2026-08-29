@@ -2,6 +2,12 @@
   command = "npm run build"
   publish = "dist"
 
+[build.environment]
+  # Playwright ligger som devDependency for QA-scriptene i scripts/. Uten
+  # denne laster npm install ned ~300 MB nettlesere ved HVER deploy — for et
+  # verktøy byggingen aldri bruker.
+  PLAYWRIGHT_SKIP_BROWSER_DOWNLOAD = "1"
+
 [[headers]]
   for = "/*"
   [headers.values]
