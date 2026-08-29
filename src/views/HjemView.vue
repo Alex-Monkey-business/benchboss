@@ -5,6 +5,7 @@ import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
 import { useCups } from '../composables/useCups'
 import { useAuth } from '../stores/auth'
+import { clubLogo } from '../lib/klubblogo'
 import TodayMatchCard from '../components/today/TodayMatchCard.vue'
 import CupEntryCard from '../components/today/CupEntryCard.vue'
 import TodayTrainingCard from '../components/today/TodayTrainingCard.vue'
@@ -32,7 +33,12 @@ const { activeCup, cupInProgress: showCupEntry } = useCups()
 // Før gjettet reconcileWithCoaches seg fram på navn når trener-id-en var
 // ukjent, og bommet stille — man fikk et annet lags kamper og alt så riktig ut.
 // Nå står det her i stedet.
-const { identityIncomplete } = useAuth()
+const { identityIncomplete, activeCohort } = useAuth()
+
+// Klubbmerket, når klubben er koblet til fotball.no. Faller det bort, skal
+// ingenting flytte seg — derfor skjules det, det fjernes ikke.
+const klubbmerke = computed(() => clubLogo(activeCohort.value?.club_fiks_id))
+const merkeSvikter = ref(false)
 
 // Et tomt kull skal fylles her, ikke lete etter Admin. Kortene forsvinner
 // ett og ett; er alt på plass, finnes de ikke.
@@ -98,8 +104,21 @@ function coachNamesForMatch(matchId) {
 <template>
   <div class="desktop-container">
     <header class="hjem-hero px-lg ds-anim-fade-up">
-      <h1 class="hjem-hero__greeting">{{ greeting }}</h1>
-      <p class="hjem-hero__date">{{ dateLine }}</p>
+      <div class="hjem-hero__tekst">
+        <h1 class="hjem-hero__greeting">{{ greeting }}</h1>
+        <p class="hjem-hero__date">{{ dateLine }}</p>
+      </div>
+      <img
+        v-if="klubbmerke"
+        class="hjem-hero__merke"
+        :class="{ 'hjem-hero__merke--borte': merkeSvikter }"
+        :src="klubbmerke"
+        :alt="activeCohort?.club_name || ''"
+        width="44"
+        height="44"
+        loading="lazy"
+        @error="merkeSvikter = true"
+      />
     </header>
 
     <div v-if="identityIncomplete" class="px-lg">
@@ -188,8 +207,28 @@ function coachNamesForMatch(matchId) {
 
 <style scoped>
 .hjem-hero {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-md);
   padding-top: var(--ds-space-xl);
   padding-bottom: var(--ds-space-lg);
+}
+
+.hjem-hero__tekst {
+  flex: 1;
+  min-width: 0;
+}
+
+/* Merket skal aldri dytte hilsenen. Fast rute, innholdet skaleres inn. */
+.hjem-hero__merke {
+  flex: none;
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.hjem-hero__merke--borte {
+  visibility: hidden;
 }
 
 .hjem-hero__greeting {

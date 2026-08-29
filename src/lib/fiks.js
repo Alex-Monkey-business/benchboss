@@ -44,9 +44,7 @@ const CLUB_NAME = /class="clubName"[^>]*>([^<]+)</
 const CLUB_DISTRICT = /class="clubDistrict"[^>]*>([^<]+)</
 const TEAM_IN_BLOCK = /class="teamLink" href="\/fotballdata\/lag\/hjem\/\?fiksId=(\d+)"[\s\S]{0,400}?iconButtonTitle">([^<]*)<\/div>/g
 
-export function clubLogo(fiksId) {
-  return `https://images.fotball.no/clublogos/${fiksId}.png`
-}
+export { clubLogo } from './klubblogo'
 
 export function parseClubSearch(html) {
   const out = []

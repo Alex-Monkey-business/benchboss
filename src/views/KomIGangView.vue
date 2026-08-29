@@ -57,6 +57,8 @@ let klubbHenting = null
 // Fanges ved oppstart: velger han klubb selv, skal telleren ikke krympe
 // under beina på ham når koblingen lagres.
 const klubbFraAdmin = ref(false)
+const merkeSvikter = ref(false)
+const klubbmerke = computed(() => clubLogo(klubb.value?.fiksId || activeCohort.value?.club_fiks_id))
 const stegTotalt = computed(() => (klubbFraAdmin.value ? 2 : 3))
 const stegNr = n => (klubbFraAdmin.value ? n - 1 : n)
 
@@ -378,6 +380,18 @@ function hoppOver() {
       <!-- ------------------------------------------------ Årgang -->
       <template v-else-if="steg === 'argang'">
         <p class="kig__steg">Steg {{ stegNr(2) }} av {{ stegTotalt }}</p>
+        <!-- Merket først: kom klubben fra admin, er dette det første Sten
+             ser, og da skal skjermen si «ja, dette er ditt lag» før den
+             spør om noe. -->
+        <img
+          v-if="klubbmerke && !merkeSvikter"
+          class="kig__merkelogo"
+          :src="klubbmerke"
+          :alt="klubb?.name || ''"
+          width="72"
+          height="72"
+          @error="merkeSvikter = true"
+        />
         <h1 class="kig__tittel">Hvilket årskull?</h1>
         <p class="kig__lead">{{ klubb?.name }}</p>
 
@@ -678,6 +692,14 @@ function hoppOver() {
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
   cursor: pointer;
+}
+
+.kig__merkelogo {
+  align-self: flex-start;
+  width: 72px;
+  height: 72px;
+  object-fit: contain;
+  margin-bottom: var(--ds-space-sm);
 }
 
 .kig__hopp {
