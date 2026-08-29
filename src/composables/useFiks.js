@@ -52,7 +52,7 @@ async function fetchWithTimeout(url, options = {}, ms = 12000) {
 
 export function useFiks() {
   const { activeCohort, refreshMember, coach } = useAuth()
-  const { seasonTeams, reloadTeams } = useSeasonTeams()
+  const { seasonTeams, reloadTeams, invalidateTeamCoaches } = useSeasonTeams()
   const { matches, bulkAddMatches, backfillDefaultCoaches } = useMatches()
 
   const searching = ref(false)
@@ -149,6 +149,7 @@ export function useFiks() {
     if (!rows.length) return 0
     const { error } = await supabase.from('team_coaches').insert(rows)
     if (error && error.code !== '23505') throw error
+    invalidateTeamCoaches()
 
     // Ble kampene hentet FØR koblingen fantes — som når hjemskjermen henter
     // dem selv — står de uten trener. Backfillen er idempotent og rører bare

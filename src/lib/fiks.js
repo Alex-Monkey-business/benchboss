@@ -143,13 +143,27 @@ export function teamsForAge(teams, age) {
 // «Halsen G11 Grønn» → «Grønn». «Halsen G13-1» → «G13-1». Klubbnavn og
 // aldersklasse er støy inne i et kull som allerede er Halsen G2015.
 export function shortTeamName(name, clubShortName = '') {
-  let s = String(name || '').trim()
+  const s = String(name || '').trim()
+
+  // Alt ETTER aldersklassen er lagets egen del av navnet: «Ørn Horten G10
+  // Brun» → «Brun». Å klippe bort klubbnavnet forfra holdt ikke — kortnavnet
+  // er «Ørn» mens klubben heter «Ørn Horten», så «Horten» ble stående og
+  // laget het «Horten Brun».
+  const m = AGE_IN_NAME.exec(s)
+  if (m) {
+    const etter = s.slice(m.index + m[0].length).trim()
+    // «Halsen G13-1» gir «-1» — en bindestrek er ikke et lagnavn. Da er
+    // klassen selv navnet: «G13-1».
+    if (etter && /^[\p{L}\d]/u.test(etter)) return etter
+    return s.slice(m.index).trim()
+  }
+
   if (clubShortName) {
     const esc = clubShortName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    s = s.replace(new RegExp(`^${esc}\\s+`, 'i'), '')
+    const uten = s.replace(new RegExp(`^${esc}\\s+`, 'i'), '').trim()
+    if (uten) return uten
   }
-  const rest = s.replace(AGE_IN_NAME, '').trim()
-  return rest || s
+  return s
 }
 
 // ---------------------------------------------------------- Terminliste
@@ -175,11 +189,17 @@ const ROUND = /^(.*?)\s*\(runde\s*(\d+)\)\s*$/i
 // DTSTART;TZID=Europe/Oslo:20260209T183000 → lokal dato og tid, uten
 // tidssone-regning: FIKS oppgir alltid norsk lokaltid, og det er det
 // kampkortet viser.
+//
+// MEN kampen kan ha dato uten klokkeslett: `DTSTART;VALUE=DATE:20260427`.
+// Det er vanlig i de yngste klassene, der tidspunktet settes senere. Da er
+// tida null — ikke hele datoen. Før falt begge ut, og importen prøvde å
+// lagre en kamp uten dato: «null value in column match_date».
 function localDateTime(v) {
-  const m = /^(\d{4})(\d{2})(\d{2})T(\d{2})(\d{2})/.exec(String(v || ''))
+  const s = String(v || '')
+  const m = /^(\d{4})(\d{2})(\d{2})(?:T(\d{2})(\d{2}))?/.exec(s)
   if (!m) return { date: null, time: null }
   const [, y, mo, d, h, mi] = m
-  return { date: `${y}-${mo}-${d}`, time: `${h}:${mi}` }
+  return { date: `${y}-${mo}-${d}`, time: h ? `${h}:${mi}` : null }
 }
 
 // UID er en ny tilfeldig GUID for hvert kall — verifisert: 0 av 23 like
@@ -203,9 +223,14 @@ export function parseTerminliste(ics) {
     const heading = desc.split('\n')[0] || ''
     const r = ROUND.exec(heading)
 
+    const nar = localDateTime(field(b, 'DTSTART'))
+    // Uten dato er raden ubrukelig — og `match_date` er NOT NULL i basen.
+    // Bedre å hoppe over den enn å velte hele importen.
+    if (!nar.date) continue
+
     out.push({
       fiksMatchId: id[1],
-      ...localDateTime(field(b, 'DTSTART')),
+      ...nar,
       homeTeam: home,
       awayTeam: away,
       venue: unescapeText(field(b, 'LOCATION') || '') || null,

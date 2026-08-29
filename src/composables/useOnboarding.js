@@ -23,7 +23,7 @@ const ACCENTS = ['sage', 'warm', 'paper', 'sky', 'cornflower', 'olive', 'peach']
 export function useOnboarding() {
   const { activeCohort, isCoach, isAdmin, isPlatformAdmin, coach } = useAuth()
   const { players, fetchPlayers } = usePlayers()
-  const { seasonTeams, teamsFromDb, reloadTeams } = useSeasonTeams()
+  const { seasonTeams, teamsFromDb, reloadTeams, invalidateTeamCoaches } = useSeasonTeams()
   const { matches } = useMatches()
   const { activeSeason } = useSeasons()
 
@@ -107,6 +107,7 @@ export function useOnboarding() {
         cohort_id: id, team_id: data.id, coach_id: coachId, season_id: seasonId
       })
       if (linkFeil && linkFeil.code !== '23505') console.warn('Kunne ikke koble trener til laget:', linkFeil.message)
+      else invalidateTeamCoaches()
     }
 
     await reloadTeams(id)

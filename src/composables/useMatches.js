@@ -190,7 +190,12 @@ export function useMatches() {
       .insert(matchDataArray)
       .select()
 
-    if (!error && data) {
+    // Feilen ble tidligere svelget: importen rapporterte «22 kamper er inne»
+    // mens basen sto tom. En bulk-insert som feiler er ikke en tom liste, det
+    // er en feil, og den skal opp til den som kaller.
+    if (error) throw error
+
+    if (data) {
       matches.value.push(...data)
       await assignDefaultCoaches(data)
     }

@@ -116,6 +116,16 @@ async function fetchSeasonTeams(cohortId, seasonId) {
   return linksInflight
 }
 
+// Trenerkoblingene er cachet på kull+sesong. Lager man en NY kobling, er
+// cachen løgn — og siden `fetchSeasonTeams` returnerer tidlig på treff, ville
+// den aldri blitt hentet på nytt. Det ga 22 kamper uten trener rett etter at
+// treneren var koblet til laget.
+function invalidateTeamCoaches() {
+  linksKey.value = null
+  linksInflight = null
+  linksInflightKey = null
+}
+
 // Etter at lag er opprettet/endret/slettet: hent på nytt for det aktive kullet.
 async function reloadTeams(cohortId) {
   teamsCohort.value = null
@@ -145,5 +155,5 @@ export function useSeasonTeams() {
     return seasonTeams.value.find(t => t.slug === slug) || null
   }
 
-  return { seasonTeams, seasonTeam, teamsFromDb, fetchTeams, reloadTeams, fetchSeasonTeams, setSeasonTeams }
+  return { seasonTeams, seasonTeam, teamsFromDb, fetchTeams, reloadTeams, fetchSeasonTeams, setSeasonTeams, invalidateTeamCoaches }
 }

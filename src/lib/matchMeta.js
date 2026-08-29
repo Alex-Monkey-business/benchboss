@@ -33,6 +33,14 @@ export function teamSlugFromName(name) {
   const n = norm(name)
   if (!n) return ''
   const list = [...teams()].sort((a, b) => norm(b.name).length - norm(a.name).length)
+
+  // FIKS-navnet først. Det ER strengen kampene kommer med, så treffet er
+  // eksakt. Kortnavnet vårt («Brun») finnes ikke alltid som sammenhengende
+  // bit av det lange navnet, og da bommet oppslaget.
+  for (const t of list) {
+    const fn = norm(t.fiks_name)
+    if (fn && n === fn) return t.slug
+  }
   for (const t of list) {
     const tn = norm(t.name)
     if (tn && n.includes(tn)) return t.slug
