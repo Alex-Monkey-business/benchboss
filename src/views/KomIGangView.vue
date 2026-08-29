@@ -16,7 +16,7 @@ import { clubLogo, teamAge, genderFromCohortName } from '../lib/fiks'
 // trenere og treninger — de tre tingene fotball.no ikke vet noe om.
 
 const router = useRouter()
-const { activeCohort, refreshMember } = useAuth()
+const { activeCohort, refreshMember, coach } = useAuth()
 const { activeSeason, createSeason, fetchSeasons } = useSeasons()
 const { seasonTeams } = useSeasonTeams()
 const { show: showToast } = useToast()
@@ -27,7 +27,7 @@ const {
 
 const NAA = new Date().getFullYear()
 
-const steg = ref('klubb')
+const steg = ref('velkommen')
 const laster = ref(false)
 const feil = ref('')
 
@@ -48,20 +48,28 @@ onMounted(async () => {
   // hentingen pågikk, kunne man velge årgang mens klubben ennå var tom —
   // og «ingen lag i klassen» var da et svar på et spørsmål som ikke var
   // stilt ferdig.
-  laster.value = true
+  // Hentes i bakgrunnen mens velkomsten står. Er den ferdig når han trykker,
+  // hopper vi rett til årgang.
   try {
     klubb.value = {
       fiksId: String(koblet),
       name: activeCohort.value?.club_name || '',
       teams: await fetchClubTeams(koblet)
     }
-    steg.value = 'argang'
   } catch {
-    feil.value = 'Fikk ikke kontakt med fotball.no. Søk opp klubben i stedet.'
-  } finally {
-    laster.value = false
+    klubb.value = null
   }
 })
+
+// Velkomstskjermen er ett trykk, ikke et steg med et spørsmål i seg. Den
+// finnes for å si hva som skal skje — at lagene og kampene hentes, og at han
+// ikke skal skrive inn noe. Det er der aha-en ligger, ikke i en overskrift
+// som skryter.
+const fornavn = computed(() => (coach.value?.name || '').split(' ')[0])
+
+function start() {
+  steg.value = klubb.value ? 'argang' : 'klubb'
+}
 
 watch(sok, q => {
   clearTimeout(sokTimer)
@@ -222,9 +230,29 @@ function hoppOver() {
 <template>
   <div class="kig">
     <div class="kig__inner">
+      <!-- ---------------------------------------------- Velkommen -->
+      <template v-if="steg === 'velkommen'">
+        <h1 class="kig__tittel kig__tittel--velkomst">
+          Hei{{ fornavn ? ', ' + fornavn : '' }}.
+        </h1>
+        <p class="kig__velkomst">
+          Vi henter lagene dine og hele terminlista fra fotball.no.
+          <strong>Du skriver ingenting inn.</strong>
+        </p>
+        <p class="kig__velkomst kig__velkomst--dempet">
+          Tre spørsmål, så er {{ activeCohort?.name || 'kullet' }} satt opp.
+        </p>
+
+        <div class="kig__handling">
+          <button type="button" class="ds-btn ds-btn--primary kig__hovedknapp" @click="start">
+            Kom i gang
+          </button>
+        </div>
+      </template>
+
       <!-- Klubben er kjent fra før, lagene er på vei. Uten denne sto
            søkefeltet og blinket i et halvsekund før det ble byttet ut. -->
-      <template v-if="laster">
+      <template v-else-if="laster">
         <h1 class="kig__tittel">Henter lagene …</h1>
         <p class="kig__lead">{{ activeCohort?.club_name }}</p>
       </template>
@@ -233,7 +261,9 @@ function hoppOver() {
       <template v-else-if="steg === 'klubb'">
         <p class="kig__steg">Steg 1 av 3</p>
         <h1 class="kig__tittel">Hvilken klubb?</h1>
-        <p class="kig__lead">Vi henter lagene og kampene fra fotball.no, så du slipper å skrive dem inn.</p>
+        <!-- Velkomsten har alt sagt at vi henter fra fotball.no. Å gjenta det
+             her svekker begge. Her holder det å si hva feltet vil ha. -->
+        <p class="kig__lead">Søk opp klubben du trener i.</p>
 
         <input
           v-model="sok"
@@ -357,9 +387,11 @@ function hoppOver() {
       </template>
     </div>
 
-    <button v-if="steg !== 'henter' && steg !== 'ferdig'" type="button" class="kig__hopp" @click="hoppOver">
+    <button v-if="steg !== 'velkommen' && steg !== 'henter' && steg !== 'ferdig'" type="button" class="kig__hopp" @click="hoppOver">
       Sett opp for hånd i stedet
     </button>
+
+    <p v-if="steg === 'velkommen'" class="kig__signatur">BenchBoss · Alex Monkey Business</p>
   </div>
 </template>
 
@@ -575,5 +607,33 @@ function hoppOver() {
   border-color: var(--ds-color-accent);
   border-width: var(--ds-border-width-heavy);
   color: var(--ds-color-accent);
+}
+
+.kig__tittel--velkomst { font-size: 2.25rem; }
+
+.kig__velkomst {
+  font-size: var(--ds-text-lg);
+  line-height: var(--ds-leading-snug);
+  color: var(--ds-color-text-secondary);
+  margin: 0 0 var(--ds-space-md);
+  max-width: 26ch;
+}
+
+.kig__velkomst strong {
+  color: var(--ds-color-text-primary);
+  font-weight: var(--ds-weight-semibold);
+}
+
+.kig__velkomst--dempet {
+  font-size: var(--ds-text-base);
+  color: var(--ds-color-text-tertiary);
+}
+
+.kig__signatur {
+  margin: var(--ds-space-xl) auto 0;
+  text-align: center;
+  font-size: var(--ds-text-xs);
+  letter-spacing: var(--ds-tracking-wide);
+  color: var(--ds-color-text-tertiary);
 }
 </style>
