@@ -275,11 +275,11 @@ function hoppOver() {
           Velkommen til <span class="kig__merke">BenchBoss</span>{{ fornavn ? ', ' + fornavn : '' }}!
         </h1>
         <p class="kig__velkomst">
-          Du skal ikke taste inn <strong>én eneste kamp.</strong>
-          Vi henter hele terminlista fra fotball.no mens du ser på.
+          Kamper, spilletid, treninger og hvem som stiller —
+          <strong>på ett sted.</strong> Ikke i seks meldingstråder og et regneark.
         </p>
         <p class="kig__velkomst kig__velkomst--dempet">
-          Tre spørsmål, så er laget ditt oppe og går.
+          Vi setter opp laget ditt nå. Det tar et minutt.
         </p>
 
         <div class="kig__handling">
@@ -300,9 +300,9 @@ function hoppOver() {
       <template v-else-if="steg === 'klubb'">
         <p class="kig__steg">Steg 1 av 3</p>
         <h1 class="kig__tittel">Hvilken klubb?</h1>
-        <!-- Velkomsten har alt sagt at vi henter fra fotball.no. Å gjenta det
-             her svekker begge. Her holder det å si hva feltet vil ha. -->
-        <p class="kig__lead">Søk opp klubben du trener i.</p>
+        <!-- Løftet om fotball.no bor HER, ikke på velkomsten: det er dette
+             steget det faktisk skjer i. Velkomsten sier hva appen er. -->
+        <p class="kig__lead">Vi henter lagene og hele terminlista fra fotball.no, så du slipper å skrive dem inn.</p>
 
         <input
           v-model="sok"
@@ -742,8 +742,10 @@ function hoppOver() {
 /* Under ~600 px synlig høyde er maskoten det første som må vike — teksten
    og knappen er jobben, illustrasjonen er innpakningen. */
 @media (max-height: 600px) {
-  /* Luften rundt er det billigste å gi fra seg. */
+  /* Luften rundt er det billigste å gi fra seg. Så maskoten — teksten og
+     knappen er jobben, illustrasjonen er innpakningen. */
   .kig { padding-top: var(--ds-space-md); padding-bottom: var(--ds-space-md); }
+  .kig-hero__trener { height: clamp(5.5rem, 23dvh, 10rem); }
   .kig__velkomst--dempet { display: none; }
   .kig__signatur { display: none; }
 }
