@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "vite build",
+    "build": "node scripts/check-blind-writes.mjs && vite build",
     "preview": "vite preview",
     "images": "node scripts/convert-illustrations.mjs",
     "db:start": "supabase start",
@@ -15,7 +15,8 @@
     "db:push": "supabase db push --dry-run",
     "db:migrations": "supabase migration list",
     "db:reset-local": "supabase db reset",
-    "check:time": "node scripts/check-time-transfer.mjs"
+    "check:time": "node scripts/check-time-transfer.mjs",
+    "check:writes": "node scripts/check-blind-writes.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",
