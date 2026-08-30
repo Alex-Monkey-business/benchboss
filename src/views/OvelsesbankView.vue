@@ -357,10 +357,8 @@ onMounted(fetchExercises)
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
-.bank-row__badge--diff { background: #E2EDDE; color: #3D5C44; }
-.bank-row__badge--mix { background: #F8E8E0; color: #7A3A24; }
-:global([data-theme="dark"] .bank-row__badge--diff) { background: #1A241D; color: #B5D2B0; }
-:global([data-theme="dark"] .bank-row__badge--mix) { background: #2A1E18; color: #F4C4A8; }
+.bank-row__badge--diff { background: var(--ds-badge-bg); color: var(--ds-badge-text); }
+.bank-row__badge--mix { background: transparent; color: var(--ds-badge-text); box-shadow: inset 0 0 0 1px var(--ds-badge-border); }
 
 .bank-row__body {
   flex: 1;

@@ -145,8 +145,8 @@ function pickCategory(value) {
   transition: all var(--ds-duration-fast) var(--ds-ease-out);
 }
 
-.type-toggle__opt--active.type-toggle__opt--diff { background: #E2EDDE; color: #3D5C44; }
-.type-toggle__opt--active.type-toggle__opt--mix { background: #F8E8E0; color: #7A3A24; }
+.type-toggle__opt--active.type-toggle__opt--diff { background: var(--ds-badge-bg); color: var(--ds-badge-text); }
+.type-toggle__opt--active.type-toggle__opt--mix { background: transparent; color: var(--ds-badge-text); box-shadow: inset 0 0 0 1px var(--ds-badge-border); }
 .type-toggle__opt--active.type-toggle__opt--none { background: var(--ds-color-bg-elevated); color: var(--ds-color-text-primary); }
 :global([data-theme="dark"] .type-toggle__opt--active.type-toggle__opt--diff) { background: #1A241D; color: #B5D2B0; }
 :global([data-theme="dark"] .type-toggle__opt--active.type-toggle__opt--mix) { background: #2A1E18; color: #F4C4A8; }

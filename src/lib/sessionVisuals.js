@@ -15,7 +15,11 @@ const WEEKDAY_ILLUSTRATION = {
 }
 
 // Økt-farger roterer med posisjon, så en periode aldri blir ensfarget.
-export const SESSION_ACCENTS = ['sky', 'peach', 'olive', 'sage', 'cornflower', 'warm']
+//
+// «sage» og «warm»/«peach» er ute: de var Halsen Grønn og Halsen Rød, og en
+// dagfarge kan ikke låne et lags identitet. Fem holder — en uke har sjelden
+// flere enn tre-fire økter. Lagrede verdier peker videre i app.css.
+export const SESSION_ACCENTS = ['sky', 'olive', 'plum', 'cornflower', 'taupe']
 
 export function accentForPosition(i) {
   return SESSION_ACCENTS[i % SESSION_ACCENTS.length]

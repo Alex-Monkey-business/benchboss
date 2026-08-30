@@ -128,18 +128,6 @@ async function remove(playerId) {
 }
 
 /* Tonal accent-palett (delt med treningsplan/login) */
-[data-accent="warm"]       { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
-[data-accent="sage"]       { --accent-bg: #E2EDDE; --accent-text: #3D5C44; }
-[data-accent="cornflower"] { --accent-bg: #D6DDEF; --accent-text: #3D456B; }
-[data-accent="olive"]      { --accent-bg: #F0E7D6; --accent-text: #6B5630; }
-[data-accent="sky"]        { --accent-bg: #DDE6EC; --accent-text: #3A4C5C; }
-[data-accent="peach"]      { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
-:global([data-theme="dark"] [data-accent="warm"]) { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
-:global([data-theme="dark"] [data-accent="sage"]) { --accent-bg: #1A241D; --accent-text: #B5D2B0; }
-:global([data-theme="dark"] [data-accent="cornflower"]) { --accent-bg: #1A1F33; --accent-text: #B9C2E5; }
-:global([data-theme="dark"] [data-accent="olive"]) { --accent-bg: #2A241A; --accent-text: #D9C99E; }
-:global([data-theme="dark"] [data-accent="sky"]) { --accent-bg: #1A222A; --accent-text: #B0C5D8; }
-:global([data-theme="dark"] [data-accent="peach"]) { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
 
 /* Ett kort per lag */
 .teamcard {

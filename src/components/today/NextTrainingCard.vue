@@ -64,12 +64,6 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
 }
 
 /* Accent-paletten fra treningsplanen — solid bakgrunn, ingen gradients. */
-.next-training[data-accent="warm"]       { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
-.next-training[data-accent="sage"]       { --accent-bg: #E2EDDE; --accent-text: #3D5C44; }
-.next-training[data-accent="cornflower"] { --accent-bg: #D6DDEF; --accent-text: #3D456B; }
-.next-training[data-accent="peach"]      { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
-.next-training[data-accent="sky"]        { --accent-bg: #DCEAF2; --accent-text: #2F5468; }
-.next-training[data-accent="olive"]      { --accent-bg: #EAEAD8; --accent-text: #55552F; }
 
 .next-training__top {
   display: flex;

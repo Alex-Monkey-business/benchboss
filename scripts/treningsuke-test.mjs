@@ -107,8 +107,15 @@ const kat = await p.evaluate(() => {
     type: t('.ovelse__badge'),
     tema: t('.steg__tema'),
     lengde: t('.steg__len'),
+    faktalinje: s.querySelector('.steg__fakta')?.innerText.replace(/\s+/g, ' ').trim(),
     momenter: s.querySelectorAll('.ovelse__points li').length,
     rigg: [...s.querySelectorAll('.ovelse__rigg p')].map(e => e.textContent.trim()),
+    merker: [...s.querySelectorAll('.ovelse__merke')].map(e => e.textContent.trim()),
+    merkeFlukt: (() => {
+      const ps = [...s.querySelectorAll('.ovelse__rigg p')]
+      if (ps.length < 2) return null
+      return Math.abs(ps[0].getBoundingClientRect().left - ps[1].getBoundingClientRect().left) < 1
+    })(),
     beskrivelse: t('.ovelse__org'),
     hvitrom: s.querySelector('.ovelse__org') && getComputedStyle(s.querySelector('.ovelse__org')).whiteSpace
   }
@@ -117,9 +124,17 @@ ok('navn', !!kat.navn, kat.navn)
 ok('diff/mix', kat.type === 'Diff', kat.type)
 ok('hva vi øver på', kat.tema === 'Spille oss fremover', kat.tema)
 ok('lengde', kat.lengde === '20 min', kat.lengde)
+// Tida flyttet seg fra rad til rad fordi den delte en wrappende linje med
+// fokusområdet. Nå bærer faktalinja bare de to som har fast bredde.
+ok('diff/mix og tid deler linje', /^DIFF\s+20 min$/i.test(kat.faktalinje || ''), kat.faktalinje)
+ok('fokusområdet har sin egen linje',
+  !/20 min/.test(await p.$eval('.dag--open .steg .steg__tema', e => e.innerText)))
 ok('momenter', kat.momenter === 3, `${kat.momenter}`)
 ok('hvordan vi deler opp gruppa står for seg', kat.rigg[0] === 'To og to per stasjon.', kat.rigg.join(' | '))
 ok('utstyret står for seg', /Kjegler, porter/.test(kat.rigg[1] || ''), kat.rigg[1])
+ok('riggen har ledetekster', kat.merker.join(' ') === 'Gruppa Utstyr', kat.merker.join(' '))
+// Brekker utstyrslinja skal linje to stå under teksten, ikke under merket.
+ok('ledeteksten henger i margen', kat.merkeFlukt, kat.merkeFlukt === true ? '' : 'tekstkolonnen starter ikke likt')
 ok('beskrivelsen bærer verken inndeling eller utstyr',
   !/To og to per stasjon|Kjegler, porter/.test(kat.beskrivelse || ''), (kat.beskrivelse || '').slice(0, 40))
 // 6 av 15 øvelser i banken er skrevet med tomme linjer. Rendrer vi ikke

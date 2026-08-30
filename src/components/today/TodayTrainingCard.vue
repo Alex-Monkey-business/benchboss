@@ -59,12 +59,6 @@ const focusParts = computed(() => {
 }
 
 /* Accent-paletten fra treningsplanen — solid bakgrunn, ingen gradients. */
-.today-training[data-accent="warm"]       { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
-.today-training[data-accent="sage"]       { --accent-bg: #E2EDDE; --accent-text: #3D5C44; }
-.today-training[data-accent="cornflower"] { --accent-bg: #D6DDEF; --accent-text: #3D456B; }
-.today-training[data-accent="peach"]      { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
-.today-training[data-accent="sky"]        { --accent-bg: #DCEAF2; --accent-text: #2F5468; }
-.today-training[data-accent="olive"]      { --accent-bg: #EAEAD8; --accent-text: #55552F; }
 
 .today-training__content {
   display: flex;

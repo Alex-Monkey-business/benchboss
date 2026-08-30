@@ -747,27 +747,35 @@ onMounted(async () => {
                   <!-- Diff/Mix er opplysning om øvelsen, ikke pynt på tittelen.
                        Ved siden av navnet spiste den 70 px av navnebredden på
                        HVER rad — på 320 px brakk «oppvarming» midt i ordet. -->
-                  <span v-if="r.d.tema || r.d.minutes || (r.d.type && r.d.type !== 'none')" class="steg__under">
+                  <!-- Diff/mix og tid er to korte, faste opplysninger — de deler
+                       linje og står i ro. Fokusområdet er det eneste som varierer
+                       i lengde, og får derfor sin egen linje å vokse på. -->
+                  <span v-if="r.d.minutes || (r.d.type && r.d.type !== 'none')" class="steg__fakta">
                     <span v-if="r.d.type && r.d.type !== 'none'" class="ovelse__badge" :class="`ovelse__badge--${r.d.type}`">
                       {{ r.d.type === 'diff' ? 'Diff' : 'Mix' }}
                     </span>
-                    <span v-if="r.d.tema" class="steg__tema">{{ r.d.tema }}</span>
                     <span v-if="r.d.minutes" class="steg__len">{{ formatDuration(r.d.minutes) }}</span>
                   </span>
+                  <span v-if="r.d.tema" class="steg__tema">{{ r.d.tema }}</span>
                 </component>
 
-                <!-- Oppsettet står uten etikett. «OPPSETT» fire ganger over fire
-                     setninger var mer skilt enn innhold. -->
+                <!-- Beskrivelsen står uten etikett: den er brødteksten, og den
+                     er alltid sist. «OPPSETT» over hver eneste øvelse var fire
+                     skilt for fire setninger — mer inventar enn innhold. -->
                 <div v-if="openDrillKey === minutesKey(s, r.i)" class="steg__detalj">
                   <ul v-if="r.d.laeringsmomenter && r.d.laeringsmomenter.length" class="ovelse__points">
                     <li v-for="(pt, pi) in r.d.laeringsmomenter" :key="pi">{{ pt }}</li>
                   </ul>
                   <!-- Riggen: hvordan gruppa deles og hva du bærer ut. To korte
-                       fakta du trenger FØR øvelsen begynner — samlet, så de
-                       ikke leses som starten på beskrivelsen. -->
+                       fakta du trenger FØR øvelsen begynner.
+                       Her er ledeteksten verdt plassen: to like korte linjer
+                       etter hverandre sier ikke selv hvem som er hvem, og
+                       «2 keepere per bane» kan like gjerne leses som inndeling.
+                       Momentene har strekene sine og beskrivelsen er brødteksten
+                       — de trenger ingen. -->
                   <div v-if="r.d.gruppe || r.d.utstyr" class="ovelse__rigg">
-                    <p v-if="r.d.gruppe">{{ r.d.gruppe }}</p>
-                    <p v-if="r.d.utstyr">{{ r.d.utstyr }}</p>
+                    <template v-if="r.d.gruppe"><span class="ovelse__merke">Gruppa</span><p>{{ r.d.gruppe }}</p></template>
+                    <template v-if="r.d.utstyr"><span class="ovelse__merke">Utstyr</span><p>{{ r.d.utstyr }}</p></template>
                   </div>
                   <p v-if="r.d.organisering" class="ovelse__org">{{ r.d.organisering }}</p>
                   <a v-if="r.d.link && r.d.link.url" :href="r.d.link.url" target="_blank" rel="noopener" class="ovelse__link">
@@ -1069,22 +1077,6 @@ Torsdag
 </template>
 
 <style scoped>
-/* «warm»/«peach» var #7A3A24 — en rust med fargespenn 86, mot 31–59 for de fem
-   andre. På et fire linjers fokusavsnitt leste den som en advarsel, ikke som
-   dagens farge. #74483A er samme familie, samme lyshet, uten skriket. */
-.dag[data-accent="warm"]       { --accent-bg: #F8E8E0; --accent-text: #74483A; }
-.dag[data-accent="sage"]       { --accent-bg: #E2EDDE; --accent-text: #3D5C44; }
-.dag[data-accent="cornflower"] { --accent-bg: #D6DDEF; --accent-text: #3D456B; }
-.dag[data-accent="peach"]      { --accent-bg: #F8E8E0; --accent-text: #74483A; }
-.dag[data-accent="sky"]        { --accent-bg: #DDE6EC; --accent-text: #3A4C5C; }
-.dag[data-accent="olive"]      { --accent-bg: #F0E7D6; --accent-text: #6B5630; }
-
-:global([data-theme="dark"] .dag[data-accent="warm"]) { --accent-bg: #2A1E18; --accent-text: #E5C6B4; }
-:global([data-theme="dark"] .dag[data-accent="sage"]) { --accent-bg: #1A241D; --accent-text: #B5D2B0; }
-:global([data-theme="dark"] .dag[data-accent="cornflower"]) { --accent-bg: #1A1F33; --accent-text: #B9C2E5; }
-:global([data-theme="dark"] .dag[data-accent="peach"]) { --accent-bg: #2A1E18; --accent-text: #E5C6B4; }
-:global([data-theme="dark"] .dag[data-accent="sky"]) { --accent-bg: #1A222A; --accent-text: #B0C5D8; }
-:global([data-theme="dark"] .dag[data-accent="olive"]) { --accent-bg: #2A241A; --accent-text: #D9C99E; }
 
 .uke {
   max-width: 640px;
@@ -1446,19 +1438,26 @@ Torsdag
 
 /* Tema og lengde på samme linje: hva øvelsen handler om, og hvor lenge den
    varer. Klokka i margen sier når den begynner — de tre svarer på hver sin ting. */
-.steg__under {
+/* Metalinja wrappet: «15 min» havnet på linje to eller tre avhengig av hvor
+   langt fokusområdet var, så tallet flyttet seg fra rad til rad. Nå bærer
+   linja bare de to som har fast bredde, og den kan ikke brekke. */
+.steg__fakta {
   display: flex;
-  align-items: baseline;
-  flex-wrap: wrap;
-  column-gap: 10px;
-  margin-top: 3px;
+  align-items: center;
+  gap: 10px;
+  margin-top: 4px;
   font-size: var(--ds-text-sm);
   line-height: 1.45;
   letter-spacing: -0.005em;
 }
 
 .steg__tema {
+  display: block;
+  margin-top: 3px;
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);
+  line-height: 1.45;
+  letter-spacing: -0.005em;
   color: var(--accent-text);
 }
 
@@ -1466,7 +1465,6 @@ Torsdag
   color: var(--ds-color-text-tertiary);
   font-variant-numeric: tabular-nums;
 }
-
 
 .steg__detalj { padding-bottom: 2px; }
 
@@ -1493,10 +1491,8 @@ Torsdag
   text-transform: uppercase;
 }
 
-.ovelse__badge--diff { background: #E2EDDE; color: #3D5C44; }
-.ovelse__badge--mix { background: #F8E8E0; color: #74483A; }
-:global([data-theme="dark"] .ovelse__badge--diff) { background: #1A241D; color: #B5D2B0; }
-:global([data-theme="dark"] .ovelse__badge--mix) { background: #2A1E18; color: #E5C6B4; }
+.ovelse__badge--diff { background: var(--ds-badge-bg); color: var(--ds-badge-text); }
+.ovelse__badge--mix { background: transparent; color: var(--ds-badge-text); box-shadow: inset 0 0 0 1px var(--ds-badge-border); }
 
 /* ---- Planmodus ----
 
@@ -1712,11 +1708,16 @@ Torsdag
    fakta — ikke innledningen på beskrivelsen. Samlet i én blokk med egen vekt:
    to svarte linjer og så grå brødtekst, så grupperingen gjør jobben og vi
    slipper en etikett over hver av dem. */
+/* Rutenett, ikke innrykk: brekker utstyrslinja, skal linje to stå under
+   teksten — ikke under ledeteksten. Begge merkene deler kolonne, så de
+   flukter uansett hvor langt det ene ordet er. */
 .ovelse__rigg {
   margin: var(--ds-space-lg) 0 0;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
+  display: grid;
+  grid-template-columns: max-content minmax(0, 1fr);
+  align-items: baseline;
+  column-gap: 8px;
+  row-gap: 3px;
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);
   line-height: 1.45;
@@ -1725,6 +1726,18 @@ Torsdag
 }
 
 .ovelse__rigg p { margin: 0; }
+
+/* Ledeteksten står i margen, ikke på egen rad: to ekstra linjer for to ord
+   ville kostet mer enn de forklarer. */
+.ovelse__merke {
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+  white-space: nowrap;
+}
 
 /* pre-line: forfatteren har allerede satt avsnittene sine med tomme linjer.
    Napoli, Rosenborg og Southampton er skrevet slik. Vi respekterer dem i

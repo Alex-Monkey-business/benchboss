@@ -579,15 +579,11 @@ const PARENTS = [
 .sk-sheet__note--top { margin-top: calc(var(--ds-space-lg) * -1); }
 
 /* ---- Lagvalg ---- */
-[data-accent="warm"]  { --accent-bg: #F8E8E0; --accent-text: #7A3A24; }
-[data-accent="sage"]  { --accent-bg: #E2EDDE; --accent-text: #3D5C44; }
 [data-accent="paper"] {
   --accent-bg: var(--ds-color-bg-elevated);
   --accent-text: var(--ds-color-text-primary);
   --accent-border: var(--ds-color-border-strong);
 }
-:global([data-theme="dark"] [data-accent="warm"]) { --accent-bg: #2A1E18; --accent-text: #F4C4A8; }
-:global([data-theme="dark"] [data-accent="sage"]) { --accent-bg: #1A241D; --accent-text: #B5D2B0; }
 
 .sk-pick { display: flex; flex-direction: column; gap: var(--ds-space-sm); }
 .sk-pick__card {

@@ -312,6 +312,22 @@
 
 /* ---- Coach Selector (match detail) ---- */
 
+/* ---- Dekorfargene, ett sted ----
+   Kartet fra navn til token sto kopiert inn i åtte komponenter. Hver gang en
+   farge skulle byttes måtte alle åtte finnes. Nå gjelder denne globalt for alt
+   som bærer data-accent, og komponentene bruker bare --accent-text/--accent-bg.
+
+   «sage», «warm» og «peach» ligger lagret i databasen på økter, kull og
+   referater. De peker videre til de nye fargene i stedet for å bli borte. */
+[data-accent="sky"]        { --accent-bg: var(--ds-accent-sky-bg);        --accent-text: var(--ds-accent-sky-text); }
+[data-accent="cornflower"] { --accent-bg: var(--ds-accent-cornflower-bg); --accent-text: var(--ds-accent-cornflower-text); }
+[data-accent="olive"]      { --accent-bg: var(--ds-accent-olive-bg);      --accent-text: var(--ds-accent-olive-text); }
+[data-accent="plum"]       { --accent-bg: var(--ds-accent-plum-bg);       --accent-text: var(--ds-accent-plum-text); }
+[data-accent="taupe"]      { --accent-bg: var(--ds-accent-taupe-bg);      --accent-text: var(--ds-accent-taupe-text); }
+[data-accent="sage"]       { --accent-bg: var(--ds-accent-plum-bg);       --accent-text: var(--ds-accent-plum-text); }
+[data-accent="warm"]       { --accent-bg: var(--ds-accent-taupe-bg);      --accent-text: var(--ds-accent-taupe-text); }
+[data-accent="peach"]      { --accent-bg: var(--ds-accent-taupe-bg);      --accent-text: var(--ds-accent-taupe-text); }
+
 /* Per-coach color tokens — assigned by data-coach attribute. Brukt av både
    trener-pills (edit) og avatar-pile (collapsed summary). */
 [data-coach] {
@@ -319,17 +335,14 @@
   --coach-text: var(--ds-color-warm-text);
 }
 
-[data-coach="alex"]  { --coach-bg: #F8E8E0; --coach-text: #7A3A24; }   /* peach */
-[data-coach="iver"]  { --coach-bg: #E2EDDE; --coach-text: #3D5C44; }   /* sage */
-[data-coach="jacob"] { --coach-bg: #D6DDEF; --coach-text: #3D456B; }   /* cornflower */
-[data-coach="simon"] { --coach-bg: #F0E7D6; --coach-text: #6B5630; }   /* sand */
-[data-coach="trond"] { --coach-bg: #DDE6EC; --coach-text: #3A4C5C; }   /* sky */
-
-[data-theme="dark"] [data-coach="alex"]  { --coach-bg: #2A1E18; --coach-text: #F4C4A8; }
-[data-theme="dark"] [data-coach="iver"]  { --coach-bg: #1A241D; --coach-text: #B5D2B0; }
-[data-theme="dark"] [data-coach="jacob"] { --coach-bg: #1A1F33; --coach-text: #B9C2E5; }
-[data-theme="dark"] [data-coach="simon"] { --coach-bg: #2A241A; --coach-text: #D9C99E; }
-[data-theme="dark"] [data-coach="trond"] { --coach-bg: #1A222A; --coach-text: #B0C5D8; }
+/* Samme kollisjon her: Iver hadde Halsen Grønn og Alex hadde Halsen Rød i en
+   app der grønn og rød betyr hvilket lag du spiller på. Nå fra dekorpaletten,
+   og mørk modus følger med av seg selv. */
+[data-coach="alex"]  { --coach-bg: var(--ds-accent-taupe-bg);      --coach-text: var(--ds-accent-taupe-text); }
+[data-coach="iver"]  { --coach-bg: var(--ds-accent-plum-bg);       --coach-text: var(--ds-accent-plum-text); }
+[data-coach="jacob"] { --coach-bg: var(--ds-accent-cornflower-bg); --coach-text: var(--ds-accent-cornflower-text); }
+[data-coach="simon"] { --coach-bg: var(--ds-accent-olive-bg);      --coach-text: var(--ds-accent-olive-text); }
+[data-coach="trond"] { --coach-bg: var(--ds-accent-sky-bg);        --coach-text: var(--ds-accent-sky-text); }
 
 /* Trener-pills — kompakt avatar + navn. Erstatter den tunge avatar-grid-en;
    trenere auto-tildeles nå, så dette er en sjelden-brukt kontroll. */

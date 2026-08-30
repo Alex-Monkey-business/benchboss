@@ -71,6 +71,35 @@
   --ds-team-hvit-bg:      var(--ds-color-bg-elevated);
   --ds-team-hvit-border:  var(--ds-color-border-strong);
 
+  /* ---- Dekorfarger: dager, kull, trenere ----
+     Disse betyr INGENTING. De skiller ting fra hverandre — en tirsdag fra en
+     torsdag, en trener fra en annen.
+
+     Derfor kan de ikke være lagfargene. #3D5C44 er Halsen Grønn og #7A3A24 er
+     Halsen Rød overalt ellers i appen; da kan ikke en torsdag være rød og et
+     Diff-merke grønt. Fargen sa noe den ikke mente, og hjernen hadde allerede
+     lært hva den betyr. Grønn og rød er tatt ut her og hører nå bare laget til.
+
+     Paletten sto kopiert inn i åtte filer. Nå står den her. */
+  --ds-accent-sky-text:         #3A4C5C;
+  --ds-accent-sky-bg:           #DDE6EC;
+  --ds-accent-cornflower-text:  #3D456B;
+  --ds-accent-cornflower-bg:    #D6DDEF;
+  --ds-accent-olive-text:       #6B5630;
+  --ds-accent-olive-bg:         #F0E7D6;
+  --ds-accent-plum-text:        #5A4256;
+  --ds-accent-plum-bg:          #EBE2EC;
+  --ds-accent-taupe-text:       #575046;
+  --ds-accent-taupe-bg:         #E3E0D8;
+
+  /* ---- Diff/Mix ----
+     To verdier av én egenskap, ikke to statuser. De bar grønt og rødt — altså
+     lagfargene — for en forskjell ordet allerede sier. Nøytrale nå: Diff er
+     fylt, Mix er omriss. */
+  --ds-badge-bg:                #EDECE7;
+  --ds-badge-text:              #4F4E48;
+  --ds-badge-border:            #DEDDD8;
+
   /* ---- Overlay ---- */
   --ds-color-overlay:         rgba(15, 15, 15, 0.32);
 }
@@ -93,6 +122,24 @@
   --ds-color-border-strong:   #4A4A45;
   --ds-color-border-light:    #232321;
   --ds-color-border-focus:    #F5F5F2;
+
+  /* ---- Dekorfarger ---- */
+  --ds-accent-sky-text:         #B0C5D8;
+  --ds-accent-sky-bg:           #1A222A;
+  --ds-accent-cornflower-text:  #B9C2E5;
+  --ds-accent-cornflower-bg:    #1A1F33;
+  --ds-accent-olive-text:       #D9C99E;
+  --ds-accent-olive-bg:         #2A241A;
+  --ds-accent-plum-text:        #D6BFD8;
+  --ds-accent-plum-bg:          #241A26;
+  --ds-accent-taupe-text:       #D2CAC1;
+  --ds-accent-taupe-bg:         #221F1C;
+
+  /* ---- Diff/Mix ---- */
+  --ds-badge-bg:                #242422;
+  --ds-badge-text:              #B5B4AE;
+  --ds-badge-border:            #2B2B28;
+
 
   /* ---- Text ---- */
   --ds-color-text-primary:    #F5F5F2;
