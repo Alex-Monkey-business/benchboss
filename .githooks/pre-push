@@ -48,6 +48,11 @@ if ! curl -s -o /dev/null --max-time 2 "$QA_APP"; then
   DEV_PID=$!
   EGEN_SERVER=1
   for _ in $(seq 1 25); do curl -s -o /dev/null "$QA_APP" && break; sleep 1; done
+  # Vite svarer på rot før den har kompilert noe. Første ekte sidelast tar
+  # sekunder, og en QA som starter da får falske røde. Varm den opp.
+  curl -s -o /dev/null "$QA_APP/kom-i-gang" || true
+  curl -s -o /dev/null "$QA_APP/trening" || true
+  sleep 3
 fi
 rydd() { [ "$EGEN_SERVER" = 1 ] && kill "$DEV_PID" 2>/dev/null; }
 trap rydd EXIT

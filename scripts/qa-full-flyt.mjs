@@ -332,3 +332,9 @@ ok('ingen sidefeil gjennom hele flyten', sidefeil.length===0, sidefeil.slice(0,2
 await b.close()
 console.log(feilet ? `\n${feilet} FEIL` : '\nAlt grønt')
 console.log(`kullet «${KULL}» ligger igjen i basen for manuell inspeksjon`)
+
+// Riggen har ALDRI returnert en exit-kode. Den skrev «2 FEIL» og meldte
+// suksess, og derfor kunne den stå i stykker uten at noen merket det — og
+// pre-push-hooken slapp en rød kjøring rett gjennom første gang den ble brukt.
+// Samme feil som resten av dagen: å rapportere er ikke å handle.
+process.exit(feilet ? 1 : 0)
