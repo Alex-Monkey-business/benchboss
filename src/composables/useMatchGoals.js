@@ -124,8 +124,9 @@ export function useMatchGoals() {
       return
     }
 
-    await supabase.from('match_goals').delete().eq('id', goalId)
-    goals.value = goals.value.filter(g => g.id !== goalId)
+    const { data } = await supabase
+      .from('match_goals').delete().eq('id', goalId).select('id')
+    if (data?.length) goals.value = goals.value.filter(g => g.id !== goalId)
   }
 
   const goalsByPlayer = computed(() => {

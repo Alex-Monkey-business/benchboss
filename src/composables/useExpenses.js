@@ -88,8 +88,9 @@ export function useExpenses() {
       return
     }
 
-    await supabase.from('expenses').delete().eq('id', existing.id)
-    expenses.value = expenses.value.filter(e => e.id !== existing.id)
+    const { data } = await supabase
+      .from('expenses').delete().eq('id', existing.id).select('id')
+    if (data?.length) expenses.value = expenses.value.filter(e => e.id !== existing.id)
   }
 
   function getExpenseForMatch(matchId) {

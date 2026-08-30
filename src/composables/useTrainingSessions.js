@@ -176,11 +176,12 @@ export function useTrainingSessions() {
       return
     }
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('training_sessions')
       .delete()
       .eq('id', id)
-    if (!error) sessions.value = sessions.value.filter(s => s.id !== id)
+      .select('id')
+    if (!error && data?.length) sessions.value = sessions.value.filter(s => s.id !== id)
   }
 
   // Flytt en økt opp/ned ved å bytte position med naboen.

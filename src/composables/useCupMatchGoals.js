@@ -47,8 +47,11 @@ export function useCupMatchGoals() {
       goals.value = goals.value.filter(g => g.id !== goalId)
       return
     }
-    const { error } = await supabase.from('cup_match_goals').delete().eq('id', goalId)
-    if (!error) goals.value = goals.value.filter(g => g.id !== goalId)
+    const { data, error } = await supabase
+      .from('cup_match_goals').delete().eq('id', goalId).select('id')
+    // Null rader: målet står der ennå. Å ta det ut av lista her ville skjult
+    // det til neste last, og da er det tilbake.
+    if (!error && data?.length) goals.value = goals.value.filter(g => g.id !== goalId)
   }
 
   function getGoalsForMatch(cupMatchId) {

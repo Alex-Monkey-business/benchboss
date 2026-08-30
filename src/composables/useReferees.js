@@ -94,8 +94,9 @@ export function useReferees() {
       return
     }
 
-    await supabase.from('referees').delete().eq('id', id)
-    referees.value = referees.value.filter(r => r.id !== id)
+    const { data } = await supabase
+      .from('referees').delete().eq('id', id).select('id')
+    if (data?.length) referees.value = referees.value.filter(r => r.id !== id)
   }
 
   function getRefereeByName(name) {

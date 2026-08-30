@@ -116,8 +116,15 @@ for (const f of filer(SRC)) {
     const skriv = ledd.find(l => SKRIV.includes(l))
     if (!skriv || ledd.includes('select')) continue
     const linje = s.slice(0, m.index).split('\n').length
-    const før = s.split('\n').slice(Math.max(0, linje - 3), linje).join('\n')
-    if (UNNTAK.test(før)) continue
+    // Kjeden starter ofte på linja over — `const { data } = await supabase` — og
+    // kommentaren over den igjen. Så vi går bakover forbi det som fortsatt
+    // hører til samme setning, ikke et fast antall linjer. Første forsøk brukte
+    // tre linjer og bommet på nettopp de kallene som HADDE en grunn skrevet.
+    const linjer = s.split('\n')
+    let i = linje - 1
+    const fortsettelse = l => /^\s*(\/\/|\*|\/\*)/.test(l) || /=\s*await\b|await\s+supabase|=\s*$/.test(l)
+    while (i > 0 && fortsettelse(linjer[i - 1])) i--
+    if (UNNTAK.test(linjer.slice(i - 1, linje).join('\n'))) continue
     const kilde = s.slice(m.index, forbiParentes(s, m.index + m[0].length - 1) + 400)
       .split('\n').slice(0, ledd.length + 2).join(' ').replace(/\s+/g, ' ').trim()
     funn.push({ fil: relative(ROOT, f), linje, skriv, kjede: ledd.join('.'), kilde })

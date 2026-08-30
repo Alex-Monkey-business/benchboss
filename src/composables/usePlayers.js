@@ -124,8 +124,9 @@ export function usePlayers() {
       return
     }
 
-    await supabase.from('players').delete().eq('id', id)
-    players.value = players.value.filter(p => p.id !== id)
+    const { data } = await supabase
+      .from('players').delete().eq('id', id).select('id')
+    if (data?.length) players.value = players.value.filter(p => p.id !== id)
   }
 
   function getPlayerById(id) {

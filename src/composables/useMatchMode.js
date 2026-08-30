@@ -155,8 +155,12 @@ export function useMatchMode() {
       stints.value = stints.value.filter(s => s.id !== stintId)
       return
     }
-    const { error } = await supabase.from('match_stints').delete().eq('id', stintId)
+    const { data, error } = await supabase
+      .from('match_stints').delete().eq('id', stintId).select('id')
     if (error) throw error
+    // Spilletid er hele poenget med denne skjermen. Forsvinner en periode fra
+    // lista uten å forsvinne fra basen, er summene feil resten av kampen.
+    if (!data?.length) throw new Error('Perioden ble ikke slettet')
     stints.value = stints.value.filter(s => s.id !== stintId)
   }
 
@@ -304,7 +308,10 @@ export function useMatchMode() {
       if (session.value?.match_id === matchId) session.value = null
       return
     }
+    // blindskriving: nullstiller en kamp. Er den aldri startet, finnes verken
+    // perioder eller økt, og null rader er nøyaktig det svaret vi vil ha.
     await supabase.from('match_stints').delete().eq('match_id', matchId)
+    // blindskriving: se linjen over.
     await supabase.from('match_sessions').delete().eq('match_id', matchId)
     stints.value = stints.value.filter(s => s.match_id !== matchId)
     if (session.value?.match_id === matchId) session.value = null

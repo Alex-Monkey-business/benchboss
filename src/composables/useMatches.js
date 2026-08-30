@@ -263,6 +263,8 @@ export function useMatches() {
       return
     }
 
+    // blindskriving: setter trenerne på nytt. Null rader slettet er riktig og
+    // vanlig — kampen hadde ingen trenere fra før.
     await supabase.from('match_coaches').delete().eq('match_id', matchId)
 
     if (coachIds.length > 0) {
@@ -304,6 +306,8 @@ export function useMatches() {
       return
     }
 
+    // blindskriving: samme som over — troppen settes på nytt, og en kamp uten
+    // hospitanter fra før gir null rader.
     await supabase.from('match_players').delete().eq('match_id', matchId)
 
     if (playerIds.length > 0) {
@@ -388,8 +392,9 @@ export function useMatches() {
     }
 
     if (isOut) {
-      const { error } = await supabase.from('match_absences').delete().eq('match_id', matchId).eq('player_id', playerId)
-      if (!error) matchAbsences.value = matchAbsences.value.filter(a => !(a.match_id === matchId && a.player_id === playerId))
+      const { data, error } = await supabase
+        .from('match_absences').delete().eq('match_id', matchId).eq('player_id', playerId).select('player_id')
+      if (!error && data?.length) matchAbsences.value = matchAbsences.value.filter(a => !(a.match_id === matchId && a.player_id === playerId))
     } else {
       const { error } = await supabase.from('match_absences').insert({ match_id: matchId, player_id: playerId })
       if (!error) matchAbsences.value.push({ match_id: matchId, player_id: playerId })
@@ -403,8 +408,9 @@ export function useMatches() {
       return
     }
 
-    await supabase.from('matches').delete().eq('id', matchId)
-    matches.value = matches.value.filter(m => m.id !== matchId)
+    const { data } = await supabase
+      .from('matches').delete().eq('id', matchId).select('id')
+    if (data?.length) matches.value = matches.value.filter(m => m.id !== matchId)
   }
 
   async function deleteAllMatches(seasonId) {
@@ -414,6 +420,8 @@ export function useMatches() {
       return
     }
 
+    // blindskriving: en sesong uten kamper gir null rader, og det er ikke en
+    // feil — resultatet er det samme som om den hadde hatt dem.
     await supabase.from('matches').delete().eq('season_id', seasonId)
     matches.value = []
     matchCoaches.value = []

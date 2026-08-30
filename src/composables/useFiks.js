@@ -244,6 +244,9 @@ export function useFiks() {
     // upsert, ikke insert: én kobling som fantes fra før ville gitt 23505 på
     // HELE bunten, og da hadde de andre lagene stått uten trener. Det gjør
     // veiviseren trygg å kjøre om igjen.
+    // blindskriving: ignoreDuplicates betyr at null rader tilbake er det
+    // NORMALE når koblingene alt finnes — nettopp det som gjør veiviseren trygg
+    // å kjøre om igjen. Å kreve rader her ville brutt andre forsøk.
     const { error } = await supabase
       .from('team_coaches')
       .upsert(rows, { onConflict: 'team_id,coach_id,season_id', ignoreDuplicates: true })
@@ -368,6 +371,9 @@ export function useFiks() {
 
   async function markSynced(teams) {
     if (!isSupabaseConfigured || !teams.length) return
+    // blindskriving: «sist synket» er bokføring ingen leser for å ta en
+    // avgjørelse. Kalleren har alt talt radene som betydde noe, og et
+    // tidsstempel som ikke ble satt er ikke verdt å avbryte en synk for.
     await supabase
       .from('teams')
       .update({ fiks_synced_at: new Date().toISOString() })
@@ -396,11 +402,14 @@ export function useFiks() {
     for (const vårt of ukoblede) {
       const treff = iKlassen.filter(t => slugify(kort(t)) === vårt.slug)
       if (treff.length !== 1) continue
-      const { error } = await supabase
+      // n blir meldt tilbake som «koblet N lag». Uten .select() ville tallet
+      // vært et løfte om noe som ikke skjedde.
+      const { data, error } = await supabase
         .from('teams')
         .update({ fiks_team_id: Number(treff[0].fiksId), fiks_name: treff[0].name })
         .eq('id', vårt.id)
-      if (!error) n++
+        .select('id')
+      if (!error && data?.length) n++
     }
     // Med kull-id: reloadTeams() uten den henter ingenting, og lagene ville
     // stått uten fiks_team_id i minnet rett etter at de fikk den i basen.
@@ -431,6 +440,7 @@ export function useFiks() {
 
     const idag = localISODate()
     const { par } = parKamper(alleKamper, hentet, lagAvKamp)
+    let parret = 0
     for (const p of par) {
       const spilt = (alleKamper.find(m => m.id === p.id)?.match_date || '') < idag
       // En spilt kamp får BARE nøkkelen. Bane, divisjon og runde er data
@@ -444,9 +454,12 @@ export function useFiks() {
             division: p.fiks.division,
             round: p.fiks.round
           }
-      await supabase.from('matches').update(felt).eq('id', p.id)
+      const { data } = await supabase.from('matches').update(felt).eq('id', p.id).select('id')
+      if (data?.length) parret++
     }
-    await markSynced(teams)
+    // markSynced setter «sist synket» på lagene. Traff ingen av oppdateringene,
+    // har ingenting blitt synket, og merket ville vært en usannhet neste gang.
+    if (parret) await markSynced(teams)
     return { hentet, par }
   }
 
@@ -570,11 +583,14 @@ export function useFiks() {
     if (!endret?.length || !isSupabaseConfigured) return 0
     let n = 0
     for (const e of endret) {
-      const { error } = await supabase
+      // n vises som «N kamper oppdatert». Samme regel som over: tell rader,
+      // ikke fravær av feil.
+      const { data, error } = await supabase
         .from('matches')
         .update({ match_date: e.date, match_time: e.time, venue: e.venue })
         .eq('id', e.id)
-      if (!error) n++
+        .select('id')
+      if (!error && data?.length) n++
     }
     return n
   }

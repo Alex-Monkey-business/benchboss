@@ -120,11 +120,13 @@ export function useOnboarding() {
     if (!trimmed || !teamId || !isSupabaseConfigured) return
     // Slugen følger navnet (FK-ene har ON UPDATE CASCADE), så en spiller
     // på laget følger med når laget døpes om.
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('teams')
       .update({ name: trimmed, slug: slugify(trimmed) })
       .eq('id', teamId)
+      .select('id')
     if (error) throw error
+    if (!data?.length) throw new Error('Laget ble ikke døpt om')
     await reloadTeams(id)
   }
 
@@ -132,8 +134,10 @@ export function useOnboarding() {
     const id = activeCohort.value?.id
     if (!teamId || !isSupabaseConfigured) return
     // ON DELETE RESTRICT: har laget spillere, sier basen stopp. Riktig.
-    const { error } = await supabase.from('teams').delete().eq('id', teamId)
+    const { data, error } = await supabase
+      .from('teams').delete().eq('id', teamId).select('id')
     if (error) throw error
+    if (!data?.length) throw new Error('Laget ble ikke slettet')
     await reloadTeams(id)
   }
 

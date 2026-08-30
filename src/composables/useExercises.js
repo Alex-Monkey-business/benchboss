@@ -197,11 +197,12 @@ export function useExercises() {
       return
     }
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('training_exercises')
       .delete()
       .eq('id', id)
-    if (!error) exercises.value = exercises.value.filter(e => e.id !== id)
+      .select('id')
+    if (!error && data?.length) exercises.value = exercises.value.filter(e => e.id !== id)
   }
 
   function findByName(name) {

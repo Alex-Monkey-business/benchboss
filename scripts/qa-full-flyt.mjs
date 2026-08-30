@@ -92,7 +92,12 @@ ok('LENKA I INVITASJONSMAILEN VIRKER', !/otp_expired/.test(dodFrag), dodFrag.sli
 
 // Resten av QA-en kjører den veien som FAKTISK virker i dag: Sten går til
 // /login og ber om en ny kode. Da får vi testet onboardingen.
-const nyLenke = await(await fetch(`${API}/auth/v1/admin/generate_link`,{method:'POST',headers:{apikey:SVC,Authorization:'Bearer '+SVC,'Content-Type':'application/json'},body:JSON.stringify({type:'magiclink',email:STEN})})).json()
+//
+// redirect_to må peke på /auth/callback — det er dit appens egen sendCode()
+// sender folk. Uten den lander lenka på `/` med tokenet i hashen, guarden
+// rekker å se en ulogget bruker, og hele QA-en stoppet på «sendes rett i
+// veiviseren». Riggen testet en vei appen aldri bruker.
+const nyLenke = await(await fetch(`${API}/auth/v1/admin/generate_link`,{method:'POST',headers:{apikey:SVC,Authorization:'Bearer '+SVC,'Content-Type':'application/json'},body:JSON.stringify({type:'magiclink',email:STEN,redirect_to:`${APP}/auth/callback`})})).json()
 const lokalLenke = nyLenke.action_link
 
 // ---------- 4. Sten går gjennom onboardingen ----------

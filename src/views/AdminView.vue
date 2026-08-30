@@ -25,9 +25,13 @@ async function settDommere(pa) {
   const id = activeCohort.value?.id
   if (!id || pa === usesReferees.value || lagrerDommere.value) return
   lagrerDommere.value = true
-  const { error } = await supabase.from('cohorts').update({ uses_referees: pa }).eq('id', id)
+  // Samme tabell og samme policy som låste Sten ute av veiviseren. Bryteren er
+  // gjemt bak kanStyreKullet, så UI og RLS er enige i dag — men det er en
+  // enighet ingen håndhever, og toasten under sier «Dommere er på».
+  const { data, error } = await supabase
+    .from('cohorts').update({ uses_referees: pa }).eq('id', id).select('id')
   lagrerDommere.value = false
-  if (error) { showToast('Kunne ikke lagre', 'error'); return }
+  if (error || !data?.length) { showToast('Kunne ikke lagre', 'error'); return }
   await refreshMember()
   showToast(pa ? 'Dommere er på' : 'Dommere er av', 'success')
 }

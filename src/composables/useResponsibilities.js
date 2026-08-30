@@ -119,11 +119,14 @@ export function useResponsibilities() {
     }
 
     if (fjernes.length) {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('coach_responsibilities')
         .delete()
         .in('id', fjernes.map(r => r.id))
+        .select('id')
       if (error) return null
+      // Radene kom fra rows.value, så de finnes. Null tilbake betyr nektet.
+      if (!data?.length) return null
       rows.value = rows.value.filter(r => !fjernes.some(f => f.id === r.id))
     }
 

@@ -97,11 +97,12 @@ export function useTrainingPeriods() {
       return
     }
 
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('training_periods')
       .delete()
       .eq('id', id)
-    if (!error) periods.value = periods.value.filter(p => p.id !== id)
+      .select('id')
+    if (!error && data?.length) periods.value = periods.value.filter(p => p.id !== id)
   }
 
   return { periods, loading, status, fetchPeriods, getPeriod, createPeriod, updatePeriod, deletePeriod }

@@ -67,12 +67,13 @@ export function useCupSquad() {
       squad.value = squad.value.filter(r => r.player_id !== playerId)
       return
     }
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('cup_squad')
       .delete()
       .eq('cup_id', cupId)
       .eq('player_id', playerId)
-    if (!error) squad.value = squad.value.filter(r => r.player_id !== playerId)
+      .select('player_id')
+    if (!error && data?.length) squad.value = squad.value.filter(r => r.player_id !== playerId)
   }
 
   return { squad, status, fetchCupSquad, teamForPlayer, playerIdsForTeam, setTeam, removeFromSquad }
