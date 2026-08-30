@@ -16,7 +16,8 @@
     "db:migrations": "supabase migration list",
     "db:reset-local": "supabase db reset",
     "check:time": "node scripts/check-time-transfer.mjs",
-    "check:writes": "node scripts/check-blind-writes.mjs"
+    "check:writes": "node scripts/check-blind-writes.mjs",
+    "check:revoke": "node scripts/revoke-test.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.99.1",

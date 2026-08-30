@@ -568,8 +568,32 @@ Deno.serve(async (req) => {
         // Raden i `coaches` røres ALDRI. expenses.paid_by og match_coaches
         // peker på den, og historiske utlegg må overleve at en trener slutter.
         const { error } = await admin.from('cohort_members')
-          .update({ status: 'revoked' }).eq('id', member.id)
+          .update({ status: 'revoked', preferred_team: null, preferred_cup_team: null })
+          .eq('id', member.id)
         if (error) return fail(`Kunne ikke fjerne tilgang: ${error.message}`)
+
+        // Lagkoblingen er noe annet enn trenerraden. En sesong som ER gjort opp
+        // skal huske hvem som trente laget — det er historikk. Sesongen som går
+        // er ikke historikk, den er dagens tropp, og en trener som har sluttet
+        // hører ikke hjemme i den.
+        //
+        // Sto igjen før: en tilbakekalt testbruker sto som trener på Grønn i
+        // Høst 2026 og var synlig for hele trenerteamet. Ingen visste at raden
+        // måtte fjernes for hånd, fordi ingenting sa fra.
+        if (member.coach_id) {
+          const { data: apne } = await admin
+            .from('seasons').select('id')
+            .eq('cohort_id', cohortId).is('settled_at', null)
+          const ids = (apne ?? []).map((s: { id: string }) => s.id)
+          if (ids.length) {
+            const { error: lagFeil } = await admin
+              .from('team_coaches').delete()
+              .eq('coach_id', member.coach_id).in('season_id', ids)
+            // Ikke fatalt: tilgangen ER fjernet, og det er hovedsaken. Men det
+            // skal stå i loggen, ellers er vi tilbake til en stille feil.
+            if (lagFeil) console.error('Kunne ikke fjerne lagkoblinger ved revoke:', lagFeil.message)
+          }
+        }
 
         // Dreper refresh-tokens. Et allerede utstedt access-token lever inntil
         // en time — derfor sjekker policyene også status, ikke bare medlemskap.
