@@ -203,6 +203,90 @@ ok('årgangen er lagret på kullet', ar===String(ARGANG), ar)
 ok('spillformen følger årgangen', fmt==='7', fmt+'er')  // 10 år ⇒ 7er etter NFF
 ok('Sten er trener på alle lagene', tc===t, `${tc}/${t}`)
 ok('alle kampene har en trener', mc===m, `${mc}/${m}`)
+
+// Bare TRENERE i dette kullet står på kampene. Sto det en igjen fra et annet
+// kull — plattform-admin som satte opp skallet, for eksempel — ville han vært
+// standardtrener på hver eneste kamp uten at noen hadde bedt om det.
+const fremmede = sql(`select coalesce(string_agg(distinct co.name, ', '), '') from match_coaches mc
+  join matches mm on mm.id=mc.match_id
+  join coaches co on co.id=mc.coach_id
+  where mm.cohort_id='${kullId}' and co.cohort_id <> '${kullId}'`)
+ok('ingen fremmed trener på kampene', fremmede==='', fremmede)
+
+const adminSomTrener = sql(`select coalesce(string_agg(m2.name, ', '), '') from cohort_members m2
+  join profiles pr on pr.id=m2.profile_id
+  where m2.cohort_id='${kullId}' and pr.is_platform_admin and m2.coach_id is not null`)
+ok('plattform-admin har ingen trenerrad her', adminSomTrener==='', adminSomTrener)
+
+// ---------- 8. Tomhetssveip: et nytt kull skal føles nytt ----------
+//
+// Alt Sten fant utenom den døde knappen var det samme: appen var ikke tom. Tre
+// treningsøkter på Halsens dager, to Halsen-lag i cup-fanen, en trener som ikke
+// trente. Ingen av dem kastet en feil. Den eneste måten å oppdage dem på var å
+// åpne flatene i et ferskt kull og se etter.
+//
+// Så det er det denne gjør. Den leter ikke etter kjente feil — den slår fast en
+// egenskap: INGEN flate i Ørn-kullet skal nevne Halsen, Stag eller noen annen
+// klubb enn sin egen. Den fanger neste lekkasje også, den vi ikke vet om ennå.
+const ANDRE_KLUBBER = sql(`select coalesce(string_agg(distinct name, '|'), '') from clubs
+  where id <> (select club_id from cohorts where id='${kullId}')`).split('|').filter(Boolean)
+const KORTNAVN = sql(`select coalesce(string_agg(distinct short_name, '|'), '') from clubs
+  where id <> (select club_id from cohorts where id='${kullId}')`).split('|').filter(Boolean)
+const FREMMEDORD = [...new Set([...ANDRE_KLUBBER, ...KORTNAVN])]
+
+// Motstanderne er unntaket, og de er et EKTE unntak: Ørn møter Halsen G10 Rød
+// 21. september. Et klubbnavn i en kampliste er terminlista, ikke en lekkasje.
+// Så flatene som viser kamper får nevne klubber vi faktisk spiller mot — og
+// bare dem. Alt annet skal ikke kjenne til noen annen klubb i det hele tatt.
+const MOTSTANDERE = sql(`select coalesce(string_agg(distinct home_team || ' ' || away_team, ' '), '')
+  from matches where cohort_id='${kullId}'`).toLowerCase()
+
+const FLATER = [
+  ['Hjem', '/', true],
+  ['Kamper', '/kamper', true],
+  ['Statistikk', '/statistikk', true],
+  ['Serie', '/serie', true],
+  ['Tropp', '/serie/tropp', false],
+  ['Cup', '/cup', false],
+  ['Cup-tropp', '/cup/tropp', false],
+  ['Treningsplan', '/trening', false],
+  ['Øvelsesbank', '/trening/ovelser', false],
+  ['Håndbok', '/trening/handbok', false],
+  ['Admin', '/admin', false],
+  ['Tilgang', '/admin/tilgang', false],
+  ['Dommerutlegg', '/admin/dommerutlegg', true],
+  ['Sesong-kamper', '/admin/sesong-kamper', true]
+]
+
+const lekkasjer = []
+const krasj = []
+for (const [navn, rute, viserKamper] of FLATER) {
+  const førFeil = sidefeil.length
+  await p.goto(`${APP}${rute}`, {waitUntil:'networkidle'}).catch(()=>{})
+  await p.waitForTimeout(600)
+  const tekst = (await p.locator('body').innerText().catch(()=>'')).replace(/\s+/g,' ')
+  const truffet = FREMMEDORD.filter(o => {
+    if (!new RegExp(`\\b${o.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')}\\b`,'i').test(tekst)) return false
+    // På en kampflate er et navn vi faktisk møter helt i orden.
+    return !(viserKamper && MOTSTANDERE.includes(o.toLowerCase()))
+  })
+  if (truffet.length) lekkasjer.push(`${navn}: ${truffet.join(', ')}`)
+  if (sidefeil.length > førFeil) krasj.push(`${navn}: ${sidefeil[førFeil]}`)
+}
+ok('ingen annen klubb nevnes utenfor terminlista', lekkasjer.length===0, lekkasjer.join(' | '))
+ok('ingen flate krasjer i et ferskt kull', krasj.length===0, krasj.join(' | '))
+
+// Treningsplanen skal være tom — ikke arve noen andres uke.
+const okter = Number(sql(`select count(*) from training_sessions ts
+  join training_periods tp on tp.id=ts.period_id where tp.cohort_id='${kullId}'`))
+ok('treningsplanen er tom i et nytt kull', okter===0, `${okter} økter`)
+
+// Cup-lagene utledes av cupens egne data. Ingen cup ⇒ ingen lag.
+await p.goto(`${APP}/cup/tropp`, {waitUntil:'networkidle'}).catch(()=>{})
+await p.waitForTimeout(500)
+// `.teamcard` deles med «Ikke plassert»-seksjonen, som er noe annet. Det er
+// lagKORTENE som ikke skal finnes uten en cup — de var Halsen IF og Halsen IF 2.
+ok('ingen cup-lag uten en cup', (await p.locator('.teamcard:not(.teamcard--muted)').count())===0)
 ok('ingen sidefeil gjennom hele flyten', sidefeil.length===0, sidefeil.slice(0,2).join(' | '))
 
 await b.close()
