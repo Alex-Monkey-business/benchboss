@@ -3,7 +3,11 @@
 import { chromium } from 'playwright'
 import { execSync } from 'node:child_process'
 
-const API='http://127.0.0.1:54321', APP='http://localhost:5173', MAIL='http://127.0.0.1:54324'
+// Overstyrbare så pre-push-hooken kan kjøre riggen på en ledig port uten å
+// slåss med dev-serveren du selv har gående.
+const API=process.env.QA_API||'http://127.0.0.1:54321'
+const APP=process.env.QA_APP||'http://localhost:5173'
+const MAIL=process.env.QA_MAIL||'http://127.0.0.1:54324'
 const ANON='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0'
 const SVC='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImV4cCI6MTk4MzgxMjk5Nn0.EGIM96RAZx35lJzdJsyH-qQwv8Hdp7fsn3W0YpN81IU'
 const STEN='alexander.samnoy+sten@gmail.com'
@@ -167,10 +171,46 @@ await p.waitForTimeout(1800)
 
 // ---------- 5. Hjem etter onboardingen ----------
 const hjem=(await p.locator('body').innerText()).replace(/\s+/g,' ')
-ok('lander på Hjem', p.url().endsWith('5173/'), p.url())
+ok('lander på Hjem', p.url().replace(/\/$/,'')===APP, p.url())
 ok('Hjem ber om spillere', /Legg inn spillerne/.test(hjem))
 ok('Hjem maser IKKE om kampprogram', !/Last opp kampprogrammet/.test(hjem))
 ok('Hjem maser IKKE om å invitere trenere', !/Inviter trenerne/.test(hjem))
+
+// ---------- 5b. Veiviseren én gang til ----------
+//
+// Sten kjørte den to ganger — han satt fast på siste steg og prøvde igjen — og
+// forsøk to krasjet på «teams_cohort_id_slug_key». Vi testet bare forsøk én, og
+// forsøk én er ikke det brukere gjør når noe går galt.
+//
+// Dette skjer FØR spillerne legges inn, med vilje: et kull uten spillere er
+// fortsatt i oppsettet, og da skal treneren få ombestemme seg. Har det
+// spillere, er det i bruk, og bb_cohort_setup nekter — som den skal.
+const førLag = sql(`select count(*) from teams where cohort_id='${kullId}'`)
+const førKamp = sql(`select count(*) from matches where cohort_id='${kullId}'`)
+const førTC = sql(`select count(*) from team_coaches where cohort_id='${kullId}'`)
+
+await p.goto(APP+'/kom-i-gang',{waitUntil:'networkidle'})
+await p.waitForTimeout(1200)
+const velkomstIgjen = p.getByRole('button',{name:'Kom i gang'})
+if (await velkomstIgjen.count()) { await velkomstIgjen.click(); await p.waitForTimeout(600) }
+await p.getByRole('button',{name:String(ARGANG),exact:true}).click().catch(()=>{})
+await p.waitForTimeout(300)
+await p.getByRole('button',{name:'Videre'}).click().catch(()=>{})
+await p.waitForTimeout(700)
+await p.getByRole('button',{name:/Hent lag og kamper/}).click().catch(()=>{})
+await p.waitForTimeout(9000)
+
+const feilIgjen = await p.locator('.kig__status--feil').innerText().catch(()=>'')
+ok('andre gjennomkjøring gir ingen feil', !feilIgjen, feilIgjen)
+await p.locator('.kig__tittel', {hasText:'Klart.'}).waitFor({timeout:60000}).catch(()=>{})
+ok('andre gjennomkjøring når «Klart.»', await p.locator('.kig__tittel', {hasText:'Klart.'}).count()===1)
+ok('ingen duplikate lag', sql(`select count(*) from teams where cohort_id='${kullId}'`)===førLag, `${førLag} → ${sql(`select count(*) from teams where cohort_id='${kullId}'`)}`)
+ok('ingen duplikate kamper', sql(`select count(*) from matches where cohort_id='${kullId}'`)===førKamp, `${førKamp} → ${sql(`select count(*) from matches where cohort_id='${kullId}'`)}`)
+ok('ingen duplikate trenerkoblinger', sql(`select count(*) from team_coaches where cohort_id='${kullId}'`)===førTC, `${førTC} → ${sql(`select count(*) from team_coaches where cohort_id='${kullId}'`)}`)
+
+await p.getByRole('button',{name:'Til Hjem'}).click().catch(()=>{})
+await p.waitForTimeout(1800)
+ok('lander på Hjem også andre gang', p.url().replace(/\/$/,'')===APP, p.url())
 
 // ---------- 6. Spillere, ett lag om gangen ----------
 await p.getByRole('button',{name:/Legg inn spillerne/}).click()

@@ -1,0 +1,65 @@
+#!/usr/bin/env bash
+# Kjøres før hver push. Slås av for én push med `git push --no-verify`.
+#
+# Riggen som ville tatt Stens døde knapp fantes allerede. Den var bare i
+# stykker, og hadde vært det en stund, fordi ingenting kjørte den. En test som
+# ikke kjøres er verre enn ingen test — den gir dekning man ikke har.
+#
+# Derfor: hooken starter selv det den trenger. Den ber deg ikke om noe.
+set -uo pipefail
+cd "$(git rev-parse --show-toplevel)"
+
+RED=$'\033[31m'; GREEN=$'\033[32m'; YELLOW=$'\033[33m'; OFF=$'\033[0m'
+si() { printf '%s\n' "$*"; }
+
+si "── pre-push ─────────────────────────────────────────"
+
+# 1. Blindskriving og build. Sekunder, ingen avhengigheter, alltid.
+if ! npm run --silent check:writes; then
+  si "${RED}Blindskriving mot basen. Push avbrutt.${OFF}"
+  exit 1
+fi
+if ! npm run --silent build > /dev/null 2>&1; then
+  si "${RED}Bygget feiler. Push avbrutt.${OFF}"
+  npm run build 2>&1 | tail -20
+  exit 1
+fi
+si "${GREEN}build ok${OFF}"
+
+# 2. Hele flyten. Krever den lokale basen. Er den ikke oppe, sier vi det rett
+#    ut i stedet for å late som vi har dekningen.
+if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q supabase_db_halsen-dommerutlegg; then
+  si "${YELLOW}Lokal base er nede — hoppet over QA-flyten og revoke-testen.${OFF}"
+  si "${YELLOW}  npm run db:start, så push på nytt hvis dette er en endring som rører flyten.${OFF}"
+  si "── pre-push ferdig ──────────────────────────────────"
+  exit 0
+fi
+
+# Egen port, egen dev-server: din egen skal få stå i fred, og den peker
+# sannsynligvis på prod uansett (.env.local gjør det).
+PORT=5173
+QA_APP="http://localhost:$PORT"
+EGEN_SERVER=0
+if ! curl -s -o /dev/null --max-time 2 "$QA_APP"; then
+  si "starter dev-server mot lokal base på $PORT …"
+  VITE_SUPABASE_URL=http://127.0.0.1:54321 \
+  VITE_SUPABASE_ANON_KEY="$(grep -o '"anon_key"[^,]*' /dev/null 2>/dev/null || echo 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZS1kZW1vIiwicm9sZSI6ImFub24iLCJleHAiOjE5ODM4MTI5OTZ9.CRXP1A7WOeoJeXxjNni43kdQwgnWNReilDMblYTn_I0')" \
+    npx vite --port "$PORT" --strictPort > /tmp/benchboss-qa-dev.log 2>&1 &
+  DEV_PID=$!
+  EGEN_SERVER=1
+  for _ in $(seq 1 25); do curl -s -o /dev/null "$QA_APP" && break; sleep 1; done
+fi
+rydd() { [ "$EGEN_SERVER" = 1 ] && kill "$DEV_PID" 2>/dev/null; }
+trap rydd EXIT
+
+status=0
+QA_APP="$QA_APP" node scripts/revoke-test.mjs || status=1
+QA_APP="$QA_APP" node scripts/qa-full-flyt.mjs || status=1
+
+if [ "$status" != 0 ]; then
+  si "${RED}QA feiler. Push avbrutt.${OFF}"
+  si "${RED}  Er det med vilje: git push --no-verify${OFF}"
+  exit 1
+fi
+si "${GREEN}QA grønn${OFF}"
+si "── pre-push ferdig ──────────────────────────────────"
