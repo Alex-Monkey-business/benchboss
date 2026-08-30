@@ -54,7 +54,7 @@ async function fetchWithTimeout(url, options = {}, ms = 12000) {
 }
 
 export function useFiks() {
-  const { activeCohort, refreshMember, coach } = useAuth()
+  const { activeCohort, refreshMember, coach, isPlatformAdmin } = useAuth()
   const { seasonTeams, reloadTeams, invalidateTeamCoaches } = useSeasonTeams()
   const { matches, bulkAddMatches, backfillDefaultCoaches } = useMatches()
 
@@ -233,9 +233,15 @@ export function useFiks() {
   //
   // Kommer det flere trenere senere, endres dette i Admin → Tilgang. Dette er
   // en startverdi, ikke en låst sannhet.
+  //
+  // UNNTAKET er plattform-admin. Han setter opp kull for ANDRE, og ble stående
+  // som trener på hver eneste kamp i dem — Alex fant seg selv på en kamp i et
+  // lag han ikke trener. Trenger han laget likevel, kobler han seg på i
+  // Tilgang; det er ett trykk, og det er et valg noen har tatt.
   async function linkSelfToTeams(teams, seasonId) {
     const cohort = activeCohort.value
     const coachId = coach.value?.id
+    if (isPlatformAdmin.value) return 0
     if (!cohort?.id || !coachId || !seasonId || !teams?.length || !isSupabaseConfigured) return 0
     const rows = teams.filter(t => t.id).map(t => ({
       cohort_id: cohort.id, team_id: t.id, coach_id: coachId, season_id: seasonId

@@ -15,14 +15,14 @@ registerReset(() => {
   status.value = STATUS.IDLE
 })
 
-// Fast ukeoppsett: det er alltid trening tirsdag, torsdag og lørdag.
-// Nye perioder seedes med disse tre øktene — tomme og uten illustrasjon:
-// bildet velges når dagen får innhold, en tom dag skal ikke love noe.
-export const DEFAULT_WEEK_SESSIONS = [
-  { title: 'Tirsdag', weekday: 2, accent: 'sky', duration_min: 90 },
-  { title: 'Torsdag', weekday: 4, accent: 'peach', duration_min: 90 },
-  { title: 'Lørdag', weekday: 6, accent: 'olive', duration_min: 90 }
-]
+// Her sto DEFAULT_WEEK_SESSIONS: tirsdag, torsdag og lørdag, 90 minutter — som
+// er HALSENS uke. Den ble seedet inn i første måned i ETHVERT kull, så Sten
+// åpnet treningsplanen sin og fant tre økter han aldri hadde satt opp, på
+// dager og tider han ikke trener. Et nytt lag skal ikke arve et annet lags uke.
+//
+// En ny måned arver nå dagene fra forrige måned i SAMME kull, og har kullet
+// ingen historikk, står måneden tom. En tom uke er et ærlig svar; tre gjettede
+// økter er ikke.
 
 // duration_min kommer først etter at supabase-trening-varighet.sql er kjørt.
 // Uten den: ingen lengde-velger, og feltet strippes før skriving — appen

@@ -4,13 +4,14 @@ import { useAuth } from '../stores/auth'
 import { useCups } from '../composables/useCups'
 import { usePlayers } from '../composables/usePlayers'
 import { useCupSquad } from '../composables/useCupSquad'
-import { CUP_TEAMS } from '../lib/cupTeams'
+import { useCupTeams } from '../composables/useCupTeams'
 import CupTabs from '../components/CupTabs.vue'
 
 const { isParent } = useAuth()
 const { activeCup, fetchCups } = useCups()
 const { players, fetchPlayers, getPlayerById } = usePlayers()
 const { squad, fetchCupSquad, teamForPlayer, playerIdsForTeam, setTeam, removeFromSquad } = useCupSquad()
+const { cupTeams } = useCupTeams()
 
 const canEdit = computed(() => !isParent.value)
 const ready = ref(false)
@@ -69,7 +70,7 @@ async function remove(playerId) {
       <template v-else>
         <p v-if="editing" class="edit-hint">Trykk × for å ta av laget. Trykk en farge for å plassere.</p>
 
-        <section v-for="(t, i) in CUP_TEAMS" :key="t.slug" class="teamcard" :data-accent="teamAccent(i)">
+        <section v-for="(t, i) in cupTeams" :key="t.slug" class="teamcard" :data-accent="teamAccent(i)">
           <header class="teamcard__head">
             <span class="teamcard__dot"></span>
             <span class="teamcard__name">{{ t.name }}</span>
@@ -95,7 +96,7 @@ async function remove(playerId) {
               {{ p.name }}
               <span v-if="editing" class="chip__assign">
                 <button
-                  v-for="(t, i) in CUP_TEAMS"
+                  v-for="(t, i) in cupTeams"
                   :key="t.slug"
                   type="button"
                   class="chip__dot"

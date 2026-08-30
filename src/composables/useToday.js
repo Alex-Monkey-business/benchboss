@@ -19,7 +19,7 @@ import { isOurMatch, isHomeMatch, teamColorsForMatch } from '../lib/matchMeta'
 import { resolveUpcomingPeriod, buildWeekAhead } from '../lib/weekAhead'
 import { buildReminders } from '../lib/reminders'
 import { useDismissedReminders } from './useDismissedReminders'
-import { CUP_TEAMS } from '../lib/cupTeams'
+import { useCupTeams } from './useCupTeams'
 import { registerReset } from '../stores/dataReset'
 
 // Egen modul-state. NB: ikke gjenbruk useMatchMode.fetchSession her —
@@ -39,6 +39,7 @@ export function useToday() {
   const { fetchExpenses, getExpenseForMatch } = useExpenses()
   const { activeCup, cupInProgress, fetchCups } = useCups()
   const { cupMatches, fetchCupMatches } = useCupMatches()
+  const { cupTeams } = useCupTeams()
   const { periods, fetchPeriods } = useTrainingPeriods()
   const { sessions, fetchSessions } = useTrainingSessions()
   const { seasonTeams, teamsFromDb, fetchSeasonTeams } = useSeasonTeams()
@@ -121,19 +122,19 @@ export function useToday() {
   // Cupkamper for MITT cup-lag. Med to lag i samme cup blir alle kampene støy
   // — trenere uten eget cup-lag ser alt.
   //
-  // Preferansen ligger nå på medlemsraden. Den må VALIDERES mot CUP_TEAMS før
-  // bruk: slugene roterer mellom cuper, og en lagret preferanse fra forrige
-  // cup ville ellers filtrert lista til null kamper og gitt en tom-tilstand
-  // som ser ut som en feil.
+  // Preferansen ligger nå på medlemsraden. Den må VALIDERES mot lagene i denne
+  // cupen før bruk: slugene roterer mellom cuper, og en lagret preferanse fra
+  // forrige cup ville ellers filtrert lista til null kamper og gitt en
+  // tom-tilstand som ser ut som en feil.
   const myCupMatches = computed(() => {
     const preferred = preferredCupTeam.value
-    if (preferred && CUP_TEAMS.some(t => t.slug === preferred)) {
+    if (preferred && cupTeams.value.some(t => t.slug === preferred)) {
       return cupMatches.value.filter(m => m.our_team === preferred)
     }
 
     // Fallback for PIN-broen, som ikke har noen medlemsrad å hente den fra.
     const first = (coach.value?.name || '').split(' ')[0].toLowerCase()
-    const mine = CUP_TEAMS.find(t => (t.trainers || []).some(n => n.toLowerCase() === first))
+    const mine = cupTeams.value.find(t => (t.trainers || []).some(n => n.toLowerCase() === first))
     return mine ? cupMatches.value.filter(m => m.our_team === mine.slug) : cupMatches.value
   })
 

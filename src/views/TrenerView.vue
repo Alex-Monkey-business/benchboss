@@ -27,8 +27,8 @@ const route = useRoute()
 const { activeCohort } = useAuth()
 const { coaches, fetchCoaches } = useCoaches()
 const { activeSeason, viewingSeason, fetchSeasons } = useSeasons()
-const { seasonTeams, setSeasonTeams } = useSeasonTeams()
-const { matches, matchCoaches, fetchMatches } = useMatches()
+const { seasonTeams, setSeasonTeams, invalidateTeamCoaches } = useSeasonTeams()
+const { matches, matchCoaches, fetchMatches, backfillDefaultCoaches } = useMatches()
 const { expenses, fetchExpenses } = useExpenses()
 const { fetchResponsibilities, areasForCoach, setAreasForCoach, supportsResponsibilities } = useResponsibilities()
 const { show: showToast } = useToast()
@@ -141,6 +141,13 @@ async function saveTeam(slug) {
     showToast(data.error, 'error')
     return false
   }
+
+  // Kampene i sesongen kan ha blitt hentet før laget hadde en trener — det er
+  // normalen nå som plattform-admin ikke lenger kobler seg selv på i
+  // veiviseren. Backfillen er idempotent og rører bare kamper som står helt
+  // uten trener, så den kan trygt kjøre hver gang noen får et lag.
+  invalidateTeamCoaches()
+  if (activeSeason.value?.id) await backfillDefaultCoaches(activeSeason.value.id)
   return true
 }
 

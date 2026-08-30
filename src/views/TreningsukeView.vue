@@ -13,7 +13,7 @@ import { useContent } from '../composables/useContent'
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingPeriods } from '../composables/useTrainingPeriods'
-import { useTrainingSessions, DEFAULT_WEEK_SESSIONS } from '../composables/useTrainingSessions'
+import { useTrainingSessions } from '../composables/useTrainingSessions'
 import { useExercises, exerciseToDrill, resolveDrills } from '../composables/useExercises'
 import { useToast } from '../composables/useToast'
 import { parseTreningsplan } from '../lib/treningParser'
@@ -525,9 +525,12 @@ async function createMonth(reuse = true) {
   const kilde = !src ? null
     : src.id === periodId.value ? sessions.value
     : await fetchSessions(src.id)
+  // Ingen forrige måned å arve fra? Da står måneden tom. Før falt den tilbake
+  // på Halsens tirsdag/torsdag/lørdag, og et nytt kull fikk en uke det aldri
+  // hadde bedt om.
   const maler = kilde?.length
     ? [...kilde].sort((a, b) => a.position - b.position)
-    : DEFAULT_WEEK_SESSIONS.map(t => ({ ...t, drills: [] }))
+    : []
 
   const row = await createPeriod({
     title: plan.title,
