@@ -110,24 +110,27 @@ export function useFiks() {
   // Årgangen bestemmer også NAVNET. Kullet het det Alex skrev da han lagde
   // skallet — «Stag G2018» — mens treneren kan velge 2017. Da bar appen et
   // navn som var feil for alltid, og velkomstskjermen lovet et kull vi ikke
-  // visste eksisterte ennå.
-  function cohortName(year, gender) {
-    const klubb = activeCohort.value?.club_short_name || activeCohort.value?.club_name?.split(' ')[0]
-    return klubb && year ? `${klubb} ${gender || 'G'}${year}` : null
-  }
-
+  // visste eksisterte ennå. Navnet utledes nå i bb_cohort_setup, av samme
+  // årgang og klubb — en trener på vei gjennom veiviseren skal ikke kunne
+  // skrive hva som helst i det feltet.
+  //
+  // Gikk gjennom en rå UPDATE fram til 30. aug. Da eide `admin_cohort_update`
+  // tabellen, og en trener traff null rader UTEN å få feil: veiviseren gikk
+  // videre, og guarden sendte ham tilbake hit i det uendelige. Retten ligger nå
+  // i handlingen — én gang, mens kullet ennå ikke har årgang.
   async function setBirthYear(year, gender = 'G') {
     const id = activeCohort.value?.id
-    if (!id || !isSupabaseConfigured) return
-    const navn = cohortName(year, gender)
-    const { error } = await supabase
-      .from('cohorts')
-      .update({
-        birth_year: Number(year),
-        ...cohortFormat(year),
-        ...(navn ? { name: navn, slug: slugify(navn) } : {})
-      })
-      .eq('id', id)
+    if (!id) throw new Error('Fant ikke kullet ditt')
+    if (!isSupabaseConfigured) return
+    const format = cohortFormat(year)
+    const { error } = await supabase.rpc('bb_cohort_setup', {
+      p_cohort_id: id,
+      p_birth_year: Number(year),
+      p_gender: gender || 'G',
+      p_players_on_pitch: format.players_on_pitch,
+      p_period_count: format.period_count,
+      p_period_minutes: format.period_minutes
+    })
     if (error) throw error
   }
 
@@ -135,23 +138,93 @@ export function useFiks() {
 
   // Lagene får kortnavnet («Grønn»), men husker hva de heter i FIKS — det er
   // det navnet som står i kampene.
+  //
+  // Veiviseren tåler å kjøres om igjen. Den ble kjørt om igjen — Sten satt fast
+  // på siste steg, og andre forsøk er derfor det normale, ikke det sjeldne. En
+  // blind insert ville truffet unik-indeksen på (cohort_id, fiks_team_id) og
+  // rullet tilbake HELE bunten, ikke bare laget som fantes fra før.
   async function createTeams(fiksTeams) {
     const cohort = activeCohort.value
     if (!cohort?.id || !isSupabaseConfigured || !fiksTeams.length) return []
-    const start = seasonTeams.value.length
-    const rows = fiksTeams.map((t, i) => ({
-      cohort_id: cohort.id,
-      name: shortTeamName(t.name, cohort.club_name?.split(' ')[0] || ''),
-      slug: slugify(shortTeamName(t.name, cohort.club_name?.split(' ')[0] || '')),
-      accent: accentFor(t.name, start + i),
-      position: start + i,
-      fiks_team_id: Number(t.fiksId),
-      fiks_name: t.name
-    }))
-    const { data, error } = await supabase.from('teams').insert(rows).select()
-    if (error) throw error
+
+    const { data: fins, error: lesFeil } = await supabase
+      .from('teams')
+      .select('*')
+      .eq('cohort_id', cohort.id)
+    if (lesFeil) throw lesFeil
+
+    // To veier til samme lag: FIKS-id-en, og navnet. Sten traff den andre —
+    // «teams_cohort_id_slug_key», ikke fiks-indeksen — fordi «Grønn» sto der
+    // fra forrige forsøk. Et lag satt opp for hånd har heller ingen FIKS-id,
+    // og ville krasjet på nøyaktig samme måte.
+    const kort = t => shortTeamName(t.name, cohort.club_name?.split(' ')[0] || '')
+    const medFiks = new Map(
+      (fins || []).filter(t => t.fiks_team_id != null).map(t => [Number(t.fiks_team_id), t])
+    )
+    const medSlug = new Map((fins || []).map(t => [t.slug, t]))
+    const fraFor = new Map()
+    for (const t of fiksTeams) {
+      const treff = medFiks.get(Number(t.fiksId)) || medSlug.get(slugify(kort(t)))
+      if (treff) fraFor.set(Number(t.fiksId), treff)
+    }
+    const nye = fiksTeams.filter(t => !fraFor.has(Number(t.fiksId)))
+
+    // Laget fantes, men uten FIKS-id — satt opp for hånd før terminlista kom.
+    // Da er dette øyeblikket koblingen oppstår: uten den henter aldri
+    // kampimporten noe for det laget.
+    const utenFiks = fiksTeams
+      .map(t => [fraFor.get(Number(t.fiksId)), t])
+      .filter(([rad]) => rad && rad.fiks_team_id == null)
+    for (const [rad, t] of utenFiks) {
+      const { data, error } = await supabase
+        .from('teams')
+        .update({ fiks_team_id: Number(t.fiksId), fiks_name: t.name })
+        .eq('id', rad.id)
+        .select('id')
+      if (error) throw error
+      if (!data?.length) throw new Error(`Fikk ikke koble «${rad.name}» til fotball.no`)
+      rad.fiks_team_id = Number(t.fiksId)
+      rad.fiks_name = t.name
+    }
+
+    let lagt = []
+    if (nye.length) {
+      // «Vis alle 43 lagene» kan gi to lag som begge blir «Grønn» når klubb og
+      // aldersklasse er strøket — G8 Grønn og J8 Grønn. Navnet får stå likt;
+      // slug-en må ikke, den er unik per kull. Siste utvei til den samme
+      // krasjen, lukket her.
+      const start = (fins || []).length
+      const brukte = new Set((fins || []).map(t => t.slug))
+      const rows = nye.map((t, i) => {
+        const navn = shortTeamName(t.name, cohort.club_name?.split(' ')[0] || '')
+        let slug = slugify(navn)
+        let n = 2
+        while (brukte.has(slug)) slug = `${slugify(navn)}-${n++}`
+        brukte.add(slug)
+        return {
+          cohort_id: cohort.id,
+          name: navn,
+          slug,
+          accent: accentFor(t.name, start + i),
+          position: start + i,
+          fiks_team_id: Number(t.fiksId),
+          fiks_name: t.name
+        }
+      })
+      const { data, error } = await supabase.from('teams').insert(rows).select()
+      if (error) throw error
+      lagt = data || []
+    }
+
     await reloadTeams(cohort.id)
-    return data || []
+
+    // Alle lagene treneren huket av — både de som nettopp ble laget og de som
+    // sto der fra i sted. Kampimporten og trenerkoblingen etterpå gjelder
+    // utvalget, ikke bare det som var nytt i dette forsøket.
+    const lagtMap = new Map(lagt.map(t => [Number(t.fiks_team_id), t]))
+    return fiksTeams
+      .map(t => lagtMap.get(Number(t.fiksId)) || fraFor.get(Number(t.fiksId)))
+      .filter(Boolean)
   }
 
   // Den som setter opp kullet er foreløpig eneste trener — da trener han alle
@@ -168,7 +241,12 @@ export function useFiks() {
       cohort_id: cohort.id, team_id: t.id, coach_id: coachId, season_id: seasonId
     }))
     if (!rows.length) return 0
-    const { error } = await supabase.from('team_coaches').insert(rows)
+    // upsert, ikke insert: én kobling som fantes fra før ville gitt 23505 på
+    // HELE bunten, og da hadde de andre lagene stått uten trener. Det gjør
+    // veiviseren trygg å kjøre om igjen.
+    const { error } = await supabase
+      .from('team_coaches')
+      .upsert(rows, { onConflict: 'team_id,coach_id,season_id', ignoreDuplicates: true })
     if (error && error.code !== '23505') throw error
     invalidateTeamCoaches()
 
@@ -272,12 +350,18 @@ export function useFiks() {
     const standard = formatFor(cohort.birth_year)
     if (standard && cohort.players_on_pitch !== standard) return null
 
+    // `.select()` er ikke pynt: uten den kan RLS filtrere bort raden og PostgREST
+    // svarer «ok» med null rader. Da rapporterte vi en spillform vi aldri skrev,
+    // og veiviseren sa «Banene sier 5er, så det er satt» om et kull der ingenting
+    // var satt. Spillformen er en admin-innstilling — en trener treffer null
+    // rader her, og skal få vite det ved at vi ikke lover noe.
     const [period_count, period_minutes] = periodsFor(fraFiks)
-    const { error } = await supabase
+    const { data, error } = await supabase
       .from('cohorts')
       .update({ players_on_pitch: fraFiks, period_count, period_minutes })
       .eq('id', cohort.id)
-    if (error) return null
+      .select('id')
+    if (error || !data?.length) return null
     await refreshMember()
     return fraFiks
   }

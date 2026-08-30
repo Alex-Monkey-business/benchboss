@@ -255,6 +255,12 @@ async function hent() {
 }
 
 function ferdig() {
+  // Samme merke som hoppOver setter. Guarden i router.js sender alle med et
+  // uoppsatt kull hit, og har den grunn til å mene at kullet fortsatt er
+  // uoppsatt, blir «Til Hjem» en knapp som bare gir en toast — den avbrutte
+  // navigasjonen tilbake til siden vi alt står på. Har man vært gjennom
+  // veiviseren, er den ferdig med deg. Mangler noe, sier Hjem det selv.
+  try { localStorage.setItem(`bb_komigang_hoppet_${activeCohort.value?.id}`, '1') } catch { /* privat modus */ }
   showToast(`${resultat.value?.lag || 0} lag og ${resultat.value?.kamper || 0} kamper er på plass`, 'success')
   router.replace('/')
 }
