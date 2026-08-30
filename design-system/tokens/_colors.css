@@ -80,15 +80,21 @@
      Diff-merke grønt. Fargen sa noe den ikke mente, og hjernen hadde allerede
      lært hva den betyr. Grønn og rød er tatt ut her og hører nå bare laget til.
 
+     Første forsøk erstattet grønn og rød med to dempede toner, og da ble hele
+     appen grå. Feilen var ikke å fjerne lagfargene — det var å bytte dem mot
+     noe forsiktig. Fire av de fem er nå ordentlige farger: blå, indigo, gull
+     og plomme. Steinen er den ene stille, og den leses som et valg når de
+     andre tør. Ingen av dem ligger i nærheten av #3D5C44 eller #7A3A24.
+
      Paletten sto kopiert inn i åtte filer. Nå står den her. */
-  --ds-accent-sky-text:         #3A4C5C;
-  --ds-accent-sky-bg:           #DDE6EC;
-  --ds-accent-cornflower-text:  #3D456B;
-  --ds-accent-cornflower-bg:    #D6DDEF;
-  --ds-accent-olive-text:       #6B5630;
-  --ds-accent-olive-bg:         #F0E7D6;
-  --ds-accent-plum-text:        #5A4256;
-  --ds-accent-plum-bg:          #EBE2EC;
+  --ds-accent-sky-text:         #2C5F8F;
+  --ds-accent-sky-bg:           #DCE8F4;
+  --ds-accent-cornflower-text:  #4E4A9E;
+  --ds-accent-cornflower-bg:    #E2E1F5;
+  --ds-accent-olive-text:       #8A5E12;
+  --ds-accent-olive-bg:         #F7EAD2;
+  --ds-accent-plum-text:        #8A3A7A;
+  --ds-accent-plum-bg:          #F5E1F1;
   --ds-accent-taupe-text:       #575046;
   --ds-accent-taupe-bg:         #E3E0D8;
 
@@ -124,14 +130,14 @@
   --ds-color-border-focus:    #F5F5F2;
 
   /* ---- Dekorfarger ---- */
-  --ds-accent-sky-text:         #B0C5D8;
-  --ds-accent-sky-bg:           #1A222A;
-  --ds-accent-cornflower-text:  #B9C2E5;
-  --ds-accent-cornflower-bg:    #1A1F33;
-  --ds-accent-olive-text:       #D9C99E;
-  --ds-accent-olive-bg:         #2A241A;
-  --ds-accent-plum-text:        #D6BFD8;
-  --ds-accent-plum-bg:          #241A26;
+  --ds-accent-sky-text:         #9FC4E8;
+  --ds-accent-sky-bg:           #16232E;
+  --ds-accent-cornflower-text:  #B9B6EE;
+  --ds-accent-cornflower-bg:    #1B1A2E;
+  --ds-accent-olive-text:       #E5C179;
+  --ds-accent-olive-bg:         #2A2013;
+  --ds-accent-plum-text:        #E9AEDD;
+  --ds-accent-plum-bg:          #2B1728;
   --ds-accent-taupe-text:       #D2CAC1;
   --ds-accent-taupe-bg:         #221F1C;
 

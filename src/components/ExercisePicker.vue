@@ -277,8 +277,8 @@ function preview(ex) {
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }
-.picker-row__badge--diff { background: var(--ds-badge-bg); color: var(--ds-badge-text); }
-.picker-row__badge--mix { background: transparent; color: var(--ds-badge-text); box-shadow: inset 0 0 0 1px var(--ds-badge-border); }
+.picker-row__badge--diff { background: var(--accent-bg, var(--ds-badge-bg)); color: var(--accent-text, var(--ds-badge-text)); }
+.picker-row__badge--mix { background: transparent; color: var(--accent-text, var(--ds-badge-text)); box-shadow: inset 0 0 0 1px currentColor; }
 
 .picker-row__body {
   flex: 1;

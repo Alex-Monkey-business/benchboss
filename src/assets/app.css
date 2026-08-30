@@ -328,6 +328,13 @@
 [data-accent="warm"]       { --accent-bg: var(--ds-accent-taupe-bg);      --accent-text: var(--ds-accent-taupe-text); }
 [data-accent="peach"]      { --accent-bg: var(--ds-accent-taupe-bg);      --accent-text: var(--ds-accent-taupe-text); }
 
+/* Flater uten egen dagfarge — øvelsesbanken, plukkeren — arver indigo, så
+   merket ikke faller tilbake til grått i en app som nettopp fikk farge. */
+.bank-row, .picker-row, .ex-view {
+  --accent-bg: var(--ds-accent-cornflower-bg);
+  --accent-text: var(--ds-accent-cornflower-text);
+}
+
 /* Per-coach color tokens — assigned by data-coach attribute. Brukt av både
    trener-pills (edit) og avatar-pile (collapsed summary). */
 [data-coach] {
