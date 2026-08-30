@@ -94,7 +94,13 @@ const coach = computed(() => {
 // En trener uten coach_id er ikke en feil appen skal skjule. Før het dette
 // reconcileWithCoaches og gjettet seg fram på navn; nå er det en synlig
 // tilstand med banner på Hjem.
-const identityIncomplete = computed(() => isCoach.value && !coach.value?.id)
+//
+// Plattform-admin er unntaket, og det er med vilje: han får ikke lenger en
+// trenerrad i kull han oppretter for andre. Uten unntaket ville han møtt et
+// banner om manglende identitet i hvert eneste av dem — en advarsel om en
+// tilstand som er nøyaktig den vi ville ha.
+const identityIncomplete = computed(() =>
+  isCoach.value && !coach.value?.id && !isPlatformAdmin.value)
 
 // Preferanser, backfilt fra de gamle statiske lag-configene i fase 2. De SEEDER
 // filtrene — de låser ingenting.
