@@ -2,6 +2,8 @@
 // Alt går gjennom de ekte veiene — RPC, edge-funksjonen, e-posten, fotball.no.
 import { chromium } from 'playwright'
 import { execSync } from 'node:child_process'
+import { writeFileSync, unlinkSync } from 'node:fs'
+import * as XLSX from 'xlsx'
 
 // Overstyrbare så pre-push-hooken kan kjøre riggen på en ledig port uten å
 // slåss med dev-serveren du selv har gående.
@@ -391,18 +393,57 @@ const kortTekst = (await p.locator('.turn-kort').innerText().catch(() => '')).re
 ok('turneringen er opprettet', /Ørncupen/.test(kortTekst), kortTekst.slice(0, 60))
 ok('laget står på turneringen', /Blå/.test(kortTekst), kortTekst.slice(0, 60))
 
+// Kampoppsettet kommer fra arrangøren som et regneark. Å skrive av tolv
+// kamper for hånd er jobben serien slapp for lenge siden.
+//
+// Den siste raden er med vilje skrevet slik arrangører faktisk skriver:
+// «Ørn Horten 2», ikke «Blå». Klubben stemmer, laget gjør ikke — og da SKAL
+// appen si at den gjetter i stedet for å lagre tolv kamper på feil lag.
+const ARK = '/tmp/qa-cupoppsett.xlsx'
+const bok = XLSX.utils.book_new()
+XLSX.utils.book_append_sheet(bok, XLSX.utils.json_to_sheet([
+  { Kampnr: 436, Dato: dato(7), Tid: '11:00', Bane: 'Virik 3', Hjemmelag: 'Ørn Blå', Bortelag: 'Nanset Hvit' },
+  { Kampnr: 627, Dato: dato(7), Tid: '12:30', Bane: 'Virik 5', Hjemmelag: 'Svene IL', Bortelag: 'Ørn Blå' },
+  { Kampnr: 841, Dato: dato(8), Tid: '09:30', Bane: 'Virik 7', Hjemmelag: 'Ørn Horten 2', Bortelag: 'Fossum IF' }
+]), 'Kamper')
+writeFileSync(ARK, Buffer.from(XLSX.write(bok, { type: 'array', bookType: 'xlsx' })))
+
+await p.locator('input[type=file]').setInputFiles(ARK)
+await p.waitForTimeout(1500)
+
+const importTekst = (await p.locator('.turn-import').innerText().catch(() => '')).replace(/\s+/g, ' ')
+ok('regnearket leses', /Nanset Hvit/.test(importTekst) && /Svene IL/.test(importTekst), importTekst.slice(0, 90))
+ok('hjemme- og bortekamp havner på samme lag', (importTekst.match(/Blå/g) || []).length >= 2, importTekst.slice(0, 90))
+ok('raden appen ikke er sikker på er merket', await p.locator('.turn-import__rad--gjett').count() === 1,
+  await p.locator('.turn-import__raa').innerText().catch(() => ''))
+
+// Ingenting skal ligge i basen før noen har sett gjennom lista.
+ok('ingenting lagres før du trykker importer',
+  Number(sql(`select count(*) from cup_matches where cohort_id='${kullId}'`)) === 0)
+
+await p.getByRole('button', { name: /^Importer/ }).click()
+await p.waitForTimeout(1800)
+ok('kampene er importert', Number(sql(`select count(*) from cup_matches where cohort_id='${kullId}'`)) === 3,
+  sql(`select count(*) from cup_matches where cohort_id='${kullId}'`))
+ok('banen fulgte med fra arket',
+  sql(`select coalesce(string_agg(distinct pitch, ','), '') from cup_matches where cohort_id='${kullId}'`).includes('Virik 3'))
+ok('motstanderen er den andre sida, ikke vår egen',
+  sql(`select count(*) from cup_matches where cohort_id='${kullId}' and opponent like 'Ørn%'`) === '0')
+unlinkSync(ARK)
+
+// Og den manuelle veien virker fortsatt når programmet ikke er tomt.
 await p.getByRole('button', { name: 'Legg til kamp' }).click()
 await p.waitForTimeout(400)
-await p.locator('#kamp-motstander').fill('Nanset Hvit')
-await p.locator('#kamp-tid').fill('11:00')
+await p.locator('#kamp-motstander').fill('Rolvsøy IF')
+await p.locator('#kamp-tid').fill('14:00')
 await p.getByRole('button', { name: 'Legg til', exact: true }).click()
 await p.waitForTimeout(1000)
 await p.getByRole('button', { name: 'Ferdig' }).click()
 await p.waitForTimeout(500)
 
 const kampRad = (await p.locator('.turn-rad').first().innerText().catch(() => '')).replace(/\s+/g, ' ')
-ok('kampen ligger i programmet', /Blå mot Nanset Hvit/.test(kampRad), kampRad)
-ok('kampen er lagret i basen', Number(sql(`select count(*) from cup_matches where cohort_id='${kullId}'`)) === 1)
+ok('kampene ligger i programmet', /Blå mot Nanset Hvit/.test(kampRad), kampRad)
+ok('manuell kamp kom i tillegg', Number(sql(`select count(*) from cup_matches where cohort_id='${kullId}'`)) === 4)
 
 // Cup-kampdetaljen sto med «|| 'Halsen'» som fallback: ethvert annet lags
 // cup-kamp viste Halsen som sitt eget lag. Riggen åpnet aldri en cup-kamp,

@@ -4,6 +4,8 @@ import { useCups } from '../composables/useCups'
 import { useCupMatches } from '../composables/useCupMatches'
 import { useCupTeams } from '../composables/useCupTeams'
 import { useToast } from '../composables/useToast'
+import { useAuth } from '../stores/auth'
+import { parseCupMatchFile, fordelLag } from '../lib/cupExcel'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
 
@@ -15,9 +17,10 @@ import Sheet from '../components/Sheet.vue'
 // ikke legge inn det eneste laget hans faktisk spiller.
 
 const { cups, activeCup, fetchCups, createCup, updateCup, deleteCup, selectCup } = useCups()
-const { cupMatches, fetchCupMatches, addCupMatch, deleteCupMatch } = useCupMatches()
+const { cupMatches, fetchCupMatches, addCupMatch, bulkAddCupMatches, deleteCupMatch } = useCupMatches()
 const { cupTeams } = useCupTeams()
 const { show: showToast } = useToast()
+const { activeCohort } = useAuth()
 
 const ready = ref(false)
 const lagrer = ref(false)
@@ -107,6 +110,77 @@ async function lagreNyKamp() {
   // ikke én. Bare motstander, tid og bane nullstilles.
   nyKamp.value = { ...nyKamp.value, opponent: '', match_time: '', pitch: '', round: '' }
   showToast('Kampen er lagt til', 'success')
+}
+
+// ---- Importer kampoppsettet fra regneark ----
+//
+// Arrangøren sender et regneark. Å skrive av tolv kamper for hånd er den
+// jobben serien slapp for lenge siden — parseren er den samme, bare med
+// arrangørens kolonnenavn og uten en terminliste å pare mot.
+const filInput = ref(null)
+const drar = ref(false)
+const leser = ref(false)
+const visImport = ref(false)
+const importRader = ref([])
+
+const usikre = computed(() => importRader.value.filter(r => !r.sikker).length)
+
+function onDragOver(e) { e.preventDefault(); drar.value = true }
+function onDragLeave() { drar.value = false }
+async function onDrop(e) {
+  e.preventDefault(); drar.value = false
+  const fil = e.dataTransfer?.files?.[0]
+  if (fil) await lesFil(fil)
+}
+async function onFilValgt(e) {
+  const fil = e.target.files?.[0]
+  if (fil) await lesFil(fil)
+  e.target.value = ''
+}
+
+async function lesFil(fil) {
+  if (!activeCup.value) return
+  leser.value = true
+  try {
+    const rader = await parseCupMatchFile(fil)
+    if (!rader.length) {
+      showToast('Fant ingen kamper i filen', 'error')
+      return
+    }
+    importRader.value = fordelLag(rader, {
+      klubbKortnavn: activeCohort.value?.club_short_name || activeCohort.value?.club_name || '',
+      cupLag: cupTeams.value
+    })
+    visImport.value = true
+  } catch (e) {
+    showToast(e?.message || 'Kunne ikke lese filen', 'error')
+  } finally {
+    leser.value = false
+  }
+}
+
+// Gjettet skal kunne rettes FØR noe lagres. Trykk på laget for å bytte.
+function bytteLag(i) {
+  const rad = importRader.value[i]
+  const n = cupTeams.value.findIndex(t => t.slug === rad.our_team)
+  const neste = cupTeams.value[(n + 1) % cupTeams.value.length]
+  if (!neste) return
+  importRader.value[i] = { ...rad, our_team: neste.slug, sikker: true }
+}
+
+async function lagreImport() {
+  if (!activeCup.value || lagrer.value || !importRader.value.length) return
+  lagrer.value = true
+  try {
+    const n = await bulkAddCupMatches(activeCup.value.id, importRader.value)
+    visImport.value = false
+    importRader.value = []
+    showToast(`${n} ${n === 1 ? 'kamp' : 'kamper'} importert`, 'success')
+  } catch (e) {
+    showToast(e?.message || 'Importen feilet — ingenting ble lagret', 'error')
+  } finally {
+    lagrer.value = false
+  }
 }
 
 // ---- Slette ----
@@ -234,9 +308,24 @@ const sorterteKamper = computed(() =>
             <button class="ds-btn ds-btn--secondary ds-btn--sm" @click="apneNyKamp">Legg til kamp</button>
           </div>
 
-          <p v-if="!sorterteKamper.length" class="turn-muted">
-            Ingen kamper lagt inn. Skriv dem av fra arrangørens kampoppsett.
-          </p>
+          <!-- Importen bor i den tomme tilstanden. Har programmet først
+               kamper, er «Legg til kamp» veien — en import oppå det som
+               allerede står ville laget duplikater ingen ba om. -->
+          <template v-if="!sorterteKamper.length">
+          <div
+            class="turn-slipp"
+            :class="{ 'turn-slipp--aktiv': drar }"
+            @dragover="onDragOver"
+            @dragleave="onDragLeave"
+            @drop="onDrop"
+            @click="filInput?.click()"
+          >
+            <p class="turn-slipp__tittel">{{ leser ? 'Leser filen …' : 'Har du kampoppsettet i et regneark?' }}</p>
+            <p class="turn-slipp__hint">Dra fila hit, eller tap for å velge. .xlsx, .xls og .csv.</p>
+          </div>
+          <p class="turn-muted">Eller legg dem inn én og én med «Legg til kamp».</p>
+          <input ref="filInput" type="file" accept=".xlsx,.xls,.csv" style="display:none" @change="onFilValgt" />
+          </template>
 
           <ul v-else class="turn-liste">
             <li v-for="m in sorterteKamper" :key="m.id" class="turn-rad">
@@ -344,6 +433,36 @@ const sorterteKamper = computed(() =>
       </div>
     </Sheet>
 
+    <Sheet :show="visImport" title="Kamper fra regnearket" @close="visImport = false">
+      <p class="turn-hint turn-hint--topp">
+        {{ importRader.length }} {{ importRader.length === 1 ? 'kamp' : 'kamper' }} funnet.
+        <template v-if="usikre">
+          {{ usikre }} av dem vet vi ikke hvilket lag tilhører — trykk på laget for å rette.
+        </template>
+        <template v-else-if="cupTeams.length > 1">Trykk på laget for å bytte.</template>
+      </p>
+
+      <ul class="turn-import">
+        <li v-for="(r, i) in importRader" :key="i" class="turn-import__rad" :class="{ 'turn-import__rad--gjett': !r.sikker }">
+          <button type="button" class="turn-import__lag" @click="bytteLag(i)">{{ lagNavn(r.our_team) }}</button>
+          <span class="turn-import__tekst">
+            <span class="turn-import__hoved">mot {{ r.opponent || 'TBD' }}</span>
+            <span class="turn-import__meta">
+              {{ kampDato(r) }}<template v-if="r.pitch"> · {{ r.pitch }}</template>
+            </span>
+            <span v-if="!r.sikker" class="turn-import__raa">Sto i fila: {{ r.raw }}</span>
+          </span>
+        </li>
+      </ul>
+
+      <div class="sheet-actions">
+        <button class="ds-btn ds-btn--secondary" @click="visImport = false">Avbryt</button>
+        <button class="ds-btn ds-btn--primary" :disabled="lagrer" @click="lagreImport">
+          {{ lagrer ? 'Importerer …' : `Importer ${importRader.length}` }}
+        </button>
+      </div>
+    </Sheet>
+
     <ConfirmDialog
       :show="!!kampTilSletting"
       title="Slette kampen?"
@@ -365,6 +484,78 @@ const sorterteKamper = computed(() =>
 </template>
 
 <style scoped>
+.turn-slipp {
+  border: 1px dashed var(--ds-color-border-strong);
+  border-radius: var(--ds-radius-lg);
+  padding: var(--ds-space-xl) var(--ds-space-lg);
+  text-align: center;
+  cursor: pointer;
+  background: var(--ds-color-bg);
+  margin-top: var(--ds-space-sm);
+}
+
+.turn-slipp--aktiv {
+  border-color: var(--ds-color-accent);
+  background: var(--ds-color-bg-subtle);
+}
+
+.turn-slipp__tittel { margin: 0; font-weight: 600; }
+.turn-slipp__hint {
+  margin: 6px 0 0;
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+}
+
+.turn-import {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 46vh;
+  overflow-y: auto;
+}
+
+.turn-import__rad {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--ds-space-sm);
+  padding: var(--ds-space-sm) 0;
+  border-bottom: 1px solid var(--ds-color-border-light);
+}
+
+.turn-import__lag {
+  flex: none;
+  border: 1px solid var(--ds-color-border);
+  background: var(--ds-color-bg);
+  border-radius: var(--ds-radius-full);
+  padding: 4px 12px;
+  font-size: var(--ds-text-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.turn-import__rad--gjett .turn-import__lag {
+  border-color: var(--ds-color-warning);
+  background: var(--ds-color-warning-light);
+  color: var(--ds-color-warning-text);
+}
+
+.turn-import__tekst {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.turn-import__hoved { font-size: var(--ds-text-sm); }
+.turn-import__meta,
+.turn-import__raa {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-secondary);
+}
+.turn-import__raa { color: var(--ds-color-warning-text); }
+
+.turn-hint--topp { margin-bottom: var(--ds-space-md); }
+
 /* .sheet-actions er ikke i design-systemet — hvert view som bruker Sheet
    definerer den selv. Samme verdier som AdminSesongKamperView. */
 .sheet-actions {

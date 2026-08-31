@@ -30,11 +30,11 @@ const COLUMN_MAP = {
   'dommere': 'referee'
 }
 
-function normalizeColumnName(name) {
+export function normalizeColumnName(name) {
   return (name || '').toString().toLowerCase().trim()
 }
 
-function parseDate(value) {
+export function parseDate(value) {
   if (!value) return null
 
   // Excel serial date number
@@ -80,7 +80,7 @@ function parseDate(value) {
   return str
 }
 
-function parseTime(value) {
+export function parseTime(value) {
   if (!value) return null
 
   // Excel time as decimal (0.75 = 18:00)

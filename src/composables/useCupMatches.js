@@ -118,6 +118,34 @@ export function useCupMatches() {
     return data
   }
 
+  // Hele kampoppsettet i én operasjon. Kaster hvis inserten feiler — en
+  // import som svelger feilen og sier «12 kamper lagt inn» mot en tom tabell
+  // er nøyaktig bugen bulkAddMatches hadde for serien.
+  async function bulkAddCupMatches(cupId, rader) {
+    const klare = rader.map(r => ({
+      cup_id: cupId,
+      our_team: r.our_team,
+      opponent: String(r.opponent || '').trim() || null,
+      match_date: r.match_date || null,
+      match_time: r.match_time || null,
+      pitch: r.pitch || null,
+      round: r.round || null
+    }))
+    if (!klare.length) return 0
+
+    if (!isSupabaseConfigured) {
+      const lokale = klare.map((r, i) => ({ id: 'dcm-' + Date.now() + '-' + i, home_score: null, away_score: null, ...r }))
+      cupMatches.value = [...cupMatches.value, ...lokale].sort(sorter)
+      return lokale.length
+    }
+
+    const { data, error } = await supabase.from('cup_matches').insert(klare).select()
+    if (error) throw new Error(error.message)
+
+    cupMatches.value = [...cupMatches.value, ...(data || [])].sort(sorter)
+    return data?.length || 0
+  }
+
   async function deleteCupMatch(id) {
     if (!isSupabaseConfigured) {
       cupMatches.value = cupMatches.value.filter(m => m.id !== id)
@@ -135,7 +163,7 @@ export function useCupMatches() {
     return true
   }
 
-  return { cupMatches, loading, status, fetchCupMatches, getCupMatch, updateCupMatch, addCupMatch, deleteCupMatch }
+  return { cupMatches, loading, status, fetchCupMatches, getCupMatch, updateCupMatch, addCupMatch, bulkAddCupMatches, deleteCupMatch }
 }
 
 // Samme rekkefølge som spørringen bruker, så en nylagt kamp havner der den
