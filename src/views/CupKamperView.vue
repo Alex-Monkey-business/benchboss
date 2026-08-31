@@ -1,15 +1,19 @@
 <script setup>
 import { computed, onMounted, ref } from 'vue'
+import { useAuth } from '../stores/auth'
 import { useCups } from '../composables/useCups'
 import { useCupMatches } from '../composables/useCupMatches'
 import { cupTeam } from '../lib/cupTeams'
 import { useCupFilter } from '../composables/useCupFilter'
+import { useCupTeams } from '../composables/useCupTeams'
 import CupTeamFilter from '../components/CupTeamFilter.vue'
 import CupTabs from '../components/CupTabs.vue'
 
+const { isParent } = useAuth()
 const { activeCup, fetchCups } = useCups()
 const { cupMatches, loading, status, fetchCupMatches } = useCupMatches()
 const { teamFilter, setFilter } = useCupFilter()
+const { cupTeams } = useCupTeams()
 const ready = ref(false)
 
 onMounted(async () => {
@@ -19,7 +23,7 @@ onMounted(async () => {
 })
 
 function teamName(slug) {
-  return cupTeam(slug)?.name || slug
+  return cupTeams.value.find(t => t.slug === slug)?.name || cupTeam(slug)?.name || slug
 }
 
 function dayLabel(dateStr) {
@@ -78,10 +82,20 @@ const groups = computed(() => {
 
       <!-- Ingen CTA her med vilje: cup-kamper legges inn direkte i basen, det
            finnes ingen skjerm å sende noen til. En knapp ville løyet. -->
+      <!-- Uten en cup i det hele tatt er dette flata treneren lander på fra
+           Cup-fanen. Da må den peke videre: en tom skjerm uten utvei er
+           nøyaktig den døde knappen vi allerede har brukt en dag på. -->
       <div v-else-if="filteredMatches.length === 0" class="ds-empty">
         <img src="/illustrations/bench-boss-feature-icons/512/cup-tournament-transparent.png" alt="" class="ds-empty__illo" />
-        <h3 class="ds-empty__title">Ingen kamper ennå</h3>
-        <p class="ds-empty__description">Kampprogrammet for turneringen er ikke lagt inn.</p>
+        <h3 class="ds-empty__title">{{ activeCup ? 'Ingen kamper ennå' : 'Ingen turnering lagt inn' }}</h3>
+        <p class="ds-empty__description">
+          {{ activeCup
+            ? 'Kampprogrammet for turneringen er ikke lagt inn.'
+            : 'Legg inn turneringen, så kan du fordele troppen og føre kampene.' }}
+        </p>
+        <router-link v-if="!isParent" to="/admin/turneringer" class="ds-btn ds-btn--primary">
+          {{ activeCup ? 'Legg til kamper' : 'Legg inn turnering' }}
+        </router-link>
       </div>
 
       <template v-else>

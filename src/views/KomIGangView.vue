@@ -492,7 +492,15 @@ function hoppOver() {
              bygget det, ikke hva han skal gjøre. Og det var feil: trenerkortet
              er ute av onboardingen, og treninger har aldri vært et kort. Det
              eneste som faktisk står igjen er spillerne. -->
-        <p class="kig__lead">
+        <!-- Null kamper er ikke en feil. G6, G7 og G8 har ingen terminliste i
+             FIKS i det hele tatt — de spiller cuper. Å si «0 kamper er inne» og
+             gå videre ville latt ham lete etter et kampprogram som aldri kommer. -->
+        <p v-if="resultat && !resultat.kamper" class="kig__lead">
+          {{ resultat.lag }} lag er inne. Årgangen har ingen terminliste i FIKS — det er
+          normalt for de yngste, som spiller turneringer i stedet for serie.
+          Legg inn spillerne på Hjem, og turneringene under Admin når de er klare.
+        </p>
+        <p v-else class="kig__lead">
           {{ resultat?.lag }} lag og {{ resultat?.kamper }} kamper er inne.
           <!-- Spillformen leses av banene kampene spilles på. Sier vi det
                ikke her, ser det ut som et tall vi fant på. -->

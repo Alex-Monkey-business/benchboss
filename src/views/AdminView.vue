@@ -91,7 +91,7 @@ const links = computed(() => [
   ...(usesReferees.value ? [{ to: '/admin/dommere', label: 'Dommere', icon: 'whistle' }] : []),
   { to: '/admin/referater', label: 'Møtereferater', icon: 'notes' },
   { to: '/serie/tropp', label: 'Spillere & tropp', icon: 'jersey' },
-  { to: '/cup', label: 'Turneringer', icon: 'trophy' }
+  { to: '/admin/turneringer', label: 'Turneringer', icon: 'trophy' }
 ])
 </script>
 

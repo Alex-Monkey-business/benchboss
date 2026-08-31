@@ -50,6 +50,10 @@ const seasonTeams = computed(() => {
       // hente terminliste for, og ga stille null kamper.
       fiks_team_id: r.fiks_team_id ?? null,
       fiks_name: r.fiks_name ?? null,
+      // Og tidsstempelet må følge med av nøyaktig samme grunn. Det er svaret
+      // på «har vi spurt fotball.no?» — uten det leser onboardingen et kull
+      // uten terminliste som uferdig, og henter hele lista på nytt hver økt.
+      fiks_synced_at: r.fiks_synced_at ?? null,
       // Tom liste er et gyldig svar: et lag KAN stå uten trener. `r.trainers`
       // finnes bare på demo-rader og optimistiske oppdateringer uten id.
       trainers: trainersByTeam.value.get(r.id) ?? r.trainers ?? []
@@ -67,7 +71,7 @@ async function fetchTeams(cohortId) {
   teamsInflight = (async () => {
     const { data, error } = await supabase
       .from('teams')
-      .select('id, slug, name, accent, position, fiks_team_id, fiks_name')
+      .select('id, slug, name, accent, position, fiks_team_id, fiks_name, fiks_synced_at')
       .eq('cohort_id', cohortId)
       .order('position')
     teamsInflight = null

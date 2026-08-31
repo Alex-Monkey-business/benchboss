@@ -20,6 +20,7 @@ import { resolveUpcomingPeriod, buildWeekAhead } from '../lib/weekAhead'
 import { buildReminders } from '../lib/reminders'
 import { useDismissedReminders } from './useDismissedReminders'
 import { useCupTeams } from './useCupTeams'
+import { useCupFirst } from './useCupFirst'
 import { registerReset } from '../stores/dataReset'
 
 // Egen modul-state. NB: ikke gjenbruk useMatchMode.fetchSession her —
@@ -40,6 +41,7 @@ export function useToday() {
   const { activeCup, cupInProgress, fetchCups } = useCups()
   const { cupMatches, fetchCupMatches } = useCupMatches()
   const { cupTeams } = useCupTeams()
+  const { cupFirst, fetchSerieStatus } = useCupFirst()
   const { periods, fetchPeriods } = useTrainingPeriods()
   const { sessions, fetchSessions } = useTrainingSessions()
   const { seasonTeams, teamsFromDb, fetchSeasonTeams } = useSeasonTeams()
@@ -289,19 +291,49 @@ export function useToday() {
   // steder, leste Hjem som om det skjedde dobbelt så mye.
   // Cup-kamper ramses IKKE opp her — cup-widgeten på Hjem er inngangen,
   // og aktiv cup demper treninger på cup-dagene (via cup-parameteren).
+  //
+  // Uten serie er cup-kampene de eneste kampene som finnes, og da SKAL de i
+  // uka. `cupMatches`-parameteren har ligget i buildWeekAhead hele tiden uten
+  // en eneste kaller — den var skrevet for dette.
+  //
+  // Med serie står regelen over: cup-widgeten er inngangen, og en aktiv cup
+  // demper treninger på cup-dagene i stedet for å ramse dem opp.
   const weekAhead = computed(() => buildWeekAhead({
     period: upcomingPeriod.value,
     sessions: sessions.value,
     matches: myMatches.value,
+    cupMatches: cupFirst.value ? myCupMatches.value : [],
     cup: activeCup.value
   }))
 
   // Neste kamp = MIN neste seriekamp. Cup dekkes av widgeten.
+  //
+  // Uten serie finnes det ingen seriekamp å vente på, og da er neste cup-kamp
+  // hovedsaken på Hjem. NextMatchCard tar allerede imot `type: 'cup'` og sier
+  // «Neste cupkamp» — kortet var forberedt, ingen har bare gitt det noe.
   const nextMatch = computed(() => {
     const today = localISODate()
     const byDateTime = (a, b) => a.match_date.localeCompare(b.match_date) || (a.match_time || '').localeCompare(b.match_time || '')
 
     const league = myMatches.value.filter(m => m.match_date > today).sort(byDateTime)[0]
+
+    if (!league && cupFirst.value) {
+      const cupKamp = myCupMatches.value
+        .filter(m => m.match_date && m.match_date > today)
+        .sort(byDateTime)[0]
+      if (!cupKamp) return null
+      return {
+        type: 'cup',
+        id: cupKamp.id,
+        date: cupKamp.match_date,
+        time: cupKamp.match_time || '',
+        opponent: cupKamp.opponent || 'Motstander kommer',
+        teamName: cupTeams.value.find(t => t.slug === cupKamp.our_team)?.name || '',
+        pitch: cupKamp.pitch || '',
+        round: cupKamp.round || '',
+        to: `/cup/kamp/${cupKamp.id}`
+      }
+    }
 
     if (!league) return null
     return {
@@ -380,7 +412,7 @@ export function useToday() {
 
   async function refresh() {
     loading.value = matches.value.length === 0
-    await Promise.all([fetchSeasons(), fetchCoaches(), fetchCups(), fetchPeriods()])
+    await Promise.all([fetchSeasons(), fetchCoaches(), fetchCups(), fetchPeriods(), fetchSerieStatus()])
 
     const jobs = []
     if (activeSeason.value) jobs.push(fetchMatches(activeSeason.value.id))
@@ -396,9 +428,12 @@ export function useToday() {
 
     // Prep for dagens kamp OG neste kamp — neste-kortet viser nå hva som
     // mangler, og da må dataene faktisk være hentet.
+    // Cup-kamper har ingen dommer, ingen utlegg og ingen oppstilling å hente —
+    // de lever i sine egne tabeller. Slipper vi en cup-id inn her, spør vi
+    // seriekamp-tabellene om en rad som ikke finnes.
     const prepIds = [...new Set([
       ...todayMatches.value.map(m => m.id),
-      ...(nextMatch.value ? [nextMatch.value.id] : [])
+      ...(nextMatch.value && nextMatch.value.type !== 'cup' ? [nextMatch.value.id] : [])
     ])]
 
     await Promise.all([

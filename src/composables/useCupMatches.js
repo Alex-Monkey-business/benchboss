@@ -87,5 +87,60 @@ export function useCupMatches() {
     return data
   }
 
-  return { cupMatches, loading, status, fetchCupMatches, getCupMatch, updateCupMatch }
+  // Cup-kampene kommer ikke fra fotball.no — en cup har ingen terminliste å
+  // importere. Treneren skriver dem av fra arrangørens kampoppsett.
+  async function addCupMatch(cupId, felt) {
+    const rad = {
+      cup_id: cupId,
+      our_team: felt.our_team,
+      opponent: String(felt.opponent || '').trim() || null,
+      match_date: felt.match_date || null,
+      match_time: felt.match_time || null,
+      pitch: String(felt.pitch || '').trim() || null,
+      round: String(felt.round || '').trim() || null
+    }
+
+    if (!isSupabaseConfigured) {
+      const lokal = { id: 'dcm-' + Date.now(), home_score: null, away_score: null, ...rad }
+      cupMatches.value = [...cupMatches.value, lokal].sort(sorter)
+      return lokal
+    }
+
+    // cohort_id arves fra cupen via trigger — cup_matches er en barnerad.
+    const { data, error } = await supabase
+      .from('cup_matches')
+      .insert(rad)
+      .select()
+      .single()
+    if (error || !data) return null
+
+    cupMatches.value = [...cupMatches.value, data].sort(sorter)
+    return data
+  }
+
+  async function deleteCupMatch(id) {
+    if (!isSupabaseConfigured) {
+      cupMatches.value = cupMatches.value.filter(m => m.id !== id)
+      return true
+    }
+
+    const { data, error } = await supabase
+      .from('cup_matches')
+      .delete()
+      .eq('id', id)
+      .select('id')
+    if (error || !data?.length) return false
+
+    cupMatches.value = cupMatches.value.filter(m => m.id !== id)
+    return true
+  }
+
+  return { cupMatches, loading, status, fetchCupMatches, getCupMatch, updateCupMatch, addCupMatch, deleteCupMatch }
+}
+
+// Samme rekkefølge som spørringen bruker, så en nylagt kamp havner der den
+// hører hjemme uten en ny rundtur.
+function sorter(a, b) {
+  return (a.match_date || '9999').localeCompare(b.match_date || '9999')
+    || (a.match_time || '').localeCompare(b.match_time || '')
 }

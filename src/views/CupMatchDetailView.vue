@@ -6,6 +6,7 @@ import { useCups } from '../composables/useCups'
 import { useCupMatches } from '../composables/useCupMatches'
 import { useCupMatchGoals } from '../composables/useCupMatchGoals'
 import { useCupSquad } from '../composables/useCupSquad'
+import { useCupTeams } from '../composables/useCupTeams'
 import { usePlayers } from '../composables/usePlayers'
 import { useToast } from '../composables/useToast'
 import { cupTeam } from '../lib/cupTeams'
@@ -18,6 +19,7 @@ const { activeCup, fetchCups } = useCups()
 const { cupMatches, fetchCupMatches, getCupMatch, updateCupMatch } = useCupMatches()
 const { goals, fetchForMatch, addGoal, removeGoal } = useCupMatchGoals()
 const { fetchCupSquad, playerIdsForTeam } = useCupSquad()
+const { cupTeams } = useCupTeams()
 const { players, fetchPlayers, getPlayerById } = usePlayers()
 const { show: showToast } = useToast()
 
@@ -50,7 +52,15 @@ onMounted(async () => {
   loading.value = false
 })
 
-const teamName = computed(() => cupTeam(match.value?.our_team)?.name || 'Halsen')
+// Sto «|| 'Halsen'». Det var den siste hardkodede klubben i cup-modulen: et
+// hvilket som helst annet lags cup-kamp viste Halsen som sitt eget lag. Nå er
+// det lagene som er meldt på cupen, så den gamle tabellen, så slug-en — og
+// slug-en er alltid noe treneren selv har skrevet.
+const teamName = computed(() => {
+  const slug = match.value?.our_team
+  if (!slug) return ''
+  return cupTeams.value.find(t => t.slug === slug)?.name || cupTeam(slug)?.name || slug
+})
 const timeLabel = computed(() => (match.value?.match_time ? match.value.match_time.slice(0, 5) : ''))
 const dateLabel = computed(() => {
   if (!match.value?.match_date) return ''

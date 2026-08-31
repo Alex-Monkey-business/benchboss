@@ -1,6 +1,7 @@
 import { computed } from 'vue'
 import { useCupMatches } from './useCupMatches'
 import { useCupSquad } from './useCupSquad'
+import { useCups } from './useCups'
 import { cupTeam } from '../lib/cupTeams'
 
 // Cup-lagene for cupen som er lastet — utledet, ikke listet opp.
@@ -13,11 +14,23 @@ import { cupTeam } from '../lib/cupTeams'
 // tropprad sitt `cup_team`. Har et kull ingen cup, er lista tom — og en tom
 // liste er hele poenget. Navnene slår vi opp i den gamle tabellen så Halsens
 // egne cuper står som de alltid har gjort; en ukjent slug bærer sitt eget navn.
+// Fra 31.08.2026 melder treneren lagene på selv, og da står de på cupen
+// (`cups.teams`). Det må de: han melder på «Blå» og «Rød» før han vet én eneste
+// kamp, og skal fordele troppen med det samme. Utledningen under har ingenting
+// å utlede fra på det tidspunktet.
+//
+// Cuper seedet før den datoen har tom `teams` og utledes som før.
 export function useCupTeams() {
   const { cupMatches } = useCupMatches()
   const { squad } = useCupSquad()
+  const { activeCup } = useCups()
 
   const cupTeams = computed(() => {
+    const påmeldte = activeCup.value?.teams
+    if (Array.isArray(påmeldte) && påmeldte.length) {
+      return påmeldte.map(t => ({ slug: t.slug, name: t.name || t.slug, trainers: [] }))
+    }
+
     const slugs = []
     // Kampene først: rekkefølgen der er den treneren kjenner igjen.
     for (const m of cupMatches.value) {

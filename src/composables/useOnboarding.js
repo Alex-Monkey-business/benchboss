@@ -61,7 +61,23 @@ export function useOnboarding() {
   // Feltet blir stående fordi `steps` og nummereringen leser det — det er
   // bare alltid sant nå.
   const coachesDone = computed(() => true)
-  const matchesDone = computed(() => matches.value.length > 0)
+  // «Hent kampene» er et steg som ALDRI kan bli ferdig for de yngste. G6, G7
+  // og G8 har ingen terminliste i FIKS i det hele tatt — verifisert mot Halsens
+  // fire G6-lag: fire lag, null kamper på alle fire.
+  //
+  // Uten dette står `active` evig sann for et slikt kull: onboarding-kortet
+  // «Last opp kampprogrammet» blir stående for godt, og «Å ordne» og «Andre
+  // lag» er skjult resten av sesongen fordi de viker for onboardingen.
+  //
+  // Fasiten er `fiks_synced_at`: den settes av importen uansett om den fant
+  // noe. Er hvert FIKS-koblet lag synket og kullet fortsatt uten kamper, har
+  // vi spurt og fått svaret. Publiseres terminlista senere, henter den
+  // automatiske synken den inn, og da er matches.length > 0 uansett.
+  const fiksLag = computed(() => seasonTeams.value.filter(t => t.fiks_team_id))
+  const fiksSpurtOgTom = computed(() =>
+    fiksLag.value.length > 0 && fiksLag.value.every(t => t.fiks_synced_at)
+  )
+  const matchesDone = computed(() => matches.value.length > 0 || fiksSpurtOgTom.value)
 
   const steps = computed(() => [
     { key: 'teams', done: teamsDone.value },

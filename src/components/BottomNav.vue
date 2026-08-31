@@ -7,6 +7,7 @@ import { useMatches } from '../composables/useMatches'
 import { useFeatures } from '../composables/useFeatures'
 import { useExpenses } from '../composables/useExpenses'
 import { useCups } from '../composables/useCups'
+import { useCupFirst } from '../composables/useCupFirst'
 import { localISODate } from '../lib/dateLabels'
 
 const route = useRoute()
@@ -16,28 +17,36 @@ const { usesReferees } = useFeatures()
 const { matches, getCoachesForMatch } = useMatches()
 const { getExpenseForMatch } = useExpenses()
 const { cupInProgress, fetchCups } = useCups()
+const { cupFirst, fetchSerieStatus } = useCupFirst()
 
-onMounted(fetchCups)
+onMounted(() => { fetchCups(); fetchSerieStatus() })
 
 // Trenere får full meny; foreldre får read-only-sidene + logg ut.
 // Samme komponent → bunnmeny på mobil, toppmeny på desktop (se app.css).
-const COACH_TABS = [
+//
+// Kamper-fanen er cup-fanen i et kull uten serie. Den ERSTATTES, den legges
+// ikke ved siden av: /kamper er en side som aldri kommer til å ha noe på seg
+// for et G6-lag, og en permanent tom fane er verre enn ingen fane.
+const COACH_TABS = computed(() => [
   { name: 'hjem', label: 'Hjem', path: '/' },
-  { name: 'matches', label: 'Kamper', path: '/kamper' },
+  cupFirst.value
+    ? { name: 'cup', label: 'Cup', path: '/cup' }
+    : { name: 'matches', label: 'Kamper', path: '/kamper' },
   { name: 'trening', label: 'Trening', path: '/trening' },
   { name: 'stats', label: 'Statistikk', path: '/statistikk' },
   { name: 'admin', label: 'Admin', path: '/admin' }
-]
+])
 // Cup-fanen kommer og går med cupen — samme regel som Hjem-kortet hos trenerne.
-const PARENT_TABS = [
+// Uten serie står den permanent: det er den eneste kampflata som finnes.
+const PARENT_TABS = computed(() => [
   { name: 'serie', label: 'Kamper', path: '/serie' },
   { name: 'tropp', label: 'Tropp', path: '/serie/tropp' },
   { name: 'cup', label: 'Cup', path: '/cup' },
   { name: 'logout', label: 'Logg ut', action: 'logout' }
-]
+])
 const tabs = computed(() => {
-  if (!isParent.value) return COACH_TABS
-  return PARENT_TABS.filter(t => t.name !== 'cup' || cupInProgress.value)
+  if (!isParent.value) return COACH_TABS.value
+  return PARENT_TABS.value.filter(t => t.name !== 'cup' || cupInProgress.value || cupFirst.value)
 })
 
 function isActive(tab) {
@@ -46,7 +55,9 @@ function isActive(tab) {
   if (tab.name === 'trening') return route.path.startsWith('/trening')
   if (tab.name === 'tropp') return route.path.startsWith('/serie/tropp')
   if (tab.name === 'serie') return route.path === '/serie'
-  if (tab.name === 'admin') return route.path === '/admin' || route.path.startsWith('/admin/') || route.path.startsWith('/cup')
+  // Admin eier /cup så lenge cup er noe man setter opp der. Har kullet cup
+  // som sin egen fane, er det fanen som skal lyse — ikke Admin.
+  if (tab.name === 'admin') return route.path === '/admin' || route.path.startsWith('/admin/') || (!cupFirst.value && route.path.startsWith('/cup'))
   if (tab.name === 'stats') return route.path === '/statistikk'
   if (tab.name === 'cup') return route.path.startsWith('/cup')
   return false

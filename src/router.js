@@ -118,6 +118,13 @@ const routes = [
     name: 'admin-sesong-kamper',
     component: () => import('./views/AdminSesongKamperView.vue')
   },
+  // Turneringer settes opp her, leses på /cup. For et kull uten serie er dette
+  // den eneste veien inn til kamper i det hele tatt.
+  {
+    path: '/admin/turneringer',
+    name: 'admin-turneringer',
+    component: () => import('./views/AdminTurneringerView.vue')
+  },
   {
     path: '/admin/dommere',
     name: 'admin-dommere',

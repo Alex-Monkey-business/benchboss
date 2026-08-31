@@ -29,7 +29,9 @@ async function token(epost){
 // med et annet navn, og da nekter FK-en på clubs å slette klubben.
 const gamleKull = sql(`select string_agg(quote_literal(id::text), ',') from cohorts where club_id in (select id from clubs where name='${KLUBB}')`)
 if (gamleKull) {
-  for (const tabell of ['match_coaches','match_players','expenses','team_coaches','matches','players','teams','coaches','cohort_members']) {
+  // Cup-tabellene først: fra 31.08.2026 kan riggen selv opprette en cup, og en
+  // cup-rad holder kullet i live gjennom FK-en sin. Barna før forelderen.
+  for (const tabell of ['cup_match_goals','cup_squad','cup_matches','cups','match_coaches','match_players','expenses','team_coaches','matches','players','teams','coaches','cohort_members']) {
     if (tabell === 'match_coaches' || tabell === 'match_players')
       sql(`delete from ${tabell} where match_id in (select id from matches where cohort_id in (${gamleKull}))`)
     else if (tabell === 'expenses')
@@ -329,9 +331,105 @@ await p.waitForTimeout(500)
 ok('ingen cup-lag uten en cup', (await p.locator('.teamcard:not(.teamcard--muted)').count())===0)
 ok('ingen sidefeil gjennom hele flyten', sidefeil.length===0, sidefeil.slice(0,2).join(' | '))
 
+// ---------- 9. Cup-først: kullet uten serie ----------
+//
+// G6, G7 og G8 har ingen terminliste i FIKS. Verifisert mot Halsens fire
+// G6-lag: fire lag, null kamper på alle fire. De spiller cuper, og appen antok
+// serie overalt — Kamper-fanen, neste-kampen på Hjem, den tomme tilstanden som
+// sa «nyt friheten» om en sesong som aldri får innhold.
+//
+// Testen skrur kullet om til den tilstanden ved å fjerne seriekampene. Det er
+// nøyaktig databasetilstanden et G6-kull har fra dag én: lag, spillere,
+// null rader i matches. Den kjører sist fordi den etterlater kullet slik.
+for (const t of ['match_coaches','match_players'])
+  sql(`delete from ${t} where match_id in (select id from matches where cohort_id='${kullId}')`)
+sql(`delete from expenses where match_id in (select id from matches where cohort_id='${kullId}')`)
+sql(`delete from matches where cohort_id='${kullId}'`)
+
+const førCupFeil = sidefeil.length
+await p.goto(APP + '/', { waitUntil: 'networkidle' })
+await p.waitForTimeout(1500)
+
+const nav = (await p.locator('.bottom-nav').innerText().catch(() => '')).replace(/\s+/g, ' ')
+ok('cup erstatter Kamper i menyen uten serie', /Cup/.test(nav) && !/Kamper/.test(nav), nav)
+
+const tom = (await p.locator('body').innerText()).replace(/\s+/g, ' ')
+ok('Hjem peker på turneringen', /Legg inn turneringen/.test(tom), tom.slice(0, 90))
+
+// «Hent kampene» er et steg som aldri kan bli ferdig for de yngste, og
+// onboardingen sto derfor evig åpen: kortet «Last opp kampprogrammet» ble
+// stående for godt, og «Å ordne» var skjult resten av sesongen fordi den
+// viker for onboardingen. Nå teller et synket FIKS-lag uten kamper som svar.
+ok('onboardingen maser ikke om et kampprogram som ikke finnes',
+  !/Last opp kampprogrammet/.test(tom) && !/Prøv å hente kampene igjen/.test(tom))
+
+// Og kampene skal BLI borte. Den stille auto-hentingen på Hjem leste det
+// tomme kullet som «ikke ferdig» og hentet hele terminlista inn igjen i
+// bakgrunnen — 22 kamper tilbake uten at noen ba om det.
+ok('seriekampene blir ikke hentet inn igjen av seg selv',
+  Number(sql(`select count(*) from matches where cohort_id='${kullId}'`)) === 0)
+
+// Treneren legger inn cupen selv. Fram til i dag fantes ikke veien — begge
+// cupene i prod ble seedet med SQL, og en trener uten serie hadde ingen knapp.
+await p.locator('.hjem-cupkort').click()
+await p.waitForURL(/\/admin\/turneringer/, { timeout: 10000 }).catch(() => {})
+ok('lander på turneringsflaten', p.url().includes('/admin/turneringer'), p.url())
+
+const iDag = new Date()
+const dato = n => new Date(iDag.getTime() + n * 86400000).toISOString().slice(0, 10)
+
+await p.getByRole('button', { name: 'Ny turnering' }).click()
+await p.waitForTimeout(400)
+await p.locator('#cup-navn').fill('Ørncupen')
+await p.locator('#cup-fra').fill(dato(7))
+await p.locator('#cup-til').fill(dato(8))
+await p.locator('#cup-lag-0').fill('Blå')
+await p.getByRole('button', { name: 'Opprett' }).click()
+await p.waitForTimeout(1200)
+
+const kortTekst = (await p.locator('.turn-kort').innerText().catch(() => '')).replace(/\s+/g, ' ')
+ok('turneringen er opprettet', /Ørncupen/.test(kortTekst), kortTekst.slice(0, 60))
+ok('laget står på turneringen', /Blå/.test(kortTekst), kortTekst.slice(0, 60))
+
+await p.getByRole('button', { name: 'Legg til kamp' }).click()
+await p.waitForTimeout(400)
+await p.locator('#kamp-motstander').fill('Nanset Hvit')
+await p.locator('#kamp-tid').fill('11:00')
+await p.getByRole('button', { name: 'Legg til', exact: true }).click()
+await p.waitForTimeout(1000)
+await p.getByRole('button', { name: 'Ferdig' }).click()
+await p.waitForTimeout(500)
+
+const kampRad = (await p.locator('.turn-rad').first().innerText().catch(() => '')).replace(/\s+/g, ' ')
+ok('kampen ligger i programmet', /Blå mot Nanset Hvit/.test(kampRad), kampRad)
+ok('kampen er lagret i basen', Number(sql(`select count(*) from cup_matches where cohort_id='${kullId}'`)) === 1)
+
+// Cup-kampdetaljen sto med «|| 'Halsen'» som fallback: ethvert annet lags
+// cup-kamp viste Halsen som sitt eget lag. Riggen åpnet aldri en cup-kamp,
+// så tomhetssveipet kunne ikke se den.
+await p.goto(APP + '/cup', { waitUntil: 'networkidle' })
+await p.waitForTimeout(900)
+const program = (await p.locator('body').innerText()).replace(/\s+/g, ' ')
+ok('cup-programmet viser kampen', /Nanset Hvit/.test(program))
+ok('cup-programmet nevner ingen annen klubb', !/\bHalsen\b/i.test(program), program.slice(0, 80))
+
+await p.locator('a[href^="/cup/kamp/"]').first().click().catch(() => {})
+await p.waitForTimeout(1200)
+const detalj = (await p.locator('body').innerText()).replace(/\s+/g, ' ')
+ok('cup-kampen viser VÅRT lag, ikke Halsen', /Blå/.test(detalj) && !/\bHalsen\b/i.test(detalj), detalj.slice(0, 80))
+
+// Uten serie er neste cup-kamp hovedsaken på Hjem. NextMatchCard tok allerede
+// imot type: 'cup' — ingen hadde bare gitt den noe.
+await p.goto(APP + '/', { waitUntil: 'networkidle' })
+await p.waitForTimeout(1500)
+const hjemCup = (await p.locator('body').innerText()).replace(/\s+/g, ' ')
+ok('Hjem viser neste cupkamp', /neste cupkamp/i.test(hjemCup) && /Nanset Hvit/.test(hjemCup), hjemCup.slice(0, 100))
+
+ok('ingen sidefeil i cup-først-flyten', sidefeil.length === førCupFeil, sidefeil.slice(førCupFeil, førCupFeil + 2).join(' | '))
+
 await b.close()
 console.log(feilet ? `\n${feilet} FEIL` : '\nAlt grønt')
-console.log(`kullet «${KULL}» ligger igjen i basen for manuell inspeksjon`)
+console.log(`kullet «${KULL}» ligger igjen i basen for manuell inspeksjon — uten seriekamper, med Ørncupen`)
 
 // Riggen har ALDRI returnert en exit-kode. Den skrev «2 FEIL» og meldte
 // suksess, og derfor kunne den stå i stykker uten at noen merket det — og

@@ -4,6 +4,7 @@ import { useToday } from '../composables/useToday'
 import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
 import { useCups } from '../composables/useCups'
+import { useCupFirst } from '../composables/useCupFirst'
 import { useAuth } from '../stores/auth'
 import TodayMatchCard from '../components/today/TodayMatchCard.vue'
 import CupEntryCard from '../components/today/CupEntryCard.vue'
@@ -30,7 +31,10 @@ const { getCoachesForMatch } = useMatches()
 const { coaches } = useCoaches()
 
 // Cup-inngangen: eget kort mens en cup er i gang (ingen fane i bunnmenyen).
-const { activeCup, cupInProgress: showCupEntry } = useCups()
+const { activeCup, cups, cupInProgress: showCupEntry } = useCups()
+// Uten serie er cup ikke et avbrekk — det er alt laget har. Da skal en tom
+// skjerm peke på den ene jobben som gir den innhold, ikke gratulere med fri.
+const { cupFirst } = useCupFirst()
 // Før gjettet reconcileWithCoaches seg fram på navn når trener-id-en var
 // ukjent, og bommet stille — man fikk et annet lags kamper og alt så riktig ut.
 // Nå står det her i stedet.
@@ -39,6 +43,13 @@ const { identityIncomplete } = useAuth()
 // Et tomt kull skal fylles her, ikke lete etter Admin. Kortene forsvinner
 // ett og ett; er alt på plass, finnes de ikke.
 const { active: onboardingActive } = useOnboarding()
+
+// Uten serie, og uten en turnering lagt inn: da har Hjem ingen kamper å vise,
+// og kortet er veien ut. Under onboardingen viker det — der er det spillerne
+// som mangler, og to konkurrerende «gjør dette først» er ingen.
+const ingenCup = computed(() =>
+  cupFirst.value && cups.value.length === 0 && !onboardingActive.value
+)
 
 const ready = ref(false)
 
@@ -154,6 +165,28 @@ function coachNamesForMatch(matchId) {
         class="ds-anim-fade-up ds-anim-delay-2"
       />
 
+      <!-- Uten serie er turneringen det eneste kampprogrammet som finnes, og
+           til den er lagt inn har Hjem ingenting å vise fram. Kortet ligger her
+           og ikke i den tomme tilstanden: kullet har treninger og påminnelser,
+           så Hjem er aldri «tomt» — det er bare uten kamper. -->
+      <RouterLink
+        v-if="ingenCup"
+        to="/admin/turneringer"
+        class="ds-card ds-card--interactive hjem-cupkort ds-anim-fade-up ds-anim-delay-2"
+      >
+        <img
+          src="/illustrations/bench-boss-feature-icons/512/cup-tournament-transparent.png"
+          alt=""
+          class="hjem-cupkort__illo"
+          width="64"
+          height="64"
+        />
+        <span class="hjem-cupkort__tekst">
+          <span class="hjem-cupkort__tittel">Legg inn turneringen</span>
+          <span class="hjem-cupkort__lead">Laget har ingen seriekamper. Legg inn cupen, så kan du fordele troppen og føre kampene.</span>
+        </span>
+      </RouterLink>
+
       <!-- Det som kommer: nærmeste hendelse øverst -->
       <template v-for="item in upNext" :key="item.kind">
         <NextTrainingCard
@@ -201,6 +234,37 @@ function coachNamesForMatch(matchId) {
 </template>
 
 <style scoped>
+.hjem-cupkort {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-md);
+  padding: var(--ds-space-lg);
+  text-decoration: none;
+  color: inherit;
+}
+
+.hjem-cupkort__illo {
+  flex: none;
+  width: 64px;
+  height: 64px;
+}
+
+.hjem-cupkort__tekst {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0;
+}
+
+.hjem-cupkort__tittel {
+  font-weight: 700;
+}
+
+.hjem-cupkort__lead {
+  color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-sm);
+}
+
 .hjem-hero {
   padding-top: var(--ds-space-xl);
   padding-bottom: var(--ds-space-lg);
