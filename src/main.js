@@ -2,6 +2,7 @@ import { createApp } from 'vue'
 import App from './App.vue'
 import { router } from './router'
 import { startVersionCheck } from './composables/useVersionCheck'
+import { startErrorReporting } from './lib/errorReporter'
 // Side-effect import: applies stored theme to <html> before first paint
 import './composables/useTheme'
 // Side-effect import: registers PWA install listeners at boot (catches early beforeinstallprompt)
@@ -19,4 +20,6 @@ if ('serviceWorker' in navigator) {
   })
 }
 
-createApp(App).use(router).mount('#app')
+const app = createApp(App)
+startErrorReporting(app)
+app.use(router).mount('#app')

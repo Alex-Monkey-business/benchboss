@@ -5,6 +5,7 @@ import { supabase, isSupabaseConfigured } from '../supabase'
 import { useAuth } from '../stores/auth'
 import { useToast } from '../composables/useToast'
 import { useFiks } from '../composables/useFiks'
+import { useClientErrors } from '../composables/useClientErrors'
 import { clubLogo } from '../lib/klubblogo'
 import Sheet from '../components/Sheet.vue'
 
@@ -233,6 +234,31 @@ async function submit() {
   showToast('Kullet er opprettet', 'success')
   router.push('/admin/tilgang')
 }
+
+// ---- Krasj fra ekte enheter ----
+//
+// Her, ikke i et eget verktøy: dette er den eneste flaten som allerede betyr
+// «hele plattformen, ikke ett kull», og feilene er nettopp det.
+const { saker: feil, laster: lasterFeil, hentFeil, kvitterUt } = useClientErrors()
+const visKvitterte = ref(false)
+const kvitterer = ref(null)
+
+onMounted(() => hentFeil())
+
+async function kvitter(sak) {
+  kvitterer.value = sak.fingerprint
+  const ok = await kvitterUt(sak)
+  kvitterer.value = null
+  showToast(ok ? 'Kvittert ut' : 'Fikk ikke kvittert ut', ok ? 'success' : 'error')
+}
+
+function nårTekst(iso) {
+  const min = Math.round((Date.now() - new Date(iso)) / 60000)
+  if (min < 1) return 'nå'
+  if (min < 60) return `${min} min siden`
+  if (min < 1440) return `${Math.round(min / 60)} t siden`
+  return `${Math.round(min / 1440)} d siden`
+}
 </script>
 
 <template>
@@ -288,6 +314,37 @@ async function submit() {
         <p class="plattform-empty">Ingen klubber ennå.</p>
       </div>
     </template>
+
+    <div class="px-lg feil-seksjon">
+      <div class="feil-hode">
+        <h2 class="ds-section-label">Krasj</h2>
+        <button type="button" class="feil-bytt" @click="visKvitterte = !visKvitterte; hentFeil({ inkluderKvitterte: visKvitterte })">
+          {{ visKvitterte ? 'Bare ubehandlede' : 'Vis kvitterte også' }}
+        </button>
+      </div>
+
+      <p v-if="lasterFeil" class="plattform-empty">Henter…</p>
+      <p v-else-if="!feil.length" class="plattform-empty">
+        Ingenting har krasjet. Det er ikke det samme som at ingenting er galt — en
+        knapp som ikke gjør noe krasjer heller ikke.
+      </p>
+
+      <div v-for="s in feil" :key="s.fingerprint" class="feil-sak">
+        <div class="feil-sak__topp">
+          <span class="feil-sak__antall">{{ s.antall }}</span>
+          <span class="feil-sak__nar">{{ nårTekst(s.sist) }}</span>
+          <span class="feil-sak__rute">{{ s.route }}</span>
+        </div>
+        <p class="feil-sak__melding">{{ s.message }}</p>
+        <details v-if="s.stack" class="feil-sak__stack">
+          <summary>Stack</summary>
+          <pre>{{ s.stack }}</pre>
+        </details>
+        <button type="button" class="feil-sak__kvitter" :disabled="kvitterer === s.fingerprint" @click="kvitter(s)">
+          {{ kvitterer === s.fingerprint ? 'Kvitterer…' : 'Kvitter ut' }}
+        </button>
+      </div>
+    </div>
 
     <Sheet :show="open" title="Nytt kull" @close="open = false">
       <div v-if="form" class="plattform-form">
@@ -368,6 +425,44 @@ async function submit() {
 </template>
 
 <style scoped>
+.feil-seksjon { margin-top: var(--ds-space-2xl); }
+.feil-hode { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-md); }
+.feil-bytt {
+  background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
+  text-decoration: underline; text-underline-offset: 3px;
+}
+.feil-sak {
+  margin-top: var(--ds-space-md);
+  padding: var(--ds-space-md);
+  background: var(--ds-color-surface);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+}
+.feil-sak__topp {
+  display: flex; align-items: center; gap: var(--ds-space-sm);
+  font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
+}
+.feil-sak__antall {
+  font-variant-numeric: tabular-nums; font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-primary);
+}
+.feil-sak__rute { margin-left: auto; font-family: var(--ds-font-mono, monospace); }
+.feil-sak__melding {
+  margin: var(--ds-space-sm) 0 0;
+  font-size: var(--ds-text-base); font-weight: var(--ds-weight-medium);
+  overflow-wrap: anywhere;
+}
+.feil-sak__stack { margin-top: var(--ds-space-sm); font-size: var(--ds-text-sm); }
+.feil-sak__stack pre {
+  margin: var(--ds-space-xs) 0 0; overflow-x: auto;
+  font-size: 11px; line-height: 1.5; color: var(--ds-color-text-secondary);
+}
+.feil-sak__kvitter {
+  margin-top: var(--ds-space-sm); background: none; border: 0; padding: 0; cursor: pointer;
+  font: inherit; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
+  text-decoration: underline; text-underline-offset: 3px;
+}
 .plattform-actions {
   margin-bottom: var(--ds-space-lg);
 }
