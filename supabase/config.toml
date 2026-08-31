@@ -243,6 +243,13 @@ otp_expiry = 3600
 # sender_name = "BenchBoss"
 
 # Uncomment to customize email template
+# Malen er en FIL, ikke bare en innstilling i dashbordet: den er grunnen til at
+# Glenn ikke kom inn 31. august, og den skal derfor kunne leses, testes og
+# endres sammen med koden. Samme innhold ligger i prod.
+[auth.email.template.magic_link]
+subject = "Logg inn i BenchBoss"
+content_path = "./supabase/templates/magic_link.html"
+
 # [auth.email.template.invite]
 # subject = "You have been invited"
 # content_path = "./supabase/templates/invite.html"

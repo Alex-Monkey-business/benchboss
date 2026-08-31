@@ -88,25 +88,27 @@ ok('Sten får e-post', !!epost, epost?.Subject||'ingen e-post')
 // Kun ren tekst: HTML-versjonen har &amp; i URL-en. Og lenka brukes UROERT —
 // skriver man om redirect_to (selv til samme adresse, url-enkodet), avviser
 // GoTrue den som ugyldig. Det kostet meg to kjøringer.
-const lenke=((epost?.Text||'').match(/https?:\/\/[^\s)<>"']*verify[^\s)<>"']*/)||[])[0]
+const lenke=((epost?.Text||'').match(/https?:\/\/[^\s)<>"']*auth\/klar[^\s)<>"']*/)||[])[0]
 ok('e-posten inneholder innloggingslenke', !!lenke, (lenke||'').slice(0,60)+'…')
-// FUNN: lenka i invitasjonsmailen er død når den kommer fram. member-admin
-// kaller confirmUser rett etter inviteUserByEmail, og e-postbekreftelsen
-// nuller confirmation_token — altså nettopp den lenka bruker fikk.
-// Verifisert: email_confirmed_at satt, confirmation_token tom, lenke → otp_expired.
-const dodLenke = await fetch(lenke, {redirect:'manual'})
-const dodFrag = (dodLenke.headers.get('location')||'').split('#')[1]||''
-ok('LENKA I INVITASJONSMAILEN VIRKER', !/otp_expired/.test(dodFrag), dodFrag.slice(0,60) || 'ok')
 
-// Resten av QA-en kjører den veien som FAKTISK virker i dag: Sten går til
-// /login og ber om en ny kode. Da får vi testet onboardingen.
+// FUNNET SOM KOSTET GLENN INNLOGGINGEN 31. AUGUST:
 //
-// redirect_to må peke på /auth/callback — det er dit appens egen sendCode()
-// sender folk. Uten den lander lenka på `/` med tokenet i hashen, guarden
-// rekker å se en ulogget bruker, og hele QA-en stoppet på «sendes rett i
-// veiviseren». Riggen testet en vei appen aldri bruker.
-const nyLenke = await(await fetch(`${API}/auth/v1/admin/generate_link`,{method:'POST',headers:{apikey:SVC,Authorization:'Bearer '+SVC,'Content-Type':'application/json'},body:JSON.stringify({type:'magiclink',email:STEN,redirect_to:`${APP}/auth/callback`})})).json()
-const lokalLenke = nyLenke.action_link
+// Lenka pekte rett på GoTrue sin verify, og den logger inn i det den HENTES.
+// Bedrifts-e-post kjører sikkerhetsskanning som åpner hver lenke for å sjekke
+// den — hans ble forbrukt 33 sekunder etter sending, av Chrome på Windows,
+// mens han satt på iPhone. Og det tok KODEN med seg: lenka og de seks sifrene
+// er samme engangstoken. Da fantes det ingen vei inn i det hele tatt.
+//
+// Nå peker lenka på /auth/klar, som ikke gjør noe før noen TRYKKER.
+ok('lenka går til mellomsteget, ikke rett til innlogging', /\/auth\/klar\?t=/.test(lenke||''), lenke||'')
+
+// Skanneren, simulert: to rene GET-er slik en bot ville gjort det.
+await fetch(lenke).catch(()=>{})
+await fetch(lenke).catch(()=>{})
+
+// SITE_URL i edge-funksjonen peker på prod. Tokenet er lokalt; bare vertsnavnet
+// byttes så nettleseren treffer dev-serveren.
+const lokalLenke = lenke.replace(/^https?:\/\/[^/]+/, APP)
 
 // ---------- 4. Sten går gjennom onboardingen ----------
 const b=await chromium.launch()
@@ -114,6 +116,15 @@ const c=await b.newContext({viewport:{width:390,height:844},isMobile:true,hasTou
 const p=await c.newPage()
 const sidefeil=[]; p.on('pageerror',e=>sidefeil.push(e.message))
 await p.goto(lokalLenke,{waitUntil:'networkidle'})
+await p.waitForTimeout(700)
+
+// Mellomsteget logger ikke inn av seg selv. Var det ikke sant, ville de to
+// GET-ene over alt ha brent tokenet, og knappen her vist en feil i stedet.
+const klarKnapp = p.getByRole('button',{name:'Logg inn'})
+ok('mellomsteget venter på et trykk', await klarKnapp.count()===1,
+  (await p.locator('body').innerText()).replace(/\s+/g,' ').slice(0,80))
+await klarKnapp.click()
+
 // Guarden kjører først når sesjonen er lest. Vent på at ruten faktisk lander,
 // ikke på en fast tid — 1,5 s holdt av og til, og ikke av og til.
 await p.waitForFunction(() => !location.hash.includes('access_token'), null, {timeout:20000}).catch(()=>{})

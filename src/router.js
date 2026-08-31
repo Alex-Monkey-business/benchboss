@@ -17,6 +17,14 @@ const routes = [
     component: () => import('./views/LoginView.vue'),
     meta: { public: true }
   },
+  // Mellomsteget for lenka i e-posten. Offentlig, og logger IKKE inn av seg
+  // selv — en lenkeskanner som henter sida forbruker ingenting.
+  {
+    path: '/auth/klar',
+    name: 'auth-klar',
+    component: () => import('./views/AuthKlarView.vue'),
+    meta: { public: true }
+  },
   {
     path: '/auth/callback',
     name: 'auth-callback',

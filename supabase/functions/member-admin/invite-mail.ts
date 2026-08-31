@@ -27,7 +27,8 @@ export function inviteHtml(fornavn: string, kull: string, fra: string, kode: str
     <a href="${lenke}" style="display:inline-block;padding:14px 22px;background:#1c1b19;color:#ffffff;text-decoration:none;border-radius:10px;font-size:16px;font-weight:600">Åpne BenchBoss</a>
 
     <p style="margin:24px 0 0;font-size:13px;line-height:1.5;color:#8a8378">
-      Åpner lenken feil app, skriv inn koden på benchboss.no i stedet.
+      Knappen åpner BenchBoss og spør én gang til før du er inne. Åpner den feil
+      app, skriv inn koden på benchboss.no i stedet.
     </p>
   </div>
 </body></html>`

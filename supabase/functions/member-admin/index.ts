@@ -195,7 +195,17 @@ async function sendInviteEmail(
   if (error) return error.message
 
   const kode = data?.properties?.email_otp
-  const lenke = data?.properties?.action_link
+  // IKKE action_link. Den logger inn i det den hentes, og en lenkeskanner i
+  // mottakerens e-post henter den — verifisert på Glenns invitasjon: forbrukt
+  // 33 sekunder etter sending, av Chrome på Windows, mens han satt på iPhone.
+  //
+  // Det tar koden med seg: lenka og de seks sifrene er samme engangstoken. Da
+  // fantes det ingen vei inn i det hele tatt.
+  //
+  // `hashed_token` bærer samme hemmelighet, men /auth/klar bruker den først
+  // når noen TRYKKER. En skanner kan hente sida; den kan ikke trykke.
+  const hash = data?.properties?.hashed_token
+  const lenke = hash ? `${SITE_URL}/auth/klar?t=${encodeURIComponent(hash)}&type=magiclink` : null
   if (!kode || !lenke) return 'fikk ingen lenke fra Supabase'
 
   const res = await fetch(RESEND_URL, {

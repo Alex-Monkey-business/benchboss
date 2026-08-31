@@ -1,0 +1,14 @@
+<div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;color:#1a1a1a;max-width:420px">
+  <h2 style="font-size:20px;font-weight:700;margin:0 0 24px">Logg inn i BenchBoss</h2>
+
+  <p style="margin:0 0 6px;font-size:15px">Innloggingskoden din:</p>
+  <p style="font-size:32px;letter-spacing:8px;font-weight:700;margin:0 0 6px;font-variant-numeric:tabular-nums">{{ .Token }}</p>
+  <p style="margin:0 0 26px;color:#777;font-size:14px">Gyldig i 10 minutter.</p>
+
+  <a href="{{ .SiteURL }}/auth/klar?t={{ .TokenHash }}&amp;type=magiclink" style="display:inline-block;padding:15px 30px;background:#2b2b2b;border:1.5px solid #2b2b2b;border-radius:10px;color:#ffffff;font-size:16px;font-weight:600;text-decoration:none">Logg inn</a>
+
+  <hr style="border:none;border-top:1px solid #e5e5e5;margin:26px 0">
+
+  <p style="margin:0 0 8px;color:#666;font-size:13px">Knappen åpner BenchBoss og spør én gang til før du er inne. Det er med vilje: e-postfiltre åpner lenker automatisk for å sjekke dem, og en lenke som logger inn av seg selv blir da brukt opp før du rekker å trykke.</p>
+  <p style="margin:0;color:#666;font-size:13px">Har du BenchBoss som app på iPhone? Lenken åpner i Safari, ikke i appen — bruk koden over.</p>
+</div>
