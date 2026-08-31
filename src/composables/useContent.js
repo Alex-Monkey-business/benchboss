@@ -3,33 +3,52 @@ import { useAuth } from '../stores/auth'
 import { principles as halsenG2015Principles } from '../content/principles'
 import { meetings as halsenG2015Meetings } from '../content/meetings'
 
-// Innhold som er skrevet for ETT kull: håndboka og møtereferatene.
+// Innhold skrevet av ett kull. De to tingene deles IKKE likt, og det er hele
+// poenget med at de står i hvert sitt register.
 //
-// Filene i content/ er Halsen G2015 sine. De var importert rett inn i views,
-// og ville dermed vist Halsens prinsipper («11-åringer», «24 spillere») og
-// Halsens referater — med navngitte barn — til enhver trener i ethvert kull.
+// HÅNDBOKA er klubbens. «Det skal være gøy» og «alle skal spille» gjelder like
+// mye for G2020 som for G2015, og et nytt kull skal arve dem i stedet for å
+// møte en tom side. Den er merket med hvem som skrev den — prinsippene snakker
+// om elleveåringer, og da må leseren vite hvem de er skrevet for.
 //
-// Nøkkelen er klubbens kortnavn og kullets slug. Et kull uten oppslag får tomt,
-// og views viser en tom tilstand. Neste steg er innhold i basen per kull; da
-// forsvinner dette registeret.
-const REGISTRY = {
-  'halsen/g2015': {
-    principles: halsenG2015Principles,
-    meetings: halsenG2015Meetings
-  }
+// MØTEREFERATENE er kullets, og blir det. Der står navngitte barn med
+// vurderinger knyttet til seg. De skal aldri nå en trener i et annet kull,
+// uansett hvor mye samme klubb det er.
+//
+// Neste steg for begge er innhold i basen per kull; da forsvinner registeret.
+const HANDBOK = {
+  halsen: { principles: halsenG2015Principles, opphav: 'G2015' }
+}
+
+const REFERATER = {
+  'halsen/g2015': halsenG2015Meetings
 }
 
 export function useContent() {
   const { activeCohort } = useAuth()
 
-  const entry = computed(() => {
+  const handbok = computed(() => {
     const c = activeCohort.value
-    if (!c?.club_key || !c?.slug) return null
-    return REGISTRY[`${c.club_key}/${c.slug}`] || null
+    if (!c?.club_key) return null
+    return HANDBOK[c.club_key] || null
   })
 
-  const principles = computed(() => entry.value?.principles || [])
-  const meetings = computed(() => entry.value?.meetings || [])
+  const principles = computed(() => handbok.value?.principles || [])
+
+  // Kullet som skrev håndboka — tomt når det er ditt eget. «Fra G2015» på noe
+  // du selv skrev er støy.
+  const handbokOpphav = computed(() => {
+    const o = handbok.value?.opphav
+    if (!o) return ''
+    const mitt = (activeCohort.value?.slug || '').toLowerCase()
+    return o.toLowerCase() === mitt ? '' : o
+  })
+
+  const meetings = computed(() => {
+    const c = activeCohort.value
+    if (!c?.club_key || !c?.slug) return []
+    return REFERATER[`${c.club_key}/${c.slug}`] || []
+  })
   const meetingsByDate = computed(() =>
     [...meetings.value].sort((a, b) => (b.date || '').localeCompare(a.date || ''))
   )
@@ -45,5 +64,5 @@ export function useContent() {
     return meetings.value.find(m => m.slug === slug) || null
   }
 
-  return { principles, meetings, meetingsByDate, hasHandbook, hasMeetings, findPrinciple, findMeeting }
+  return { principles, meetings, meetingsByDate, hasHandbook, hasMeetings, handbokOpphav, findPrinciple, findMeeting }
 }

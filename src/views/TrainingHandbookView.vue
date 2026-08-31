@@ -6,8 +6,9 @@ import { useContent } from '../composables/useContent'
 
 const router = useRouter()
 const { activeCohort } = useAuth()
-const { principles, hasHandbook } = useContent()
+const { principles, hasHandbook, handbokOpphav } = useContent()
 const cohortName = computed(() => activeCohort.value?.name || 'oss')
+const klubbNavn = computed(() => activeCohort.value?.club_short_name || activeCohort.value?.club_name || 'klubben')
 
 function open(slug) {
   router.push(`/trening/handbok/${slug}`)
@@ -26,15 +27,20 @@ function open(slug) {
     <header class="handbook__hero">
       <img class="handbook__icon" src="/illustrations/bench-boss-feature-icons/512/training-handbook-transparent.png" alt="" />
       <span class="handbook__eyebrow">Trener-håndbok</span>
-      <h1 class="handbook__title">Slik trener vi {{ cohortName }}</h1>
+      <h1 class="handbook__title">{{ handbokOpphav ? `Slik trener vi i ${klubbNavn}` : `Slik trener vi ${cohortName}` }}</h1>
       <p v-if="hasHandbook" class="handbook__lead">
-        Åtte prinsipper som gjør at alle 24 utvikler seg —
-        ikke bare de elleve som allerede er fremme.
+        Åtte prinsipper som gjør at alle utvikler seg —
+        ikke bare de som allerede er fremme.
+      </p>
+      <!-- Håndboka er klubbens, men den er skrevet av noen. Uten avsenderen
+           leser et nytt kull prinsippene som appens egne, og da er de ingens. -->
+      <p v-if="handbokOpphav" class="handbook__opphav">
+        Skrevet av {{ handbokOpphav }} · gjelder alle kull i {{ klubbNavn }}
       </p>
     </header>
 
     <div v-if="!hasHandbook" class="handbook__list">
-      <p class="handbook__empty">Håndboka for {{ cohortName }} er ikke skrevet ennå.</p>
+      <p class="handbook__empty">{{ klubbNavn }} har ingen håndbok ennå.</p>
     </div>
 
     <div v-else class="handbook__list">
@@ -65,6 +71,12 @@ function open(slug) {
 </template>
 
 <style scoped>
+.handbook__opphav {
+  margin: 10px 0 0;
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-secondary);
+}
+
 .handbook__empty {
   margin: 0;
   font-size: var(--ds-text-sm);

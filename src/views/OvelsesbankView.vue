@@ -5,9 +5,12 @@ import { useExercises, EXERCISE_CATEGORIES, groupByCategory } from '../composabl
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ExerciseFields from '../components/ExerciseFields.vue'
+import { useAuth } from '../stores/auth'
 
 const router = useRouter()
-const { exercises, supportsCategory, supportsGruppe, supportsUtstyr, fetchExercises, createExercise, updateExercise, deleteExercise } = useExercises()
+const { activeCohort } = useAuth()
+const klubbNavn = computed(() => activeCohort.value?.club_short_name || activeCohort.value?.club_name || '')
+const { exercises, supportsCategory, supportsGruppe, supportsUtstyr, fetchExercises, createExercise, updateExercise, deleteExercise, opphavFor } = useExercises()
 
 // Ekte tilbake: dit du kom fra (perioden, en økt …); /trening som fallback.
 function goBack() {
@@ -137,7 +140,11 @@ onMounted(fetchExercises)
     <header class="bank__head">
       <div class="bank__head-text">
         <h1 class="bank__title">Øvelsesbank</h1>
-        <p class="bank__count">{{ exercises.length }} {{ exercises.length === 1 ? 'øvelse' : 'øvelser' }}</p>
+        <!-- Banken er klubbens, ikke kullets. En ny trener som ser sytten
+             øvelser han ikke har laget, skal vite hvorfor de er der. -->
+        <p class="bank__count">
+          {{ exercises.length }} {{ exercises.length === 1 ? 'øvelse' : 'øvelser' }}<template v-if="klubbNavn"> · delt i hele {{ klubbNavn }}</template>
+        </p>
       </div>
       <button v-if="exercises.length" type="button" class="ds-btn ds-btn--primary bank__new" @click="openNew">
         Ny øvelse
@@ -155,7 +162,10 @@ onMounted(fetchExercises)
     <div v-if="exercises.length === 0" class="ds-empty">
       <img src="/illustrations/bench-boss-feature-icons/512/training-plan-transparent.png" alt="" class="ds-empty__illo" />
       <div class="ds-empty__title">Ingen øvelser ennå</div>
-      <div class="ds-empty__description">Øvelser du lager mens du planlegger uka havner her automatisk.</div>
+      <div class="ds-empty__description">
+        Øvelser du lager mens du planlegger uka havner her automatisk — og deles med
+        de andre kullene<template v-if="klubbNavn"> i {{ klubbNavn }}</template>.
+      </div>
       <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="openNew">Ny øvelse</button>
     </div>
 
@@ -171,7 +181,10 @@ onMounted(fetchExercises)
             >{{ ex.type === 'diff' ? 'Diff' : 'Mix' }}</span>
             <span class="bank-row__body">
               <span class="bank-row__name">{{ ex.name }}</span>
-              <span v-if="ex.tema" class="bank-row__tema">{{ ex.tema }}</span>
+              <span class="bank-row__under">
+                <span v-if="opphavFor(ex)" class="bank-row__opphav">Fra {{ opphavFor(ex) }}</span>
+                <span v-if="ex.tema" class="bank-row__tema">{{ ex.tema }}</span>
+              </span>
             </span>
             <svg class="bank-row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
@@ -192,6 +205,7 @@ onMounted(fetchExercises)
               :class="`bank-row__badge--${active.type}`"
             >{{ active.type === 'diff' ? 'Diff' : 'Mix' }}</span>
             <span v-if="categoryLabel" class="ex-view__category">{{ categoryLabel }}</span>
+            <span v-if="opphavFor(active)" class="bank-row__opphav">Fra {{ opphavFor(active) }}</span>
           </div>
           <p v-if="active.tema" class="ex-view__tema">{{ active.tema }}</p>
 
@@ -266,6 +280,25 @@ onMounted(fetchExercises)
 </template>
 
 <style scoped>
+.bank-row__under {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+/* Avsenderen, ikke en grense: øvelsen er klubbens og kan brukes av alle. */
+.bank-row__opphav {
+  flex: none;
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-secondary);
+  background: var(--ds-color-bg-subtle);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-full);
+  padding: 2px 8px;
+}
+
 .bank {
   max-width: 640px;
   margin: 0 auto;

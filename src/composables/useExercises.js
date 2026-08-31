@@ -2,7 +2,8 @@ import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { demoId } from './useTrainingSessions'
 import { registerReset } from '../stores/dataReset'
-import { clubScoped, withClub } from '../lib/scope'
+import { clubScoped, withClub, cohortId } from '../lib/scope'
+import { useAuth } from '../stores/auth'
 
 // Øvelsesbank — gjenbrukbare øvelser (training_exercises).
 // Copy-on-add: banken er malen, økta eier sin egen kopi (drills-JSONB).
@@ -10,8 +11,22 @@ import { clubScoped, withClub } from '../lib/scope'
 const exercises = ref([])
 const loading = ref(false)
 const loaded = ref(false)
+// Kull-navnene i klubben din. `cohorts` er medlemsskapsstyrt, så en trener i
+// G2020 kan ikke lese raden til G2015 — men navnet på et kull i sin egen klubb
+// skal han se, ellers står øvelsene der uten avsender.
+const kullNavn = ref({})
 
-registerReset(() => { exercises.value = []; loading.value = false; loaded.value = false })
+registerReset(() => { exercises.value = []; loading.value = false; loaded.value = false; kullNavn.value = {} })
+
+// «Halsen G2015» → «G2015». Inne i Halsen er klubbnavnet støy.
+export function kortKullnavn(navn, klubbKortnavn = '') {
+  const s = String(navn || '').trim()
+  if (!s) return ''
+  const utenKlubb = klubbKortnavn
+    ? s.replace(new RegExp(`^${klubbKortnavn.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s+`, 'i'), '').trim()
+    : s
+  return utenKlubb || s
+}
 
 // Kanonisk kategorirekkefølge — banken og plukkeren grupperes og sorteres etter denne.
 // Ukategoriserte samles i «Annet» nederst.
@@ -137,6 +152,11 @@ export function useExercises() {
       .select('*'))
       .order('name')
 
+    // Avsenderne. Feiler den, står øvelsene uten merke — det er en etikett,
+    // ikke en tilgangssjekk, og banken skal vises uansett.
+    const { data: kull } = await supabase.rpc('bb_club_cohort_names')
+    if (kull) kullNavn.value = Object.fromEntries(kull.map(k => [k.id, k.name]))
+
     if (!error && data) {
       exercises.value = data
       loaded.value = true
@@ -158,7 +178,9 @@ export function useExercises() {
 
     const { data: row, error } = await supabase
       .from('training_exercises')
-      .insert(withClub(utenUstottede(payload)))
+      // Kullet ditt står som avsender. Banken deles fortsatt i hele klubben —
+      // `club_id` er scopet, `cohort_id` er signaturen.
+      .insert(withClub({ ...utenUstottede(payload), cohort_id: cohortId() }))
       .select()
       .single()
     if (!error && row) exercises.value = [...exercises.value, row].sort(byName)
@@ -222,5 +244,15 @@ export function useExercises() {
     return createExercise(drillToExercise(d))
   }
 
-  return { exercises, loading, loaded, supportsCategory, supportsGruppe, supportsUtstyr, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill }
+  // Avsenderen på en øvelse — tom for ditt eget kull. «Fra G2015» på noe du
+  // selv skrev er støy; på noe et annet kull skrev er det hele poenget.
+  function opphavFor(ex) {
+    const id = ex?.cohort_id
+    if (!id || id === cohortId()) return ''
+    const navn = kullNavn.value[id]
+    if (!navn) return ''
+    return kortKullnavn(navn, useAuth().activeCohort.value?.club_short_name || '')
+  }
+
+  return { exercises, loading, loaded, supportsCategory, supportsGruppe, supportsUtstyr, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill, opphavFor }
 }
