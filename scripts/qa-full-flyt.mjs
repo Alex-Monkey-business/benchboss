@@ -331,10 +331,9 @@ for (const [navn, rute, viserKamper] of FLATER) {
 ok('ingen annen klubb nevnes utenfor terminlista', lekkasjer.length===0, lekkasjer.join(' | '))
 ok('ingen flate krasjer i et ferskt kull', krasj.length===0, krasj.join(' | '))
 
-// Treningsplanen skal være tom — ikke arve noen andres uke.
-const okter = Number(sql(`select count(*) from training_sessions ts
-  join training_periods tp on tp.id=ts.period_id where tp.cohort_id='${kullId}'`))
-ok('treningsplanen er tom i et nytt kull', okter===0, `${okter} økter`)
+// Treningsuka skal være tom — ikke arve noen andres uke.
+const okter = Number(sql(`select count(*) from training_sessions where cohort_id='${kullId}'`))
+ok('treningsuka er tom i et nytt kull', okter===0, `${okter} dager`)
 
 // Cup-lagene utledes av cupens egne data. Ingen cup ⇒ ingen lag.
 await p.goto(`${APP}/cup/tropp`, {waitUntil:'networkidle'}).catch(()=>{})

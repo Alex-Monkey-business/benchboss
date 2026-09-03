@@ -3,12 +3,11 @@ import { ref, computed, onMounted, watch } from 'vue'
 import { useSeasons } from '../composables/useSeasons'
 import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
-import { useTrainingPeriods } from '../composables/useTrainingPeriods'
-import { useTrainingSessions } from '../composables/useTrainingSessions'
+import { useTrainingWeek } from '../composables/useTrainingWeek'
 import { useCups } from '../composables/useCups'
 import { relativeDateLabel, isToday, localISODate } from '../lib/dateLabels'
 import { teamColorsForMatch as teamColors, isHomeMatch, isOurMatch, teamLabel } from '../lib/matchMeta'
-import { resolveUpcomingPeriod, buildWeekAhead } from '../lib/weekAhead'
+import { buildWeekAhead } from '../lib/weekAhead'
 import TeamFilter from '../components/TeamFilter.vue'
 import { useTeamFilter } from '../composables/useTeamFilter'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
@@ -18,8 +17,7 @@ import WeekList from '../components/today/WeekList.vue'
 const { viewingSeason, status: seasonStatus, fetchSeasons } = useSeasons()
 const { matches, status: matchStatus, fetchMatches, getCoachesForMatch } = useMatches()
 const { coaches, fetchCoaches } = useCoaches()
-const { periods, fetchPeriods } = useTrainingPeriods()
-const { sessions, fetchSessions } = useTrainingSessions()
+const { days: treningsdager, fetchWeek } = useTrainingWeek()
 const { activeCup, fetchCups } = useCups()
 
 const { teamFilter } = useTeamFilter()
@@ -35,12 +33,8 @@ const loadFailed = computed(() =>
 )
 
 onMounted(async () => {
-  await Promise.all([fetchSeasons(), fetchCoaches(), fetchPeriods(), fetchCups()])
-  const jobs = []
-  if (viewingSeason.value) jobs.push(fetchMatches(viewingSeason.value.id))
-  const period = resolveUpcomingPeriod(periods.value)
-  if (period) jobs.push(fetchSessions(period.id))
-  await Promise.all(jobs)
+  await Promise.all([fetchSeasons(), fetchCoaches(), fetchWeek(), fetchCups()])
+  if (viewingSeason.value) await fetchMatches(viewingSeason.value.id)
   loading.value = false
 })
 
@@ -51,8 +45,7 @@ watch(viewingSeason, async (s) => {
 // Ukeplanen — samme liste som trenerne ser på Hjem, men uten lenker
 // (trenings- og kampdetaljer er trenerflater).
 const weekAhead = computed(() => buildWeekAhead({
-  period: resolveUpcomingPeriod(periods.value),
-  sessions: sessions.value,
+  days: treningsdager.value,
   matches: matches.value,
   cup: activeCup.value,
   includeToday: true

@@ -1,6 +1,6 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
-import { demoId } from './useTrainingSessions'
+import { demoId } from './useTrainingWeek'
 import { registerReset } from '../stores/dataReset'
 import { clubScoped, withClub, cohortId } from '../lib/scope'
 import { useAuth } from '../stores/auth'

@@ -9,17 +9,24 @@ import { useContent } from '../composables/useContent'
 //
 // Nå er hierarkiet synlig OG rolig: uka er dagene, én av dem er åpen. Lukket
 // sier hva dagen handler om; åpen er hele treninga med luft nok til å leses på
-// banen. Måneden er en hatt på toppen, ikke et sted du går.
+// banen.
+//
+// Måneden lå en stund som en hatt på toppen — en velger, to sheets og en
+// arvingsmekanikk. Den er borte. Den EIDE dagene: hver periode fikk en
+// sluttdato, og dagen etter fant verken denne siden eller Hjem noen gjeldende
+// plan, så rytmen forsvant fra appen mens laget trente tirsdag som før. Og hver
+// ny måned var en KOPI av forrige — rettet du tirsdagsfokuset ett sted, sto de
+// elleve andre igjen med gammel tekst.
+//
+// Uka gjentar seg. Da ligger den ett sted og gjelder til noen endrer den.
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
-import { useTrainingPeriods } from '../composables/useTrainingPeriods'
-import { useTrainingSessions } from '../composables/useTrainingSessions'
+import { useRoute } from 'vue-router'
+import { useTrainingWeek } from '../composables/useTrainingWeek'
 import { useExercises, exerciseToDrill, resolveDrills } from '../composables/useExercises'
 import { useToast } from '../composables/useToast'
 import { parseTreningsplan } from '../lib/treningParser'
-import { nextMonthPlan, latestPeriod } from '../lib/trainingMonth'
 import { accentForPosition } from '../lib/sessionVisuals'
-import { localISODate, relativeDateLabel, WEEKDAY_LABELS } from '../lib/dateLabels'
+import { WEEKDAY_LABELS } from '../lib/dateLabels'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ExercisePicker from '../components/ExercisePicker.vue'
@@ -28,71 +35,18 @@ import Skeleton from '../components/Skeleton.vue'
 const { hasHandbook } = useContent()
 
 const route = useRoute()
-const router = useRouter()
-const { periods, getPeriod, fetchPeriods, createPeriod, updatePeriod, deletePeriod } = useTrainingPeriods()
-const { sessions, supportsDuration, fetchSessions, createSession, updateSession, removeSession } = useTrainingSessions()
+const { days: dager, supportsDuration, fetchWeek, createDay, updateDay, removeDay } = useTrainingWeek()
 const { exercises, supportsCategory, fetchExercises, createExercise } = useExercises()
 const { show: showToast } = useToast()
 
 const loading = ref(true)
 
-// ── Hvilken måned ser vi på? ────────────────────────────────────────────────
-// Uten :id i URL-en velger vi den som gjelder nå. Bare en periode som dekker
-// i dag, er åpen i enden, eller starter i framtiden teller — ellers ville en
-// utgått plan sett ut som den gjeldende.
-function pickActivePeriod() {
-  const ps = periods.value
-  if (!ps.length) return null
-  const today = localISODate()
-  const inRange = ps.find(p => p.start_date && p.end_date && p.start_date <= today && today <= p.end_date)
-  if (inRange) return inRange
-  const openEnded = ps
-    .filter(p => p.start_date && !p.end_date && p.start_date <= today)
-    .sort((a, b) => b.start_date.localeCompare(a.start_date))[0]
-  if (openEnded) return openEnded
-  return ps
-    .filter(p => p.start_date && p.start_date > today)
-    .sort((a, b) => a.start_date.localeCompare(b.start_date))[0] || null
-}
-
-const routeId = computed(() => route.params.id || null)
-const period = computed(() => (routeId.value ? getPeriod(routeId.value) : pickActivePeriod()))
-const periodId = computed(() => period.value?.id || null)
-const lastPeriod = computed(() => latestPeriod(periods.value))
-
-const hasEnded = computed(() => !!(period.value?.end_date && period.value.end_date < localISODate()))
-const notStarted = computed(() => !!(period.value?.start_date && period.value.start_date > localISODate()))
-
-const monthPlan = computed(() => nextMonthPlan(lastPeriod.value))
-
-// «1.–31. august», ikke «1. august – 31. august». Måneden står allerede i
-// chipen over; datolinja skal si spennet, ikke gjenta navnet to ganger.
-function dateRange(p) {
-  const lang = d => new Date(d).toLocaleDateString('nb-NO', { day: 'numeric', month: 'long' })
-  if (p?.start_date && p?.end_date) {
-    const a = new Date(p.start_date)
-    const b = new Date(p.end_date)
-    const sammeMåned = a.getMonth() === b.getMonth() && a.getFullYear() === b.getFullYear()
-    return sammeMåned ? `${a.getDate()}.–${lang(p.end_date)}` : `${lang(p.start_date)} – ${lang(p.end_date)}`
-  }
-  if (p?.start_date) return `Fra ${lang(p.start_date)}`
-  return ''
-}
-
-watch(periodId, id => { if (id) fetchSessions(id) })
-
 // ── Dagene ──────────────────────────────────────────────────────────────────
 //
-// Uka sorterer seg selv. Før lå dagene i den rekkefølgen de ble opprettet, så
-// en onsdag lagt til i ettertid havnet bakerst — etter lørdag. Ukedagen er
-// fasit; rader uten ukedag (gamle eller nyopprettede) legger seg til slutt.
-const dager = computed(() =>
-  [...sessions.value].sort((a, b) => {
-    const wa = a.weekday ?? 99
-    const wb = b.weekday ?? 99
-    return wa !== wb ? wa - wb : a.position - b.position
-  })
-)
+// Uka kommer ferdig sortert: ukedagen er fasit, og rader uten ukedag (gamle,
+// eller nettopp opprettet) legger seg til slutt. Sorteringen bor i
+// useTrainingWeek, slik at Hjem og foreldreflaten leser uka i samme rekkefølge
+// som denne siden.
 
 // «1 t 30 min» er slik folk snakker om det. «90 min» er slik databaser gjør.
 function formatDuration(min) {
@@ -151,8 +105,8 @@ const fokus = computed(() => {
 // ut. Det var et lag med trykk som bare fantes fordi plassen var for knapp.
 const openDayId = ref(null)
 
-// Hjem lenker rett på en dag: /trening/:id?dag=<id>. Ønsket brukes ÉN gang —
-// ellers ville et månedsbytte senere kastet deg tilbake til dagen lenka pekte
+// Hjem lenker rett på en dag: /trening?dag=<id>. Ønsket brukes ÉN gang —
+// ellers ville en senere endring i uka kastet deg tilbake til dagen lenka pekte
 // på, lenge etter at du sluttet å tenke på den.
 const wantedDay = ref(route.query.dag || null)
 const skalRulleTilDag = ref(false)
@@ -347,11 +301,11 @@ watch(openDayId, () => {
 // Serialisert kø per dag: to raske trykk skal ikke overskrive hverandre.
 const queues = new Map()
 function queueDrills(sessionId, mutate) {
-  const current = sessions.value.find(s => s.id === sessionId)
+  const current = dager.value.find(s => s.id === sessionId)
   const prev = queues.get(sessionId) || Promise.resolve()
   const next = prev.then(() => {
-    const live = sessions.value.find(s => s.id === sessionId) || current
-    return updateSession(sessionId, { drills: mutate([...(live?.drills || [])]) })
+    const live = dager.value.find(s => s.id === sessionId) || current
+    return updateDay(sessionId, { drills: mutate([...(live?.drills || [])]) })
   })
   queues.set(sessionId, next)
   return next
@@ -407,7 +361,7 @@ function removeDrill(s, i) {
 
 // ── Plukkeren ───────────────────────────────────────────────────────────────
 const pickerFor = ref(null)
-const pickerSession = computed(() => sessions.value.find(s => s.id === pickerFor.value) || null)
+const pickerSession = computed(() => dager.value.find(s => s.id === pickerFor.value) || null)
 
 function openPicker(s) { pickerFor.value = s.id }
 
@@ -452,7 +406,7 @@ const dayForm = ref(null)
 const savingDay = ref(false)
 
 const usedWeekdays = computed(() =>
-  new Set(sessions.value.filter(s => s.id !== dayForm.value?.id).map(s => s.weekday).filter(Boolean))
+  new Set(dager.value.filter(s => s.id !== dayForm.value?.id).map(s => s.weekday).filter(Boolean))
 )
 
 function openDayForm(s) {
@@ -488,12 +442,12 @@ async function saveDay() {
     title: f.weekday ? WEEKDAY_LABELS[f.weekday - 1] : f.fallbackTitle
   }
   if (f.id) {
-    await updateSession(f.id, payload)
+    await updateDay(f.id, payload)
   } else {
-    await createSession(periodId.value, {
+    await createDay({
       ...payload,
-      accent: accentForPosition(sessions.value.length),
-      position: sessions.value.length
+      accent: accentForPosition(dager.value.length),
+      position: dager.value.length
     })
   }
   savingDay.value = false
@@ -502,91 +456,9 @@ async function saveDay() {
 
 const deleteDayId = ref(null)
 async function confirmDeleteDay() {
-  await removeSession(deleteDayId.value)
+  await removeDay(deleteDayId.value)
   deleteDayId.value = null
   dayForm.value = null
-}
-
-// ── Måned: bytt, lag ny, rediger ────────────────────────────────────────────
-const showMonths = ref(false)
-const creating = ref(false)
-
-function goToPeriod(id) {
-  showMonths.value = false
-  if (id !== periodId.value) router.push(`/trening/${id}`)
-}
-
-// Ett trykk: måneden gir tittel, datoer og farge, og dagene arves fra forrige.
-async function createMonth(reuse = true) {
-  if (creating.value) return
-  creating.value = true
-  const plan = monthPlan.value
-  const src = reuse ? lastPeriod.value : null
-  const kilde = !src ? null
-    : src.id === periodId.value ? sessions.value
-    : await fetchSessions(src.id)
-  // Ingen forrige måned å arve fra? Da står måneden tom. Før falt den tilbake
-  // på Halsens tirsdag/torsdag/lørdag, og et nytt kull fikk en uke det aldri
-  // hadde bedt om.
-  const maler = kilde?.length
-    ? [...kilde].sort((a, b) => a.position - b.position)
-    : []
-
-  const row = await createPeriod({
-    title: plan.title,
-    accent: plan.accent,
-    start_date: plan.start_date,
-    end_date: plan.end_date
-  })
-  if (row) {
-    for (const [i, s] of maler.entries()) {
-      await createSession(row.id, {
-        title: s.title,
-        weekday: s.weekday ?? null,
-        // Lengden er en del av rytmen — arves videre som alt annet. Uten
-        // denne mistet hver ny måned lengdene du hadde satt.
-        duration_min: s.duration_min ?? 90,
-        accent: s.accent || accentForPosition(i),
-        illustration: s.illustration || null,
-        focus: s.focus || null,
-        drills: s.drills || [],
-        position: i
-      })
-    }
-  }
-  creating.value = false
-  showMonths.value = false
-  if (row) router.push(`/trening/${row.id}`)
-}
-
-const monthForm = ref(null)
-const savingMonth = ref(false)
-
-function openEditMonth() {
-  const p = period.value
-  monthForm.value = { title: p.title, start_date: p.start_date || '', end_date: p.end_date || '' }
-}
-
-async function saveMonth() {
-  if (!monthForm.value?.title.trim() || savingMonth.value) return
-  savingMonth.value = true
-  await updatePeriod(periodId.value, {
-    title: monthForm.value.title.trim(),
-    start_date: monthForm.value.start_date || null,
-    end_date: monthForm.value.end_date || null
-  })
-  savingMonth.value = false
-  monthForm.value = null
-  showMonths.value = false
-}
-
-const showDeleteMonth = ref(false)
-async function confirmDeleteMonth() {
-  await deletePeriod(periodId.value)
-  showDeleteMonth.value = false
-  monthForm.value = null
-  showMonths.value = false
-  router.replace('/trening')
 }
 
 // ── Lim inn plan (hurtiginnlegging fra mobil) ───────────────────────────────
@@ -599,7 +471,7 @@ async function confirmPaste() {
   const parsed = parsedPlan.value
   if (!parsed.sessions.length || savingPaste.value) return
   savingPaste.value = true
-  const base = sessions.value.length
+  const base = dager.value.length
   for (const [i, s] of parsed.sessions.entries()) {
     const drills = []
     for (const d of s.drills) {
@@ -613,7 +485,7 @@ async function confirmPaste() {
       })
       drills.push(ex ? exerciseToDrill(ex) : d)
     }
-    await createSession(periodId.value, {
+    await createDay({
       title: s.title,
       weekday: s.weekday,
       focus: s.focus || null,
@@ -629,8 +501,7 @@ async function confirmPaste() {
 }
 
 onMounted(async () => {
-  await fetchPeriods()
-  if (periodId.value) await fetchSessions(periodId.value)
+  await fetchWeek()
   fetchExercises()
   loading.value = false
 
@@ -650,45 +521,29 @@ onMounted(async () => {
       <Skeleton v-for="n in 3" :key="n" height="140px" radius="var(--ds-radius-lg)" />
     </div>
 
-    <!-- Ingen plan som gjelder nå -->
-    <div v-else-if="!period" class="ds-empty">
+    <!-- Ingen uke ennå. Merk at dette IKKE lenger kan bety «planen gikk ut» —
+         uka har ingen sluttdato å gå ut på. Står det ingenting her, har ingen
+         lagt inn en dag. -->
+    <div v-else-if="!dager.length" class="ds-empty">
       <img src="/illustrations/bench-boss-feature-icons/512/training-plan-transparent.png" alt="" class="ds-empty__illo" />
-      <div class="ds-empty__title">
-        {{ lastPeriod ? 'Ingen treningsplan som gjelder nå' : 'Ingen treningsplan ennå' }}
-      </div>
+      <div class="ds-empty__title">Ingen treningsuke ennå</div>
       <div class="ds-empty__description">
-        <template v-if="lastPeriod">«{{ lastPeriod.title }}» gikk ut {{ relativeDateLabel(lastPeriod.end_date).toLowerCase() }}.</template>
-        <template v-else>Tirsdag, torsdag og lørdag legges inn klare — så fyller du på med øvelser.</template>
+        Legg inn dagene dere trener. De blir stående — uka gjentar seg til dere endrer den.
       </div>
       <div class="plan-actions">
-        <button v-if="lastPeriod" type="button" class="ds-btn ds-btn--primary" :disabled="creating" @click="createMonth(true)">
-          {{ creating ? 'Lager …' : 'Bruk forrige plan' }}
-        </button>
-        <button type="button" :class="['ds-btn', lastPeriod ? 'ds-btn--secondary' : 'ds-btn--primary']" :disabled="creating" @click="createMonth(false)">
-          {{ lastPeriod ? 'Start tom' : `Lag plan for ${monthPlan.title.toLowerCase()}` }}
-        </button>
+        <button type="button" class="ds-btn ds-btn--primary" @click="openNewDay">Legg til dag</button>
+        <button type="button" class="ds-btn ds-btn--secondary" @click="showPaste = true">Lim inn plan</button>
       </div>
-      <p class="plan-note">Blir «{{ monthPlan.title }}», {{ monthPlan.spenn }}</p>
     </div>
 
     <template v-else>
-      <!-- Måneden er en hatt, ikke et sted du går -->
+      <!-- «Hver uke» er ikke pynt. Uten den leses tre navngitte dager som tre
+           enkelttreninger som skjer én gang — og da er det uklart hvorfor de
+           ikke har datoer. Ett ord sier hele modellen. -->
       <header class="uke__head">
         <h1 class="uke__title">Trening</h1>
-        <button type="button" class="month-chip" @click="showMonths = true">
-          {{ period.title }}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-        </button>
+        <p class="uke__rytme">Hver uke</p>
       </header>
-      <!-- Modellen er en UKE som gjentar seg, ikke tre enkelttreninger i en
-           måned. Sto det bare «1.–31. august» over tre dager, leste man planen
-           som tre økter. «Hver uke» er hele forskjellen. -->
-      <p class="uke__dates">
-        <span class="uke__repeat">Hver uke</span>
-        <span v-if="dateRange(period)" class="uke__dates-span">{{ dateRange(period) }}</span>
-        <span v-if="hasEnded" class="uke__flag">Avsluttet</span>
-        <span v-else-if="notStarted" class="uke__flag">Starter {{ relativeDateLabel(period.start_date).toLowerCase() }}</span>
-      </p>
 
       <!-- Dagene: én åpen om gangen. Lukket er en løfte om innhold, åpen er
            hele treninga. Uka som helhet står fortsatt på siden. -->
@@ -893,17 +748,20 @@ onMounted(async () => {
         <button type="button" class="uke__foot-btn" @click="showPaste = true">Lim inn plan</button>
       </div>
 
-      <div class="uke__links">
-        <router-link to="/trening/ovelser" class="uke__link">
-          <span class="uke__link-eyebrow">Øvelsesbank</span>
-          <span class="uke__link-title">Alle øvelser</span>
-        </router-link>
-        <router-link v-if="hasHandbook" to="/trening/handbok" class="uke__link">
-          <span class="uke__link-eyebrow">Håndbok</span>
-          <span class="uke__link-title">Slik trener vi</span>
-        </router-link>
-      </div>
     </template>
+
+    <!-- Banken og håndboka står utenfor uka, ikke inni den: er uka tom, er det
+         nettopp da du trenger et sted å hente øvelser fra. -->
+    <div v-if="!loading" class="uke__links">
+      <router-link to="/trening/ovelser" class="uke__link">
+        <span class="uke__link-eyebrow">Øvelsesbank</span>
+        <span class="uke__link-title">Alle øvelser</span>
+      </router-link>
+      <router-link v-if="hasHandbook" to="/trening/handbok" class="uke__link">
+        <span class="uke__link-eyebrow">Håndbok</span>
+        <span class="uke__link-title">Slik trener vi</span>
+      </router-link>
+    </div>
 
     <!-- Dag: ukedag, lengde, fokus -->
     <Sheet :show="!!dayForm" :title="dayForm?.id ? 'Rediger dag' : 'Ny dag'" @close="dayForm = null">
@@ -963,58 +821,6 @@ onMounted(async () => {
       </form>
     </Sheet>
 
-    <!-- Måneder -->
-    <Sheet :show="showMonths && !monthForm" title="Måned" @close="showMonths = false">
-      <div class="month-list">
-        <button
-          v-for="p in periods"
-          :key="p.id"
-          type="button"
-          :class="['month-row', { 'month-row--active': p.id === periodId }]"
-          @click="goToPeriod(p.id)"
-        >
-          <span class="month-row__body">
-            <span class="month-row__title">{{ p.title }}</span>
-            <span v-if="dateRange(p)" class="month-row__dates">{{ dateRange(p) }}</span>
-          </span>
-          <svg v-if="p.id === periodId" class="month-row__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-        </button>
-      </div>
-      <button type="button" class="ds-btn ds-btn--primary ds-btn--lg month-add" :disabled="creating" @click="createMonth(true)">
-        {{ creating ? 'Lager …' : `Ny plan for ${monthPlan.title.toLowerCase()}` }}
-      </button>
-      <p class="plan-note month-note">
-        {{ monthPlan.spenn }}<template v-if="lastPeriod">, med dagene fra «{{ lastPeriod.title }}»</template>
-      </p>
-      <button type="button" class="month-edit-link" @click="openEditMonth">Rediger «{{ period?.title }}»</button>
-    </Sheet>
-
-    <!-- Rediger måned -->
-    <Sheet :show="!!monthForm" :title="`Rediger ${period?.title || ''}`" @close="monthForm = null">
-      <form v-if="monthForm" @submit.prevent="saveMonth">
-        <div class="ds-form-group">
-          <label class="ds-label" for="mnd-title">Navn</label>
-          <input id="mnd-title" v-model="monthForm.title" class="ds-input" type="text" required />
-        </div>
-        <div class="ds-form-row">
-          <div class="ds-form-group">
-            <label class="ds-label" for="mnd-start">Fra</label>
-            <input id="mnd-start" v-model="monthForm.start_date" class="ds-input" type="date" />
-          </div>
-          <div class="ds-form-group">
-            <label class="ds-label" for="mnd-end">Til</label>
-            <input id="mnd-end" v-model="monthForm.end_date" class="ds-input" type="date" />
-          </div>
-        </div>
-        <div class="sheet-actions">
-          <button type="button" class="ds-btn ds-btn--ghost sheet-actions__danger" @click="showDeleteMonth = true">Slett</button>
-          <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg sheet-actions__save" :disabled="!monthForm.title.trim() || savingMonth">
-            {{ savingMonth ? 'Lagrer…' : 'Lagre' }}
-          </button>
-        </div>
-      </form>
-    </Sheet>
-
     <!-- Lim inn plan -->
     <Sheet :show="showPaste" title="Lim inn plan" @close="showPaste = false">
       <textarea
@@ -1067,15 +873,6 @@ Torsdag
       @cancel="deleteDayId = null"
     />
 
-    <ConfirmDialog
-      :show="showDeleteMonth"
-      title="Slett måneden?"
-      message="Hele planen og alle dagene i den blir borte for godt."
-      confirm-label="Slett"
-      variant="warning"
-      @confirm="confirmDeleteMonth"
-      @cancel="showDeleteMonth = false"
-    />
   </div>
 </template>
 
@@ -1089,13 +886,7 @@ Torsdag
 
 .uke__skeleton { display: flex; flex-direction: column; gap: var(--ds-space-md); }
 
-.uke__head {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ds-space-md);
-  margin-bottom: 2px;
-}
+.uke__head { margin-bottom: 2px; }
 
 .uke__title {
   font-family: var(--ds-font-display);
@@ -1108,60 +899,11 @@ Torsdag
   margin: 0;
 }
 
-/* Måneden er en bryter, ikke en overskrift — den skal ikke konkurrere med dagene. */
-.month-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  flex-shrink: 0;
-  padding: 7px 10px 7px 14px;
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-full);
-  background: var(--ds-color-bg-elevated);
-  font-family: var(--ds-font-body);
+.uke__rytme {
+  margin: 2px 0 var(--ds-space-xl);
   font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-primary);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: border-color var(--ds-duration-fast) var(--ds-ease-out);
-}
-
-.month-chip svg { width: 15px; height: 15px; color: var(--ds-color-text-tertiary); }
-.month-chip:active { transform: scale(0.98); }
-
-.uke__dates {
-  margin: 0 0 var(--ds-space-xl);
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
-
-/* Rytmen er hovedsaken, datoene er fotnoten — derfor bærer «Hver uke» blekket
-   og spennet står dempet ved siden av. */
-.uke__repeat {
   font-weight: var(--ds-weight-medium);
   color: var(--ds-color-text-secondary);
-}
-
-.uke__dates-span::before {
-  content: '·';
-  margin: 0 6px;
-  opacity: 0.6;
-}
-
-.uke__flag {
-  display: inline-block;
-  margin-left: 8px;
-  padding: 2px 8px;
-  border-radius: var(--ds-radius-full);
-  background: var(--ds-color-bg-elevated);
-  border: 1px solid var(--ds-color-border);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-  color: var(--ds-color-text-tertiary);
 }
 
 /* ---- Dagen ---- */
@@ -1875,12 +1617,6 @@ Torsdag
   margin-bottom: var(--ds-space-sm);
 }
 
-.plan-note {
-  margin: 0;
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-tertiary);
-}
-
 /* ---- Sheets ---- */
 .sheet-actions {
   display: flex;
@@ -1965,52 +1701,6 @@ Torsdag
   letter-spacing: var(--ds-tracking-tight);
   color: var(--ds-color-text-primary);
   font-variant-numeric: tabular-nums;
-}
-
-.month-list {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-bottom: var(--ds-space-md);
-}
-
-.month-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  width: 100%;
-  padding: 12px;
-  background: var(--ds-color-bg-elevated);
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-md);
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--ds-font-body);
-  -webkit-tap-highlight-color: transparent;
-}
-
-.month-row--active { border-color: var(--ds-color-text-primary); }
-.month-row__body { flex: 1; display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-.month-row__title { font-weight: var(--ds-weight-semibold); font-size: var(--ds-text-sm); color: var(--ds-color-text-primary); }
-.month-row__dates { font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; }
-.month-row__check { width: 18px; height: 18px; flex-shrink: 0; color: var(--ds-color-text-primary); }
-
-.month-add { width: 100%; }
-.month-note { text-align: center; margin-top: var(--ds-space-sm); }
-
-.month-edit-link {
-  display: block;
-  width: 100%;
-  margin-top: var(--ds-space-lg);
-  padding: 0;
-  border: none;
-  background: none;
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-secondary);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
 }
 
 .paste-input { width: 100%; font-size: var(--ds-text-sm); line-height: 1.5; resize: vertical; }

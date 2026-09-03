@@ -5,7 +5,6 @@ import { sessionIllustration, illoWebp, illoPng as illoPngPath } from '../../lib
 import { dagLink } from '../../lib/trainingLinks'
 
 const props = defineProps({
-  period: { type: Object, required: true },
   session: { type: Object, required: true },
   date: { type: String, required: true }
 })
@@ -21,7 +20,7 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
 
 <template>
   <router-link
-    :to="dagLink(period.id, session.id)"
+    :to="dagLink(session.id)"
     class="ds-card ds-card--interactive next-training"
     :data-accent="session.accent || 'warm'"
   >

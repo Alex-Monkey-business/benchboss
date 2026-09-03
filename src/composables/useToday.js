@@ -10,13 +10,12 @@ import { useCoaches } from './useCoaches'
 import { useExpenses } from './useExpenses'
 import { useCups } from './useCups'
 import { useCupMatches } from './useCupMatches'
-import { useTrainingPeriods } from './useTrainingPeriods'
-import { useTrainingSessions } from './useTrainingSessions'
+import { useTrainingWeek } from './useTrainingWeek'
 import { useSeasonTeams } from './useSeasonTeams'
 import { useMatchMode } from './useMatchMode'
 import { localISODate, isoWeekday, daysUntil } from '../lib/dateLabels'
 import { isOurMatch, isHomeMatch, teamColorsForMatch } from '../lib/matchMeta'
-import { resolveUpcomingPeriod, buildWeekAhead } from '../lib/weekAhead'
+import { buildWeekAhead } from '../lib/weekAhead'
 import { buildReminders } from '../lib/reminders'
 import { useDismissedReminders } from './useDismissedReminders'
 import { useCupTeams } from './useCupTeams'
@@ -42,8 +41,7 @@ export function useToday() {
   const { cupMatches, fetchCupMatches } = useCupMatches()
   const { cupTeams } = useCupTeams()
   const { cupFirst, fetchSerieStatus } = useCupFirst()
-  const { periods, fetchPeriods } = useTrainingPeriods()
-  const { sessions, fetchSessions } = useTrainingSessions()
+  const { days: treningsdager, fetchWeek } = useTrainingWeek()
   const { seasonTeams, teamsFromDb, fetchSeasonTeams } = useSeasonTeams()
   const matchMode = useMatchMode()
 
@@ -147,18 +145,6 @@ export function useToday() {
       .sort((a, b) => (a.match_time || '').localeCompare(b.match_time || ''))
   })
 
-  // Aktiv treningsperiode: dagens dato innenfor start/slutt (åpen slutt teller), lavest position vinner.
-  const activePeriod = computed(() => {
-    const today = localISODate()
-    return periods.value
-      .filter(p => p.start_date && p.start_date <= today && (!p.end_date || today <= p.end_date))
-      .sort((a, b) => a.position - b.position)[0] || null
-  })
-
-  // Perioden «neste trening» hentes fra: den som dekker i dag, ellers den
-  // nærmeste som starter frem i tid (så en periode som starter i morgen synes).
-  const upcomingPeriod = computed(() => resolveUpcomingPeriod(periods.value))
-
   // Cup-dager demper trening: laget står på cup, ikke på feltet.
   const cupCoversToday = computed(() => {
     const cup = activeCup.value
@@ -167,18 +153,16 @@ export function useToday() {
     return cup.start_date <= today && today <= cup.end_date
   })
 
+  // Trener vi i dag? Ukedagen er hele spørsmålet nå. Før måtte en periode dekke
+  // datoen først, og gikk måneden ut i går, svarte dette nei på en tirsdag laget
+  // trente.
   const todayTraining = computed(() => {
     if (cupCoversToday.value) return null
     // Spiller mitt lag kamp i dag, er det kampen som fortjener toppen. Treninga
     // er rytme; kampen er dagen. Samme prioritering som cup gjør over.
     if (todayMatches.value.length) return null
-    const period = activePeriod.value
-    if (!period) return null
     const wd = isoWeekday()
-    const session = sessions.value
-      .filter(s => s.period_id === period.id && s.weekday === wd)
-      .sort((a, b) => a.position - b.position)[0]
-    return session ? { period, session } : null
+    return treningsdager.value.find(d => d.weekday === wd) || null
   })
 
   // Prep-status for en kamp. referee er null for bortekamper (ikke vår jobb).
@@ -214,7 +198,7 @@ export function useToday() {
     coachId: coach.value?.id,
     getCoachesForMatch,
     getExpenseForMatch,
-    periods: periods.value,
+    trainingDays: treningsdager.value,
     // Alt som allerede står som kort. Kortet sier «Mangler dommer» — da skal
     // ikke «Å ordne» si det samme 30 cm lenger ned. Det var Alex' poeng:
     // «trenger vel nesten ikke Å ordne hvis det blir highlightet under kampen».
@@ -232,38 +216,24 @@ export function useToday() {
     sinceIso: (activeCohort.value?.created_at || '').slice(0, 10) || null
   }))
 
-  // Neste forekomst av en ukedag etter `after`, klippet til periodens slutt.
-  function nextDateForWeekday(weekday, after, endIso) {
-    const d = new Date(after + 'T12:00:00')
+  // Neste forekomst av en ukedag etter i dag. Ingen sluttdato å klippe mot
+  // lenger: uka løper til noen endrer den, så det finnes alltid en neste.
+  function nesteDatoFor(weekday) {
+    const d = new Date(localISODate() + 'T12:00:00')
     for (let i = 0; i < 7; i++) {
       d.setDate(d.getDate() + 1)
-      if (isoWeekday(d) === weekday) {
-        const iso = localISODate(d)
-        return (!endIso || iso <= endIso) ? iso : null
-      }
+      if (isoWeekday(d) === weekday) return localISODate(d)
     }
     return null
   }
 
-  // Neste treningsøkt: nærmeste forekomst av en økt med ukedag i aktuell periode.
-  // For en fremtidig periode søkes det fra periodens start, ikke fra i dag.
   const nextTraining = computed(() => {
-    const today = localISODate()
-    const period = upcomingPeriod.value
-    if (!period) return null
-    let after = today
-    if (period.start_date > today) {
-      const d = new Date(period.start_date + 'T12:00:00')
-      d.setDate(d.getDate() - 1)
-      after = localISODate(d)
-    }
-    const candidates = sessions.value
-      .filter(s => s.period_id === period.id && s.weekday)
-      .map(s => ({ session: s, date: nextDateForWeekday(s.weekday, after, period.end_date) }))
+    const kandidater = treningsdager.value
+      .filter(d => d.weekday)
+      .map(d => ({ session: d, date: nesteDatoFor(d.weekday) }))
       .filter(x => x.date)
       .sort((a, b) => a.date.localeCompare(b.date))
-    if (!candidates.length) return null
-    return { period, session: candidates[0].session, date: candidates[0].date }
+    return kandidater[0] || null
   })
 
   // Sesongstart: vises i opptakten til sesongens aller første kamp, og
@@ -299,8 +269,7 @@ export function useToday() {
   // Med serie står regelen over: cup-widgeten er inngangen, og en aktiv cup
   // demper treninger på cup-dagene i stedet for å ramse dem opp.
   const weekAhead = computed(() => buildWeekAhead({
-    period: upcomingPeriod.value,
-    sessions: sessions.value,
+    days: treningsdager.value,
     matches: myMatches.value,
     cupMatches: cupFirst.value ? myCupMatches.value : [],
     cup: activeCup.value
@@ -412,7 +381,7 @@ export function useToday() {
 
   async function refresh() {
     loading.value = matches.value.length === 0
-    await Promise.all([fetchSeasons(), fetchCoaches(), fetchCups(), fetchPeriods(), fetchSerieStatus()])
+    await Promise.all([fetchSeasons(), fetchCoaches(), fetchCups(), fetchWeek(), fetchSerieStatus()])
 
     const jobs = []
     if (activeSeason.value) jobs.push(fetchMatches(activeSeason.value.id))
@@ -423,7 +392,6 @@ export function useToday() {
     }
     // Ferdig cup trenger ikke lastes på Hjem — cup-sidene henter selv for historikken.
     if (cupInProgress.value) jobs.push(fetchCupMatches(activeCup.value.id))
-    if (upcomingPeriod.value) jobs.push(fetchSessions(upcomingPeriod.value.id))
     await Promise.all(jobs)
 
     // Prep for dagens kamp OG neste kamp — neste-kortet viser nå hva som
