@@ -59,6 +59,24 @@ export const PLASS = [
   { value: 'stor', label: 'Stor plass' }
 ]
 
+// Fotballkull regnes på årstall, ikke bursdag: G2015 er «11-åringene» hele
+// 2026. Har kullet ingen birth_year — «Halsen – nytt kull» i prod har ikke
+// det — finnes ingen alder å regne fra, og da filtrerer vi ingenting bort.
+export function kullAlder(cohort) {
+  const ar = cohort?.birth_year
+  if (!ar) return null
+  return new Date().getFullYear() - ar
+}
+
+// Anbefaling, ikke regel. Øvelser uten min_alder passer alle: de fleste i
+// banken har ingen kilde til et tall, og fravær av opplysning skal ikke lese
+// som «for vanskelig».
+export function passerAlder(ex, alder) {
+  if (alder == null) return true
+  if (!ex?.min_alder) return true
+  return ex.min_alder <= alder
+}
+
 export function equipmentLabel(v) {
   return EQUIPMENT_TAGS.find(t => t.value === v)?.label || v
 }

@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useExercises, groupByCategory } from '../composables/useExercises'
+import { useExercises, groupByCategory, kullAlder, passerAlder } from '../composables/useExercises'
+import { useAuth } from '../stores/auth'
 import Sheet from './Sheet.vue'
 import ExerciseFields from './ExerciseFields.vue'
 
@@ -21,14 +22,14 @@ const props = defineProps({
 
 const emit = defineEmits(['close', 'toggle', 'create'])
 
-const { exercises, loaded, supportsCategory, supportsGruppe, supportsUtstyr, fetchExercises } = useExercises()
+const { exercises, loaded, supportsCategory, supportsGruppe, fetchExercises } = useExercises()
 
 const search = ref('')
 const mode = ref('list') // 'list' | 'new'
 const newForm = ref(emptyForm())
 
 function emptyForm() {
-  return { name: '', type: 'none', category: '', tema: '', gruppe: '', utstyr: '', organisering: '', laeringsmomenter: '', link: { label: '', url: '' } }
+  return { name: '', type: 'none', category: '', tema: '', gruppe: '', organisering: '', laeringsmomenter: '', se_etter: '', si_til_barna: '', min_spillere: null, maks_spillere: null, utstyr_tags: [], plass: null, min_alder: null, link: { label: '', url: '' } }
 }
 
 watch(() => props.show, (open) => {
@@ -39,10 +40,33 @@ watch(() => props.show, (open) => {
   }
 })
 
+// Samme aldersregel som i banken, og den betyr mer her: dette er flata der du
+// faktisk velger hva ungene skal gjøre på tirsdag.
+const { activeCohort } = useAuth()
+const alder = computed(() => kullAlder(activeCohort.value))
+const visForEldre = ref(false)
+
+const forEldre = computed(() =>
+  alder.value == null ? [] : exercises.value.filter(e => !passerAlder(e, alder.value))
+)
+
+const forEldreFra = computed(() => {
+  const tall = forEldre.value.map(e => e.min_alder).filter(Boolean)
+  return tall.length ? Math.min(...tall) : null
+})
+
+// En øvelse som ALT ligger i dagen blir aldri skjult, uansett alder. Å plukke
+// den bort fra lista fordi kullet er for ungt ville gjort den umulig å fjerne.
+const synlige = computed(() =>
+  visForEldre.value
+    ? exercises.value
+    : exercises.value.filter(e => passerAlder(e, alder.value) || isInSession(e))
+)
+
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
-  if (!q) return exercises.value
-  return exercises.value.filter(e =>
+  if (!q) return synlige.value
+  return synlige.value.filter(e =>
     e.name.toLowerCase().includes(q) ||
     (e.tema || '').toLowerCase().includes(q) ||
     (e.organisering || '').toLowerCase().includes(q) ||
@@ -101,7 +125,7 @@ function preview(ex) {
   >
     <!-- NY ØVELSE — det eneste skjemaet i plukkeren -->
     <form v-if="mode === 'new'" @submit.prevent="submitNew">
-      <ExerciseFields :form="newForm" :show-category="supportsCategory" :show-gruppe="supportsGruppe" :show-utstyr="supportsUtstyr" />
+      <ExerciseFields :form="newForm" :show-category="supportsCategory" :show-gruppe="supportsGruppe" />
       <div class="picker-form-actions">
         <button type="button" class="ds-btn ds-btn--ghost" @click="mode = 'list'">Avbryt</button>
         <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg picker-form-actions__save" :disabled="!newForm.name.trim()">
@@ -122,6 +146,24 @@ function preview(ex) {
       <button v-if="canCreate" type="button" class="picker-create" @click="startNew">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
         <span>Lag «{{ newName }}»</span>
+      </button>
+
+      <button
+        v-if="forEldre.length && !visForEldre"
+        type="button"
+        class="picker-eldre"
+        @click="visForEldre = true"
+      >
+        {{ forEldre.length }} {{ forEldre.length === 1 ? 'øvelse' : 'øvelser' }}
+        anbefalt fra {{ forEldreFra }} år — vis {{ forEldre.length === 1 ? 'den' : 'dem' }}
+      </button>
+      <button
+        v-else-if="forEldre.length && visForEldre"
+        type="button"
+        class="picker-eldre"
+        @click="visForEldre = false"
+      >
+        Vis bare det som passer kullet
       </button>
 
       <p v-if="!exercises.length && !canCreate" class="picker-no-hits">
@@ -175,6 +217,20 @@ function preview(ex) {
 </template>
 
 <style scoped>
+.picker-eldre {
+  display: block;
+  width: 100%;
+  margin-top: var(--ds-space-md);
+  padding: var(--ds-space-sm) var(--ds-space-md);
+  background: var(--ds-color-bg-subtle);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+  text-align: left;
+  cursor: pointer;
+}
+
 /* Søket lager øvelsen når den ikke finnes — ingen blindvei ved null treff. */
 .picker-create {
   display: flex;

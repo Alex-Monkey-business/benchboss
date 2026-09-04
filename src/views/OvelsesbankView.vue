@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useExercises, EXERCISE_CATEGORIES, groupByCategory, equipmentLabel, plassLabel, spillereLabel } from '../composables/useExercises'
+import { useExercises, EXERCISE_CATEGORIES, groupByCategory, equipmentLabel, plassLabel, spillereLabel, kullAlder, passerAlder } from '../composables/useExercises'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ExerciseFields from '../components/ExerciseFields.vue'
@@ -19,12 +19,33 @@ function goBack() {
 }
 
 const search = ref('')
-const showSearch = computed(() => exercises.value.length > 8)
+const showSearch = computed(() => synlige.value.length > 8)
+
+// Kullets alder, og øvelsene som er anbefalt for eldre. Default viser vi det
+// som passer — men de skjulte er ALLTID tellet fram nederst, så det aldri er
+// et mysterium hvorfor banken er kortere enn den var.
+const alder = computed(() => kullAlder(activeCohort.value))
+const visForEldre = ref(false)
+
+const forEldre = computed(() =>
+  alder.value == null ? [] : exercises.value.filter(e => !passerAlder(e, alder.value))
+)
+
+// Laveste alder blant de skjulte: «anbefalt fra 10 år» er mer presist enn
+// «for eldre», og treneren vet da om det gjelder ett år eller fire.
+const forEldreFra = computed(() => {
+  const tall = forEldre.value.map(e => e.min_alder).filter(Boolean)
+  return tall.length ? Math.min(...tall) : null
+})
+
+const synlige = computed(() =>
+  visForEldre.value ? exercises.value : exercises.value.filter(e => passerAlder(e, alder.value))
+)
 
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
-  if (!q) return exercises.value
-  return exercises.value.filter(e =>
+  if (!q) return synlige.value
+  return synlige.value.filter(e =>
     e.name.toLowerCase().includes(q) || (e.tema || '').toLowerCase().includes(q)
   )
 })
@@ -236,7 +257,34 @@ onMounted(fetchExercises)
           </button>
         </div>
       </div>
-      <p v-if="!filtered.length" class="bank__no-hits">Ingen treff på «{{ search }}»</p>
+      <p v-if="!filtered.length && search" class="bank__no-hits">Ingen treff på «{{ search }}»</p>
+
+      <!-- Konsekvensen først: hvor mange, og fra hvilken alder. En bryter som
+           bare sier «vis alle» tvinger deg til å trykke for å finne ut om det
+           er noe der. Raden vises bare når noe FAKTISK er skjult. -->
+      <button
+        v-if="forEldre.length && !visForEldre"
+        type="button"
+        class="bank__eldre"
+        @click="visForEldre = true"
+      >
+        <span class="bank__eldre-tall">{{ forEldre.length }}</span>
+        <span class="bank__eldre-tekst">
+          {{ forEldre.length === 1 ? 'øvelse er' : 'øvelser er' }} anbefalt fra
+          {{ forEldreFra }} år<template v-if="alder != null"> — kullet er {{ alder }}</template>
+        </span>
+        <span class="bank__eldre-handling">Vis {{ forEldre.length === 1 ? 'den' : 'dem' }}</span>
+      </button>
+
+      <button
+        v-else-if="forEldre.length && visForEldre"
+        type="button"
+        class="bank__eldre bank__eldre--av"
+        @click="visForEldre = false"
+      >
+        <span class="bank__eldre-tekst">Viser hele klubbens bank</span>
+        <span class="bank__eldre-handling">Vis bare det som passer</span>
+      </button>
     </template>
 
     <!-- Detalj: visning først, redigering sekundært -->
@@ -577,6 +625,46 @@ onMounted(fetchExercises)
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-primary);
   line-height: 1.55;
+}
+
+/* Raden bærer et tall, en setning og en handling. Den er en knapp i sin
+   helhet — å treffe «Vis dem» presist på en 320 px-skjerm med hansker på er
+   ikke en rimelig forventning. */
+.bank__eldre {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-md);
+  width: 100%;
+  margin-top: var(--ds-space-lg);
+  padding: var(--ds-space-md);
+  background: var(--ds-color-bg-subtle);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  text-align: left;
+  cursor: pointer;
+}
+
+.bank__eldre-tall {
+  flex: none;
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-color-text-primary);
+}
+
+.bank__eldre-tekst {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+  line-height: 1.4;
+}
+
+.bank__eldre-handling {
+  flex: none;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-accent);
 }
 
 /* Verdien står til høyre, merket til venstre, hårstrek mellom radene: det er
