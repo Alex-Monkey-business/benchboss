@@ -4,7 +4,6 @@ import { sessionIllustration, illoWebp, illoPng as illoPngPath } from '../../lib
 import { dagLink } from '../../lib/trainingLinks'
 
 const props = defineProps({
-  period: { type: Object, required: true },
   session: { type: Object, required: true }
 })
 
@@ -29,7 +28,7 @@ const focusParts = computed(() => {
 
 <template>
   <router-link
-    :to="dagLink(period.id, session.id)"
+    :to="dagLink(session.id)"
     class="ds-card ds-card--interactive today-training"
     :data-accent="session.accent || 'warm'"
   >

@@ -192,9 +192,21 @@ for (const r of await p.$$('.bank-row')) {
   if (/Medtak, dribling/.test(await r.innerText())) { await r.click(); break }
 }
 await p.waitForTimeout(600)
-const bank = await p.$$eval('.ex-view__label', els => els.map(e => e.textContent.trim()))
-ok('banken viser kategoriene hver for seg',
-  bank.includes('Gruppa') && bank.includes('Øvelsen'), bank.join(' / '))
+// Seksjonene har egne kort med navn på — én øvelse har hele flaten her, og da
+// skanner du etter overskriften. Inne i uka står stakken tett med vilje.
+const bank = await p.$$eval('.ex-sek__tittel', els => els.map(e => e.textContent.trim()))
+ok('banken viser seksjonene som egne kort',
+  bank.includes('Læringsmål') && bank.includes('Gruppe og utstyr') && bank.includes('Gjennomføring'),
+  bank.join(' / '))
+ok('læringsmomentene har markør, ikke bare innrykk',
+  await p.$eval('.ex-view__points li', el => getComputedStyle(el, '::before').width !== 'auto'))
+
+// Flere linjer i gjennomføringen er en rekkefølge, og da nummererer appen den.
+// Én linje blir stående som avsnitt — «1.» alene er et skilt uten veikryss.
+const stegtall = await p.$$eval('.ex-steg li', els =>
+  els.map(e => getComputedStyle(e, '::before').content))
+ok('flerlinjet gjennomføring nummereres', stegtall.length === 0 || stegtall[0].includes('1'),
+  stegtall.join(' '))
 
 // Feltene i skjemaet heter det samme som kategoriene — ellers må du oversette
 // mellom det du skriver og det du leser. Arket ligger over lista, så det må
@@ -206,9 +218,8 @@ for (const r of await p.$$('.bank-row')) {
   if (/1v1 vende/.test(await r.innerText())) { await r.click(); break }
 }
 await p.waitForTimeout(500)
-const utstyrsrad = await p.$$eval('.ex-view__section', els =>
-  els.map(e => e.querySelector('.ex-view__label')?.textContent.trim()))
-ok('utstyr er en egen kategori i banken', utstyrsrad.includes('Utstyr og bane'), utstyrsrad.join(' / '))
+const riggrader = await p.$$eval('.ex-rigg dt', els => els.map(e => e.textContent.trim()))
+ok('gruppa og utstyret står hver for seg i riggen', riggrader.includes('Utstyr'), riggrader.join(' / '))
 
 await browser.close()
 console.log(feilet ? `\n${feilet} feilet` : '\nAlt grønt')

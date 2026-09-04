@@ -4,20 +4,15 @@ import { localISODate, isoWeekday } from './dateLabels'
 import { isOurMatch, isHomeMatch } from './matchMeta'
 import { dagLink } from './trainingLinks'
 
-// Perioden som gjelder: dekker i dag (åpen slutt teller), ellers nærmeste fremtidige.
-export function resolveUpcomingPeriod(periods, today = localISODate()) {
-  const covering = periods
-    .filter(p => p.start_date && p.start_date <= today && (!p.end_date || today <= p.end_date))
-    .sort((a, b) => a.position - b.position)[0]
-  if (covering) return covering
-  return periods
-    .filter(p => p.start_date && p.start_date > today)
-    .sort((a, b) => a.start_date.localeCompare(b.start_date))[0] || null
-}
+// Her lå resolveUpcomingPeriod: den fant måneden som dekket i dag, og uka ble
+// lest ut av den. Fant den ingen — og det gjorde den hver gang en måned gikk ut
+// uten at noen hadde laget den neste — sto uka tom på både Hjem og
+// foreldreflaten, selv om laget trente som før. Uka har ingen periode å ligge i
+// nå; en treningsdag gjelder til noen fjerner den.
 
 // includeToday: flater uten egen «I dag»-seksjon (foreldre) tar med dagens hendelser.
 // cup: aktiv cup demper treninger på cup-dagene — laget står på cup, ikke på feltet.
-export function buildWeekAhead({ today = localISODate(), period, sessions = [], matches = [], cupMatches = [], cup = null, includeToday = false }) {
+export function buildWeekAhead({ today = localISODate(), days = [], matches = [], cupMatches = [], cup = null, includeToday = false }) {
   const now = new Date(today + 'T12:00:00')
   const daysLeft = 7 - isoWeekday(now)
   const start = includeToday ? 0 : 1
@@ -41,22 +36,18 @@ export function buildWeekAhead({ today = localISODate(), period, sessions = [], 
   // (useToday sender myMatches), så en Rød-kamp demper ikke Grønn-treneren.
   const kampdager = new Set(matches.filter(isOurMatch).map(m => m.match_date))
 
-  if (period) {
-    for (const date of dates) {
-      if (cupCovers(date) || kampdager.has(date)) continue
-      if (period.start_date && period.start_date <= date && (!period.end_date || date <= period.end_date)) {
-        const wd = isoWeekday(new Date(date + 'T12:00:00'))
-        sessions
-          .filter(s => s.period_id === period.id && s.weekday === wd)
-          .forEach(session => items.push({
-            kind: 'training',
-            date,
-            focus: session.focus || '',
-            drillCount: (session.drills || []).length,
-            to: dagLink(period.id, session.id)
-          }))
-      }
-    }
+  for (const date of dates) {
+    if (cupCovers(date) || kampdager.has(date)) continue
+    const wd = isoWeekday(new Date(date + 'T12:00:00'))
+    days
+      .filter(d => d.weekday === wd)
+      .forEach(dag => items.push({
+        kind: 'training',
+        date,
+        focus: dag.focus || '',
+        drillCount: (dag.drills || []).length,
+        to: dagLink(dag.id)
+      }))
   }
 
   matches

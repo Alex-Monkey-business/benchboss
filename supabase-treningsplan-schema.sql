@@ -1,3 +1,9 @@
+-- UTDATERT. Ikke kjør denne.
+--
+-- training_periods finnes ikke lenger: uka gjentar seg og ligger rett på
+-- kullet. Se supabase/migrations/20260903090000_uka_er_kanon.sql. Fila står
+-- igjen fordi den forklarer hvor drills-JSONB kom fra.
+--
 -- ============================================================
 -- BenchBoss – TRENINGSPLAN (perioder → økter med lenker)
 -- Internt trenerverktøy under Admin, ved siden av trener-håndboken.

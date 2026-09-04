@@ -2,33 +2,40 @@ import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
 import { fetchRows, STATUS } from '../lib/query'
+import { scoped, withCohort } from '../lib/scope'
 
-const sessions = ref([])
+// TRENINGSUKA — kullets faste uke, én rad per treningsdag.
+//
+// Her lå useTrainingSessions, som hentet øktene til ÉN måned om gangen. Måneden
+// er borte (se 20260903090000_uka_er_kanon.sql): den eide dagene, utløp ved
+// månedsslutt og tok rytmen med seg i fallet, og en ny måned ble laget ved å
+// kopiere forrige. Uka gjentar seg — den skal ligge ett sted og gjelde til noen
+// endrer den.
+//
+// Det som forsvant sammen med perioden: to sekvensielle spørringer på hver
+// lasting (finn måneden, så hent øktene i den). Nå er uka ett oppslag.
+
+const days = ref([])
 const loading = ref(false)
-const loadedPeriod = ref(null)
 const status = ref(STATUS.IDLE)
 
 registerReset(() => {
-  sessions.value = []
+  days.value = []
   loading.value = false
-  loadedPeriod.value = null
   status.value = STATUS.IDLE
 })
 
 // Her sto DEFAULT_WEEK_SESSIONS: tirsdag, torsdag og lørdag, 90 minutter — som
-// er HALSENS uke. Den ble seedet inn i første måned i ETHVERT kull, så Sten
-// åpnet treningsplanen sin og fant tre økter han aldri hadde satt opp, på
-// dager og tider han ikke trener. Et nytt lag skal ikke arve et annet lags uke.
-//
-// En ny måned arver nå dagene fra forrige måned i SAMME kull, og har kullet
-// ingen historikk, står måneden tom. En tom uke er et ærlig svar; tre gjettede
-// økter er ikke.
+// er HALSENS uke. Den ble seedet inn i ethvert nytt kull, så Sten åpnet
+// treningsplanen sin og fant tre økter han aldri hadde satt opp, på dager og
+// tider han ikke trener. Et nytt lag skal ikke arve et annet lags uke: en tom
+// uke er et ærlig svar, tre gjettede økter er ikke.
 
 // duration_min kommer først etter at supabase-trening-varighet.sql er kjørt.
 // Uten den: ingen lengde-velger, og feltet strippes før skriving — appen
 // knekker ikke av at migreringen ligger etter deployen.
 const supportsDuration = computed(() =>
-  sessions.value.length === 0 || 'duration_min' in (sessions.value[0] || {})
+  days.value.length === 0 || 'duration_min' in (days.value[0] || {})
 )
 
 function stripUnsupported(payload) {
@@ -42,10 +49,19 @@ export function demoId(prefix) {
   return `${prefix}-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`
 }
 
-// Demo-økter (uten Supabase). links: [{ label, url }]
-const DEMO_SESSIONS = [
+// Uka sorterer seg selv på ukedag. Rader uten ukedag (gamle, eller nettopp
+// opprettet) legger seg til slutt — de matcher aldri en dato, så de kan ikke
+// stå mellom dagene som gjør det.
+function iUkerekkefølge(a, b) {
+  const wa = a.weekday ?? 99
+  const wb = b.weekday ?? 99
+  return wa !== wb ? wa - wb : (a.position ?? 0) - (b.position ?? 0)
+}
+
+// Demo-dager (uten Supabase).
+const DEMO_DAYS = [
   {
-    id: 'dts-1', period_id: 'dtp-1', position: 0,
+    id: 'dts-1', position: 0,
     title: 'Tirsdag', weekday: 2, duration_min: 90,
     accent: 'sky',
     illustration: 'tuesday_june_tranparent.png',
@@ -68,7 +84,7 @@ const DEMO_SESSIONS = [
     ]
   },
   {
-    id: 'dts-2', period_id: 'dtp-1', position: 1,
+    id: 'dts-2', position: 1,
     title: 'Torsdag', weekday: 4, duration_min: 90,
     accent: 'peach',
     illustration: 'thursday_june_transparent.png',
@@ -79,7 +95,7 @@ const DEMO_SESSIONS = [
     ]
   },
   {
-    id: 'dts-3', period_id: 'dtp-1', position: 2,
+    id: 'dts-3', position: 2,
     title: 'Lørdag', weekday: 6, duration_min: 75,
     accent: 'olive',
     illustration: 'saturday_june_transparent.png',
@@ -93,66 +109,67 @@ const DEMO_SESSIONS = [
   }
 ]
 
-export function useTrainingSessions() {
-  async function fetchSessions(periodId) {
+export function useTrainingWeek() {
+  async function fetchWeek() {
     loading.value = true
 
     if (!isSupabaseConfigured) {
-      sessions.value = DEMO_SESSIONS
-        .filter(s => s.period_id === periodId)
-        .sort((a, b) => a.position - b.position)
-      loadedPeriod.value = periodId
+      days.value = [...DEMO_DAYS].sort(iUkerekkefølge)
       loading.value = false
       status.value = STATUS.OK
-      return sessions.value
+      return days.value
     }
 
     status.value = STATUS.LOADING
+    // Ukedagen sorterer, plassen bryter uavgjort. NULL-ukedager havner sist i
+    // Postgres' ASC av seg selv — samme svar som iUkerekkefølge gir.
     const { rows } = await fetchRows(
-      supabase.from('training_sessions').select('*').eq('period_id', periodId).order('position'),
+      scoped(supabase.from('training_sessions').select('*')).order('weekday').order('position'),
       'training_sessions'
     )
     loading.value = false
 
     if (!rows) {
       status.value = STATUS.ERROR
-      return sessions.value
+      return days.value
     }
 
-    sessions.value = rows
-    loadedPeriod.value = periodId
+    days.value = rows
     status.value = STATUS.OK
-    return sessions.value
+    return days.value
   }
 
-  async function createSession(periodId, payload) {
-    const data = stripUnsupported({ period_id: periodId, position: sessions.value.length, accent: 'warm', illustration: null, focus: null, drills: [], weekday: null, ...payload })
+  async function createDay(payload) {
+    const data = stripUnsupported({ position: days.value.length, accent: 'warm', illustration: null, focus: null, drills: [], weekday: null, ...payload })
 
     if (!isSupabaseConfigured) {
       const row = { id: demoId('dts'), ...data }
-      // DEMO_SESSIONS er demo-«databasen» — uten denne forsvinner raden ved neste fetch.
-      DEMO_SESSIONS.push(row)
-      sessions.value.push(row)
+      // DEMO_DAYS er demo-«databasen» — uten denne forsvinner raden ved neste fetch.
+      DEMO_DAYS.push(row)
+      days.value = [...days.value, row].sort(iUkerekkefølge)
       return row
     }
 
+    // Uka er en rot nå, ikke et barn av en periode: klienten må si hvilket kull
+    // dagen hører til, slik den gjør for spillere, kamper og cuper.
     const { data: row, error } = await supabase
       .from('training_sessions')
-      .insert(data)
+      .insert(withCohort(data))
       .select()
       .single()
-    if (!error && row) sessions.value.push(row)
+    if (!error && row) days.value = [...days.value, row].sort(iUkerekkefølge)
     return row
   }
 
-  async function updateSession(id, rawUpdates) {
+  async function updateDay(id, rawUpdates) {
     const updates = stripUnsupported(rawUpdates)
     if (!isSupabaseConfigured) {
-      const di = DEMO_SESSIONS.findIndex(s => s.id === id)
-      if (di > -1) DEMO_SESSIONS[di] = { ...DEMO_SESSIONS[di], ...updates }
-      const i = sessions.value.findIndex(s => s.id === id)
-      if (i > -1) sessions.value[i] = { ...sessions.value[i], ...updates }
-      return sessions.value[i]
+      const di = DEMO_DAYS.findIndex(s => s.id === id)
+      if (di > -1) DEMO_DAYS[di] = { ...DEMO_DAYS[di], ...updates }
+      const i = days.value.findIndex(s => s.id === id)
+      if (i > -1) days.value[i] = { ...days.value[i], ...updates }
+      days.value = [...days.value].sort(iUkerekkefølge)
+      return days.value.find(s => s.id === id)
     }
 
     const { data, error } = await supabase
@@ -162,17 +179,18 @@ export function useTrainingSessions() {
       .select()
       .single()
     if (!error && data) {
-      const i = sessions.value.findIndex(s => s.id === id)
-      if (i > -1) sessions.value[i] = data
+      const i = days.value.findIndex(s => s.id === id)
+      if (i > -1) days.value[i] = data
+      days.value = [...days.value].sort(iUkerekkefølge)
     }
     return data
   }
 
-  async function removeSession(id) {
+  async function removeDay(id) {
     if (!isSupabaseConfigured) {
-      const di = DEMO_SESSIONS.findIndex(s => s.id === id)
-      if (di > -1) DEMO_SESSIONS.splice(di, 1)
-      sessions.value = sessions.value.filter(s => s.id !== id)
+      const di = DEMO_DAYS.findIndex(s => s.id === id)
+      if (di > -1) DEMO_DAYS.splice(di, 1)
+      days.value = days.value.filter(s => s.id !== id)
       return
     }
 
@@ -181,26 +199,8 @@ export function useTrainingSessions() {
       .delete()
       .eq('id', id)
       .select('id')
-    if (!error && data?.length) sessions.value = sessions.value.filter(s => s.id !== id)
+    if (!error && data?.length) days.value = days.value.filter(s => s.id !== id)
   }
 
-  // Flytt en økt opp/ned ved å bytte position med naboen.
-  async function moveSession(id, dir) {
-    const ordered = [...sessions.value].sort((a, b) => a.position - b.position)
-    const i = ordered.findIndex(s => s.id === id)
-    const j = dir === 'up' ? i - 1 : i + 1
-    if (i < 0 || j < 0 || j >= ordered.length) return
-
-    const a = ordered[i]
-    const b = ordered[j]
-    const posA = a.position
-    const posB = b.position
-
-    await updateSession(a.id, { position: posB })
-    await updateSession(b.id, { position: posA })
-
-    sessions.value = [...sessions.value].sort((x, y) => x.position - y.position)
-  }
-
-  return { sessions, loading, loadedPeriod, status, supportsDuration, fetchSessions, createSession, updateSession, removeSession, moveSession }
+  return { days, loading, status, supportsDuration, fetchWeek, createDay, updateDay, removeDay }
 }

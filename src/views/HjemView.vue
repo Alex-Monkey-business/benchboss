@@ -94,7 +94,7 @@ const weekTargets = computed(() => new Set(weekItems.value.flatMap(i => i.target
 const upNext = computed(() => {
   const items = []
   const t = nextTraining.value
-  if (!hasToday.value && t && !weekTargets.value.has(dagLink(t.period.id, t.session.id))) {
+  if (!hasToday.value && t && !weekTargets.value.has(dagLink(t.session.id))) {
     items.push({ kind: 'training', date: t.date })
   }
   if (heroMatch.value) items.push({ kind: 'match', date: heroMatch.value.date })
@@ -153,8 +153,7 @@ function coachNamesForMatch(matchId) {
 
       <TodayTrainingCard
         v-if="todayTraining"
-        :period="todayTraining.period"
-        :session="todayTraining.session"
+        :session="todayTraining"
         class="ds-anim-fade-up ds-anim-delay-2"
       />
 
@@ -191,7 +190,6 @@ function coachNamesForMatch(matchId) {
       <template v-for="item in upNext" :key="item.kind">
         <NextTrainingCard
           v-if="item.kind === 'training'"
-          :period="nextTraining.period"
           :session="nextTraining.session"
           :date="nextTraining.date"
           class="ds-anim-fade-up ds-anim-delay-1"

@@ -25,7 +25,7 @@ if (!KLUBB || !G2015) { console.error('Mangler Halsen IL / g2015 lokalt.'); proc
 
 const gammelt = sql(`select id from cohorts where club_id='${KLUBB}' and slug='g2099'`)
 if (gammelt) {
-  for (const t of ['training_sessions', 'training_periods', 'players', 'teams', 'coaches', 'cohort_members', 'seasons'])
+  for (const t of ['training_sessions', 'players', 'teams', 'coaches', 'cohort_members', 'seasons'])
     sql(`delete from ${t} where cohort_id='${gammelt}'`)
   sql(`update cohorts set active_season_id=null where id='${gammelt}'`)
   sql(`delete from cohorts where id='${gammelt}'`)
@@ -105,7 +105,7 @@ await b.close()
 
 // ---------- 4. Rydd opp etter oss ----------
 sql(`delete from training_exercises where club_id='${KLUBB}' and name in ('Ferdighetssirkel (test)','Vinneren står (test)')`)
-for (const t of ['training_sessions', 'training_periods', 'players', 'teams', 'coaches', 'cohort_members'])
+for (const t of ['training_sessions', 'players', 'teams', 'coaches', 'cohort_members'])
   sql(`delete from ${t} where cohort_id='${nabo}'`)
 sql(`update cohorts set active_season_id=null where id='${nabo}'`)
 sql(`delete from seasons where cohort_id='${nabo}'`)

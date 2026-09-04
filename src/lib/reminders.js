@@ -28,7 +28,7 @@ function isoDaysFrom(today, days) {
 // så et lag som starter i august får fem måneder spilte kamper inn i basen.
 // De skal ikke bli en huskeliste — ingen kommer til å føre utlegg for en kamp
 // som ble spilt før klubben tok i bruk appen.
-export function buildReminders({ matches, coachId, getCoachesForMatch, getExpenseForMatch, periods = [], today = localISODate(), excludeMatchIds = [], dismissedKeys = new Set(), primaryMatchId = null, usesReferees = true, sinceIso = null }) {
+export function buildReminders({ matches, coachId, getCoachesForMatch, getExpenseForMatch, trainingDays = [], today = localISODate(), excludeMatchIds = [], dismissedKeys = new Set(), primaryMatchId = null, usesReferees = true, sinceIso = null }) {
   if (!coachId) return []
   const excluded = new Set(excludeMatchIds)
   const mine = (m) => getCoachesForMatch(m.id).includes(coachId)
@@ -64,39 +64,29 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
     })
   }
 
-  // 2. Ingen treningsplan dekker i dag.
+  // 2. Kullet har ingen treningsuke.
   //
-  //    Uten denne sier startsiden ingenting når planen renner ut — den viser
-  //    bare fravær av treningskort, som leses som «fri i dag» og ikke som «du
-  //    har ikke planlagt noe». Perioden «Etter ferien» gikk ut 11. august uten
-  //    at noe sa fra.
-  const covering = periods.filter(p => p.start_date && p.end_date && p.start_date <= today && p.end_date >= today)
-  // En periode som starter i morgen er ikke fravær av plan — den ER planen.
-  // Uten dette maste påminnelsen videre etter at jobben var gjort.
-  const upcoming = periods.filter(p => p.start_date && p.start_date > today)
-  if (covering.length === 0 && upcoming.length === 0) {
-    const ended = periods
-      .filter(p => p.end_date && p.end_date < today)
-      .sort((a, b) => b.end_date.localeCompare(a.end_date))[0]
+  //    Denne het «Ingen plan for neste trening» og fyrte når måneden man sto i
+  //    hadde gått ut. Det var en påminnelse om en modellfeil: planen utløp av
+  //    seg selv, og noen måtte varsles om å lage den samme uka på nytt. Uka har
+  //    ingen sluttdato lenger, så det eneste ekte tomrommet igjen er at ingen
+  //    har lagt inn en dag i det hele tatt.
+  //
+  //    Nøkkelen er statisk nå. Den bar utløpsdatoen før, slik at «skjul» bare
+  //    gjaldt den ene utløpte planen — det finnes ingen utløp å skille på her,
+  //    og skjuler du den, er det fordi kullet ikke bruker treningsdelen.
+  if (trainingDays.length === 0) {
     reminders.push({
       kind: 'no-training-plan',
       // Dempet med vilje. Dommer er PÅKREVD — uten dommer blir det ikke kamp.
-      // En manglende treningsplan avlyser ingenting. To røde kort ved siden av
+      // En manglende treningsuke avlyser ingenting. To røde kort ved siden av
       // hverandre opphever hverandre, og da mister det påkrevde forspranget.
       tone: 'soft',
       dismissable: true,
-      // Nøkkelen bærer utløpsdatoen, ikke bare typen. Ellers ville ett klikk
-      // på «skjul» gjemt påminnelsen for alltid — også neste gang en helt ny
-      // plan renner ut.
-      key: `no-training-plan:${ended?.end_date || 'ingen'}`,
-      // Konsekvensen først, statusen under. «Treningsplanen gikk ut forrige
-      // tirsdag» er en datoopplysning; det som faktisk betyr noe er at ingen
-      // vet hva som skal skje på banen neste gang.
-      title: 'Ingen plan for neste trening',
-      // Underlinja er neste handling, ikke historikk. Når og hvilken periode
-      // som gikk ut står på Trening-fanen — her er det bare i veien.
-      body: 'Sett opp ny plan',
-      action: 'Sett opp ny plan',
+      key: 'no-training-plan',
+      title: 'Ingen treningsuke satt opp',
+      body: 'Legg inn dagene dere trener',
+      action: 'Sett opp uka',
       to: '/trening'
     })
   }
