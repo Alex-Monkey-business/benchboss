@@ -25,7 +25,6 @@ const props = defineProps({
   showCategory: { type: Boolean, default: false },
   // Kolonnene finnes først etter migrasjonen — da skal feltene holde seg unna.
   showGruppe: { type: Boolean, default: false },
-  showUtstyr: { type: Boolean, default: false },
   showSeEtter: { type: Boolean, default: false },
   showSiTilBarna: { type: Boolean, default: false },
   showNokkeltall: { type: Boolean, default: false }
@@ -130,13 +129,8 @@ function pickCategory(value) {
   </div>
 
   <div v-if="showGruppe" class="ds-form-group">
-    <label class="ds-label" for="ex-gruppe">Hvordan vi deler opp gruppa</label>
-    <textarea id="ex-gruppe" v-model="form.gruppe" class="ds-input" rows="2" placeholder="F.eks. To baner med småmål, tre lag à tre (valgfri)"></textarea>
-  </div>
-
-  <div v-if="showUtstyr" class="ds-form-group">
-    <label class="ds-label" for="ex-utstyr">Utstyr og bane</label>
-    <textarea id="ex-utstyr" v-model="form.utstyr" class="ds-input" rows="2" placeholder="F.eks. 12 småmål, kjegler, 27 baller. 25x20 meter (valgfri)"></textarea>
+    <label class="ds-label" for="ex-gruppe">Gruppe og baneoppsett</label>
+    <textarea id="ex-gruppe" v-model="form.gruppe" class="ds-input" rows="2" placeholder="F.eks. Tre baner à 25x20 meter, tre lag à tre per bane (valgfri)"></textarea>
   </div>
 
   <div class="ds-form-group">

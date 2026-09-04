@@ -22,7 +22,7 @@ import { useContent } from '../composables/useContent'
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
-import { useExercises, exerciseToDrill, resolveDrills } from '../composables/useExercises'
+import { useExercises, exerciseToDrill, resolveDrills, equipmentLabel } from '../composables/useExercises'
 import { useToast } from '../composables/useToast'
 import { parseTreningsplan } from '../lib/treningParser'
 import { accentForPosition } from '../lib/sessionVisuals'
@@ -282,7 +282,7 @@ const editDayId = ref(null)
 const openDrillKey = ref(null)
 
 function harDetalj(d) {
-  return !!(d.laeringsmomenter?.length || d.gruppe || d.utstyr || d.organisering || d.link?.url)
+  return !!(d.laeringsmomenter?.length || d.gruppe || d.utstyr_tags?.length || d.organisering || d.link?.url)
 }
 
 function toggleDrill(s, i, d) {
@@ -381,7 +381,6 @@ async function createFromPicker(f) {
     type: f.type,
     tema: f.tema.trim() || null,
     gruppe: (f.gruppe || '').trim() || null,
-    utstyr: (f.utstyr || '').trim() || null,
     organisering: f.organisering.trim() || null,
     laeringsmomenter: f.laeringsmomenter.split('\n').map(x => x.trim()).filter(Boolean),
     link: f.link.url.trim() ? { label: f.link.label.trim(), url: f.link.url.trim() } : null
@@ -631,9 +630,9 @@ onMounted(async () => {
                        «2 keepere per bane» kan like gjerne leses som inndeling.
                        Momentene har strekene sine og beskrivelsen er brødteksten
                        — de trenger ingen. -->
-                  <div v-if="r.d.gruppe || r.d.utstyr" class="ovelse__rigg">
+                  <div v-if="r.d.gruppe || (r.d.utstyr_tags || []).length" class="ovelse__rigg">
                     <template v-if="r.d.gruppe"><span class="ovelse__merke">Gruppa</span><p>{{ r.d.gruppe }}</p></template>
-                    <template v-if="r.d.utstyr"><span class="ovelse__merke">Utstyr</span><p>{{ r.d.utstyr }}</p></template>
+                    <template v-if="(r.d.utstyr_tags || []).length"><span class="ovelse__merke">Utstyr</span><p>{{ r.d.utstyr_tags.map(equipmentLabel).join(', ') }}</p></template>
                   </div>
                   <p v-if="r.d.organisering" class="ovelse__org">{{ r.d.organisering }}</p>
                   <a v-if="r.d.link && r.d.link.url" :href="r.d.link.url" target="_blank" rel="noopener" class="ovelse__link">

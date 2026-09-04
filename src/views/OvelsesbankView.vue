@@ -10,7 +10,7 @@ import { useAuth } from '../stores/auth'
 const router = useRouter()
 const { activeCohort } = useAuth()
 const klubbNavn = computed(() => activeCohort.value?.club_short_name || activeCohort.value?.club_name || '')
-const { exercises, supportsCategory, supportsGruppe, supportsUtstyr, supportsSeEtter, supportsSiTilBarna, supportsNokkeltall, fetchExercises, createExercise, updateExercise, deleteExercise, opphavFor } = useExercises()
+const { exercises, supportsCategory, supportsGruppe, supportsSeEtter, supportsSiTilBarna, supportsNokkeltall, fetchExercises, createExercise, updateExercise, deleteExercise, opphavFor } = useExercises()
 
 // Ekte tilbake: dit du kom fra (perioden, en økt …); /trening som fallback.
 function goBack() {
@@ -82,7 +82,7 @@ const nokkeltall = computed(() => {
 })
 
 function emptyForm() {
-  return { name: '', type: 'none', category: '', tema: '', gruppe: '', utstyr: '', organisering: '', laeringsmomenter: '', se_etter: '', si_til_barna: '', min_spillere: null, maks_spillere: null, utstyr_tags: [], plass: null, min_alder: null, link: { label: '', url: '' } }
+  return { name: '', type: 'none', category: '', tema: '', gruppe: '', organisering: '', laeringsmomenter: '', se_etter: '', si_til_barna: '', min_spillere: null, maks_spillere: null, utstyr_tags: [], plass: null, min_alder: null, link: { label: '', url: '' } }
 }
 
 function openView(ex) {
@@ -106,7 +106,6 @@ function startEdit() {
     category: ex.category || '',
     tema: ex.tema || '',
     gruppe: ex.gruppe || '',
-    utstyr: ex.utstyr || '',
     organisering: ex.organisering || '',
     laeringsmomenter: (ex.laeringsmomenter || []).join('\n'),
     se_etter: (ex.se_etter || []).join('\n'),
@@ -129,7 +128,6 @@ async function save() {
     type: form.value.type,
     tema: form.value.tema.trim() || null,
     gruppe: form.value.gruppe.trim() || null,
-    utstyr: form.value.utstyr.trim() || null,
     organisering: form.value.organisering.trim() || null,
     laeringsmomenter: linjer(form.value.laeringsmomenter),
     se_etter: linjer(form.value.se_etter),
@@ -285,21 +283,12 @@ onMounted(fetchExercises)
             </ul>
           </section>
 
-          <!-- Gruppa og utstyret er det du trenger FØR øvelsen begynner, og de
-               er to korte fakta — ett kort med to merkede linjer, ikke to kort
-               med én linje hver. -->
-          <section v-if="active.gruppe || active.utstyr" class="ex-sek">
-            <h4 class="ex-sek__tittel">Gruppe og utstyr</h4>
-            <dl class="ex-rigg">
-              <template v-if="active.gruppe">
-                <dt>Gruppa</dt>
-                <dd>{{ active.gruppe }}</dd>
-              </template>
-              <template v-if="active.utstyr">
-                <dt>Utstyr</dt>
-                <dd>{{ active.utstyr }}</dd>
-              </template>
-            </dl>
+          <!-- Utstyret står som tags i nøkkeltall-kortet øverst, ikke her.
+               «Småmål, kjegler» skannes; «12 småmål, mye kjegler og 27 baller»
+               må leses. Baneoppsettet hører i gruppa — banene ER inndelingen. -->
+          <section v-if="active.gruppe" class="ex-sek">
+            <h4 class="ex-sek__tittel">Gruppe</h4>
+            <p class="ex-view__text">{{ active.gruppe }}</p>
           </section>
 
           <section v-if="gjennomforing.linjer.length" class="ex-sek">
@@ -348,7 +337,7 @@ onMounted(fetchExercises)
 
       <!-- REDIGERING / NY -->
       <form v-else @submit.prevent="save">
-        <ExerciseFields :form="form" :show-category="supportsCategory" :show-gruppe="supportsGruppe" :show-utstyr="supportsUtstyr" :show-se-etter="supportsSeEtter" :show-si-til-barna="supportsSiTilBarna" :show-nokkeltall="supportsNokkeltall" />
+        <ExerciseFields :form="form" :show-category="supportsCategory" :show-gruppe="supportsGruppe" :show-se-etter="supportsSeEtter" :show-si-til-barna="supportsSiTilBarna" :show-nokkeltall="supportsNokkeltall" />
         <div class="bank__form-actions">
           <button
             v-if="mode === 'edit'"

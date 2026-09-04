@@ -37,3 +37,17 @@ update training_exercises set
   se_etter = '["Kroppen kommer mellom ball og forsvarer i vendingen", "Skuddet kommer uten ekstra touch"]'::jsonb,
   si_til_barna = '["Vend bort fra press", "Skyt med det du har"]'::jsonb
 where name = '1v1 vende, drible, skyte med store mål og keeper';
+
+-- Koble drills til bankøvelsene, slik prod har det (11 av 11 drills der har
+-- exercise_id). Uten koblingen faller resolveDrills tilbake på den lagrede
+-- kopien i drills-JSONB, og kopien er fra før gruppe/utstyr_tags fantes — så
+-- riggen i uka vises ikke, og en test av den gir falsk negativ.
+update training_sessions s set drills = coalesce((
+  select jsonb_agg(
+    case when e.id is null then d.value
+         else d.value || jsonb_build_object('exercise_id', e.id) end
+    order by d.ordinality
+  )
+  from jsonb_array_elements(s.drills) with ordinality d(value, ordinality)
+  left join training_exercises e on e.name = d.value->>'text'
+), '[]'::jsonb);
