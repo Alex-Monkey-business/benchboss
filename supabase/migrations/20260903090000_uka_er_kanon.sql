@@ -22,94 +22,55 @@
 -- ikke, og er den naturlige neste tingen å bygge. Den hører hjemme som et eget
 -- lag OVER uka, ikke som en ny eier av dagene.
 --
--- ADVARSEL OM REKKEFØLGE. Denne tåler IKKE å ligge etter deployen, slik
--- kolonne-migreringene våre gjør (duration_min, category — appen sjekker om
--- kolonnen finnes og lar være å skrive den). Her forsvinner en NOT NULL-kolonne
--- appen slutter å sende: kjøres migreringen etter at frontenden er ute, feiler
--- hver eneste ny treningsdag på `period_id`, og uka som leses er alle måneders
--- dager blandet sammen. Kjør denne FØR eller SAMTIDIG med deployen.
+-- REKKEFØLGE. Denne filen er STEG 1 av to, og den er ufarlig i begge
+-- retninger: ingenting slettes, ingenting droppes. Den gjør bare period_id
+-- valgfri, slik at gammel og ny frontend kan kjøre mot samme base.
+--
+-- Grunnen til delingen: /trening fungerer i prod (gjeldende periode går til
+-- 31.10), og en base som mister training_periods før den nye frontenden er ute
+-- tar hele siden ned. Motsatt rekkefølge er heller ikke gratis — ny frontend
+-- mot NOT NULL period_id feiler på hver ny treningsdag. Delt i to finnes ikke
+-- vinduet: kjør denne, deploy, så steg 2 (20260904100000_perioden_ut.sql).
+--
+-- Den viktigste egenskapen er at et feilet bygg ikke kan etterlate prod i en
+-- ødelagt tilstand. Med én migrasjon ville en feilet deploy låst /trening til
+-- noen fikset byggingen.
 
 -- ---------------------------------------------------------------------------
--- 1. Triggeren først
+-- period_id blir valgfri
 -- ---------------------------------------------------------------------------
 --
--- bb_cohort_from_period leser cohort_id fra perioderaden, og den kjører på
--- UPDATE like mye som på INSERT. Nullstiller vi period_id før triggeren er
--- byttet, setter den cohort_id til null og hele migreringen faller på
--- NOT NULL-sjekken. Økta er en rot nå, ikke et barn.
-
-drop trigger if exists bb_set_owner on public.training_sessions;
-create trigger bb_set_owner
-  before insert or update on public.training_sessions
-  for each row execute function public.bb_cohort_root();
-
--- ---------------------------------------------------------------------------
--- 2. Hvilken uke overlever?
--- ---------------------------------------------------------------------------
+-- Dette er hele steg 1. Gammel frontend sender fortsatt period_id og får den
+-- lagret; ny frontend sender den ikke og får null. Begge fungerer.
 --
--- Én uke per kull: den sist gjeldende. Nyeste periode som har startet OG har
--- økter i seg — har kullet bare planlagt fremover, tas den første fremtidige.
--- Kravet om økter er det som gjør at et kull ikke ender med tom uke fordi
--- noen opprettet en tom september ovenpå en full august.
---
--- Resten slettes. Månedskopiene var planer, ikke logg: de sa hva som var tenkt,
--- aldri hva som ble gjennomført. Det er ingen historikk å miste her.
+-- Triggeren blir med VILJE stående som bb_cohort_from_period her. Den leser
+-- cohort_id fra perioderaden, og det er entydig. bb_cohort_root leser kullet
+-- fra medlemskapet og NEKTER å gjette når treneren har flere kull — bytter vi
+-- den nå, kan en trener med to kull ikke lagre en treningsdag fra den gamle
+-- frontenden. Byttet hører i steg 2, der period_id forsvinner samtidig.
 
-do $$
-declare
-  k record;
-  beholdt uuid;
+alter table public.training_sessions alter column period_id drop not null;
+
+-- Og triggeren må tåle at den er tom. bb_cohort_from_period gjør et blindt
+-- «select cohort_id into new.cohort_id ... where id = new.period_id» — med
+-- period_id null treffer den ingen rad, og into-en setter cohort_id til NULL.
+-- Da faller innsettingen på cohort_id sin egen NOT NULL, og den nye frontenden
+-- kan ikke lagre en treningsdag i det hele tatt.
+--
+-- Testet: uten dette feiler «insert med cohort_id, uten period_id» med
+-- «null value in column cohort_id violates not-null constraint».
+--
+-- Gammel frontend sender alltid period_id, så for den er oppførselen uendret.
+create or replace function public.bb_cohort_from_period()
+returns trigger language plpgsql security definer set search_path = public as $$
 begin
-  for k in select distinct cohort_id from public.training_periods loop
-    select p.id into beholdt
-    from public.training_periods p
-    where p.cohort_id = k.cohort_id
-      and exists (select 1 from public.training_sessions s where s.period_id = p.id)
-      and (p.start_date is null or p.start_date <= current_date)
-    order by p.start_date desc nulls last, p.position desc
-    limit 1;
-
-    if beholdt is null then
-      select p.id into beholdt
-      from public.training_periods p
-      where p.cohort_id = k.cohort_id
-        and exists (select 1 from public.training_sessions s where s.period_id = p.id)
-      order by p.start_date asc nulls last, p.position asc
-      limit 1;
-    end if;
-
-    delete from public.training_sessions
-     where cohort_id = k.cohort_id
-       and (beholdt is null or period_id is distinct from beholdt);
-  end loop;
+  if new.period_id is not null then
+    select cohort_id into new.cohort_id from public.training_periods where id = new.period_id;
+  end if;
+  return new;
 end $$;
 
--- ---------------------------------------------------------------------------
--- 3. Perioden ut av modellen
--- ---------------------------------------------------------------------------
---
--- Å droppe kolonnen tar begge fremmednøklene med seg: den enkle period_id-FK-en
--- og den sammensatte (cohort_id, period_id) fra fase 2.
-
-alter table public.training_sessions drop column if exists period_id;
-
-drop table if exists public.training_periods;
-
--- Trigger-funksjonen som leste kullet fra perioderaden har ingen tabell å lese
--- fra lenger, og ingen trigger som kaller den.
-drop function if exists public.bb_cohort_from_period();
-
--- ---------------------------------------------------------------------------
--- 4. Ukedagen er nå hele adressen til en dag
--- ---------------------------------------------------------------------------
---
--- Indeksen på period_id peker på en kolonne som ikke finnes. Uka leses av
--- kull og sorteres på ukedag.
-
-drop index if exists public.idx_training_sessions_period;
+-- Uka leses av kull og sorteres på ukedag. Indeksen legges nå, slik at den nye
+-- frontenden har den fra første spørring — den koster ingenting for den gamle.
 create index if not exists idx_training_sessions_uke
   on public.training_sessions (cohort_id, weekday);
-
--- Ingen unikhet på (cohort_id, weekday) med vilje. Appen hindrer to like
--- ukedager i uka, men to økter samme dag — keepertrening før felles økt — er
--- en plausibel ting å ville senere, og en constraint her ville stengt den.
