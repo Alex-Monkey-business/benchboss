@@ -2,7 +2,7 @@ import { useAuth } from '../stores/auth'
 
 // Kull-skopet for spørringer og innsettinger.
 //
-// Rottabellene (players, seasons, referees, cups, training_periods, coaches)
+// Rottabellene (players, seasons, referees, cups, training_sessions, coaches)
 // har ingen forelder å arve cohort_id fra. Så lenge det fantes ett kull fylte
 // bb_cohort_root den inn selv; med to nekter triggeren — med rette, for da
 // ville raden landet i feil kull. Klienten må si hvilket kull den snakker om.
