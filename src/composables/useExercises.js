@@ -38,6 +38,44 @@ export const EXERCISE_CATEGORIES = [
   { value: 'spill', label: 'Spill' }
 ]
 
+// Utstyret som fast liste. «småmål», «4 småmål» og «småmål på hver bane» er
+// samme krav skrevet tre måter — som tag er det ett krav. Detaljene («27
+// baller») står fortsatt i utstyr-fritekst; denne lista er det som sorterer.
+export const EQUIPMENT_TAGS = [
+  { value: 'smamal', label: 'Småmål' },
+  { value: 'store_mal', label: 'Store mål' },
+  { value: 'kjegler', label: 'Kjegler' },
+  { value: 'porter', label: 'Porter' },
+  { value: 'vester', label: 'Vester' },
+  { value: 'baller', label: 'Baller' },
+  { value: 'keeper', label: 'Keeper' }
+]
+
+// To verdier, ikke fem. Den ekte beslutningen er «har vi banen, eller står vi
+// i gymsalen» — mellomkategorier krever en vurdering per øvelse uten å endre
+// hva treneren faktisk gjør.
+export const PLASS = [
+  { value: 'liten', label: 'Liten plass' },
+  { value: 'stor', label: 'Stor plass' }
+]
+
+export function equipmentLabel(v) {
+  return EQUIPMENT_TAGS.find(t => t.value === v)?.label || v
+}
+
+export function plassLabel(v) {
+  return PLASS.find(pl => pl.value === v)?.label || ''
+}
+
+// «4-9», «Fra 4», «Opptil 9» — eller ingenting. Tallene er valgfrie hver for
+// seg, og en halv opplysning er fortsatt en opplysning.
+export function spillereLabel(min, maks) {
+  if (min && maks) return min === maks ? String(min) : `${min}–${maks}`
+  if (min) return `Fra ${min}`
+  if (maks) return `Opptil ${maks}`
+  return ''
+}
+
 export function groupByCategory(list) {
   const groups = EXERCISE_CATEGORIES.map(c => ({ ...c, items: list.filter(e => e.category === c.value) }))
   const rest = list.filter(e => !e.category || !EXERCISE_CATEGORIES.some(c => c.value === e.category))
@@ -70,6 +108,11 @@ export function exerciseToDrill(ex) {
     laeringsmomenter: [...(ex.laeringsmomenter || [])],
     se_etter: [...(ex.se_etter || [])],
     si_til_barna: [...(ex.si_til_barna || [])],
+    min_spillere: ex.min_spillere ?? null,
+    maks_spillere: ex.maks_spillere ?? null,
+    utstyr_tags: [...(ex.utstyr_tags || [])],
+    plass: ex.plass || null,
+    min_alder: ex.min_alder ?? null,
     link: ex.link ? { label: ex.link.label || '', url: ex.link.url || '' } : null,
     exercise_id: ex.id
   }
@@ -109,6 +152,11 @@ export function drillToExercise(d) {
     laeringsmomenter: [...(d.laeringsmomenter || [])],
     se_etter: [...(d.se_etter || [])],
     si_til_barna: [...(d.si_til_barna || [])],
+    min_spillere: d.min_spillere ?? null,
+    maks_spillere: d.maks_spillere ?? null,
+    utstyr_tags: [...(d.utstyr_tags || [])],
+    plass: d.plass || null,
+    min_alder: d.min_alder ?? null,
     link: d.link ? { label: d.link.label || '', url: d.link.url || '' } : null
   }
 }
@@ -140,6 +188,14 @@ const supportsSiTilBarna = computed(() =>
   exercises.value.length === 0 || 'si_til_barna' in (exercises.value[0] || {})
 )
 
+// Nøkkeltallene kom i 20260904140000. Fem kolonner, én guard: de settes av
+// samme migrasjon, så de finnes eller mangler sammen.
+const supportsNokkeltall = computed(() =>
+  exercises.value.length === 0 || 'min_spillere' in (exercises.value[0] || {})
+)
+
+const NOKKELTALL_FELT = ['min_spillere', 'maks_spillere', 'utstyr_tags', 'plass', 'min_alder']
+
 function utenUstottede(payload) {
   const p = { ...payload }
   if (!supportsGruppe.value) delete p.gruppe
@@ -147,6 +203,7 @@ function utenUstottede(payload) {
   if (!supportsCategory.value) delete p.category
   if (!supportsSeEtter.value) delete p.se_etter
   if (!supportsSiTilBarna.value) delete p.si_til_barna
+  if (!supportsNokkeltall.value) for (const f of NOKKELTALL_FELT) delete p[f]
   return p
 }
 
@@ -270,5 +327,5 @@ export function useExercises() {
     return kortKullnavn(navn, useAuth().activeCohort.value?.club_short_name || '')
   }
 
-  return { exercises, loading, loaded, supportsCategory, supportsGruppe, supportsUtstyr, supportsSeEtter, supportsSiTilBarna, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill, opphavFor }
+  return { exercises, loading, loaded, supportsCategory, supportsGruppe, supportsUtstyr, supportsSeEtter, supportsSiTilBarna, supportsNokkeltall, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill, opphavFor }
 }

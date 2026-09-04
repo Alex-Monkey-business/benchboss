@@ -11,6 +11,15 @@
 // rondo er 10 minutter på tirsdag og 20 på lørdag — den settes i planmodus.
 import { EXERCISE_CATEGORIES } from '../composables/useExercises'
 
+import { EQUIPMENT_TAGS, PLASS } from '../composables/useExercises'
+
+function toggleTag(v) {
+  const liste = props.form.utstyr_tags || (props.form.utstyr_tags = [])
+  const i = liste.indexOf(v)
+  if (i === -1) liste.push(v)
+  else liste.splice(i, 1)
+}
+
 const props = defineProps({
   form: { type: Object, required: true },
   showCategory: { type: Boolean, default: false },
@@ -18,7 +27,8 @@ const props = defineProps({
   showGruppe: { type: Boolean, default: false },
   showUtstyr: { type: Boolean, default: false },
   showSeEtter: { type: Boolean, default: false },
-  showSiTilBarna: { type: Boolean, default: false }
+  showSiTilBarna: { type: Boolean, default: false },
+  showNokkeltall: { type: Boolean, default: false }
 })
 
 const DRILL_TYPES = [
@@ -71,6 +81,49 @@ function pickCategory(value) {
     <input id="ex-tema" v-model="form.tema" class="ds-input" type="text" placeholder="F.eks. Spille oss fremover (valgfri)" />
   </div>
 
+  <!-- Nøkkeltallene står ØVERST i skjemaet fordi de er det du vet med én gang
+       («8 unger, kjegler, gymsalen») — beskrivelsen kommer etterpå. -->
+  <template v-if="showNokkeltall">
+    <div class="ds-form-group">
+      <label class="ds-label">Antall spillere</label>
+      <div class="antall-row">
+        <input v-model.number="form.min_spillere" class="ds-input" type="number" min="1" max="30" placeholder="Færrest" aria-label="Færrest spillere" />
+        <span class="antall-row__strek" aria-hidden="true">–</span>
+        <input v-model.number="form.maks_spillere" class="ds-input" type="number" min="1" max="30" placeholder="Flest" aria-label="Flest spillere" />
+      </div>
+    </div>
+
+    <div class="ds-form-group">
+      <label class="ds-label">Utstyr</label>
+      <div class="tag-velger">
+        <button
+          v-for="t in EQUIPMENT_TAGS"
+          :key="t.value"
+          type="button"
+          role="switch"
+          :aria-checked="(form.utstyr_tags || []).includes(t.value) ? 'true' : 'false'"
+          class="tag-velger__opt"
+          :class="{ 'tag-velger__opt--active': (form.utstyr_tags || []).includes(t.value) }"
+          @click="toggleTag(t.value)"
+        >{{ t.label }}</button>
+      </div>
+    </div>
+
+    <div class="ds-form-group">
+      <label class="ds-label">Plass</label>
+      <div class="tag-velger">
+        <button
+          v-for="pl in PLASS"
+          :key="pl.value"
+          type="button"
+          class="tag-velger__opt"
+          :class="{ 'tag-velger__opt--active': form.plass === pl.value }"
+          @click="form.plass = form.plass === pl.value ? null : pl.value"
+        >{{ pl.label }}</button>
+      </div>
+    </div>
+  </template>
+
   <div class="ds-form-group">
     <label class="ds-label" for="ex-moments">Momenter — ett per linje</label>
     <textarea id="ex-moments" v-model="form.laeringsmomenter" class="ds-input" rows="3" placeholder="Mykt medtak ut til siden&#10;Løft blikket (valgfri)"></textarea>
@@ -111,6 +164,43 @@ function pickCategory(value) {
 </template>
 
 <style scoped>
+/* Fra-til på én linje: to felt og en strek leses som ett spenn, mens to
+   merkede felt under hverandre leses som to uavhengige tall. */
+.antall-row {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: var(--ds-space-sm);
+}
+
+.antall-row__strek {
+  color: var(--ds-color-text-tertiary);
+}
+
+.tag-velger {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--ds-space-sm);
+}
+
+.tag-velger__opt {
+  border: 1px solid var(--ds-color-border);
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-secondary);
+  border-radius: var(--ds-radius-full);
+  padding: 8px 14px;
+  font-size: var(--ds-text-sm);
+  cursor: pointer;
+  transition: border-color var(--ds-duration-fast) var(--ds-ease-out),
+              background-color var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.tag-velger__opt--active {
+  border-color: var(--ds-color-text-primary);
+  background: var(--ds-color-text-primary);
+  color: var(--ds-color-bg-elevated);
+}
+
 .cat-pills {
   display: flex;
   flex-wrap: wrap;

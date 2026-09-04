@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { useExercises, EXERCISE_CATEGORIES, groupByCategory } from '../composables/useExercises'
+import { useExercises, EXERCISE_CATEGORIES, groupByCategory, equipmentLabel, plassLabel, spillereLabel } from '../composables/useExercises'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ExerciseFields from '../components/ExerciseFields.vue'
@@ -10,7 +10,7 @@ import { useAuth } from '../stores/auth'
 const router = useRouter()
 const { activeCohort } = useAuth()
 const klubbNavn = computed(() => activeCohort.value?.club_short_name || activeCohort.value?.club_name || '')
-const { exercises, supportsCategory, supportsGruppe, supportsUtstyr, supportsSeEtter, supportsSiTilBarna, fetchExercises, createExercise, updateExercise, deleteExercise, opphavFor } = useExercises()
+const { exercises, supportsCategory, supportsGruppe, supportsUtstyr, supportsSeEtter, supportsSiTilBarna, supportsNokkeltall, fetchExercises, createExercise, updateExercise, deleteExercise, opphavFor } = useExercises()
 
 // Ekte tilbake: dit du kom fra (perioden, en økt …); /trening som fallback.
 function goBack() {
@@ -65,8 +65,24 @@ function linjer(tekst) {
   return String(tekst || '').split('\n').map(l => l.trim()).filter(Boolean)
 }
 
+// Nøkkeltall-kortet: bare radene som har en verdi. Har øvelsen ingen av dem,
+// vises ikke kortet — et kort med tre tomme rader er verre enn ingen kort.
+const nokkeltall = computed(() => {
+  const a = active.value
+  if (!a) return []
+  const rader = []
+  const spillere = spillereLabel(a.min_spillere, a.maks_spillere)
+  if (spillere) rader.push({ merke: 'Spillere', verdi: spillere })
+  if (a.min_alder) rader.push({ merke: 'Alder', verdi: `${a.min_alder} år+` })
+  if (a.plass) rader.push({ merke: 'Plass', verdi: plassLabel(a.plass) })
+  if ((a.utstyr_tags || []).length) {
+    rader.push({ merke: 'Utstyr', verdi: a.utstyr_tags.map(equipmentLabel).join(', ') })
+  }
+  return rader
+})
+
 function emptyForm() {
-  return { name: '', type: 'none', category: '', tema: '', gruppe: '', utstyr: '', organisering: '', laeringsmomenter: '', se_etter: '', si_til_barna: '', link: { label: '', url: '' } }
+  return { name: '', type: 'none', category: '', tema: '', gruppe: '', utstyr: '', organisering: '', laeringsmomenter: '', se_etter: '', si_til_barna: '', min_spillere: null, maks_spillere: null, utstyr_tags: [], plass: null, min_alder: null, link: { label: '', url: '' } }
 }
 
 function openView(ex) {
@@ -95,6 +111,11 @@ function startEdit() {
     laeringsmomenter: (ex.laeringsmomenter || []).join('\n'),
     se_etter: (ex.se_etter || []).join('\n'),
     si_til_barna: (ex.si_til_barna || []).join('\n'),
+    min_spillere: ex.min_spillere ?? null,
+    maks_spillere: ex.maks_spillere ?? null,
+    utstyr_tags: [...(ex.utstyr_tags || [])],
+    plass: ex.plass || null,
+    min_alder: ex.min_alder ?? null,
     link: ex.link ? { label: ex.link.label || '', url: ex.link.url || '' } : { label: '', url: '' }
   }
   mode.value = 'edit'
@@ -113,6 +134,11 @@ async function save() {
     laeringsmomenter: linjer(form.value.laeringsmomenter),
     se_etter: linjer(form.value.se_etter),
     si_til_barna: linjer(form.value.si_til_barna),
+    min_spillere: form.value.min_spillere || null,
+    maks_spillere: form.value.maks_spillere || null,
+    utstyr_tags: [...(form.value.utstyr_tags || [])],
+    plass: form.value.plass || null,
+    min_alder: form.value.min_alder || null,
     link: form.value.link.url.trim() ? { label: form.value.link.label.trim(), url: form.value.link.url.trim() } : null
   }
   if (supportsCategory.value) payload.category = form.value.category || null
@@ -231,6 +257,20 @@ onMounted(fetchExercises)
           </div>
           <p v-if="active.tema" class="ex-view__tema">{{ active.tema }}</p>
 
+          <!-- Nøkkeltallene står FØRST fordi de avgjør om øvelsen er aktuell i
+               det hele tatt. Ni avbud en tirsdag, og «Spillere 4–9» er det du
+               leser — ikke læringsmålet. Kortet har ingen overskrift: radene
+               har sine egne merker, og «Nøkkeltall» over dem ville vært et
+               skilt over fire skilt. -->
+          <section v-if="nokkeltall.length" class="ex-sek ex-sek--fakta">
+            <dl class="ex-fakta">
+              <template v-for="r in nokkeltall" :key="r.merke">
+                <dt>{{ r.merke }}</dt>
+                <dd>{{ r.verdi }}</dd>
+              </template>
+            </dl>
+          </section>
+
           <!-- Én øvelse har hele flaten her, og da bærer seksjonene sin egen
                ramme: du skanner etter overskriften og finner delen du er ute
                etter. Inne i uka ligger 3-4 øvelser under hverandre — der ville
@@ -308,7 +348,7 @@ onMounted(fetchExercises)
 
       <!-- REDIGERING / NY -->
       <form v-else @submit.prevent="save">
-        <ExerciseFields :form="form" :show-category="supportsCategory" :show-gruppe="supportsGruppe" :show-utstyr="supportsUtstyr" :show-se-etter="supportsSeEtter" :show-si-til-barna="supportsSiTilBarna" />
+        <ExerciseFields :form="form" :show-category="supportsCategory" :show-gruppe="supportsGruppe" :show-utstyr="supportsUtstyr" :show-se-etter="supportsSeEtter" :show-si-til-barna="supportsSiTilBarna" :show-nokkeltall="supportsNokkeltall" />
         <div class="bank__form-actions">
           <button
             v-if="mode === 'edit'"
@@ -548,6 +588,45 @@ onMounted(fetchExercises)
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-primary);
   line-height: 1.55;
+}
+
+/* Verdien står til høyre, merket til venstre, hårstrek mellom radene: det er
+   en tabell med to kolonner, og øyet finner «Spillere» uten å lese resten.
+   Verdien er tabular-nums så tallene står i loddrett linje. */
+.ex-sek--fakta {
+  padding: var(--ds-space-sm) var(--ds-space-md);
+}
+
+.ex-fakta {
+  margin: 0;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  align-items: baseline;
+  gap: 0 var(--ds-space-md);
+}
+
+.ex-fakta dt {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+  padding: var(--ds-space-sm) 0;
+}
+
+.ex-fakta dd {
+  margin: 0;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-primary);
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  padding: var(--ds-space-sm) 0;
+}
+
+/* Streken hører mellom radene, ikke over den første eller under den siste.
+   dt og dd er søsken i samme grid, så «alle unntatt de to første» treffer
+   hver rad etter den øverste. */
+.ex-fakta dt:not(:first-of-type),
+.ex-fakta dd:not(:first-of-type) {
+  border-top: 1px solid var(--ds-color-border);
 }
 
 /* Frasene er replikker, ikke punkter. Ingen markør — anførselstegnene er
