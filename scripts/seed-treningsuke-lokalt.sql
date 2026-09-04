@@ -21,3 +21,19 @@ insert into training_sessions (title,weekday,position,accent,duration_min,focus,
 '[{"type":"mix","text":"Ferdighetssirkel","tema":"Sjef over ballen","minutes":20,"organisering":"Avsluttes med press.","link":null},{"type":"diff","text":"Vinneren står — 3v3 på småmål","tema":"Spille fremover","minutes":30,"organisering":"30 min. Tre baner, én fast joker (A-spiller) per bane. Differensiert i nivå A, B og C — tre lag à tre per bane.","link":null}]'::jsonb,'af104bf3-02f4-4067-a0db-bf285f5d8f39'),
 ('Lørdag',6,2,'olive',90,'Spill og mestring. Mye touch, små lag, mange mål — la dem prøve det vi har trent på.',
 '[{"type":"diff","text":"Utvidet Barça-oppvarming","tema":"Sjef over ballen","minutes":15,"laeringsmomenter":["Begge føtter, hele foten i bruk","Blikket opp mellom hver berøring"],"organisering":"Innside, utside, såle, vendinger og finter med begge føtter, rundt kjegler.","link":null},{"type":"diff","text":"Eggs (transition game)","tema":"Omstilling","minutes":20,"organisering":"4v4, 3v3 eller 2v2 ut fra antall.","link":{"label":"Eggs Transition Game – 4v4 til 4v3","url":"https://tiim.no/ovelse/eggs-transition-game-4v4-til-4v3"}},{"type":"mix","text":"4v4-turnering","tema":"Mange involveringer","minutes":25,"organisering":"Korte baner, helst med store mål.","link":null},{"type":"none","text":"Tverrliggerkonkurranse og killer","minutes":10,"organisering":"Avslutning. To lag, poeng på treff.","link":null}]'::jsonb,'af104bf3-02f4-4067-a0db-bf285f5d8f39');
+
+-- Bank-radene, ikke bare drills-JSONB. Testen sjekker at gruppa og utstyret
+-- står hver for seg i BANKEN, og de kolonnene har fiksturen aldri fylt — så
+-- assertionen har feilet på manglende data, ikke på oppførsel.
+-- Øvelsen er den samme som ligger i tirsdagens drills; her er den som mal.
+update training_exercises set
+  gruppe = 'To og to per stasjon.',
+  utstyr = 'Kjegler, porter, én ball per par.'
+where name = 'Medtak, dribling, vending og pasning';
+
+update training_exercises set
+  gruppe = 'To baner, kø ved hver.',
+  utstyr = 'To store mål, keeper i hvert, kjegler.',
+  se_etter = '["Kroppen kommer mellom ball og forsvarer i vendingen", "Skuddet kommer uten ekstra touch"]'::jsonb,
+  si_til_barna = '["Vend bort fra press", "Skyt med det du har"]'::jsonb
+where name = '1v1 vende, drible, skyte med store mål og keeper';

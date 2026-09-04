@@ -10,7 +10,7 @@ import { useAuth } from '../stores/auth'
 const router = useRouter()
 const { activeCohort } = useAuth()
 const klubbNavn = computed(() => activeCohort.value?.club_short_name || activeCohort.value?.club_name || '')
-const { exercises, supportsCategory, supportsGruppe, supportsUtstyr, fetchExercises, createExercise, updateExercise, deleteExercise, opphavFor } = useExercises()
+const { exercises, supportsCategory, supportsGruppe, supportsUtstyr, supportsSeEtter, supportsSiTilBarna, fetchExercises, createExercise, updateExercise, deleteExercise, opphavFor } = useExercises()
 
 // Ekte tilbake: dit du kom fra (perioden, en økt …); /trening som fallback.
 function goBack() {
@@ -47,8 +47,26 @@ const categoryLabel = computed(() =>
   EXERCISE_CATEGORIES.find(c => c.value === active.value?.category)?.label || ''
 )
 
+// Gjennomføringen er skrevet som linjer av en trener. Er det flere enn én, er
+// det en rekkefølge, og da nummererer appen den — treneren skal ikke skrive
+// «1.» selv. Én linje er ett avsnitt: «1.» alene over én setning er et skilt
+// uten veikryss.
+const gjennomforing = computed(() => {
+  const linjer = (active.value?.organisering || '')
+    .split('\n')
+    .map(l => l.trim())
+    .filter(Boolean)
+  return { linjer, nummerert: linjer.length > 1 }
+})
+
+// Tre felt skrives som «ett per linje» i samme slags tekstfelt. Å splitte dem
+// tre steder er tre steder å glemme .filter(Boolean) på.
+function linjer(tekst) {
+  return String(tekst || '').split('\n').map(l => l.trim()).filter(Boolean)
+}
+
 function emptyForm() {
-  return { name: '', type: 'none', category: '', tema: '', gruppe: '', utstyr: '', organisering: '', laeringsmomenter: '', link: { label: '', url: '' } }
+  return { name: '', type: 'none', category: '', tema: '', gruppe: '', utstyr: '', organisering: '', laeringsmomenter: '', se_etter: '', si_til_barna: '', link: { label: '', url: '' } }
 }
 
 function openView(ex) {
@@ -75,6 +93,8 @@ function startEdit() {
     utstyr: ex.utstyr || '',
     organisering: ex.organisering || '',
     laeringsmomenter: (ex.laeringsmomenter || []).join('\n'),
+    se_etter: (ex.se_etter || []).join('\n'),
+    si_til_barna: (ex.si_til_barna || []).join('\n'),
     link: ex.link ? { label: ex.link.label || '', url: ex.link.url || '' } : { label: '', url: '' }
   }
   mode.value = 'edit'
@@ -90,7 +110,9 @@ async function save() {
     gruppe: form.value.gruppe.trim() || null,
     utstyr: form.value.utstyr.trim() || null,
     organisering: form.value.organisering.trim() || null,
-    laeringsmomenter: form.value.laeringsmomenter.split('\n').map(s => s.trim()).filter(Boolean),
+    laeringsmomenter: linjer(form.value.laeringsmomenter),
+    se_etter: linjer(form.value.se_etter),
+    si_til_barna: linjer(form.value.si_til_barna),
     link: form.value.link.url.trim() ? { label: form.value.link.label.trim(), url: form.value.link.url.trim() } : null
   }
   if (supportsCategory.value) payload.category = form.value.category || null
@@ -209,27 +231,63 @@ onMounted(fetchExercises)
           </div>
           <p v-if="active.tema" class="ex-view__tema">{{ active.tema }}</p>
 
-          <div v-if="(active.laeringsmomenter || []).length" class="ex-view__section">
-            <div class="ex-view__label">Momenter</div>
+          <!-- Én øvelse har hele flaten her, og da bærer seksjonene sin egen
+               ramme: du skanner etter overskriften og finner delen du er ute
+               etter. Inne i uka ligger 3-4 øvelser under hverandre — der ville
+               det samme blitt tjue rammer på én tirsdag, og der står stakken
+               tett med vilje.
+               Rekkefølgen er lesningen: hva de skal lære, hva du trenger,
+               hva dere gjør. -->
+          <section v-if="(active.laeringsmomenter || []).length" class="ex-sek">
+            <h4 class="ex-sek__tittel">Læringsmål</h4>
             <ul class="ex-view__points">
               <li v-for="(p, i) in active.laeringsmomenter" :key="i">{{ p }}</li>
             </ul>
-          </div>
+          </section>
 
-          <div v-if="active.gruppe" class="ex-view__section">
-            <div class="ex-view__label">Gruppa</div>
-            <p class="ex-view__text">{{ active.gruppe }}</p>
-          </div>
+          <!-- Gruppa og utstyret er det du trenger FØR øvelsen begynner, og de
+               er to korte fakta — ett kort med to merkede linjer, ikke to kort
+               med én linje hver. -->
+          <section v-if="active.gruppe || active.utstyr" class="ex-sek">
+            <h4 class="ex-sek__tittel">Gruppe og utstyr</h4>
+            <dl class="ex-rigg">
+              <template v-if="active.gruppe">
+                <dt>Gruppa</dt>
+                <dd>{{ active.gruppe }}</dd>
+              </template>
+              <template v-if="active.utstyr">
+                <dt>Utstyr</dt>
+                <dd>{{ active.utstyr }}</dd>
+              </template>
+            </dl>
+          </section>
 
-          <div v-if="active.utstyr" class="ex-view__section">
-            <div class="ex-view__label">Utstyr og bane</div>
-            <p class="ex-view__text">{{ active.utstyr }}</p>
-          </div>
+          <section v-if="gjennomforing.linjer.length" class="ex-sek">
+            <h4 class="ex-sek__tittel">Gjennomføring</h4>
+            <ol v-if="gjennomforing.nummerert" class="ex-steg">
+              <li v-for="(l, i) in gjennomforing.linjer" :key="i">{{ l }}</li>
+            </ol>
+            <p v-else class="ex-view__text">{{ gjennomforing.linjer[0] }}</p>
+          </section>
 
-          <div v-if="active.organisering" class="ex-view__section">
-            <div class="ex-view__label">Øvelsen</div>
-            <p class="ex-view__text">{{ active.organisering }}</p>
-          </div>
+          <!-- Tegnene på at øvelsen virker. Læringsmålet er hva de skal få til;
+               dette er hva du ser etter mens de prøver. -->
+          <section v-if="(active.se_etter || []).length" class="ex-sek">
+            <h4 class="ex-sek__tittel">Se etter dette</h4>
+            <ul class="ex-view__points">
+              <li v-for="(p, i) in active.se_etter" :key="i">{{ p }}</li>
+            </ul>
+          </section>
+
+          <!-- Ordene, ikke ordlyden om ordene. De står som sitat fordi de skal
+               leses som noe du sier høyt, og de tåler ikke en strek i margen
+               som gjør dem til en huskeliste. -->
+          <section v-if="(active.si_til_barna || []).length" class="ex-sek">
+            <h4 class="ex-sek__tittel">Si dette til barna</h4>
+            <ul class="ex-fraser">
+              <li v-for="(p, i) in active.si_til_barna" :key="i">«{{ p }}»</li>
+            </ul>
+          </section>
 
           <a
             v-if="active.link && active.link.url"
@@ -250,7 +308,7 @@ onMounted(fetchExercises)
 
       <!-- REDIGERING / NY -->
       <form v-else @submit.prevent="save">
-        <ExerciseFields :form="form" :show-category="supportsCategory" :show-gruppe="supportsGruppe" :show-utstyr="supportsUtstyr" />
+        <ExerciseFields :form="form" :show-category="supportsCategory" :show-gruppe="supportsGruppe" :show-utstyr="supportsUtstyr" :show-se-etter="supportsSeEtter" :show-si-til-barna="supportsSiTilBarna" />
         <div class="bank__form-actions">
           <button
             v-if="mode === 'edit'"
@@ -435,7 +493,7 @@ onMounted(fetchExercises)
 .ex-view {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-md);
+  gap: var(--ds-space-lg);
 }
 
 .ex-view__head {
@@ -451,23 +509,122 @@ onMounted(fetchExercises)
   margin: 0;
 }
 
-.ex-view__section { margin: 0; }
-
-.ex-view__label {
-  font-size: var(--ds-text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ds-color-text-tertiary);
-  margin-bottom: 4px;
+/* Seksjonen som eget kort. Skillet er ramme + flate + luft, ikke en emoji
+   foran overskriften: ikonet er en krykke for hierarki man ikke har, og her
+   har vi det. I mørk modus ligger flatene tett på hverandre — der er det
+   ramma som bærer skillet, og den er med i begge. */
+.ex-sek {
+  background: var(--ds-color-bg-subtle);
+  border: var(--ds-border-width) solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  padding: var(--ds-space-md);
 }
 
-.ex-view__points {
+.ex-sek__tittel {
+  margin: 0 0 var(--ds-space-sm);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-primary);
+  letter-spacing: -0.01em;
+}
+
+/* Merket bærer linja si: to like korte setninger etter hverandre sier ikke
+   selv hvem som er hvem. */
+.ex-rigg {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: var(--ds-space-xs) var(--ds-space-md);
   margin: 0;
-  padding-left: 1.2em;
+  align-items: baseline;
+}
+
+.ex-rigg dt {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+}
+
+.ex-rigg dd {
+  margin: 0;
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-primary);
-  line-height: 1.6;
+  line-height: 1.55;
+}
+
+/* Frasene er replikker, ikke punkter. Ingen markør — anførselstegnene er
+   markøren, og de sier noe strekene ikke kan: dette leses høyt. */
+.ex-fraser {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-xs);
+}
+
+.ex-fraser li {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-primary);
+  line-height: 1.55;
+}
+
+/* Tallet står i margen, ikke i tekstblokka: teksten får én venstrekant å
+   følge uansett om steget er én linje eller fire. */
+.ex-steg {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  counter-reset: steg;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+}
+
+.ex-steg li {
+  counter-increment: steg;
+  position: relative;
+  padding-left: 1.9em;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-primary);
+  line-height: 1.55;
+}
+
+.ex-steg li::before {
+  content: counter(steg) ".";
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1.4em;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-color-text-tertiary);
+}
+
+/* Reset-en nuller list-style på alle lister, så «padding-left» ga bare tom
+   plass: et moment over to linjer rant rett inn i det neste. Streken i margen
+   er den samme markøren uka bruker — ett moment, én strek. */
+.ex-view__points {
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+}
+
+.ex-view__points li {
+  position: relative;
+  padding-left: var(--ds-space-md);
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-primary);
+  line-height: 1.55;
+}
+
+.ex-view__points li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0.7em;
+  width: 8px;
+  height: 1px;
+  background: var(--ds-color-text-tertiary);
 }
 
 /* Avsnittene er skrevet av en trener med tomme linjer — de skal stå. */

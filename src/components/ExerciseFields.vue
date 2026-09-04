@@ -16,7 +16,9 @@ const props = defineProps({
   showCategory: { type: Boolean, default: false },
   // Kolonnene finnes først etter migrasjonen — da skal feltene holde seg unna.
   showGruppe: { type: Boolean, default: false },
-  showUtstyr: { type: Boolean, default: false }
+  showUtstyr: { type: Boolean, default: false },
+  showSeEtter: { type: Boolean, default: false },
+  showSiTilBarna: { type: Boolean, default: false }
 })
 
 const DRILL_TYPES = [
@@ -85,8 +87,18 @@ function pickCategory(value) {
   </div>
 
   <div class="ds-form-group">
-    <label class="ds-label" for="ex-org">Beskrivelse av øvelsen</label>
-    <textarea id="ex-org" v-model="form.organisering" class="ds-input" rows="4" placeholder="Hva som skjer, steg for steg. Tomme linjer blir avsnitt (valgfri)."></textarea>
+    <label class="ds-label" for="ex-org">Gjennomføring</label>
+    <textarea id="ex-org" v-model="form.organisering" class="ds-input" rows="4" placeholder="Ett steg per linje — de nummereres for deg. Én linje blir stående som avsnitt (valgfri)."></textarea>
+  </div>
+
+  <div v-if="showSeEtter" class="ds-form-group">
+    <label class="ds-label" for="ex-se-etter">Se etter dette — ett per linje</label>
+    <textarea id="ex-se-etter" v-model="form.se_etter" class="ds-input" rows="3" placeholder="Ballen trekkes tett bak støttefoten&#10;Lavt tyngdepunkt i vendingen (valgfri)"></textarea>
+  </div>
+
+  <div v-if="showSiTilBarna" class="ds-form-group">
+    <label class="ds-label" for="ex-si-til-barna">Si dette til barna — én frase per linje</label>
+    <textarea id="ex-si-til-barna" v-model="form.si_til_barna" class="ds-input" rows="3" placeholder="Selg skuddet&#10;Vend raskt (valgfri)"></textarea>
   </div>
 
   <div class="ds-form-group">

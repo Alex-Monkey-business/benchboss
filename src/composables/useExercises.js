@@ -46,12 +46,12 @@ export function groupByCategory(list) {
 }
 
 const DEMO_EXERCISES = [
-  { id: 'dex-1', category: 'sjef-over-ballen', name: 'Medtak, dribling, vending og pasning', type: 'diff', tema: 'Spille oss fremover', gruppe: 'To og to per stasjon.', organisering: 'Pasning gjennom port, retningsbestemt medtak, dribling forbi kjegler, finte mot passivt press, vending ved siste kjegle. Bytt roller.', laeringsmomenter: ['Mykt medtak ut til siden — fremover på andre touch', 'Løft blikket og finn timing på finta', 'Finte med tempo og store bevegelser for å passere'], link: { label: 'Medtak, dribling, vending, pasning', url: 'https://tiim.no/ovelse/medtak-dribling-vending-pasning' } },
-  { id: 'dex-2', category: 'spill', name: '3v3 med press i ryggen', type: 'diff', tema: 'Fart i angrep, hold overtaket', gruppe: 'To baner med småmål.', utstyr: 'Fire småmål, vester.', organisering: 'To forsvarere ved eget mål; den siste jager i press straks angriperne får ballen.', laeringsmomenter: [], link: null },
-  { id: 'dex-3', category: 'spill', name: 'Vinneren står', type: 'mix', tema: 'Tempo og lite dødtid', organisering: 'To lag spiller kort 7er — ny kamp straks det er mål.', laeringsmomenter: [], link: null },
-  { id: 'dex-4', category: 'sjef-over-ballen', name: 'Ferdighetssirkel', type: 'mix', tema: 'Sjef over ballen', organisering: 'Avsluttes med press.', laeringsmomenter: [], link: null },
-  { id: 'dex-5', category: 'spill', name: 'Eggs (transition game)', type: 'diff', tema: null, organisering: '4v4, 3v3 eller 2v2 ut fra antall.', laeringsmomenter: [], link: { label: 'Eggs Transition Game – 4v4 til 4v3', url: 'https://tiim.no/ovelse/eggs-transition-game-4v4-til-4v3' } },
-  { id: 'dex-6', category: 'oppvarming', name: 'Utvidet Barça-oppvarming', type: 'diff', tema: null, organisering: 'Innside, utside, såle, vendinger og finter med begge føtter, rundt kjegler.', laeringsmomenter: [], link: null }
+  { id: 'dex-1', se_etter: ['Kroppen kommer mellom ball og kjegle i finta', 'Ballen ligger tett på foten hele slalåmen', 'Ingen stopp mellom vending og pasning'], si_til_barna: ['Ta den ut til siden', 'Se opp', 'Full fart ut'], category: 'sjef-over-ballen', name: 'Medtak, dribling, vending og pasning', type: 'diff', tema: 'Spille oss fremover', gruppe: 'To og to per stasjon.', organisering: 'Pasning gjennom port, retningsbestemt medtak, dribling forbi kjegler, finte mot passivt press, vending ved siste kjegle. Bytt roller.', laeringsmomenter: ['Mykt medtak ut til siden — fremover på andre touch', 'Løft blikket og finn timing på finta', 'Finte med tempo og store bevegelser for å passere'], link: { label: 'Medtak, dribling, vending, pasning', url: 'https://tiim.no/ovelse/medtak-dribling-vending-pasning' } },
+  { id: 'dex-2', se_etter: ['Forsvarerne presser sammen, ikke én og én', 'Angriperne spiller fremover på første touch'], si_til_barna: ['Press sammen', 'Snakk', 'Fremover'], category: 'spill', name: '3v3 med press i ryggen', type: 'diff', tema: 'Fart i angrep, hold overtaket', gruppe: 'To baner med småmål.', utstyr: 'Fire småmål, vester.', organisering: 'To forsvarere ved eget mål; den siste jager i press straks angriperne får ballen.', laeringsmomenter: [], link: null },
+  { id: 'dex-3', se_etter: [], si_til_barna: [], category: 'spill', name: 'Vinneren står', type: 'mix', tema: 'Tempo og lite dødtid', organisering: 'To lag spiller kort 7er — ny kamp straks det er mål.', laeringsmomenter: [], link: null },
+  { id: 'dex-4', se_etter: [], si_til_barna: [], category: 'sjef-over-ballen', name: 'Ferdighetssirkel', type: 'mix', tema: 'Sjef over ballen', organisering: 'Avsluttes med press.', laeringsmomenter: [], link: null },
+  { id: 'dex-5', se_etter: [], si_til_barna: [], category: 'spill', name: 'Eggs (transition game)', type: 'diff', tema: null, organisering: '4v4, 3v3 eller 2v2 ut fra antall.', laeringsmomenter: [], link: { label: 'Eggs Transition Game – 4v4 til 4v3', url: 'https://tiim.no/ovelse/eggs-transition-game-4v4-til-4v3' } },
+  { id: 'dex-6', se_etter: [], si_til_barna: [], category: 'oppvarming', name: 'Utvidet Barça-oppvarming', type: 'diff', tema: null, organisering: 'Innside, utside, såle, vendinger og finter med begge føtter, rundt kjegler.', laeringsmomenter: [], link: null }
 ]
 
 function byName(a, b) {
@@ -68,6 +68,8 @@ export function exerciseToDrill(ex) {
     utstyr: ex.utstyr || null,
     organisering: ex.organisering || null,
     laeringsmomenter: [...(ex.laeringsmomenter || [])],
+    se_etter: [...(ex.se_etter || [])],
+    si_til_barna: [...(ex.si_til_barna || [])],
     link: ex.link ? { label: ex.link.label || '', url: ex.link.url || '' } : null,
     exercise_id: ex.id
   }
@@ -105,6 +107,8 @@ export function drillToExercise(d) {
     utstyr: d.utstyr || null,
     organisering: d.organisering || null,
     laeringsmomenter: [...(d.laeringsmomenter || [])],
+    se_etter: [...(d.se_etter || [])],
+    si_til_barna: [...(d.si_til_barna || [])],
     link: d.link ? { label: d.link.label || '', url: d.link.url || '' } : null
   }
 }
@@ -126,11 +130,23 @@ const supportsUtstyr = computed(() =>
   exercises.value.length === 0 || 'utstyr' in (exercises.value[0] || {})
 )
 
+// Tegnene og frasene kom i 20260904090000. Samme sikring: uten kolonnene skal
+// seksjonene bare være borte, ikke velte lagringen.
+const supportsSeEtter = computed(() =>
+  exercises.value.length === 0 || 'se_etter' in (exercises.value[0] || {})
+)
+
+const supportsSiTilBarna = computed(() =>
+  exercises.value.length === 0 || 'si_til_barna' in (exercises.value[0] || {})
+)
+
 function utenUstottede(payload) {
   const p = { ...payload }
   if (!supportsGruppe.value) delete p.gruppe
   if (!supportsUtstyr.value) delete p.utstyr
   if (!supportsCategory.value) delete p.category
+  if (!supportsSeEtter.value) delete p.se_etter
+  if (!supportsSiTilBarna.value) delete p.si_til_barna
   return p
 }
 
@@ -254,5 +270,5 @@ export function useExercises() {
     return kortKullnavn(navn, useAuth().activeCohort.value?.club_short_name || '')
   }
 
-  return { exercises, loading, loaded, supportsCategory, supportsGruppe, supportsUtstyr, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill, opphavFor }
+  return { exercises, loading, loaded, supportsCategory, supportsGruppe, supportsUtstyr, supportsSeEtter, supportsSiTilBarna, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill, opphavFor }
 }
