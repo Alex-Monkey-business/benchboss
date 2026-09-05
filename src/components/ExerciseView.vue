@@ -18,7 +18,7 @@
 // og 20 lørdag — så den kommer inn som prop fra dagen og står øverst blant
 // nøkkeltallene når den finnes.
 import { computed } from 'vue'
-import { EXERCISE_CATEGORIES, equipmentLabel, plassLabel, spillereLabel } from '../composables/useExercises'
+import { EXERCISE_CATEGORIES, equipmentLabel, plassLabel, spillereLabel, ovelsensVideo } from '../composables/useExercises'
 
 const props = defineProps({
   // Bankrad eller drill fra økta (resolveDrills gir dem samme form; navnet
@@ -37,15 +37,9 @@ const categoryLabel = computed(() =>
   EXERCISE_CATEGORIES.find(c => c.value === ex.value.category)?.label || ''
 )
 
-const video = computed(() => (ex.value.video && ex.value.video.url ? ex.value.video : null))
-
-// «tiim.no», ikke «Qbrick CDN»: avsenderen er den som laget videoen.
-const videoKilde = computed(() => {
-  const v = video.value
-  if (!v) return ''
-  if (v.source === 'tiim') return 'tiim.no'
-  try { return new URL(v.source_url || v.url).hostname.replace(/^www\./, '') } catch { return '' }
-})
+// MP4 fra tiim, eller en YouTube/Vimeo-lenke treneren limte inn — samme plass.
+const video = computed(() => ovelsensVideo(ex.value))
+const videoKilde = computed(() => video.value?.kilde || '')
 
 function varighet(sek) {
   const s = Math.round(sek || 0)
@@ -115,6 +109,7 @@ const harInnhold = computed(() =>
          en svart boks. -->
     <figure v-if="video" class="ex-video">
       <video
+        v-if="video.kind === 'mp4'"
         class="ex-video__spiller"
         :src="video.url"
         :poster="video.poster || null"
@@ -122,6 +117,18 @@ const harInnhold = computed(() =>
         playsinline
         :preload="video.poster ? 'none' : 'metadata'"
       ></video>
+      <!-- YouTube/Vimeo: spilleren deres i en ramme. nocookie-domenet holder
+           sporingen unna til noen faktisk trykker play. -->
+      <iframe
+        v-else
+        class="ex-video__spiller"
+        :src="video.url"
+        title="Video av øvelsen"
+        loading="lazy"
+        allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen"
+        allowfullscreen
+        referrerpolicy="strict-origin-when-cross-origin"
+      ></iframe>
       <figcaption class="ex-video__tekst">
         <span>Video fra {{ videoKilde }}<template v-if="video.duration"> · {{ varighet(video.duration) }}</template></span>
         <a v-if="video.source_url" :href="video.source_url" target="_blank" rel="noopener">Åpne på {{ videoKilde }}</a>
@@ -291,6 +298,7 @@ const harInnhold = computed(() =>
   display: block;
   width: 100%;
   aspect-ratio: 16 / 9;
+  border: 0;
   border-radius: var(--ds-radius-md);
   background: #0E0E0D;
   object-fit: cover;

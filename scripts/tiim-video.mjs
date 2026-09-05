@@ -42,6 +42,12 @@ export function tiimSlug(url) {
   return m ? m[1] : null
 }
 
+// «Månedens øvelse»-artiklene har også film, bare i en annen JSON-form.
+export function tiimArtikkel(url) {
+  const m = String(url || '').match(/tiim\.no\/artikkel\/([^/?#]+)/)
+  return m ? m[1] : null
+}
+
 const utenHash = u => u.replace(/^https:\/\/[a-f0-9]{32}-/, 'https://')
 
 // Hele øvelsen slik tiim beskriver den — video, men også navn, type, tema,
@@ -91,16 +97,31 @@ export async function hentTiim(slug) {
   }
 }
 
+// Artikkelsider: vi kjenner ikke skjemaet, så vi leter etter MP4-adresser med
+// oppløsning i navnet og tar den nærmest 480p. Én film per artikkel i praksis.
+export async function hentTiimArtikkelVideo(slug) {
+  const html = await (await fetch(`https://tiim.no/artikkel/${slug}`, { headers: { 'User-Agent': 'Mozilla/5.0 (BenchBoss)' } })).text()
+  const m = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/)
+  if (!m) return null
+  const json = m[1]
+  const mp4 = [...new Set(json.match(/https:\/\/[^"\\]+?_(\d+)p\.mp4/g) || [])]
+    .map(u => ({ url: utenHash(u), height: Number(u.match(/_(\d+)p\.mp4$/)[1]) }))
+    .sort((a, b) => Math.abs(a.height - 480) - Math.abs(b.height - 480))[0]
+  if (!mp4) return null
+  const dur = json.match(/"duration":\s*([\d.]+)/)
+  return { url: mp4.url, poster: null, duration: dur ? Math.round(Number(dur[1])) : null, source: 'tiim', source_url: `https://tiim.no/artikkel/${slug}` }
+}
+
 async function main() {
   const sb = await klient()
   const { data, error } = await sb.from('training_exercises').select('id, name, link, video')
   if (error) throw error
-  const kandidater = data.filter(e => tiimSlug(e.link?.url) && (FORCE || !e.video))
+  const kandidater = data.filter(e => (tiimSlug(e.link?.url) || tiimArtikkel(e.link?.url)) && (FORCE || !e.video))
   console.log(`${data.length} øvelser, ${kandidater.length} med tiim-lenke${FORCE ? '' : ' uten video'}`)
   for (const e of kandidater) {
     const slug = tiimSlug(e.link.url)
     try {
-      const t = await hentTiim(slug)
+      const t = slug ? await hentTiim(slug) : { video: await hentTiimArtikkelVideo(tiimArtikkel(e.link.url)) }
       if (!t.video) { console.log(`  –  ${e.name}: ingen video på tiim`); continue }
       console.log(`  ${DRY ? '~' : '+'}  ${e.name}: ${t.video.duration} sek, ${t.video.url.match(/_(\d+p)\.mp4/)?.[1]}${t.video.poster ? ', poster' : ', ingen poster'}`)
       if (DRY) continue

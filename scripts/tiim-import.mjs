@@ -1,6 +1,7 @@
 // Henter øvelser fra tiim.no inn i banken.
 //
 //   node scripts/tiim-import.mjs --liste                 # kandidater for kullets alder
+//   node scripts/tiim-import.mjs --alle [--dry]          # alle for 10–12 år (Alex, 5. sep)
 //   node scripts/tiim-import.mjs <slug> [<slug> …]       # legg inn (lokal stack)
 //   node scripts/tiim-import.mjs --med-tekst <slug> …    # ta med tiims tekst
 //   PROD=1 node scripts/tiim-import.mjs <slug> …
@@ -20,17 +21,31 @@ import { hentTiim } from './tiim-video.mjs'
 const args = process.argv.slice(2)
 const MED_TEKST = args.includes('--med-tekst')
 const LISTE = args.includes('--liste')
+const ALLE = args.includes('--alle')
+const DRY = args.includes('--dry')
 const slugs = args.filter(a => !a.startsWith('--'))
 
-// tiims typer → bankens kategorier. «Situasjonsøvelse» er spill med og mot
-// i små grupper — nærmest «spill» hos oss, ikke «pasning».
-const KATEGORI = [
-  [/Oppvarming/i, 'oppvarming'],
-  [/Scoringstrening/i, 'skudd'],
-  [/Spill \(Smålagspill\)/i, 'spill'],
-  [/Situasjonsøvelse/i, 'spill'],
-  [/Fotballek/i, 'oppvarming']
-]
+// tiims typer og temaer → bankens fem kategorier. Bankens egne rader er
+// fasit: «1v1 vende, drible, skyte» er en Situasjonsøvelse med tema «Komme
+// til avslutning» og ligger under skudd; «Medtak, dribling, vending» er en
+// Oppvarming (Sjef over ballen) og ligger under sjef-over-ballen.
+function kategori(t) {
+  const type = t.type.join(' ')
+  const tema = t.topic.join(' ')
+  if (/pasning/i.test(t.title)) return 'pasning'
+  if (/Fotballek/i.test(type)) return 'oppvarming'
+  if (/Oppvarming/i.test(type)) return 'sjef-over-ballen'
+  if (/Scoringstrening/i.test(type)) return 'skudd'
+  if (/Situasjonsøvelse/i.test(type) && /avslutning|score mål/i.test(tema) && !/fremover/i.test(tema)) return 'skudd'
+  if (/Situasjonsøvelse|Smålagspill/i.test(type)) return 'spill'
+  return null
+}
+
+// Telenor Xtra er NFF sitt fotballskole-opplegg; øvelsene er like gode som
+// resten, men prefikset er et programnavn, ikke en del av øvelsen.
+function rentNavn(title) {
+  return title.replace(/^NY:\s*/i, '').replace(/^Telenor Xtra\s*[-–]\s*/i, '').trim()
+}
 
 // «8-9 år» → 8, «10-12 år» → 10. Laveste aldersgruppe øvelsen er merket for.
 function minAlder(levels) {
@@ -39,11 +54,10 @@ function minAlder(levels) {
 }
 
 function tilOvelse(t) {
-  const category = (KATEGORI.find(([re]) => t.type.some(x => re.test(x))) || [])[1] || null
   const ovelse = {
-    name: t.title.replace(/^NY:\s*/i, '').trim(),
+    name: rentNavn(t.title),
     type: 'none',
-    category,
+    category: kategori(t),
     tema: t.topic[0] || null,
     min_alder: minAlder(t.level),
     laeringsmomenter: [],
@@ -95,16 +109,50 @@ async function liste() {
   }
 }
 
+// Alle fotballøvelser merket 10-12 år med video. Rolletrening (egentrening
+// hjemme) og «(m/veiledning)»-dublettene av Telenor Xtra-øvelsene er ute.
+async function alleSlugs() {
+  const html = await (await fetch('https://tiim.no/okter-og-ovelser', { headers: { 'User-Agent': 'Mozilla/5.0 (BenchBoss)' } })).text()
+  const m = html.match(/<script id="__NEXT_DATA__" type="application\/json">([\s\S]*?)<\/script>/)
+  const alle = JSON.parse(m[1]).props.pageProps.allSessionsAndDrills
+  const navn = xs => (xs || []).map(x => x.name.trim())
+  return alle.filter(i => i._type === 'drill' && i.media
+    && navn(i.view).includes('Fotball')
+    && navn(i.level).includes('10-12 år')
+    && !/^Rolletrening/.test(i.title.trim())
+    && !/\(m\/veiledning\)/.test(i.title)).map(i => i.slug.current)
+}
+
 async function main() {
   if (LISTE) return liste()
-  if (!slugs.length) { console.log('Oppgi slugs, eller --liste'); return }
+  if (ALLE) slugs.push(...await alleSlugs())
+  if (!slugs.length) { console.log('Oppgi slugs, --alle eller --liste'); return }
   const sb = await klient()
+  // Banken er klubbens, med kullet som avsender. Vakten i basen krever klubb
+  // eksplisitt når det finnes flere klubber, så vi finner kullet ved navn
+  // (KULL=«Halsen G2015» er default) og tar klubben fra det. Finnes navnet
+  // flere ganger lokalt, tar vi det som faktisk har en treningsuke.
+  const kullNavn = process.env.KULL || 'Halsen G2015'
+  const { data: kull } = await sb.from('cohorts').select('id, club_id, name').eq('name', kullNavn)
+  if (!kull?.length) throw new Error(`fant ikke kullet «${kullNavn}»`)
+  // Kullet må høre til en klubb som finnes — fiksturkullet lokalt peker på en
+  // klubb som ikke gjør det, og da sier fremmednøkkelen nei.
+  const { data: klubber } = await sb.from('clubs').select('id')
+  const gyldige = kull.filter(k => klubber?.some(c => c.id === k.club_id))
+  if (!gyldige.length) throw new Error(`«${kullNavn}» hører ikke til noen klubb som finnes`)
+  let eier = gyldige[0]
+  if (gyldige.length > 1) {
+    const { data: uker } = await sb.from('training_sessions').select('cohort_id').in('cohort_id', gyldige.map(k => k.id))
+    eier = gyldige.find(k => uker?.some(u => u.cohort_id === k.id)) || gyldige[0]
+  }
+  console.log(`legger inn som ${eier.name} (${eier.id})`)
   const { data: fins } = await sb.from('training_exercises').select('id, name, link')
   for (const slug of slugs) {
     const t = await hentTiim(slug)
-    const ovelse = tilOvelse(t)
+    const ovelse = { ...tilOvelse(t), club_id: eier.club_id, cohort_id: eier.id }
     const dublett = (fins || []).find(e => e.link?.url?.includes(`/ovelse/${slug}`) || e.name.trim().toLowerCase() === ovelse.name.toLowerCase())
     if (dublett) { console.log(`  =  ${ovelse.name}: finnes alt («${dublett.name}»)`); continue }
+    if (DRY) { console.log(`  ~  ${ovelse.name} (${ovelse.category || 'uten kategori'}, ${ovelse.min_alder} år+${ovelse.video ? ', video' : ''}) — ${ovelse.tema || ''}`); continue }
     const { data, error } = await sb.from('training_exercises').insert(ovelse).select('id')
     console.log(error || !data?.length ? `  !  ${ovelse.name}: ${error?.message || 'ingen rad'}` : `  +  ${ovelse.name} (${ovelse.category || 'uten kategori'}, ${ovelse.min_alder} år+${ovelse.video ? ', video' : ''})`)
   }

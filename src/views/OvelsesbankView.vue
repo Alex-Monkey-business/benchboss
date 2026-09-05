@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
-import { useExercises, groupByCategory, kullAlder, passerAlder } from '../composables/useExercises'
+import { useExercises, groupByCategory, kullAlder, passerAlder, ovelsensVideo } from '../composables/useExercises'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ExerciseFields from '../components/ExerciseFields.vue'
@@ -22,6 +22,18 @@ function goBack() {
 
 const search = ref('')
 const showSearch = computed(() => synlige.value.length > 8)
+
+// Kortet i hylla: plakaten fra videoen, eller en tom flate. Ærlig tom — vi
+// tegner ikke en fotball for å late som det finnes film.
+function plakat(ex) {
+  return ovelsensVideo(ex)?.poster || null
+}
+
+function varighet(ex) {
+  const s = Math.round(ovelsensVideo(ex)?.duration || 0)
+  if (!s) return ''
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
+}
 
 // Kullets alder, og øvelsene som er anbefalt for eldre. Default viser vi det
 // som passer — men de skjulte er ALLTID tellet fram nederst, så det aldri er
@@ -218,26 +230,30 @@ onMounted(async () => {
     </div>
 
     <template v-else>
-      <div v-for="group in grouped" :key="group.value" class="bank__group">
-        <div v-if="group.label" class="bank__group-label">{{ group.label }}</div>
-        <div class="bank__list">
-          <button v-for="ex in group.items" :key="ex.id" type="button" class="bank-row" @click="openView(ex)">
-            <span
-              v-if="ex.type && ex.type !== 'none'"
-              class="bank-row__badge"
-              :class="`bank-row__badge--${ex.type}`"
-            >{{ ex.type === 'diff' ? 'Diff' : 'Mix' }}</span>
-            <span class="bank-row__body">
-              <span class="bank-row__name">{{ ex.name }}</span>
-              <span class="bank-row__under">
-                <span v-if="opphavFor(ex)" class="bank-row__opphav">Fra {{ opphavFor(ex) }}</span>
-                <span v-if="ex.tema" class="bank-row__tema">{{ ex.tema }}</span>
-              </span>
+      <!-- Banken er hyller, ikke en liste. Én hylle per kategori, kortene
+           ligger på rekke og ruller sidelengs — som PocketCoach, og som
+           enhver videotjeneste: du kjenner øvelsen igjen på bildet før du
+           har lest navnet. 124 øvelser i én kolonne var en vegg. -->
+      <section v-for="group in grouped" :key="group.value" class="hylle">
+        <header v-if="group.label" class="hylle__hode">
+          <h2 class="hylle__tittel">{{ group.label }}</h2>
+          <span class="hylle__tall">{{ group.items.length }}</span>
+        </header>
+        <div class="hylle__rekke">
+          <button v-for="ex in group.items" :key="ex.id" type="button" class="kort" @click="openView(ex)">
+            <span class="kort__bilde" :class="{ 'kort__bilde--tom': !plakat(ex) }">
+              <img v-if="plakat(ex)" :src="plakat(ex)" alt="" loading="lazy" decoding="async" />
+              <span v-else class="kort__tomt">Ingen video</span>
+              <span v-if="ex.type && ex.type !== 'none'" class="kort__badge" :class="`kort__badge--${ex.type}`">{{ ex.type === 'diff' ? 'Diff' : 'Mix' }}</span>
+              <span v-if="varighet(ex)" class="kort__tid">{{ varighet(ex) }}</span>
             </span>
-            <svg class="bank-row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <span class="kort__navn">{{ ex.name }}</span>
+            <span v-if="ex.tema || opphavFor(ex)" class="kort__under">
+              <template v-if="opphavFor(ex)">Fra {{ opphavFor(ex) }}<template v-if="ex.tema"> · </template></template>{{ ex.tema }}
+            </span>
           </button>
         </div>
-      </div>
+      </section>
       <p v-if="!filtered.length && search" class="bank__no-hits">Ingen treff på «{{ search }}»</p>
 
       <!-- Konsekvensen først: hvor mange, og fra hvilken alder. En bryter som
@@ -312,25 +328,6 @@ onMounted(async () => {
 </template>
 
 <style scoped>
-.bank-row__under {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  min-width: 0;
-}
-
-/* Avsenderen, ikke en grense: øvelsen er klubbens og kan brukes av alle. */
-.bank-row__opphav {
-  flex: none;
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-secondary);
-  background: var(--ds-color-bg-subtle);
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-full);
-  padding: 2px 8px;
-}
-
 .bank {
   max-width: 640px;
   margin: 0 auto;
@@ -373,84 +370,145 @@ onMounted(async () => {
   margin-bottom: var(--ds-space-md);
 }
 
-.bank__group { margin-bottom: var(--ds-space-lg); }
+/* ---- Hyllene ---- */
+.hylle { margin-bottom: var(--ds-space-xl); }
 
-.bank__group-label {
-  font-size: var(--ds-text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--ds-color-text-tertiary);
-  padding: 0 4px;
-  margin-bottom: 8px;
-}
-
-.bank__list {
+.hylle__hode {
   display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-sm);
-}
-
-.bank-row {
-  display: flex;
-  align-items: center;
+  align-items: baseline;
+  justify-content: space-between;
   gap: var(--ds-space-md);
-  width: 100%;
-  padding: 14px var(--ds-space-md);
-  background: var(--ds-color-bg-elevated);
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-lg);
-  cursor: pointer;
-  text-align: left;
-  font-family: var(--ds-font-body);
-  -webkit-tap-highlight-color: transparent;
-  transition: border-color var(--ds-duration-fast) var(--ds-ease-out), transform var(--ds-duration-fast) var(--ds-ease-out);
+  margin-bottom: var(--ds-space-sm);
 }
 
-.bank-row:active { transform: scale(0.99); }
-
-@media (hover: hover) and (pointer: fine) {
-  .bank-row:hover { border-color: var(--ds-color-border-strong); }
-}
-
-.bank-row__badge {
-  flex-shrink: 0;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  padding: 2px 7px;
-  border-radius: var(--ds-radius-sm);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-}
-.bank-row__badge--diff { background: var(--accent-bg, var(--ds-badge-bg)); color: var(--accent-text, var(--ds-badge-text)); }
-.bank-row__badge--mix { background: transparent; color: var(--accent-text, var(--ds-badge-text)); box-shadow: inset 0 0 0 1px currentColor; }
-
-.bank-row__body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.bank-row__name {
+.hylle__tittel {
+  margin: 0;
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-lg);
   font-weight: var(--ds-weight-semibold);
-  font-size: var(--ds-text-sm);
+  letter-spacing: var(--ds-tracking-tight);
   color: var(--ds-color-text-primary);
 }
 
-.bank-row__tema {
-  font-size: var(--ds-text-xs);
+.hylle__tall {
+  font-size: var(--ds-text-sm);
+  font-variant-numeric: tabular-nums;
   color: var(--ds-color-text-tertiary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
-.bank-row__chevron {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
+/* Rekka går kant til kant: sidemargen trekkes ut og legges inn igjen som
+   padding, så første kort flukter med overskriften og siste kort kan skimtes
+   i kanten — det er den halve kanten som sier «det er mer her». */
+.hylle__rekke {
+  display: flex;
+  gap: var(--ds-space-sm);
+  margin: 0 calc(-1 * var(--ds-space-lg));
+  padding: 0 var(--ds-space-lg) var(--ds-space-xs);
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  scroll-padding-left: var(--ds-space-lg);
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+
+.hylle__rekke::-webkit-scrollbar { display: none; }
+
+/* 200 px: på 360 ser du 1,7 kort. På 640 tre og en halv. Aldri ett helt og
+   så ingenting — kanten på neste er det som får deg til å rulle. */
+.kort {
+  flex: none;
+  width: 200px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0;
+  border: none;
+  background: none;
+  text-align: left;
+  font-family: var(--ds-font-body);
+  cursor: pointer;
+  scroll-snap-align: start;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.kort:active .kort__bilde { transform: scale(0.98); }
+
+.kort__bilde {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--ds-radius-md);
+  border: 1px solid var(--ds-color-border-light);
+  background: var(--ds-color-bg-subtle);
+  transition: transform var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.kort__bilde img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.kort__tomt {
+  position: absolute;
+  left: 10px;
+  bottom: 8px;
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+}
+
+/* Merkene ligger PÅ bildet, i hjørnene — de skal ikke ta en linje under det. */
+.kort__badge {
+  position: absolute;
+  left: 8px;
+  top: 8px;
+  padding: 2px 7px;
+  border-radius: var(--ds-radius-sm);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-primary);
+  box-shadow: var(--ds-shadow-xs);
+}
+
+.kort__badge--mix { background: var(--ds-color-bg-elevated); box-shadow: inset 0 0 0 1px var(--ds-color-border-strong), var(--ds-shadow-xs); }
+
+.kort__tid {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 2px 6px;
+  border-radius: var(--ds-radius-sm);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  font-variant-numeric: tabular-nums;
+  background: rgba(10, 10, 10, 0.72);
+  color: #fff;
+}
+
+.kort__navn {
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  color: var(--ds-color-text-primary);
+}
+
+.kort__under {
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ds-text-xs);
   color: var(--ds-color-text-tertiary);
 }
 

@@ -77,6 +77,38 @@ export function passerAlder(ex, alder) {
   return ex.min_alder <= alder
 }
 
+// Videoen til en øvelse, uansett hvor den kommer fra.
+//
+// tiim-filmene ligger som MP4 i `video`. Men ni av Halsens egne øvelser finnes
+// ikke på tiim, og der er YouTube det treneren faktisk finner. Limer han inn
+// en YouTube- eller Vimeo-lenke i lenkefeltet, blir den til video øverst —
+// uten eget felt og uten at noen må skjønne hva en embed-adresse er.
+// Plakaten til YouTube er offentlig (i.ytimg.com), så kortet i banken får bilde.
+//
+// Returnerer null, eller { kind: 'mp4' | 'embed', url, poster, duration,
+// kilde, source_url }.
+export function ovelsensVideo(ex) {
+  const v = ex?.video
+  if (v && v.url) {
+    const kilde = v.source === 'tiim' ? 'tiim.no' : vertsnavn(v.source_url || v.url)
+    return { kind: 'mp4', url: v.url, poster: v.poster || null, duration: v.duration || 0, kilde, source_url: v.source_url || null }
+  }
+  const url = ex?.link?.url || ''
+  const yt = url.match(/(?:youtu\.be\/|youtube\.com\/(?:watch\?(?:.*&)?v=|shorts\/|embed\/))([A-Za-z0-9_-]{11})/)
+  if (yt) {
+    return { kind: 'embed', url: `https://www.youtube-nocookie.com/embed/${yt[1]}`, poster: `https://i.ytimg.com/vi/${yt[1]}/hqdefault.jpg`, duration: 0, kilde: 'YouTube', source_url: url }
+  }
+  const vim = url.match(/vimeo\.com\/(?:video\/)?(\d+)/)
+  if (vim) {
+    return { kind: 'embed', url: `https://player.vimeo.com/video/${vim[1]}`, poster: null, duration: 0, kilde: 'Vimeo', source_url: url }
+  }
+  return null
+}
+
+function vertsnavn(u) {
+  try { return new URL(u).hostname.replace(/^www\./, '') } catch { return '' }
+}
+
 export function equipmentLabel(v) {
   return EQUIPMENT_TAGS.find(t => t.value === v)?.label || v
 }

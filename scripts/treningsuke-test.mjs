@@ -182,8 +182,8 @@ for (const w of [320, 360, 390, 430]) {
 // ── 7. Øvelsesbanken kjenner de samme kategoriene ───────────────────────────
 await p.setViewportSize({ width: 390, height: 844 })
 await p.goto(`${APP}/trening/ovelser`)
-await p.waitForSelector('.bank-row', { timeout: 15000 }); await p.waitForTimeout(500)
-for (const r of await p.$$('.bank-row')) {
+await p.waitForSelector('.kort', { timeout: 15000 }); await p.waitForTimeout(500)
+for (const r of await p.$$('.kort')) {
   if (/Medtak, dribling/.test(await r.innerText())) { await r.click(); break }
 }
 await p.waitForTimeout(600)
@@ -214,8 +214,8 @@ ok('flerlinjet gjennomføring nummereres', stegtall.length === 0 || /counter|1/.
 // lukkes før neste rad kan treffes.
 await p.keyboard.press('Escape')
 await p.goto(`${APP}/trening/ovelser`)
-await p.waitForSelector('.bank-row', { timeout: 15000 }); await p.waitForTimeout(500)
-for (const r of await p.$$('.bank-row')) {
+await p.waitForSelector('.kort', { timeout: 15000 }); await p.waitForTimeout(500)
+for (const r of await p.$$('.kort')) {
   if (/1v1 vende/.test(await r.innerText())) { await r.click(); break }
 }
 await p.waitForTimeout(500)
