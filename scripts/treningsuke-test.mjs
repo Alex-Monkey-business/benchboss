@@ -54,7 +54,7 @@ await apne('lørdag')
 const steg = await tell('.dag--open .steg:not(.steg--slutt)')
 ok('fire øvelser står i tidslinja', steg === 4, `${steg}`)
 
-// Chevronen er den ENESTE knappen per øvelse. Var 4 (tid, opp, ned, ×).
+// Hele blokka er den ENESTE knappen per øvelse. Var 4 (tid, opp, ned, ×).
 const knapper = await p.$$eval('.dag--open .steg', els =>
   els.reduce((n, e) => n + e.querySelectorAll('button, a').length, 0))
 ok('ingen redigering i lesemodus', knapper === steg, `${knapper} knapper på ${steg} øvelser`)
@@ -82,66 +82,61 @@ ok('uten tider vises rekkefølge, ikke klokke', utenTid.join(' ') === '1 2', ute
 sql(`update training_sessions set drills='${foer.replace(/'/g, "''")}'::jsonb where id='${torsdag}'`)
 await p.reload(); await p.waitForSelector('.dag'); await p.waitForTimeout(600)
 
-// ── 3. Detaljen bak ett trykk ───────────────────────────────────────────────
-await apne('lørdag')
-const foerAapning = await p.$eval('.dag--open', e => Math.round(e.getBoundingClientRect().height))
-await p.$eval('.dag--open .steg .steg__hode', e => e.click()); await p.waitForTimeout(400)
-ok('detaljen folder seg ut', await tell('.dag--open .steg__detalj') === 1)
-ok('oppsettet står uten «OPPSETT»-etikett',
-  !/OPPSETT/i.test(await p.$eval('.dag--open .steg__detalj', e => e.innerText)))
-await p.$eval('.dag--open .steg .steg__hode', e => e.click()); await p.waitForTimeout(400)
-ok('og lukker seg igjen', await p.$eval('.dag--open', e => Math.round(e.getBoundingClientRect().height)) === foerAapning)
-
-// ── 3b. De seks kategoriene ─────────────────────────────────────────────────
+// ── 3. Øvelsen bak ett trykk — samme visning som banken ─────────────────────
 //
-// Navn, lengde, diff/mix, hva vi øver på, hvordan vi deler opp gruppa, hva du
-// må ha med ut, og hva øvelsen går ut på. De tre siste lå før i ÉN tekst og
-// måtte gjettes fra hverandre ved rendring. Tirsdag øvelse 1 har alle sju.
+// Før foldet øvelsen seg ut på stedet som én tekstblokk, uten «Se etter dette»
+// og «Si dette til barna». Nå åpner den i en sheet med bankens kort, og
+// Forrige/Neste blar gjennom treninga.
 await apne('tirsdag')
-await p.$eval('.dag--open .steg .steg__hode', e => e.click()); await p.waitForTimeout(400)
-const kat = await p.evaluate(() => {
-  const s = document.querySelector('.dag--open .steg')
-  const t = sel => s.querySelector(sel)?.textContent.trim() || null
+await p.$eval('.dag--open .steg .steg__hode', e => e.click()); await p.waitForTimeout(600)
+ok('øvelsen åpner i en sheet', await tell('.ds-sheet') === 1)
+ok('ingenting folder seg ut inne i dagen', await tell('.dag--open .steg__detalj') === 0)
+const sheet = await p.evaluate(() => {
+  const sh = document.querySelector('.ds-sheet')
+  const t = sel => sh.querySelector(sel)?.textContent.trim() || null
+  const rekkefolge = [...sh.querySelectorAll('.ex-view > *')].map(e => e.className.split(' ')[0])
   return {
-    navn: t('.steg__navn'),
-    type: t('.ovelse__badge'),
-    tema: t('.steg__tema'),
-    lengde: t('.steg__len'),
-    faktalinje: s.querySelector('.steg__fakta')?.innerText.replace(/\s+/g, ' ').trim(),
-    momenter: s.querySelectorAll('.ovelse__points li').length,
-    rigg: [...s.querySelectorAll('.ovelse__rigg p')].map(e => e.textContent.trim()),
-    merker: [...s.querySelectorAll('.ovelse__merke')].map(e => e.textContent.trim()),
-    merkeFlukt: (() => {
-      const ps = [...s.querySelectorAll('.ovelse__rigg p')]
-      if (ps.length < 2) return null
-      return Math.abs(ps[0].getBoundingClientRect().left - ps[1].getBoundingClientRect().left) < 1
-    })(),
-    beskrivelse: t('.ovelse__org'),
-    hvitrom: s.querySelector('.ovelse__org') && getComputedStyle(s.querySelector('.ovelse__org')).whiteSpace
+    tittel: t('.ds-sheet__title'),
+    hvor: t('.ex-view__hvor'),
+    video: !!sh.querySelector('video'),
+    videoForst: rekkefolge[0] === 'ex-video',
+    kilde: t('.ex-video__tekst'),
+    kort: [...sh.querySelectorAll('.ex-sek__tittel')].map(e => e.textContent.trim()),
+    fakta: [...sh.querySelectorAll('.ex-fakta dt')].map(e => e.textContent.trim()),
+    tidIDag: [...sh.querySelectorAll('.ex-fakta dt')].findIndex(e => e.textContent.trim() === 'Tid i dag'),
+    tidVerdi: sh.querySelector('.ex-fakta dd')?.textContent.trim(),
+    momenter: sh.querySelectorAll('.ex-punkter li').length,
+    steg: sh.querySelectorAll('.ex-steg li').length,
+    tekst: t('.ex-tekst'),
+    hvitrom: sh.querySelector('.ex-tekst') && getComputedStyle(sh.querySelector('.ex-tekst')).whiteSpace,
+    bla: [...sh.querySelectorAll('.bla')].map(b => ({ av: b.disabled, navn: b.querySelector('.bla__navn')?.textContent.trim() })),
+    ingenLenkeDobbelt: sh.querySelectorAll('.ex-lenke').length
   }
 })
-ok('navn', !!kat.navn, kat.navn)
-ok('diff/mix', kat.type === 'Diff', kat.type)
-ok('hva vi øver på', kat.tema === 'Spille oss fremover', kat.tema)
-ok('lengde', kat.lengde === '20 min', kat.lengde)
-// Tida flyttet seg fra rad til rad fordi den delte en wrappende linje med
-// fokusområdet. Nå bærer faktalinja bare de to som har fast bredde.
-ok('diff/mix og tid deler linje', /^DIFF\s+20 min$/i.test(kat.faktalinje || ''), kat.faktalinje)
-ok('fokusområdet har sin egen linje',
-  !/20 min/.test(await p.$eval('.dag--open .steg .steg__tema', e => e.innerText)))
-ok('momenter', kat.momenter === 3, `${kat.momenter}`)
-ok('hvordan vi deler opp gruppa står for seg', kat.rigg[0] === 'To og to per stasjon.', kat.rigg.join(' | '))
-ok('utstyret står for seg', /Kjegler, porter/.test(kat.rigg[1] || ''), kat.rigg[1])
-ok('riggen har ledetekster', kat.merker.join(' ') === 'Gruppa Utstyr', kat.merker.join(' '))
-// Brekker utstyrslinja skal linje to stå under teksten, ikke under merket.
-ok('ledeteksten henger i margen', kat.merkeFlukt, kat.merkeFlukt === true ? '' : 'tekstkolonnen starter ikke likt')
-ok('beskrivelsen bærer verken inndeling eller utstyr',
-  !/To og to per stasjon|Kjegler, porter/.test(kat.beskrivelse || ''), (kat.beskrivelse || '').slice(0, 40))
-// 6 av 15 øvelser i banken er skrevet med tomme linjer. Rendrer vi ikke
-// pre-line, blir avsnittene til én klump — eller verre: én linje per setning.
-ok('forfatterens avsnitt overlever', kat.hvitrom === 'pre-line', kat.hvitrom)
-ok('avsnittet står faktisk i teksten', /\n/.test(kat.beskrivelse || ''), JSON.stringify((kat.beskrivelse || '').slice(-24)))
-await p.$eval('.dag--open .steg .steg__hode', e => e.click()); await p.waitForTimeout(300)
+ok('tittelen er øvelsens navn', /Medtak, dribling/.test(sheet.tittel || ''), sheet.tittel)
+ok('hvor i treninga: dag, nummer og tidsrom', sheet.hvor === 'Tirsdag · 1 av 3 · 0:00–0:20', sheet.hvor)
+ok('videoen står først', sheet.video && sheet.videoForst, `video=${sheet.video} først=${sheet.videoForst}`)
+ok('videoen har avsender', /tiim\.no/.test(sheet.kilde || ''), sheet.kilde)
+ok('tida i dag står øverst blant nøkkeltallene', sheet.tidIDag === 0 && sheet.tidVerdi === '20 min', `${sheet.fakta.join('/')} → ${sheet.tidVerdi}`)
+ok('nøkkeltall: spillere, alder, plass, utstyr', ['Spillere', 'Alder', 'Plass', 'Utstyr'].every(k => sheet.fakta.includes(k)), sheet.fakta.join('/'))
+ok('kortene i bankens rekkefølge',
+  sheet.kort.join('/') === 'Læringsmål/Gruppe/Gjennomføring/Se etter dette/Si dette til barna', sheet.kort.join('/'))
+ok('gjennomføringen er nummerert', sheet.steg >= 2, `${sheet.steg} steg`)
+ok('gruppa står som tekst med avsnittene i behold', sheet.hvitrom === 'pre-line', sheet.hvitrom)
+ok('tiim-lenka vises ikke to ganger (kilde + lenke)', sheet.ingenLenkeDobbelt === 0, `${sheet.ingenLenkeDobbelt} egne lenker`)
+ok('Forrige er av på første øvelse', sheet.bla[0]?.av === true)
+ok('Neste viser navnet på neste øvelse', sheet.bla[1]?.av === false && /3v3/.test(sheet.bla[1]?.navn || ''), sheet.bla[1]?.navn)
+
+await p.$eval('.ds-sheet .bla--neste', e => e.click()); await p.waitForTimeout(500)
+ok('Neste blar til øvelse 2', (await p.$eval('.ds-sheet__title', e => e.textContent.trim())) === '3v3 med press i ryggen')
+ok('… og eyebrowen følger med', (await p.$eval('.ex-view__hvor', e => e.textContent.trim())) === 'Tirsdag · 2 av 3 · 0:20–0:40',
+  await p.$eval('.ex-view__hvor', e => e.textContent.trim()))
+ok('uten video står øvelsen uten tom videoboks', await tell('.ds-sheet video') === 0)
+ok('sheeten starter på toppen etter blaing', await p.$eval('.ds-sheet__body', e => e.scrollTop) === 0)
+await p.$eval('.ds-sheet .bla--neste', e => e.click()); await p.waitForTimeout(400)
+ok('Neste er av på siste øvelse', await p.$eval('.ds-sheet .bla--neste', e => e.disabled))
+await p.$eval('.ds-sheet__close', e => e.click()); await p.waitForTimeout(400)
+ok('sheeten lukker', await tell('.ds-sheet') === 0)
 await apne('lørdag')
 
 // ── 4. Planmodus ────────────────────────────────────────────────────────────
@@ -196,16 +191,22 @@ await p.waitForTimeout(600)
 // skanner du etter overskriften. Inne i uka står stakken tett med vilje.
 const bank = await p.$$eval('.ex-sek__tittel', els => els.map(e => e.textContent.trim()))
 ok('banken viser seksjonene som egne kort',
-  bank.includes('Læringsmål') && bank.includes('Gruppe og utstyr') && bank.includes('Gjennomføring'),
+  bank.includes('Læringsmål') && bank.includes('Gruppe') && bank.includes('Gjennomføring'),
   bank.join(' / '))
+ok('banken og dagen er samme rendring (ExerciseView)', await tell('.ds-sheet .ex-view') === 1)
+ok('banken viser ikke «Tid i dag» — tida er dagens, ikke øvelsens',
+  !(await p.$$eval('.ex-fakta dt', els => els.some(e => e.textContent.trim() === 'Tid i dag'))))
+ok('videoen står i banken også', await tell('.ds-sheet video') === 1)
 ok('læringsmomentene har markør, ikke bare innrykk',
-  await p.$eval('.ex-view__points li', el => getComputedStyle(el, '::before').width !== 'auto'))
+  await p.$eval('.ex-punkter li', el => getComputedStyle(el, '::before').width !== 'auto'))
 
 // Flere linjer i gjennomføringen er en rekkefølge, og da nummererer appen den.
 // Én linje blir stående som avsnitt — «1.» alene er et skilt uten veikryss.
 const stegtall = await p.$$eval('.ex-steg li', els =>
   els.map(e => getComputedStyle(e, '::before').content))
-ok('flerlinjet gjennomføring nummereres', stegtall.length === 0 || stegtall[0].includes('1'),
+// Chromium gir ::before-content tilbake som spesifisert («counter(steg) "."»),
+// ikke som tegnet tekst — så vi sjekker at telleren er der, ikke tallet.
+ok('flerlinjet gjennomføring nummereres', stegtall.length === 0 || /counter|1/.test(stegtall[0]),
   stegtall.join(' '))
 
 // Feltene i skjemaet heter det samme som kategoriene — ellers må du oversette
@@ -218,8 +219,8 @@ for (const r of await p.$$('.bank-row')) {
   if (/1v1 vende/.test(await r.innerText())) { await r.click(); break }
 }
 await p.waitForTimeout(500)
-const riggrader = await p.$$eval('.ex-rigg dt', els => els.map(e => e.textContent.trim()))
-ok('gruppa og utstyret står hver for seg i riggen', riggrader.includes('Utstyr'), riggrader.join(' / '))
+const riggrader = await p.$$eval('.ex-fakta dt', els => els.map(e => e.textContent.trim()))
+ok('utstyret står som eget nøkkeltall', riggrader.includes('Utstyr'), riggrader.join(' / '))
 
 await browser.close()
 console.log(feilet ? `\n${feilet} feilet` : '\nAlt grønt')

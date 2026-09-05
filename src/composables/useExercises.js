@@ -102,7 +102,7 @@ export function groupByCategory(list) {
 }
 
 const DEMO_EXERCISES = [
-  { id: 'dex-1', se_etter: ['Kroppen kommer mellom ball og kjegle i finta', 'Ballen ligger tett på foten hele slalåmen', 'Ingen stopp mellom vending og pasning'], si_til_barna: ['Ta den ut til siden', 'Se opp', 'Full fart ut'], category: 'sjef-over-ballen', name: 'Medtak, dribling, vending og pasning', type: 'diff', tema: 'Spille oss fremover', gruppe: 'To og to per stasjon.', organisering: 'Pasning gjennom port, retningsbestemt medtak, dribling forbi kjegler, finte mot passivt press, vending ved siste kjegle. Bytt roller.', laeringsmomenter: ['Mykt medtak ut til siden — fremover på andre touch', 'Løft blikket og finn timing på finta', 'Finte med tempo og store bevegelser for å passere'], link: { label: 'Medtak, dribling, vending, pasning', url: 'https://tiim.no/ovelse/medtak-dribling-vending-pasning' } },
+  { id: 'dex-1', se_etter: ['Kroppen kommer mellom ball og kjegle i finta', 'Ballen ligger tett på foten hele slalåmen', 'Ingen stopp mellom vending og pasning'], si_til_barna: ['Ta den ut til siden', 'Se opp', 'Full fart ut'], category: 'sjef-over-ballen', name: 'Medtak, dribling, vending og pasning', type: 'diff', tema: 'Spille oss fremover', gruppe: 'To og to per stasjon.', organisering: 'Pasning gjennom port, retningsbestemt medtak, dribling forbi kjegler, finte mot passivt press, vending ved siste kjegle. Bytt roller.', laeringsmomenter: ['Mykt medtak ut til siden — fremover på andre touch', 'Løft blikket og finn timing på finta', 'Finte med tempo og store bevegelser for å passere'], video: { url: 'https://httpcache0-80501-cachedown0.dna.ip-only.net/80501-cachedown0/assets/d5/d5dnpd5v8r1s73d86beg/d5dnpclv8r1s73a4mm5g_480p.mp4', poster: 'https://httpcache0-80501-cachedown0.dna.ip-only.net/80501-cachedown0/assets/d5/d5dnpd5v8r1s73d86beg/d5dnpclv8r1s73a4mm5g_720p_5.jpeg', duration: 22, source: 'tiim', source_url: 'https://tiim.no/ovelse/medtak-dribling-vending-pasning' }, link: { label: 'Medtak, dribling, vending, pasning', url: 'https://tiim.no/ovelse/medtak-dribling-vending-pasning' } },
   { id: 'dex-2', se_etter: ['Forsvarerne presser sammen, ikke én og én', 'Angriperne spiller fremover på første touch'], si_til_barna: ['Press sammen', 'Snakk', 'Fremover'], category: 'spill', name: '3v3 med press i ryggen', type: 'diff', tema: 'Fart i angrep, hold overtaket', gruppe: 'To baner med småmål.', utstyr: 'Fire småmål, vester.', organisering: 'To forsvarere ved eget mål; den siste jager i press straks angriperne får ballen.', laeringsmomenter: [], link: null },
   { id: 'dex-3', se_etter: [], si_til_barna: [], category: 'spill', name: 'Vinneren står', type: 'mix', tema: 'Tempo og lite dødtid', organisering: 'To lag spiller kort 7er — ny kamp straks det er mål.', laeringsmomenter: [], link: null },
   { id: 'dex-4', se_etter: [], si_til_barna: [], category: 'sjef-over-ballen', name: 'Ferdighetssirkel', type: 'mix', tema: 'Sjef over ballen', organisering: 'Avsluttes med press.', laeringsmomenter: [], link: null },
@@ -131,6 +131,7 @@ export function exerciseToDrill(ex) {
     utstyr_tags: [...(ex.utstyr_tags || [])],
     plass: ex.plass || null,
     min_alder: ex.min_alder ?? null,
+    video: ex.video ? { ...ex.video } : null,
     link: ex.link ? { label: ex.link.label || '', url: ex.link.url || '' } : null,
     exercise_id: ex.id
   }
@@ -175,6 +176,7 @@ export function drillToExercise(d) {
     utstyr_tags: [...(d.utstyr_tags || [])],
     plass: d.plass || null,
     min_alder: d.min_alder ?? null,
+    video: d.video ? { ...d.video } : null,
     link: d.link ? { label: d.link.label || '', url: d.link.url || '' } : null
   }
 }
@@ -212,6 +214,13 @@ const supportsNokkeltall = computed(() =>
   exercises.value.length === 0 || 'min_spillere' in (exercises.value[0] || {})
 )
 
+// Videoen kom i 20260905090000. Den fylles av scripts/tiim-video.mjs fra
+// tiim-lenka, ikke av treneren — så skjemaet har ikke noe felt for den, og
+// guarden er bare der for at lagring ikke velter mellom deploy og migrasjon.
+const supportsVideo = computed(() =>
+  exercises.value.length === 0 || 'video' in (exercises.value[0] || {})
+)
+
 const NOKKELTALL_FELT = ['min_spillere', 'maks_spillere', 'utstyr_tags', 'plass', 'min_alder']
 
 function utenUstottede(payload) {
@@ -222,6 +231,7 @@ function utenUstottede(payload) {
   if (!supportsSeEtter.value) delete p.se_etter
   if (!supportsSiTilBarna.value) delete p.si_til_barna
   if (!supportsNokkeltall.value) for (const f of NOKKELTALL_FELT) delete p[f]
+  if (!supportsVideo.value) delete p.video
   return p
 }
 
@@ -345,5 +355,5 @@ export function useExercises() {
     return kortKullnavn(navn, useAuth().activeCohort.value?.club_short_name || '')
   }
 
-  return { exercises, loading, loaded, supportsCategory, supportsGruppe, supportsUtstyr, supportsSeEtter, supportsSiTilBarna, supportsNokkeltall, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill, opphavFor }
+  return { exercises, loading, loaded, supportsCategory, supportsGruppe, supportsUtstyr, supportsSeEtter, supportsSiTilBarna, supportsNokkeltall, supportsVideo, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill, opphavFor }
 }

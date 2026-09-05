@@ -1,13 +1,15 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
-import { useExercises, EXERCISE_CATEGORIES, groupByCategory, equipmentLabel, plassLabel, spillereLabel, kullAlder, passerAlder } from '../composables/useExercises'
+import { useRouter, useRoute } from 'vue-router'
+import { useExercises, groupByCategory, kullAlder, passerAlder } from '../composables/useExercises'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ExerciseFields from '../components/ExerciseFields.vue'
+import ExerciseView from '../components/ExerciseView.vue'
 import { useAuth } from '../stores/auth'
 
 const router = useRouter()
+const route = useRoute()
 const { activeCohort } = useAuth()
 const klubbNavn = computed(() => activeCohort.value?.club_short_name || activeCohort.value?.club_name || '')
 const { exercises, supportsCategory, supportsGruppe, supportsSeEtter, supportsSiTilBarna, supportsNokkeltall, fetchExercises, createExercise, updateExercise, deleteExercise, opphavFor } = useExercises()
@@ -64,43 +66,12 @@ const saving = ref(false)
 const form = ref(emptyForm())
 
 const active = computed(() => exercises.value.find(e => e.id === activeId.value) || null)
-const categoryLabel = computed(() =>
-  EXERCISE_CATEGORIES.find(c => c.value === active.value?.category)?.label || ''
-)
-
-// Gjennomføringen er skrevet som linjer av en trener. Er det flere enn én, er
-// det en rekkefølge, og da nummererer appen den — treneren skal ikke skrive
-// «1.» selv. Én linje er ett avsnitt: «1.» alene over én setning er et skilt
-// uten veikryss.
-const gjennomforing = computed(() => {
-  const linjer = (active.value?.organisering || '')
-    .split('\n')
-    .map(l => l.trim())
-    .filter(Boolean)
-  return { linjer, nummerert: linjer.length > 1 }
-})
 
 // Tre felt skrives som «ett per linje» i samme slags tekstfelt. Å splitte dem
 // tre steder er tre steder å glemme .filter(Boolean) på.
 function linjer(tekst) {
   return String(tekst || '').split('\n').map(l => l.trim()).filter(Boolean)
 }
-
-// Nøkkeltall-kortet: bare radene som har en verdi. Har øvelsen ingen av dem,
-// vises ikke kortet — et kort med tre tomme rader er verre enn ingen kort.
-const nokkeltall = computed(() => {
-  const a = active.value
-  if (!a) return []
-  const rader = []
-  const spillere = spillereLabel(a.min_spillere, a.maks_spillere)
-  if (spillere) rader.push({ merke: 'Spillere', verdi: spillere })
-  if (a.min_alder) rader.push({ merke: 'Alder', verdi: `${a.min_alder} år+` })
-  if (a.plass) rader.push({ merke: 'Plass', verdi: plassLabel(a.plass) })
-  if ((a.utstyr_tags || []).length) {
-    rader.push({ merke: 'Utstyr', verdi: a.utstyr_tags.map(equipmentLabel).join(', ') })
-  }
-  return rader
-})
 
 function emptyForm() {
   return { name: '', type: 'none', category: '', tema: '', gruppe: '', organisering: '', laeringsmomenter: '', se_etter: '', si_til_barna: '', min_spillere: null, maks_spillere: null, utstyr_tags: [], plass: null, min_alder: null, link: { label: '', url: '' } }
@@ -190,7 +161,17 @@ async function confirmDelete() {
   showSheet.value = false
 }
 
-onMounted(fetchExercises)
+// Fra dagen: «Endre øvelsen i banken» kommer med ?ovelse=<id>, og da skal
+// den stå åpen når du lander — ikke en liste på sytten der du må finne den
+// igjen. Ønsket brukes én gang.
+onMounted(async () => {
+  await fetchExercises()
+  const ønsket = route.query.ovelse
+  if (ønsket && exercises.value.some(e => e.id === ønsket)) {
+    openView({ id: ønsket })
+    router.replace({ path: route.path })
+  }
+})
 </script>
 
 <template>
@@ -289,98 +270,14 @@ onMounted(fetchExercises)
 
     <!-- Detalj: visning først, redigering sekundært -->
     <Sheet :show="showSheet" :title="mode === 'new' ? 'Ny øvelse' : mode === 'edit' ? 'Rediger øvelse' : (active?.name || '')" @close="closeSheet">
-      <!-- VISNING -->
+      <!-- VISNING — samme rendring som dagen bruker (ExerciseView). Retter du
+           noe her i banken, er det det treneren ser på tirsdag. -->
       <template v-if="mode === 'view' && active">
-        <div class="ex-view">
-          <div v-if="(active.type && active.type !== 'none') || categoryLabel" class="ex-view__head">
-            <span
-              v-if="active.type && active.type !== 'none'"
-              class="bank-row__badge"
-              :class="`bank-row__badge--${active.type}`"
-            >{{ active.type === 'diff' ? 'Diff' : 'Mix' }}</span>
-            <span v-if="categoryLabel" class="ex-view__category">{{ categoryLabel }}</span>
-            <span v-if="opphavFor(active)" class="bank-row__opphav">Fra {{ opphavFor(active) }}</span>
-          </div>
-          <p v-if="active.tema" class="ex-view__tema">{{ active.tema }}</p>
-
-          <!-- Nøkkeltallene står FØRST fordi de avgjør om øvelsen er aktuell i
-               det hele tatt. Ni avbud en tirsdag, og «Spillere 4–9» er det du
-               leser — ikke læringsmålet. Kortet har ingen overskrift: radene
-               har sine egne merker, og «Nøkkeltall» over dem ville vært et
-               skilt over fire skilt. -->
-          <section v-if="nokkeltall.length" class="ex-sek ex-sek--fakta">
-            <dl class="ex-fakta">
-              <template v-for="r in nokkeltall" :key="r.merke">
-                <dt>{{ r.merke }}</dt>
-                <dd>{{ r.verdi }}</dd>
-              </template>
-            </dl>
-          </section>
-
-          <!-- Én øvelse har hele flaten her, og da bærer seksjonene sin egen
-               ramme: du skanner etter overskriften og finner delen du er ute
-               etter. Inne i uka ligger 3-4 øvelser under hverandre — der ville
-               det samme blitt tjue rammer på én tirsdag, og der står stakken
-               tett med vilje.
-               Rekkefølgen er lesningen: hva de skal lære, hva du trenger,
-               hva dere gjør. -->
-          <section v-if="(active.laeringsmomenter || []).length" class="ex-sek">
-            <h4 class="ex-sek__tittel">Læringsmål</h4>
-            <ul class="ex-view__points">
-              <li v-for="(p, i) in active.laeringsmomenter" :key="i">{{ p }}</li>
-            </ul>
-          </section>
-
-          <!-- Utstyret står som tags i nøkkeltall-kortet øverst, ikke her.
-               «Småmål, kjegler» skannes; «12 småmål, mye kjegler og 27 baller»
-               må leses. Baneoppsettet hører i gruppa — banene ER inndelingen. -->
-          <section v-if="active.gruppe" class="ex-sek">
-            <h4 class="ex-sek__tittel">Gruppe</h4>
-            <p class="ex-view__text">{{ active.gruppe }}</p>
-          </section>
-
-          <section v-if="gjennomforing.linjer.length" class="ex-sek">
-            <h4 class="ex-sek__tittel">Gjennomføring</h4>
-            <ol v-if="gjennomforing.nummerert" class="ex-steg">
-              <li v-for="(l, i) in gjennomforing.linjer" :key="i">{{ l }}</li>
-            </ol>
-            <p v-else class="ex-view__text">{{ gjennomforing.linjer[0] }}</p>
-          </section>
-
-          <!-- Tegnene på at øvelsen virker. Læringsmålet er hva de skal få til;
-               dette er hva du ser etter mens de prøver. -->
-          <section v-if="(active.se_etter || []).length" class="ex-sek">
-            <h4 class="ex-sek__tittel">Se etter dette</h4>
-            <ul class="ex-view__points">
-              <li v-for="(p, i) in active.se_etter" :key="i">{{ p }}</li>
-            </ul>
-          </section>
-
-          <!-- Ordene, ikke ordlyden om ordene. De står som sitat fordi de skal
-               leses som noe du sier høyt, og de tåler ikke en strek i margen
-               som gjør dem til en huskeliste. -->
-          <section v-if="(active.si_til_barna || []).length" class="ex-sek">
-            <h4 class="ex-sek__tittel">Si dette til barna</h4>
-            <ul class="ex-fraser">
-              <li v-for="(p, i) in active.si_til_barna" :key="i">«{{ p }}»</li>
-            </ul>
-          </section>
-
-          <a
-            v-if="active.link && active.link.url"
-            :href="active.link.url"
-            target="_blank"
-            rel="noopener"
-            class="ex-view__link"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
-            {{ active.link.label || active.link.url }}
-          </a>
-
+        <ExerciseView class="ex-view--sheet" :exercise="active" :opphav="opphavFor(active)">
           <button type="button" class="ds-btn ds-btn--secondary ds-btn--lg ex-view__edit" @click="startEdit">
             Rediger
           </button>
-        </div>
+        </ExerciseView>
       </template>
 
       <!-- REDIGERING / NY -->
@@ -566,67 +463,6 @@ onMounted(fetchExercises)
 }
 
 
-/* ---- Visning av øvelse ---- */
-.ex-view {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-lg);
-}
-
-.ex-view__head {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-sm);
-}
-
-.ex-view__tema {
-  font-size: var(--ds-text-md);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-warm-text);
-  margin: 0;
-}
-
-/* Seksjonen som eget kort. Skillet er ramme + flate + luft, ikke en emoji
-   foran overskriften: ikonet er en krykke for hierarki man ikke har, og her
-   har vi det. I mørk modus ligger flatene tett på hverandre — der er det
-   ramma som bærer skillet, og den er med i begge. */
-.ex-sek {
-  background: var(--ds-color-bg-subtle);
-  border: var(--ds-border-width) solid var(--ds-color-border);
-  border-radius: var(--ds-radius-md);
-  padding: var(--ds-space-md);
-}
-
-.ex-sek__tittel {
-  margin: 0 0 var(--ds-space-sm);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-primary);
-  letter-spacing: -0.01em;
-}
-
-/* Merket bærer linja si: to like korte setninger etter hverandre sier ikke
-   selv hvem som er hvem. */
-.ex-rigg {
-  display: grid;
-  grid-template-columns: auto 1fr;
-  gap: var(--ds-space-xs) var(--ds-space-md);
-  margin: 0;
-  align-items: baseline;
-}
-
-.ex-rigg dt {
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-tertiary);
-}
-
-.ex-rigg dd {
-  margin: 0;
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-primary);
-  line-height: 1.55;
-}
-
 /* Raden bærer et tall, en setning og en handling. Den er en knapp i sin
    helhet — å treffe «Vis dem» presist på en 320 px-skjerm med hansker på er
    ikke en rimelig forventning. */
@@ -665,154 +501,6 @@ onMounted(fetchExercises)
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);
   color: var(--ds-color-accent);
-}
-
-/* Verdien står til høyre, merket til venstre, hårstrek mellom radene: det er
-   en tabell med to kolonner, og øyet finner «Spillere» uten å lese resten.
-   Verdien er tabular-nums så tallene står i loddrett linje. */
-.ex-sek--fakta {
-  padding: var(--ds-space-sm) var(--ds-space-md);
-}
-
-.ex-fakta {
-  margin: 0;
-  display: grid;
-  grid-template-columns: auto 1fr;
-  align-items: baseline;
-  gap: 0 var(--ds-space-md);
-}
-
-.ex-fakta dt {
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-secondary);
-  padding: var(--ds-space-sm) 0;
-}
-
-.ex-fakta dd {
-  margin: 0;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-primary);
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  padding: var(--ds-space-sm) 0;
-}
-
-/* Streken hører mellom radene, ikke over den første eller under den siste.
-   dt og dd er søsken i samme grid, så «alle unntatt de to første» treffer
-   hver rad etter den øverste. */
-.ex-fakta dt:not(:first-of-type),
-.ex-fakta dd:not(:first-of-type) {
-  border-top: 1px solid var(--ds-color-border);
-}
-
-/* Frasene er replikker, ikke punkter. Ingen markør — anførselstegnene er
-   markøren, og de sier noe strekene ikke kan: dette leses høyt. */
-.ex-fraser {
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-xs);
-}
-
-.ex-fraser li {
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-primary);
-  line-height: 1.55;
-}
-
-/* Tallet står i margen, ikke i tekstblokka: teksten får én venstrekant å
-   følge uansett om steget er én linje eller fire. */
-.ex-steg {
-  margin: 0;
-  padding: 0;
-  list-style: none;
-  counter-reset: steg;
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-sm);
-}
-
-.ex-steg li {
-  counter-increment: steg;
-  position: relative;
-  padding-left: 1.9em;
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-primary);
-  line-height: 1.55;
-}
-
-.ex-steg li::before {
-  content: counter(steg) ".";
-  position: absolute;
-  left: 0;
-  top: 0;
-  width: 1.4em;
-  text-align: right;
-  font-variant-numeric: tabular-nums;
-  color: var(--ds-color-text-tertiary);
-}
-
-/* Reset-en nuller list-style på alle lister, så «padding-left» ga bare tom
-   plass: et moment over to linjer rant rett inn i det neste. Streken i margen
-   er den samme markøren uka bruker — ett moment, én strek. */
-.ex-view__points {
-  margin: 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-sm);
-}
-
-.ex-view__points li {
-  position: relative;
-  padding-left: var(--ds-space-md);
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-primary);
-  line-height: 1.55;
-}
-
-.ex-view__points li::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 0.7em;
-  width: 8px;
-  height: 1px;
-  background: var(--ds-color-text-tertiary);
-}
-
-/* Avsnittene er skrevet av en trener med tomme linjer — de skal stå. */
-.ex-view__text {
-  white-space: pre-line;
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-primary);
-  line-height: 1.55;
-  margin: 0;
-}
-
-.ex-view__link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--ds-text-sm);
-  font-weight: 500;
-  color: var(--ds-color-accent);
-  text-decoration: none;
-}
-
-.ex-view__link svg { width: 15px; height: 15px; }
-
-.ex-view__category {
-  font-size: 0.6875rem;
-  font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
-  color: var(--ds-color-text-tertiary);
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-full);
-  padding: 2px 8px;
 }
 
 .ex-view__edit { width: 100%; margin-top: var(--ds-space-sm); }
