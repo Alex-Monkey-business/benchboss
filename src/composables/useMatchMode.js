@@ -119,49 +119,62 @@ export function useMatchMode() {
     return session.value
   }
 
+  // Skrivene er optimistiske: lista oppdateres før svaret kommer, så banen
+  // flytter seg i samme trykk. På sidelinja er 300 ms venting det som gjør at
+  // du trykker én gang til og bytter to. Feiler skrivet, rulles lista tilbake
+  // og feilen kastes videre — flata viser den.
   async function insertStints(rows) {
     if (!isSupabaseConfigured) {
       const created = rows.map((r, i) => ({ id: 'ms-' + Date.now() + '-' + i, off_clock: null, ...r }))
       stints.value.push(...created)
       return created
     }
+    const temp = rows.map((r, i) => ({ id: 'tmp-' + Date.now() + '-' + i, off_clock: null, ...r }))
+    stints.value.push(...temp)
     const { data, error } = await supabase.from('match_stints').insert(rows).select()
-    if (error) throw error
-    if (data) stints.value.push(...data)
-    return data || []
+    const tempIds = new Set(temp.map(t => t.id))
+    if (error || !data) {
+      stints.value = stints.value.filter(s => !tempIds.has(s.id))
+      throw error || new Error('Perioden ble ikke lagret')
+    }
+    stints.value = [...stints.value.filter(s => !tempIds.has(s.id)), ...data]
+    return data
   }
 
   async function patchStint(stintId, patch) {
-    if (!isSupabaseConfigured) {
-      const idx = stints.value.findIndex(s => s.id === stintId)
-      if (idx > -1) stints.value[idx] = { ...stints.value[idx], ...patch }
-      return
-    }
+    const idx = stints.value.findIndex(s => s.id === stintId)
+    const prev = idx > -1 ? stints.value[idx] : null
+    if (prev) stints.value[idx] = { ...prev, ...patch }
+    if (!isSupabaseConfigured) return
     const { data, error } = await supabase
       .from('match_stints')
       .update(patch)
       .eq('id', stintId)
       .select()
       .single()
-    if (error) throw error
+    if (error) {
+      const i = stints.value.findIndex(s => s.id === stintId)
+      if (i > -1 && prev) stints.value[i] = prev
+      throw error
+    }
     if (data) {
-      const idx = stints.value.findIndex(s => s.id === stintId)
-      if (idx > -1) stints.value[idx] = data
+      const i = stints.value.findIndex(s => s.id === stintId)
+      if (i > -1) stints.value[i] = data
     }
   }
 
   async function deleteStint(stintId) {
-    if (!isSupabaseConfigured) {
-      stints.value = stints.value.filter(s => s.id !== stintId)
-      return
-    }
+    const prev = stints.value.find(s => s.id === stintId)
+    stints.value = stints.value.filter(s => s.id !== stintId)
+    if (!isSupabaseConfigured) return
     const { data, error } = await supabase
       .from('match_stints').delete().eq('id', stintId).select('id')
-    if (error) throw error
     // Spilletid er hele poenget med denne skjermen. Forsvinner en periode fra
     // lista uten å forsvinne fra basen, er summene feil resten av kampen.
-    if (!data?.length) throw new Error('Perioden ble ikke slettet')
-    stints.value = stints.value.filter(s => s.id !== stintId)
+    if (error || !data?.length) {
+      if (prev) stints.value.push(prev)
+      throw error || new Error('Perioden ble ikke slettet')
+    }
   }
 
   function openStintFor(matchId, playerId) {

@@ -104,17 +104,66 @@ function markSaved() {
   savedTimer = setTimeout(() => { lineupSaved.value = false }, 2000)
 }
 
+// ── Første bytterunde ────────────────────────────────────────────────────────
+//
+// Dere avtaler i garderoben hvem som byttes først. Før gjettet appen: ved
+// avspark har alle null, og da sorterte den på navn — «William inn for Isak»
+// var alfabetet, ikke planen. Nå lagres avtalen som par [inn, ut] sammen med
+// oppstillingen (nøkkelen `plan` i lineup-JSON-en, ingen ny kolonne), og
+// forslagsknappen bruker den først. Bare første runde: resten styres av klokka.
+const plan = ref([])          // [{ inn, ut }] — spiller-id-er
+const planArm = ref(null)     // benkespiller som venter på en på banen
+
 function setupPatch() {
-  return { lineup: { ...assignments.value } }
+  return { lineup: { ...assignments.value, plan: plan.value.map(p => [p.inn, p.ut]) } }
 }
 
 function hydrateLineup() {
   if (session.value?.status !== 'setup' || !session.value.lineup) return
   const valid = new Set(squad.value.map(p => p.id))
   skipLineupSave = true
+  const { plan: lagret, ...slots } = session.value.lineup
   assignments.value = Object.fromEntries(
-    Object.entries(session.value.lineup).filter(([, pid]) => valid.has(pid))
+    Object.entries(slots).filter(([, pid]) => valid.has(pid))
   )
+  plan.value = lesPlan(lagret).filter(p => valid.has(p.inn) && valid.has(p.ut))
+}
+
+function lesPlan(raw) {
+  return Array.isArray(raw) ? raw.filter(x => Array.isArray(x) && x[0] && x[1]).map(([inn, ut]) => ({ inn, ut })) : []
+}
+
+// Et par gjelder bare så lenge inn står på benken og ut på banen. Flyttes noen
+// i oppstillinga, faller paret stille bort — det er ikke en feil, planen bare
+// stemmer ikke lenger.
+watch(assignments, () => {
+  const inne = new Set(Object.values(assignments.value))
+  const before = plan.value.length
+  plan.value = plan.value.filter(p => !inne.has(p.inn) && inne.has(p.ut))
+  if (planArm.value && inne.has(planArm.value)) planArm.value = null
+  if (plan.value.length !== before) scheduleSetupSave()
+}, { deep: true })
+
+watch(plan, () => {
+  if (phase.value === 'setup' && session.value) scheduleSetupSave()
+}, { deep: true })
+
+const planKandidater = computed(() =>
+  unassigned.value.filter(p => !plan.value.some(x => x.inn === p.id))
+)
+
+function armPlan(id) { planArm.value = planArm.value === id ? null : id }
+
+function planlegg(utId) {
+  const inn = planArm.value
+  if (!inn || !utId) return
+  planArm.value = null
+  if (plan.value.some(p => p.ut === utId)) return
+  plan.value = [...plan.value, { inn, ut: utId }]
+}
+
+function fjernPlan(i) {
+  plan.value = plan.value.filter((_, idx) => idx !== i)
 }
 
 function flushLineupSave() {
@@ -248,20 +297,31 @@ async function handleStart() {
   try {
     // Kamplengden er kullets spillform — skrives på sesjonen sammen med
     // avsparket, så en pågående kamp aldri endrer lengde om kullet justeres.
+    // Oppstillinga og første bytterunde skrives sammen med avsparket, så en
+    // avbrutt debounce aldri mister planen dere nettopp la.
     await startMatch(matchId, lineup, {
       period_count: activeCohort.value?.period_count || 2,
-      period_minutes: activeCohort.value?.period_minutes || 30
+      period_minutes: activeCohort.value?.period_minutes || 30,
+      ...setupPatch()
     })
     showToast('Kampen er i gang', 'success')
   } catch (e) { reportError(e) }
 }
 
 // ── Live ─────────────────────────────────────────────────────────────────────
+// Planen slik den ble lagret ved avspark — leses fra sesjonen, for i live-
+// fasen er `plan`-refen tom (den hører oppsettet til).
+const planen = computed(() => lesPlan(session.value?.lineup?.plan))
+function planIdx(id) {
+  const i = planen.value.findIndex(p => p.inn === id)
+  return i < 0 ? 999 : i
+}
+
 const bench = computed(() =>
   squad.value
     .filter(p => !isOnField(p.id))
     .map(p => ({ ...p, sec: timeFor(p.id) }))
-    .sort((a, b) => a.sec - b.sec || a.name.localeCompare(b.name, 'no'))
+    .sort((a, b) => a.sec - b.sec || planIdx(a.id) - planIdx(b.id) || a.name.localeCompare(b.name, 'no'))
 )
 // Spillere på banen nå — scorer-velgeren prioriterer disse.
 const onField = computed(() =>
@@ -307,6 +367,13 @@ const FORSLAG_GAP = 180
 
 const forslag = computed(() => {
   if (phase.value !== 'live') return null
+  // Planen først: første par der inn fortsatt står på benken og ut på banen.
+  for (const p of planen.value) {
+    const inn = bench.value.find(b => b.id === p.inn)
+    if (!inn || !isOnField(p.ut) || roleOf(p.ut) === 'keeper') continue
+    const ut = playerById(p.ut)
+    if (ut) return { inn, ut: { ...ut, sec: timeFor(ut.id) }, planlagt: true }
+  }
   const inn = bench.value[0]
   if (!inn) return null
   const kandidater = squad.value
@@ -317,7 +384,7 @@ const forslag = computed(() => {
   const passer = kandidater.filter(k => fitsPosition(inn, positionForSlot(positionOf(k.id))))
   const ut = passer[0] || kandidater[0]
   if (ut.sec - inn.sec < FORSLAG_GAP) return null
-  return { inn, ut }
+  return { inn, ut, planlagt: false }
 })
 
 // ── Byttet ───────────────────────────────────────────────────────────────────
@@ -336,6 +403,7 @@ async function gjorBytte(outId, inId) {
   const innSec = timeFor(inId)
   const utSec = timeFor(outId)
   const minstPaBenken = bench.value[0]?.id === inId
+  if (navigator.vibrate) { try { navigator.vibrate(12) } catch { /* ok */ } }
   try {
     const kvittering = await substitute(matchId, { outPlayerId: outId, inPlayerId: inId })
     const melding = `${firstName(inn.name)} inn for ${firstName(ut.name)}`
@@ -501,8 +569,11 @@ function onMarkerUp() {
 // click på kilde-markøren — det svelger vi.
 function onMarkerClick(slot) {
   if (suppressClick) { suppressClick = false; return }
-  if (phase.value === 'setup') openPicker(slot)
-  else tapPitchPlayer(slotPlayerId(slot.id))
+  if (phase.value === 'setup') {
+    // Med en benkespiller armert for planen, parer trykket — ellers velger det.
+    if (planArm.value && assignments.value[slot.id]) planlegg(assignments.value[slot.id])
+    else openPicker(slot)
+  } else tapPitchPlayer(slotPlayerId(slot.id))
 }
 function onMarkerCancel() {
   clearTimeout(pressTimer)
@@ -820,6 +891,7 @@ async function undoMove() {
           :class="{
             'marker--gk': slot.role === 'keeper',
             'marker--empty': !playerInSlot(slot.id),
+            'marker--target': planArm && playerInSlot(slot.id) && slot.role !== 'keeper',
             'marker--lifted': dragId && dragFromSlot === slot.id,
             'marker--droppable': dragId && dragFromSlot !== slot.id && hoverSlot !== slot.id,
             'marker--drop': dragId && hoverSlot === slot.id && dragFromSlot !== slot.id
@@ -859,8 +931,35 @@ async function undoMove() {
         <div v-if="dragId && !dragLearned" class="mm__draghint">Slipp på en spiller for å bytte plass</div>
         <div v-else-if="!dragLearned && assignedIds.size" class="mm__draghint mm__draghint--tip">Hold inne og dra for å bytte plass</div>
 
-        <div v-if="unassigned.length" class="mm__poolnote">
-          {{ lineupComplete ? 'På benken' : 'Ikke plassert' }}: <span class="mm__poolnames">{{ unassigned.map(p => firstName(p.name)).join(', ') }}</span>
+        <div v-if="unassigned.length && !lineupComplete" class="mm__poolnote">
+          Ikke plassert: <span class="mm__poolnames">{{ unassigned.map(p => firstName(p.name)).join(', ') }}</span>
+        </div>
+
+        <!-- Første bytterunde: tapp en på benken, så den på banen som skal ut. -->
+        <div v-if="lineupComplete && unassigned.length" class="mm__plan">
+          <div class="mm__plan-hode">
+            <span class="mm__plan-tittel">Første bytterunde</span>
+            <span class="mm__plan-hint">{{ planArm ? `Tapp den ${firstName(playerById(planArm)?.name)} skal inn for` : 'Tapp en på benken, så den som skal ut' }}</span>
+          </div>
+          <div v-if="planKandidater.length" class="mm__bench">
+            <button
+              v-for="p in planKandidater"
+              :key="p.id"
+              type="button"
+              class="mm__bchip"
+              :class="{ 'mm__bchip--armed': planArm === p.id }"
+              @click="armPlan(p.id)"
+            ><span class="mm__bname">{{ firstName(p.name) }}</span></button>
+          </div>
+          <ul v-if="plan.length" class="mm__plan-liste">
+            <li v-for="(p, i) in plan" :key="p.inn" class="mm__plan-par">
+              <span class="mm__plan-nr">{{ i + 1 }}</span>
+              <span class="mm__plan-tekst"><strong>{{ firstName(playerById(p.inn)?.name) }}</strong> inn for {{ firstName(playerById(p.ut)?.name) }}</span>
+              <button type="button" class="mm__plan-fjern" :aria-label="`Fjern ${firstName(playerById(p.inn)?.name)} fra planen`" @click="fjernPlan(i)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              </button>
+            </li>
+          </ul>
         </div>
         <div v-if="!squad.length" class="mm__empty mm__empty--inline">Ingen spillere i troppen for dette laget.</div>
 
@@ -977,9 +1076,9 @@ async function undoMove() {
           class="mm__forslag"
           @click="utforForslag"
         >
-          <span class="mm__forslag-merke">Neste bytte</span>
+          <span class="mm__forslag-merke">{{ forslag.planlagt ? 'Planlagt' : 'Neste bytte' }}</span>
+          <span v-if="!forslag.planlagt" class="mm__forslag-tid">{{ fmt(forslag.inn.sec) }} mot {{ fmt(forslag.ut.sec) }}</span>
           <span class="mm__forslag-tekst">{{ firstName(forslag.inn.name) }} inn for {{ firstName(forslag.ut.name) }}</span>
-          <span class="mm__forslag-tid">{{ fmt(forslag.inn.sec) }} mot {{ fmt(forslag.ut.sec) }}</span>
         </button>
         <div class="mm__bench mm__bench--bar">
         <button
@@ -1350,15 +1449,18 @@ async function undoMove() {
 
 /* Forslaget: én bred knapp over benken. Svart flate, så den skiller seg fra
    chipsene og leses som «gjør dette». */
+/* To rader: merke og tider øverst, navnene i full bredde under. Navnene er det
+   du leser; de skal aldri klippes for at tallene skal få plass. */
 .mm__forslag {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: 1fr auto;
   align-items: baseline;
   column-gap: 10px;
+  row-gap: 2px;
   width: 100%;
-  min-height: 52px;
+  min-height: 56px;
   margin-bottom: var(--ds-space-sm);
-  padding: 10px 14px;
+  padding: 10px 14px 11px;
   border: none;
   border-radius: var(--ds-radius-md);
   background: var(--ds-color-accent);
@@ -1380,12 +1482,14 @@ async function undoMove() {
 }
 
 .mm__forslag-tekst {
+  grid-column: 1 / -1;
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--ds-text-base);
+  font-size: var(--ds-text-md);
   font-weight: var(--ds-weight-semibold);
+  letter-spacing: -0.01em;
 }
 
 .mm__forslag-tid {
@@ -1550,6 +1654,22 @@ async function undoMove() {
 .marker--gk[data-team="hvit"] .marker__circle { background: var(--ds-color-warning); color: #fff; }
 
 .mm__poolnote { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); margin-top: 4px; }
+
+/* Første bytterunde */
+.mm__plan { display: flex; flex-direction: column; gap: var(--ds-space-sm); margin-top: var(--ds-space-sm); }
+.mm__plan-hode { display: flex; flex-direction: column; gap: 2px; }
+.mm__plan-tittel { font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold); letter-spacing: var(--ds-tracking-wider); text-transform: uppercase; color: var(--ds-color-text-tertiary); }
+.mm__plan-hint { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+.mm__plan-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
+.mm__plan-par {
+  display: grid; grid-template-columns: 24px minmax(0, 1fr) 44px; align-items: center; gap: 8px;
+  min-height: 44px; border-top: 1px solid var(--ds-color-border-light);
+}
+.mm__plan-nr { width: 24px; height: 24px; display: grid; place-items: center; border-radius: 50%; background: var(--ds-color-bg-subtle); font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-secondary); font-variant-numeric: tabular-nums; }
+.mm__plan-tekst { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mm__plan-tekst strong { color: var(--ds-color-text-primary); font-weight: var(--ds-weight-semibold); }
+.mm__plan-fjern { display: grid; place-items: center; width: 44px; height: 44px; border: none; background: none; color: var(--ds-color-text-tertiary); cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.mm__plan-fjern svg { width: 16px; height: 16px; }
 .mm__poolnames { color: var(--ds-color-text-secondary); }
 
 /* ── Start-knapp ── */
