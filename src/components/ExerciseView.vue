@@ -270,7 +270,7 @@ const harInnhold = computed(() =>
 .ex-view__tema {
   font-size: var(--ds-text-md);
   font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-warm-text);
+  color: var(--ds-color-text-secondary);
   margin: 0;
 }
 

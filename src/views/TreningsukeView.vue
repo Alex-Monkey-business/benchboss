@@ -22,7 +22,7 @@ import { useContent } from '../composables/useContent'
 import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
-import { useExercises, exerciseToDrill, resolveDrills } from '../composables/useExercises'
+import { useExercises, exerciseToDrill, resolveDrills, ovelsensVideo } from '../composables/useExercises'
 import { useToast } from '../composables/useToast'
 import { parseTreningsplan } from '../lib/treningParser'
 import { accentForPosition } from '../lib/sessionVisuals'
@@ -189,33 +189,23 @@ const MIN_STEP = 5
 const MIN_MAX = 60
 const MIN_START = 10
 
-// Hvilken øvelse har stepperen åpen? Ett tall om gangen, ellers står dagen full
-// av pluss og minus.
-const minutesOpen = ref(null)
-
-function minutesKey(s, i) {
-  return `${s.id}:${i}`
-}
-
-function toggleMinutes(s, i, d) {
-  const k = minutesKey(s, i)
-  if (minutesOpen.value === k) { minutesOpen.value = null; return }
-  minutesOpen.value = k
-  // Første trykk skal gjøre noe: uten tid settes et utgangspunkt du kan justere
-  // fra, i stedet for en tom stepper som venter på deg.
-  if (!d.minutes) setDrillMinutes(s, i, MIN_START)
-}
-
 function setDrillMinutes(s, i, minutes) {
   const m = Math.min(MIN_MAX, Math.max(0, minutes))
   queueDrills(s.id, ds => ds.map((d, idx) => (idx === i ? { ...d, minutes: m || null } : d)))
 }
 
+// Fra «ingen tid» går første trykk rett til 10, ikke til 5: det er et
+// utgangspunkt å justere fra. Ned fra 5 er å fjerne tida, ikke null minutter.
 function stepDrillMinutes(s, i, d, delta) {
-  const next = (d.minutes || 0) + delta
-  // Ned fra 5 er å fjerne tida, ikke å sette null minutter.
-  if (next <= 0) { minutesOpen.value = null; setDrillMinutes(s, i, 0); return }
-  setDrillMinutes(s, i, next)
+  const now = d.minutes || 0
+  if (!now && delta > 0) { setDrillMinutes(s, i, MIN_START); return }
+  setDrillMinutes(s, i, Math.max(0, now + delta))
+}
+
+// Plakaten fra videoen på rada i planmodus — det er bildet du kjenner øvelsen
+// igjen på, ikke navnet.
+function plakat(d) {
+  return ovelsensVideo(d)?.poster || null
 }
 
 // ── Tidslinja ───────────────────────────────────────────────────────────────
@@ -324,7 +314,7 @@ async function blaDrill(delta) {
 watch(openDayId, () => {
   editDayId.value = null
   apen.value = null
-  minutesOpen.value = null
+  rad.value = null
 })
 
 // Serialisert kø per dag: to raske trykk skal ikke overskrive hverandre.
@@ -340,61 +330,109 @@ function queueDrills(sessionId, mutate) {
   return next
 }
 
-// Uka er én liste, ikke tre. Pilene stoppet før i endene av dagen — nå
-// fortsetter de inn i nabodagen, så «denne tar vi heller på lørdag» er ett
-// trykk i stedet for fjern-finn-i-banken-legg-til (som dessuten mistet tida).
-function naboDag(s, dir) {
-  const i = dager.value.findIndex(d => d.id === s.id)
-  if (i < 0) return null
-  return dager.value[dir === 'up' ? i - 1 : i + 1] || null
-}
-
-// «tir», «lør» — står på pila som krysser, så flyttingen aldri er en overraskelse.
-function kortDag(title) {
-  return (title || '').slice(0, 3).toLowerCase()
-}
-
-async function moveDrill(s, i, dir) {
-  // Stepperen henger på plassen i lista, ikke på øvelsen. Flytter du raden, ville
-  // den blitt stående åpen på naboen.
-  minutesOpen.value = null
-
+// Pilene bytter plass innenfor dagen. De pleide å krysse over i nabodagen
+// med en tre-bokstavers dagsforkortelse på knappen — «v TOR» — og ingen
+// skjønte hva som ville skje. Å flytte til en annen dag er nå et valg med
+// dagens fulle navn på, i arket for øvelsen.
+function moveDrill(s, i, dir) {
   const j = dir === 'up' ? i - 1 : i + 1
-  if (j >= 0 && j < (s.drills || []).length) {
-    queueDrills(s.id, ds => {
-      const arr = [...ds]
-      ;[arr[i], arr[j]] = [arr[j], arr[i]]
-      return arr
-    })
-    return
-  }
+  if (j < 0 || j >= (s.drills || []).length) return
+  queueDrills(s.id, ds => {
+    const arr = [...ds]
+    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+    return arr
+  })
+}
 
-  const nabo = naboDag(s, dir)
-  const drill = s.drills?.[i]
-  if (!nabo || !drill) return
-  // Hele drill-objektet flyttes, ikke bare navnet: tida og opphavet (exercise_id)
-  // følger med. Opp legger den nederst i dagen over, ned øverst i dagen under —
-  // uka leses fortsatt ovenfra og ned.
+// ── Arket for én øvelse i planen ────────────────────────────────────────────
+//
+// Planmodus hadde 16 knapper på 30 px: to piler, et kryss og en tidsknapp per
+// rad. Alt var treffbart på papiret og puslete i handa. Nå er rada én stor
+// trykkflate, og alt du kan gjøre med øvelsen — tida, bytte den ut, flytte den
+// til en annen dag, ta den ut — ligger i ett ark med knapper i full bredde.
+// Pilene står igjen på rada, for rekkefølgen justerer du mens du ser lista.
+const rad = ref(null) // { sessionId, i }
+
+const radDag = computed(() => dager.value.find(s => s.id === rad.value?.sessionId) || null)
+const radDrill = computed(() => (radDag.value && rad.value ? drillsFor(radDag.value)[rad.value.i] || null : null))
+const andreDager = computed(() => (radDag.value ? dager.value.filter(s => s.id !== radDag.value.id) : []))
+
+function apneRad(s, i) {
+  rad.value = { sessionId: s.id, i }
+}
+
+// Hele drill-objektet flyttes: tida og opphavet (exercise_id) følger med.
+// Den legger seg nederst i dagen den lander i.
+async function flyttTilDag(mal) {
+  const s = radDag.value
+  const i = rad.value?.i
+  const drill = s?.drills?.[i]
+  if (!drill || !mal) return
+  rad.value = null
   await queueDrills(s.id, ds => ds.filter((_, idx) => idx !== i))
-  await queueDrills(nabo.id, ds => (dir === 'up' ? [...ds, drill] : [drill, ...ds]))
-  showToast(`Flyttet til ${nabo.title.toLowerCase()}`, 'success')
+  await queueDrills(mal.id, ds => [...ds, drill])
+  showToast(`Flyttet til ${mal.title.toLowerCase()}`, 'success')
 }
 
 // Fjerne fra dagen er ikke sletting — øvelsen blir liggende i banken.
 function removeDrill(s, i) {
   const d = s.drills?.[i]
   if (!d) return
+  rad.value = null
   queueDrills(s.id, ds => ds.filter((_, idx) => idx !== i))
   showToast(d.exercise_id ? 'Fjernet — ligger i banken' : 'Fjernet', 'success')
+}
+
+// Fra arket og rett inn i øvelsen slik den leses på banen.
+function visRadOvelse() {
+  const r = rad.value
+  rad.value = null
+  if (r) apen.value = r
+}
+
+// Bytt ut: plukkeren åpner for akkurat denne plassen. Det du velger legger seg
+// der den gamle sto, og tida blir stående — det er fortsatt 20 minutter i
+// planen, bare med en annen øvelse i dem.
+const bytteFor = ref(null) // { sessionId, i }
+
+function startBytte() {
+  const r = rad.value
+  rad.value = null
+  if (!r) return
+  bytteFor.value = r
+  pickerFor.value = r.sessionId
+}
+
+function byttUt(ex) {
+  const b = bytteFor.value
+  const s = dager.value.find(d => d.id === b?.sessionId)
+  if (!s) return
+  const gammel = drillsFor(s)[b.i]
+  bytteFor.value = null
+  pickerFor.value = null
+  queueDrills(s.id, ds => ds.map((d, idx) => (idx === b.i ? { ...exerciseToDrill(ex), minutes: d.minutes ?? null } : d)))
+  showToast(gammel ? `«${gammel.text}» byttet ut med «${ex.name}»` : `«${ex.name}» lagt inn`, 'success')
 }
 
 // ── Plukkeren ───────────────────────────────────────────────────────────────
 const pickerFor = ref(null)
 const pickerSession = computed(() => dager.value.find(s => s.id === pickerFor.value) || null)
 
+const bytteNavn = computed(() => {
+  const b = bytteFor.value
+  const s = dager.value.find(d => d.id === b?.sessionId)
+  return s ? drillsFor(s)[b.i]?.text || '' : ''
+})
+
 function openPicker(s) { pickerFor.value = s.id }
 
+function closePicker() {
+  pickerFor.value = null
+  bytteFor.value = null
+}
+
 function toggleExercise(ex) {
+  if (bytteFor.value) { byttUt(ex); return }
   const s = pickerSession.value
   if (!s) return
   const match = d => d.exercise_id === ex.id || (d.text || '').trim().toLowerCase() === ex.name.trim().toLowerCase()
@@ -416,10 +454,10 @@ async function createFromPicker(f) {
   }
   if (supportsCategory.value) payload.category = f.category || null
   const row = await createExercise(payload)
-  if (row) {
-    await queueDrills(s.id, ds => [...ds, exerciseToDrill(row)])
-    showToast(`«${row.name}» lagt til`, 'success')
-  }
+  if (!row) return
+  if (bytteFor.value) { byttUt(row); return }
+  await queueDrills(s.id, ds => [...ds, exerciseToDrill(row)])
+  showToast(`«${row.name}» lagt til`, 'success')
 }
 
 // ── Dag: ukedag, lengde og fokus ────────────────────────────────────────────
@@ -581,7 +619,6 @@ onMounted(async () => {
         :id="'dag-' + s.id"
         class="dag"
         :class="{ 'dag--open': openDayId === s.id }"
-        :data-accent="s.accent || 'warm'"
       >
         <button
           type="button"
@@ -642,8 +679,9 @@ onMounted(async () => {
             </li>
           </ol>
 
-          <!-- PLANMODUS — hele økta som korte rader, så du ser rekkefølgen du
-               endrer. Her bor pilene, tida og krysset. -->
+          <!-- PLANMODUS — hele økta som rader med bilde. Rada er én trykkflate
+               og åpner arket for øvelsen (tid, bytt ut, flytt, fjern). Pilene
+               står på rada, for rekkefølgen justerer du mens du ser lista. -->
           <div v-else-if="editDayId === s.id" class="plan">
             <div class="plan__topp">
               <span class="plan__tittel">Planlegg treninga</span>
@@ -652,82 +690,50 @@ onMounted(async () => {
 
             <ul v-if="drillsFor(s).length" class="plan__liste">
               <li v-for="(d, i) in drillsFor(s)" :key="i" class="rad">
-                <button
-                  type="button"
-                  class="rad__tid"
-                  :class="{ 'rad__tid--tom': !d.minutes }"
-                  :aria-label="d.minutes ? `Endre tid på ${d.text}` : `Sett tid på ${d.text}`"
-                  @click="toggleMinutes(s, i, d)"
-                >{{ d.minutes ? formatDuration(d.minutes) : 'Sett tid' }}</button>
-
-                <span class="rad__navn">{{ d.text }}</span>
-
-                <span class="rad__handlinger">
-                  <button
-                    v-if="i > 0 || naboDag(s, 'up')"
-                    type="button"
-                    class="ovelse__action"
-                    :class="{ 'ovelse__action--kryss': i === 0 }"
-                    :aria-label="i > 0 ? 'Flytt opp' : `Flytt til ${naboDag(s, 'up').title}`"
-                    @click="moveDrill(s, i, 'up')"
-                  >
+                <button type="button" class="rad__hode" :aria-label="`Endre ${d.text}`" @click="apneRad(s, i)">
+                  <span class="rad__bilde">
+                    <img v-if="plakat(d)" :src="plakat(d)" alt="" loading="lazy" />
+                    <span v-if="d.minutes" class="rad__tid">{{ formatDuration(d.minutes) }}</span>
+                  </span>
+                  <span class="rad__tekst">
+                    <span class="rad__navn">{{ d.text }}</span>
+                    <span class="rad__meta">
+                      <template v-if="!d.minutes">Ingen tid satt</template>
+                      <template v-else-if="d.tema">{{ d.tema }}</template>
+                      <template v-else>{{ formatDuration(d.minutes) }}</template>
+                    </span>
+                  </span>
+                </button>
+                <span class="rad__piler">
+                  <button type="button" class="pil pil--opp" :disabled="i === 0" aria-label="Flytt opp" @click="moveDrill(s, i, 'up')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
-                    <span v-if="i === 0" class="ovelse__action-day">{{ kortDag(naboDag(s, 'up').title) }}</span>
                   </button>
-                  <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
-                  <button
-                    v-if="i < drillsFor(s).length - 1 || naboDag(s, 'down')"
-                    type="button"
-                    class="ovelse__action"
-                    :class="{ 'ovelse__action--kryss': i === drillsFor(s).length - 1 }"
-                    :aria-label="i < drillsFor(s).length - 1 ? 'Flytt ned' : `Flytt til ${naboDag(s, 'down').title}`"
-                    @click="moveDrill(s, i, 'down')"
-                  >
+                  <button type="button" class="pil pil--ned" :disabled="i === drillsFor(s).length - 1" aria-label="Flytt ned" @click="moveDrill(s, i, 'down')">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
-                    <span v-if="i === drillsFor(s).length - 1" class="ovelse__action-day">{{ kortDag(naboDag(s, 'down').title) }}</span>
-                  </button>
-                  <span v-else class="ovelse__action-slot" aria-hidden="true"></span>
-                  <button type="button" class="ovelse__action" :aria-label="`Fjern ${d.text} fra dagen`" @click="removeDrill(s, i)">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
                   </button>
                 </span>
-
-                <!-- Stepperen får hele bredden. Klemt inn på radlinja ble
-                     knappene 26 px — for små uansett hvor pent tegnet. -->
-                <div v-if="minutesOpen === minutesKey(s, i)" class="rad__timeset">
-                  <div class="stepper">
-                    <button type="button" class="stepper__btn" aria-label="Kortere" @click="stepDrillMinutes(s, i, d, -MIN_STEP)">−</button>
-                    <span class="stepper__value">{{ formatDuration(d.minutes) }}</span>
-                    <button type="button" class="stepper__btn" aria-label="Lengre" :disabled="(d.minutes || 0) >= MIN_MAX" @click="stepDrillMinutes(s, i, d, MIN_STEP)">+</button>
-                  </div>
-                  <button type="button" class="ovelse__done" @click="minutesOpen = null">Ferdig</button>
-                </div>
               </li>
             </ul>
 
             <p v-if="tidslinjer[s.id].slutt" class="plan__sum" :class="{ 'plan__sum--over': tidslinjer[s.id].slutt.over }">
               {{ tidslinjer[s.id].slutt.tekst }}
             </p>
+
+            <button type="button" class="knapp knapp--legg" @click="openPicker(s)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              Legg til øvelse
+            </button>
           </div>
 
-          <!-- Foten: lesemodus har én vei videre, planmodus har verktøyene. -->
+          <!-- Foten: lesemodus har én vei videre — en ordentlig knapp, ikke en
+               tekstlenke med blyant. Planmodus har dagen selv (ukedag, lengde, fokus). -->
           <div class="dag__foot">
-            <template v-if="editDayId === s.id">
-              <button type="button" class="dag__action" @click="openPicker(s)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
-                Legg til øvelse
-              </button>
-              <button type="button" class="dag__action" @click="openDayForm(s)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-                Rediger dagen
-              </button>
-            </template>
-            <template v-else>
-              <button type="button" class="dag__action" @click="editDayId = s.id">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4z"/></svg>
-                {{ drillsFor(s).length ? 'Planlegg treninga' : 'Legg til øvelser' }}
-              </button>
-            </template>
+            <button v-if="editDayId === s.id" type="button" class="dag__action" @click="openDayForm(s)">
+              Rediger dagen
+            </button>
+            <button v-else type="button" class="knapp dag__planlegg" @click="editDayId = s.id">
+              {{ drillsFor(s).length ? 'Planlegg treninga' : 'Legg til øvelser' }}
+            </button>
           </div>
         </div>
       </section>
@@ -847,10 +853,46 @@ Torsdag
       :show="!!pickerFor"
       :title-prefix="pickerSession?.title"
       :current-drills="pickerSession?.drills || []"
-      @close="pickerFor = null"
+      :replace-name="bytteNavn"
+      @close="closePicker"
       @toggle="toggleExercise"
       @create="createFromPicker"
     />
+
+    <!-- Arket for én øvelse i planen: tida øverst, så det du kan gjøre med den.
+         Store knapper i full bredde — det er dette som før var 30 px-ikoner. -->
+    <Sheet :show="!!radDrill" :title="radDrill?.text || ''" @close="rad = null">
+      <template v-if="radDrill">
+        <p class="rad-ark__hvor">{{ radDag.title }} · {{ rad.i + 1 }} av {{ drillsFor(radDag).length }}</p>
+
+        <div class="rad-ark__tid">
+          <span class="rad-ark__merke">Tid i dag</span>
+          <div class="stepper">
+            <button type="button" class="stepper__btn" aria-label="Kortere" :disabled="!radDrill.minutes" @click="stepDrillMinutes(radDag, rad.i, radDrill, -MIN_STEP)">−</button>
+            <span class="stepper__value" :class="{ 'stepper__value--tom': !radDrill.minutes }">{{ radDrill.minutes ? formatDuration(radDrill.minutes) : 'Ingen tid' }}</span>
+            <button type="button" class="stepper__btn" aria-label="Lengre" :disabled="(radDrill.minutes || 0) >= MIN_MAX" @click="stepDrillMinutes(radDag, rad.i, radDrill, MIN_STEP)">+</button>
+          </div>
+        </div>
+
+        <div class="rad-ark__valg">
+          <button type="button" class="valg" @click="visRadOvelse">
+            <span>Vis øvelsen</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <button type="button" class="valg valg--bytt" @click="startBytte">
+            <span>Bytt ut med en annen øvelse</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <button v-for="mal in andreDager" :key="mal.id" type="button" class="valg" @click="flyttTilDag(mal)">
+            <span>Flytt til {{ mal.title.toLowerCase() }}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
+          <button type="button" class="valg valg--fjern" @click="removeDrill(radDag, rad.i)">
+            <span>Fjern fra dagen</span>
+          </button>
+        </div>
+      </template>
+    </Sheet>
 
     <!-- Øvelsen — samme visning som banken. Forrige/Neste nederst: på banen
          blar du gjennom treninga, du navigerer ikke. -->
@@ -928,7 +970,6 @@ Torsdag
 .dag {
   background: var(--ds-color-bg-elevated);
   border: 1px solid var(--ds-color-border);
-  border-left: 4px solid var(--accent-text);
   border-radius: var(--ds-radius-lg);
   margin-bottom: var(--ds-space-md);
   overflow: hidden;
@@ -990,7 +1031,7 @@ Torsdag
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);
   font-variant-numeric: tabular-nums;
-  color: var(--accent-text);
+  color: var(--ds-color-text-secondary);
   white-space: nowrap;
 }
 
@@ -1025,23 +1066,26 @@ Torsdag
 }
 
 /* Fokuset er grunnen til at akkurat disse øvelsene ligger her — så det står
-   under dagen, ikke inne i den. */
+   under dagen, ikke inne i den.
+
+   Dagene bar hver sin dekorfarge: kant, overskrift, prikker, tema og merker i
+   samme tone. Tre dager ble tre farger, og to av dem var brune. Fargen sa
+   ingenting navnet ikke allerede sa — det er tirsdag fordi det står TIRSDAG.
+   Nå er hierarkiet vekt og størrelse, som resten av appen. */
 .dag__focus {
   display: block;
   margin-top: 6px;
   font-size: var(--ds-text-md);
   line-height: 1.5;
-  color: var(--accent-text);
+  color: var(--ds-color-text-primary);
   font-weight: var(--ds-weight-medium);
   letter-spacing: -0.005em;
 }
 
-/* Overskriften bærer fargen, forklaringen er vanlig brødtekst. Hele avsnittet
-   i aksentfarge var både et hierarki som ikke fantes og fire linjer sterk farge. */
 .dag__ledd {
   display: block;
   font-weight: var(--ds-weight-semibold);
-  color: var(--accent-text);
+  color: var(--ds-color-text-primary);
 }
 
 .dag__resten {
@@ -1131,7 +1175,7 @@ Torsdag
 }
 
 .steg__klokke--slutt { color: var(--ds-color-text-secondary); }
-.steg__klokke--over { color: var(--accent-text); }
+.steg__klokke--over { color: var(--ds-color-text-primary); }
 
 /* Ringen i kortfargen kutter linja, så prikken sitter PÅ sporet og ikke oppå. */
 .steg__prikk {
@@ -1141,7 +1185,7 @@ Torsdag
   width: 11px;
   height: 11px;
   border-radius: 50%;
-  background: var(--accent-text);
+  background: var(--ds-color-text-primary);
   border: 3px solid var(--ds-color-bg-elevated);
 }
 
@@ -1217,7 +1261,7 @@ Torsdag
   font-weight: var(--ds-weight-medium);
   line-height: 1.45;
   letter-spacing: -0.005em;
-  color: var(--accent-text);
+  color: var(--ds-color-text-secondary);
 }
 
 .steg__len {
@@ -1233,9 +1277,9 @@ Torsdag
   color: var(--ds-color-text-tertiary);
 }
 
-/* Over tida er ikke en feil — planen din er bare lengre enn dagen. Aksentfarget,
+/* Over tida er ikke en feil — planen din er bare lengre enn dagen. Mørkere,
    ikke rødt: det er en opplysning, ikke en alarm. */
-.steg__sum--over { color: var(--accent-text); }
+.steg__sum--over { color: var(--ds-color-text-primary); }
 
 .ovelse__badge {
   flex-shrink: 0;
@@ -1248,8 +1292,8 @@ Torsdag
   text-transform: uppercase;
 }
 
-.ovelse__badge--diff { background: var(--accent-bg, var(--ds-badge-bg)); color: var(--accent-text, var(--ds-badge-text)); }
-.ovelse__badge--mix { background: transparent; color: var(--accent-text, var(--ds-badge-text)); box-shadow: inset 0 0 0 1px currentColor; }
+.ovelse__badge--diff { background: var(--ds-badge-bg); color: var(--ds-badge-text); }
+.ovelse__badge--mix { background: transparent; color: var(--ds-badge-text); box-shadow: inset 0 0 0 1px var(--ds-badge-border); }
 
 /* ---- Planmodus ----
 
@@ -1301,9 +1345,11 @@ Torsdag
   padding: 0;
 }
 
+/* Rada: bilde, navn, piler. Én trykkflate for alt som gjelder øvelsen, og to
+   piler for rekkefølgen. Det som før var fire 30 px-knapper på én linje. */
 .rad {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr) auto;
+  grid-template-columns: minmax(0, 1fr) auto;
   align-items: center;
   gap: var(--ds-space-sm);
   padding: var(--ds-space-sm) 0;
@@ -1312,24 +1358,64 @@ Torsdag
 
 .rad:last-child { border-bottom: none; }
 
-.rad__tid {
-  flex: none;
-  min-width: 64px;
-  min-height: 36px;
-  padding: 0 8px;
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-sm);
+.rad__hode {
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr);
+  align-items: center;
+  gap: var(--ds-space-sm);
+  min-width: 0;
+  min-height: 56px;
+  margin: 0;
+  padding: 0;
+  border: none;
   background: none;
-  font-family: var(--ds-font-display-sans);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-bold);
-  font-variant-numeric: tabular-nums;
-  color: var(--accent-text);
+  text-align: left;
+  font: inherit;
+  color: inherit;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
-.rad__tid--tom { color: var(--ds-color-text-tertiary); }
+.rad__hode:active .rad__bilde { transform: scale(0.97); }
+
+/* Samme kort som i banken, i lommeformat: 96 × 54. */
+.rad__bilde {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
+  border-radius: var(--ds-radius-sm);
+  border: 1px solid var(--ds-color-border-light);
+  background: var(--ds-color-bg-subtle);
+  transition: transform var(--ds-duration-fast) var(--ds-ease-out);
+}
+
+.rad__bilde img {
+  display: block;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.rad__tid {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  padding: 1px 5px;
+  border-radius: var(--ds-radius-sm);
+  font-size: 0.6875rem;
+  font-weight: var(--ds-weight-medium);
+  font-variant-numeric: tabular-nums;
+  background: rgba(10, 10, 10, 0.72);
+  color: #fff;
+}
+
+.rad__tekst {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  min-width: 0;
+}
 
 .rad__navn {
   min-width: 0;
@@ -1337,31 +1423,52 @@ Torsdag
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  line-height: 1.35;
-  letter-spacing: -0.005em;
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-base);
+  font-weight: var(--ds-weight-semibold);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
   color: var(--ds-color-text-primary);
 }
 
-/* Pilene kan bære en dagsforkortelse og blir da bredere. Blokka er høyrestilt,
-   så det er × som står i ro — den destruktive knappen skal ikke vandre
-   sidelengs fra rad til rad. Pilene får flytte seg. */
-.rad__handlinger {
-  display: grid;
-  grid-template-columns: auto auto 30px;
-  align-items: center;
-  flex-shrink: 0;
+.rad__meta {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-tertiary);
 }
 
-.rad__timeset {
-  grid-column: 1 / -1;
+/* To piler stablet, like høye som rada. Sammen er de én kontroll med en ramme,
+   så de ikke leses som to løse ikoner. */
+.rad__piler {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ds-space-md);
-  padding-top: var(--ds-space-sm);
+  flex-direction: column;
+  flex-shrink: 0;
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-sm);
+  overflow: hidden;
+  background: var(--ds-color-bg-elevated);
 }
+
+.pil {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 30px;
+  padding: 0;
+  border: none;
+  background: transparent;
+  color: var(--ds-color-text-primary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pil + .pil { border-top: 1px solid var(--ds-color-border-light); }
+.pil svg { width: 18px; height: 18px; }
+.pil:disabled { color: var(--ds-color-border-strong); cursor: default; }
+.pil:not(:disabled):active { background: var(--ds-color-bg-hover); }
 
 .plan__sum {
   margin: var(--ds-space-md) 0 0;
@@ -1371,63 +1478,85 @@ Torsdag
   color: var(--ds-color-text-tertiary);
 }
 
-.plan__sum--over { color: var(--accent-text); }
+.plan__sum--over { color: var(--ds-color-text-primary); }
 
-.ovelse__action-slot { display: block; width: 30px; }
-
-.ovelse__action {
+/* ---- Knappen ----
+   «Planlegg treninga» var en tekstlenke med blyant, 14 px. Det er handlingen
+   du gjør hver gang du åpner dagen for å gjøre noe med den — den skal se ut
+   som en knapp og treffes med tommelen. */
+.knapp {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 30px;
-  height: 36px;
-  padding: 0;
-  border: none;
-  border-radius: var(--ds-radius-sm);
-  background: transparent;
-  color: var(--ds-color-text-tertiary);
-  opacity: 0.65;
+  gap: 8px;
+  width: 100%;
+  min-height: 48px;
+  padding: 0 var(--ds-space-md);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-bg-elevated);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-base);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-primary);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: opacity var(--ds-duration-fast) var(--ds-ease-out);
 }
 
-.ovelse__action svg { width: 15px; height: 15px; flex-shrink: 0; }
-.ovelse__action:hover, .ovelse__action:active { opacity: 1; color: var(--ds-color-text-primary); }
+.knapp svg { width: 16px; height: 16px; }
+.knapp:active { transform: scale(0.99); background: var(--ds-color-bg-subtle); }
+.knapp--legg { margin-top: var(--ds-space-md); }
 
-/* Krysser pila en dagegrense, står dagen den lander i på knappen. Uten den ville
-   øverste pil i en dag sett ut som en død knapp — og så plutselig flyttet
-   øvelsen ut av dagen du så på. */
-.ovelse__action--kryss {
-  gap: 3px;
-  padding: 0 6px 0 3px;
+/* ---- Arket for én øvelse i planen ---- */
+.rad-ark__hvor {
+  margin: 0 0 var(--ds-space-lg);
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-tertiary);
 }
 
-.ovelse__action-day {
-  font-family: var(--ds-font-display-sans);
+.rad-ark__tid { margin-bottom: var(--ds-space-lg); }
+
+.rad-ark__merke {
+  display: block;
+  margin-bottom: var(--ds-space-sm);
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-wider);
   text-transform: uppercase;
-  line-height: 1;
+  color: var(--ds-color-text-tertiary);
 }
 
-.ovelse__done {
-  flex: none;
-  min-height: 44px;
-  padding: 0 var(--ds-space-sm);
-  margin-right: calc(var(--ds-space-sm) * -1);
+.stepper__value--tom { color: var(--ds-color-text-tertiary); font-weight: var(--ds-weight-medium); }
+
+.rad-ark__valg {
+  display: flex;
+  flex-direction: column;
+  border-top: 1px solid var(--ds-color-border-light);
+}
+
+.valg {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-md);
+  width: 100%;
+  min-height: 56px;
+  padding: 0;
   border: none;
+  border-bottom: 1px solid var(--ds-color-border-light);
   background: none;
   font-family: var(--ds-font-body);
-  font-size: var(--ds-text-sm);
+  font-size: var(--ds-text-base);
   font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
+  color: var(--ds-color-text-primary);
+  text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
-.ovelse__done:hover { color: var(--ds-color-text-primary); }
+.valg svg { flex: none; width: 18px; height: 18px; color: var(--ds-color-text-tertiary); }
+.valg:active { background: var(--ds-color-bg-subtle); }
+.valg--fjern { color: var(--ds-color-error); }
 
 /* ---- Øvelsen i sheeten ---- */
 /* To store flater, ikke to piler: på banen treffer du med tommelen uten å se.
@@ -1491,17 +1620,12 @@ Torsdag
 /* ---- Foten i en åpen dag ---- */
 .dag__foot {
   display: flex;
-  flex-wrap: wrap;
-  gap: var(--ds-space-lg);
-  margin-top: var(--ds-space-xl);
-  padding-top: var(--ds-space-md);
-  border-top: 1px solid var(--ds-color-border-light);
+  justify-content: center;
+  margin-top: var(--ds-space-lg);
 }
 
 .dag__action {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  min-height: 44px;
   padding: 0;
   border: none;
   background: none;
@@ -1509,11 +1633,12 @@ Torsdag
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);
   color: var(--ds-color-text-secondary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
-.dag__action svg { width: 14px; height: 14px; }
 .dag__action:hover { color: var(--ds-color-text-primary); }
 
 /* ---- Bunn ---- */

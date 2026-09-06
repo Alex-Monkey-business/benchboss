@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useExercises, groupByCategory, kullAlder, passerAlder } from '../composables/useExercises'
+import { useExercises, groupByCategory, kullAlder, passerAlder, ovelsensVideo, EXERCISE_CATEGORIES } from '../composables/useExercises'
 import { useAuth } from '../stores/auth'
 import Sheet from './Sheet.vue'
 import ExerciseFields from './ExerciseFields.vue'
@@ -17,7 +17,10 @@ const props = defineProps({
   currentDrills: { type: Array, default: () => [] },
   // Hvilken dag plukker vi til? Uten den mister sheeten konteksten når hele
   // uka står bak den og tre dager ser like ut.
-  titlePrefix: { type: String, default: '' }
+  titlePrefix: { type: String, default: '' },
+  // Bytt ut: plukkeren står for én plass i planen. Navnet på den som skal ut
+  // står i tittelen, og ett trykk velger og lukker.
+  replaceName: { type: String, default: '' }
 })
 
 const emit = defineEmits(['close', 'toggle', 'create'])
@@ -25,6 +28,7 @@ const emit = defineEmits(['close', 'toggle', 'create'])
 const { exercises, loaded, supportsCategory, supportsGruppe, fetchExercises } = useExercises()
 
 const search = ref('')
+const kategori = ref('') // '' = alle
 const mode = ref('list') // 'list' | 'new'
 const newForm = ref(emptyForm())
 
@@ -35,6 +39,7 @@ function emptyForm() {
 watch(() => props.show, (open) => {
   if (open) {
     search.value = ''
+    kategori.value = ''
     mode.value = 'list'
     if (!loaded.value) fetchExercises()
   }
@@ -63,10 +68,21 @@ const synlige = computed(() =>
     : exercises.value.filter(e => passerAlder(e, alder.value) || isInSession(e))
 )
 
+// Kategoriene som faktisk har øvelser — en tom chip er et løfte om ingenting.
+// Med 107 øvelser i banken er chipsene det som gjør plukkeren til noe annet
+// enn en rulletur: du vet at du trenger en avslutningsøvelse, så du trykker
+// Skudd og ser tolv kort, ikke hundre.
+const kategorier = computed(() => {
+  const g = groupByCategory(synlige.value)
+  return g.filter(k => k.items.length).map(k => ({ value: k.value, label: k.label, n: k.items.length }))
+})
+
 const filtered = computed(() => {
   const q = search.value.trim().toLowerCase()
-  if (!q) return synlige.value
-  return synlige.value.filter(e =>
+  let liste = synlige.value
+  if (kategori.value) liste = groupByCategory(liste).find(k => k.value === kategori.value)?.items || []
+  if (!q) return liste
+  return liste.filter(e =>
     e.name.toLowerCase().includes(q) ||
     (e.tema || '').toLowerCase().includes(q) ||
     (e.organisering || '').toLowerCase().includes(q) ||
@@ -74,12 +90,18 @@ const filtered = computed(() => {
   )
 })
 
-const grouped = computed(() => groupByCategory(filtered.value))
+// Én valgt kategori er én liste — overskriften står allerede på chipen.
+const grouped = computed(() =>
+  kategori.value
+    ? [{ value: kategori.value, label: '', items: filtered.value }]
+    : groupByCategory(filtered.value)
+)
 
 const selectedCount = computed(() => exercises.value.filter(isInSession).length)
 
 const sheetTitle = computed(() => {
   if (mode.value === 'new') return 'Ny øvelse'
+  if (props.replaceName) return `Bytt ut «${props.replaceName}»`
   const dag = props.titlePrefix ? `Øvelser · ${props.titlePrefix}` : 'Øvelser'
   return selectedCount.value ? `${dag} · ${selectedCount.value} valgt` : dag
 })
@@ -111,9 +133,17 @@ function isInSession(ex) {
   )
 }
 
-// Kort forhåndsvisning så du vet hva du plukker uten å åpne noe.
-function preview(ex) {
-  return ex.organisering || (ex.laeringsmomenter || []).join(' · ') || ''
+// Kortet: plakaten fra videoen, som i banken. Teksten som sto her før
+// («Angriperne fører ball i egen endesone. På signal…») var to linjer å lese
+// per rad — bildet sier det samme på et blikk, og lista blir halvparten så lang.
+function plakat(ex) {
+  return ovelsensVideo(ex)?.poster || null
+}
+
+function varighet(ex) {
+  const s = Math.round(ovelsensVideo(ex)?.duration || 0)
+  if (!s) return ''
+  return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`
 }
 </script>
 
@@ -148,6 +178,20 @@ function preview(ex) {
         <span>Lag «{{ newName }}»</span>
       </button>
 
+      <!-- Kategoriene som chips — én rad, ruller sidelengs. «Alle» først. -->
+      <div v-if="kategorier.length > 1" class="picker-kat" role="tablist">
+        <button type="button" class="chip" :class="{ 'chip--valgt': !kategori }" :aria-pressed="!kategori" @click="kategori = ''">Alle</button>
+        <button
+          v-for="k in kategorier"
+          :key="k.value"
+          type="button"
+          class="chip"
+          :class="{ 'chip--valgt': kategori === k.value }"
+          :aria-pressed="kategori === k.value"
+          @click="kategori = kategori === k.value ? '' : k.value"
+        >{{ k.label }} <span class="chip__tall">{{ k.n }}</span></button>
+      </div>
+
       <button
         v-if="forEldre.length && !visForEldre"
         type="button"
@@ -172,38 +216,36 @@ function preview(ex) {
 
       <template v-if="exercises.length">
         <div v-for="group in grouped" :key="group.value" class="picker-group">
-          <div class="picker-group__label">{{ group.label }}</div>
+          <div v-if="group.label" class="picker-group__label">{{ group.label }}</div>
           <div class="picker-list">
             <button
               v-for="ex in group.items"
               :key="ex.id"
               type="button"
               class="picker-row"
-              :class="{ 'picker-row--selected': isInSession(ex) }"
-              :aria-pressed="isInSession(ex)"
+              :class="{ 'picker-row--selected': isInSession(ex) && !replaceName }"
+              :aria-pressed="isInSession(ex) && !replaceName"
               @click="emit('toggle', ex)"
             >
-              <span class="picker-row__body">
-                <span class="picker-row__head">
-                  <span
-                    v-if="ex.type && ex.type !== 'none'"
-                    class="picker-row__badge"
-                    :class="`picker-row__badge--${ex.type}`"
-                  >{{ ex.type === 'diff' ? 'Diff' : 'Mix' }}</span>
-                  <span class="picker-row__name">{{ ex.name }}</span>
-                </span>
-                <span v-if="ex.tema" class="picker-row__tema">{{ ex.tema }}</span>
-                <span v-if="preview(ex)" class="picker-row__preview">{{ preview(ex) }}</span>
+              <span class="picker-row__bilde">
+                <img v-if="plakat(ex)" :src="plakat(ex)" alt="" loading="lazy" />
+                <span v-if="varighet(ex)" class="picker-row__tid">{{ varighet(ex) }}</span>
               </span>
-              <svg v-if="isInSession(ex)" class="picker-row__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              <svg v-else class="picker-row__plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <span class="picker-row__body">
+                <span class="picker-row__name">{{ ex.name }}</span>
+                <span class="picker-row__tema">
+                  <template v-if="ex.type && ex.type !== 'none'">{{ ex.type === 'diff' ? 'Diff' : 'Mix' }}<template v-if="ex.tema"> · </template></template>{{ ex.tema }}
+                </span>
+              </span>
+              <svg v-if="isInSession(ex) && !replaceName" class="picker-row__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <svg v-else-if="!replaceName" class="picker-row__plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
             </button>
           </div>
         </div>
         <p v-if="!filtered.length && !canCreate" class="picker-no-hits">Ingen treff på «{{ search }}»</p>
       </template>
 
-      <button type="button" class="ds-btn ds-btn--primary ds-btn--lg picker-done" @click="emit('close')">
+      <button v-if="!replaceName" type="button" class="ds-btn ds-btn--primary ds-btn--lg picker-done" @click="emit('close')">
         Ferdig
       </button>
 
@@ -269,6 +311,48 @@ function preview(ex) {
   margin-bottom: var(--ds-space-sm);
 }
 
+/* Chipsene: én rad som ruller, kant til kant som hyllene i banken. */
+.picker-kat {
+  display: flex;
+  gap: 6px;
+  margin: 0 calc(-1 * var(--ds-space-lg)) var(--ds-space-md);
+  padding: 2px var(--ds-space-lg);
+  overflow-x: auto;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.picker-kat::-webkit-scrollbar { display: none; }
+
+.chip {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 36px;
+  padding: 0 12px;
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-elevated);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-primary);
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chip__tall { font-variant-numeric: tabular-nums; color: var(--ds-color-text-tertiary); }
+
+.chip--valgt {
+  background: var(--ds-color-accent);
+  border-color: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+}
+
+.chip--valgt .chip__tall { color: inherit; opacity: 0.7; }
+
 .picker-group + .picker-group { margin-top: var(--ds-space-md); }
 
 .picker-group__label {
@@ -284,60 +368,63 @@ function preview(ex) {
 .picker-list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
 }
 
+/* Rada er et kort i lommeformat: bilde, navn, tema. Ingen bakgrunnsflate —
+   hårlinjer mellom radene holder, og bildet gir rada nok tyngde. */
 .picker-row {
-  display: flex;
-  align-items: flex-start;
+  display: grid;
+  grid-template-columns: 96px minmax(0, 1fr) 20px;
+  align-items: center;
   gap: var(--ds-space-sm);
   width: 100%;
-  padding: 12px;
-  background: var(--ds-color-bg-subtle);
-  border: 1px solid transparent;
-  border-radius: var(--ds-radius-md);
+  min-height: 64px;
+  padding: 8px 4px;
+  margin: 0 -4px;
+  background: none;
+  border: none;
+  border-bottom: 1px solid var(--ds-color-border-light);
   cursor: pointer;
   text-align: left;
   font-family: var(--ds-font-body);
   -webkit-tap-highlight-color: transparent;
-  transition:
-    background-color var(--ds-duration-fast) var(--ds-ease-out),
-    border-color var(--ds-duration-fast) var(--ds-ease-out),
-    transform var(--ds-duration-fast) var(--ds-ease-out);
+  width: calc(100% + 8px);
 }
 
-.picker-row:active { transform: scale(0.99); }
+.picker-list .picker-row:last-child { border-bottom: none; }
+.picker-row:active .picker-row__bilde { transform: scale(0.97); }
 
-@media (hover: hover) and (pointer: fine) {
-  .picker-row:hover { border-color: var(--ds-color-border-strong); }
-}
-
-.picker-row--selected {
-  background: var(--ds-color-accent-light);
-  border-color: var(--ds-color-accent);
-}
-
-.picker-row__head {
-  display: flex;
-  align-items: baseline;
-  gap: 6px;
-  min-width: 0;
-}
-
-.picker-row__badge {
-  flex-shrink: 0;
-  font-size: 0.65rem;
-  font-weight: 600;
-  padding: 2px 6px;
+.picker-row__bilde {
+  position: relative;
+  display: block;
+  aspect-ratio: 16 / 9;
+  overflow: hidden;
   border-radius: var(--ds-radius-sm);
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  border: 1px solid var(--ds-color-border-light);
+  background: var(--ds-color-bg-subtle);
+  transition: transform var(--ds-duration-fast) var(--ds-ease-out);
 }
-.picker-row__badge--diff { background: var(--accent-bg, var(--ds-badge-bg)); color: var(--accent-text, var(--ds-badge-text)); }
-.picker-row__badge--mix { background: transparent; color: var(--accent-text, var(--ds-badge-text)); box-shadow: inset 0 0 0 1px currentColor; }
+
+.picker-row__bilde img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+.picker-row__tid {
+  position: absolute;
+  right: 4px;
+  bottom: 4px;
+  padding: 1px 5px;
+  border-radius: var(--ds-radius-sm);
+  font-size: 0.6875rem;
+  font-weight: var(--ds-weight-medium);
+  font-variant-numeric: tabular-nums;
+  background: rgba(10, 10, 10, 0.72);
+  color: #fff;
+}
+
+/* Valgt: bildet får svart ramme, haken står til høyre. Rada trenger ingen
+   farget flate for å si at den er med. */
+.picker-row--selected .picker-row__bilde { border: 2px solid var(--ds-color-accent); }
 
 .picker-row__body {
-  flex: 1;
   display: flex;
   flex-direction: column;
   gap: 3px;
@@ -345,44 +432,29 @@ function preview(ex) {
 }
 
 .picker-row__name {
-  font-weight: var(--ds-weight-semibold);
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-primary);
   min-width: 0;
-}
-
-.picker-row__tema {
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-warm-text);
-}
-
-/* Så du vet hva du plukker uten å måtte åpne noe. */
-.picker-row__preview {
-  font-size: var(--ds-text-xs);
-  line-height: 1.45;
-  color: var(--ds-color-text-tertiary);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+  font-family: var(--ds-font-display-sans);
+  font-weight: var(--ds-weight-semibold);
+  font-size: var(--ds-text-base);
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  color: var(--ds-color-text-primary);
 }
 
-.picker-row__check {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  margin-top: 2px;
-  color: var(--ds-color-accent);
-}
-
-.picker-row__plus {
-  width: 18px;
-  height: 18px;
-  flex-shrink: 0;
-  margin-top: 2px;
+.picker-row__tema {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ds-text-sm);
   color: var(--ds-color-text-tertiary);
 }
+
+.picker-row__check { width: 20px; height: 20px; color: var(--ds-color-accent); }
+.picker-row__plus { width: 20px; height: 20px; color: var(--ds-color-text-tertiary); }
 
 .picker-no-hits {
   font-size: var(--ds-text-sm);

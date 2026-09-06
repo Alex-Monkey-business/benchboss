@@ -140,27 +140,39 @@ ok('sheeten lukker', await tell('.ds-sheet') === 0)
 await apne('lørdag')
 
 // ── 4. Planmodus ────────────────────────────────────────────────────────────
-await p.$$eval('.dag--open .dag__action', els => els[0].click()); await p.waitForTimeout(500)
+await p.$eval('.dag--open .dag__planlegg', e => e.click()); await p.waitForTimeout(500)
 ok('planmodus viser hele økta som rader', await tell('.dag--open .rad') === 4)
-ok('hele økta får plass på én skjerm i planmodus',
-  await p.$eval('.dag--open', e => e.getBoundingClientRect().height) < 844)
+ok('hver rad har et bilde-felt og to piler',
+  await tell('.dag--open .rad__bilde') === 4 && await tell('.dag--open .pil') === 8)
 
 const navnFoer = await p.$$eval('.dag--open .rad__navn', els => els.map(e => e.textContent.trim()))
 // Pil ned på rad 1: bytter plass med rad 2. Så tilbake — testen skal ikke
 // etterlate seg en omstokket plan.
-await p.$$eval('.dag--open .rad', els => els[0].querySelectorAll('.ovelse__action')[1].click())
+await p.$$eval('.dag--open .rad', els => els[0].querySelector('.pil--ned').click())
 await p.waitForTimeout(900)
 const navnEtter = await p.$$eval('.dag--open .rad__navn', els => els.map(e => e.textContent.trim()))
 ok('pil ned bytter rekkefølge', navnEtter[0] === navnFoer[1] && navnEtter[1] === navnFoer[0], navnEtter.join(' | '))
-await p.$$eval('.dag--open .rad', els => els[1].querySelectorAll('.ovelse__action')[0].click())
+await p.$$eval('.dag--open .rad', els => els[1].querySelector('.pil--opp').click())
 await p.waitForTimeout(900)
 ok('og tilbake igjen',
   (await p.$$eval('.dag--open .rad__navn', els => els.map(e => e.textContent.trim()))).join('|') === navnFoer.join('|'))
+ok('første pil opp og siste pil ned er av',
+  await p.$eval('.dag--open .rad:first-child .pil--opp', e => e.disabled) &&
+  await p.$eval('.dag--open .rad:last-child .pil--ned', e => e.disabled))
 
-// Stepperen bor i planmodus, ikke i leseflata.
-await p.$eval('.dag--open .rad__tid', e => e.click()); await p.waitForTimeout(400)
-ok('tidsstepperen åpner i planmodus', await tell('.dag--open .rad__timeset') === 1)
-await p.$eval('.dag--open .ovelse__done', e => e.click()); await p.waitForTimeout(300)
+// Rada åpner arket for øvelsen: tida, bytt ut, flytt til de andre dagene, fjern.
+await p.$eval('.dag--open .rad__hode', e => e.click()); await p.waitForTimeout(500)
+ok('arket for øvelsen har stepper og valg', await tell('.ds-sheet .stepper') === 1 && await tell('.ds-sheet .valg') >= 4)
+const valg = await p.$$eval('.ds-sheet .valg', els => els.map(e => e.textContent.trim()))
+ok('flytt-valgene bruker dagens fulle navn', valg.some(v => /^Flytt til (tirsdag|torsdag)$/.test(v)), valg.join(' | '))
+ok('ingen stepper i selve dagen', await tell('.dag--open .stepper') === 0)
+// Bytt ut åpner plukkeren med navnet i tittelen — og uten Ferdig-knapp, for ett trykk velger.
+await p.$$eval('.ds-sheet .valg--bytt', els => els[0].click()); await p.waitForTimeout(600)
+ok('bytt ut åpner plukkeren for plassen', /^Bytt ut «/.test(await p.$eval('.ds-sheet__title', e => e.textContent.trim())))
+ok('plukkeren har kategorichips', await tell('.ds-sheet .chip') >= 3)
+ok('plukkeren viser bilde-felt per rad', await tell('.ds-sheet .picker-row__bilde') > 0)
+ok('ingen Ferdig i bytte-modus', await tell('.ds-sheet .picker-done') === 0)
+await p.$eval('.ds-sheet__close', e => e.click()); await p.waitForTimeout(400)
 
 // ── 5. Modus følger ikke med til neste dag ──────────────────────────────────
 await apne('tirsdag')

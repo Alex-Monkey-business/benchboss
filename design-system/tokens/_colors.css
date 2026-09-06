@@ -82,21 +82,26 @@
 
      Første forsøk erstattet grønn og rød med to dempede toner, og da ble hele
      appen grå. Feilen var ikke å fjerne lagfargene — det var å bytte dem mot
-     noe forsiktig. Fire av de fem er nå ordentlige farger: blå, indigo, gull
-     og plomme. Steinen er den ene stille, og den leses som et valg når de
-     andre tør. Ingen av dem ligger i nærheten av #3D5C44 eller #7A3A24.
+     noe forsiktig. Andre runde ga fem ordentlige farger, men to av dem var
+     brune: «olive» var gullbrun og «taupe» gråbrun, og treningsuka hadde
+     tilfeldigvis trukket begge. Tre dager, to brune.
+
+     Navnene står — de er lagret på økter, kull og referater — men fargene
+     bak dem er byttet: olive er nå petrol, taupe er grafitt. Blå, indigo,
+     petrol og plomme er kalde og rene; grafitt er den ene stille. Ingen av
+     dem ligger i nærheten av #3D5C44 eller #7A3A24, og ingen er brun.
 
      Paletten sto kopiert inn i åtte filer. Nå står den her. */
   --ds-accent-sky-text:         #2C5F8F;
   --ds-accent-sky-bg:           #DCE8F4;
   --ds-accent-cornflower-text:  #4E4A9E;
   --ds-accent-cornflower-bg:    #E2E1F5;
-  --ds-accent-olive-text:       #8A5E12;
-  --ds-accent-olive-bg:         #F7EAD2;
+  --ds-accent-olive-text:       #1F6B72;
+  --ds-accent-olive-bg:         #D8EBED;
   --ds-accent-plum-text:        #8A3A7A;
   --ds-accent-plum-bg:          #F5E1F1;
-  --ds-accent-taupe-text:       #575046;
-  --ds-accent-taupe-bg:         #E3E0D8;
+  --ds-accent-taupe-text:       #45464A;
+  --ds-accent-taupe-bg:         #E4E5E7;
 
   /* ---- Diff/Mix ----
      To verdier av én egenskap, ikke to statuser. De bar grønt og rødt — altså
@@ -134,12 +139,12 @@
   --ds-accent-sky-bg:           #16232E;
   --ds-accent-cornflower-text:  #B9B6EE;
   --ds-accent-cornflower-bg:    #1B1A2E;
-  --ds-accent-olive-text:       #E5C179;
-  --ds-accent-olive-bg:         #2A2013;
+  --ds-accent-olive-text:       #7FCFD6;
+  --ds-accent-olive-bg:         #11282B;
   --ds-accent-plum-text:        #E9AEDD;
   --ds-accent-plum-bg:          #2B1728;
-  --ds-accent-taupe-text:       #D2CAC1;
-  --ds-accent-taupe-bg:         #221F1C;
+  --ds-accent-taupe-text:       #C8CACF;
+  --ds-accent-taupe-bg:         #202124;
 
   /* ---- Diff/Mix ---- */
   --ds-badge-bg:                #242422;
