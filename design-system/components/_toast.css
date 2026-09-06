@@ -50,10 +50,49 @@
   color: #ffffff;
 }
 
+/* ---- Kudos ----
+   Mørk flate, ikke grønn: den står oppå en grønn bane i match mode, og grønt på
+   grønt forsvant. Større enn de andre, to linjer, tommel i ring — det er en
+   liten feiring, ikke en systemmelding. */
+.ds-toast--kudos {
+  gap: 14px;
+  padding: 14px 18px 14px 14px;
+  background: var(--ds-color-text-primary);
+  color: var(--ds-color-text-inverse);
+  border-radius: var(--ds-radius-lg);
+}
+
+.ds-toast__ring {
+  flex-shrink: 0;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.14);
+}
+
+[data-theme="dark"] .ds-toast__ring { background: rgba(0, 0, 0, 0.1); }
+
+.ds-toast__thumb { width: 22px; height: 22px; }
+
+.ds-toast__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+
+.ds-toast--kudos .ds-toast__msg {
+  font-size: var(--ds-text-base);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: -0.01em;
+}
+
+.ds-toast__detail {
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-regular);
+  opacity: 0.78;
+  line-height: 1.4;
+}
+
 /* ---- Handling («Angre») ----
    Stor nok til en tommel på sidelinja, tydelig som knapp mot den mørke flaten. */
-.ds-toast__text { min-width: 0; }
-
 .ds-toast__action {
   flex-shrink: 0;
   min-height: 36px;

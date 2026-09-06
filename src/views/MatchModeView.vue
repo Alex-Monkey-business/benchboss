@@ -338,23 +338,26 @@ async function gjorBytte(outId, inId) {
   const minstPaBenken = bench.value[0]?.id === inId
   try {
     const kvittering = await substitute(matchId, { outPlayerId: outId, inPlayerId: inId })
-    let melding = `${firstName(inn.name)} inn for ${firstName(ut.name)}`
-    let type = 'success'
-    if (innSec - utSec >= 60) {
-      melding += ` · ${firstName(inn.name)} har allerede mer tid enn ${firstName(ut.name)}`
-      type = 'warning'
-    } else if (utSec - innSec >= 60 && minstPaBenken) {
-      melding += `. ${kudosFor(antallKudos++)}`
-    }
-    showToast(melding, type, 5000, {
+    const melding = `${firstName(inn.name)} inn for ${firstName(ut.name)}`
+    const angre = {
       label: 'Angre',
       handler: async () => {
         try {
           const ok = await undoSubstitute(matchId, kvittering)
-          showToast(ok ? `Angret: ${firstName(ut.name)} står igjen` : 'Kunne ikke angre, det har skjedd et nytt bytte', ok ? 'success' : 'error')
+          showToast(ok ? `Angret: ${firstName(ut.name)} står igjen` : 'Kunne ikke angre, det har skjedd et nytt bytte', ok ? 'neutral' : 'error')
         } catch (e) { reportError(e) }
       }
-    })
+    }
+    // Rettferdig: kudos, uten Angre — det er en feiring, ikke et valg. Feil
+    // vei: fakta og Angre. Alt annet: mørk toast med Angre. Ingen av dem er
+    // grønne, for de står på en grønn bane.
+    if (utSec - innSec >= 60 && minstPaBenken) {
+      showToast(melding, 'kudos', 4500, { detail: kudosFor(antallKudos++) })
+    } else if (innSec - utSec >= 60) {
+      showToast(`${melding} · ${firstName(inn.name)} har allerede mer tid enn ${firstName(ut.name)}`, 'warning', 5000, { action: angre })
+    } else {
+      showToast(melding, 'neutral', 5000, { action: angre })
+    }
   } catch (e) { reportError(e) }
 }
 

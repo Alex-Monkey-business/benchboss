@@ -11,14 +11,16 @@ export function useToast() {
   // viktigere enn flyten — en utløpt sesjon midt i en kamp skal ikke rekke å
   // forsvinne mens telefonen ligger i lomma.
   //
-  // action = { label, handler }: én knapp i varslinga («Angre»). Knappen kjører
-  // handleren og lukker varslinga. Det er det som gjør at et bytte i match mode
-  // kan gå på ett trykk uten bekreftelse — feilen koster ett trykk tilbake.
-  function show(message, type = 'success', duration = 3000, action = null) {
+  // opts.action = { label, handler }: én knapp i varslinga («Angre»). Knappen
+  // kjører handleren og lukker varslinga. Det er det som gjør at et bytte i
+  // match mode kan gå på ett trykk uten bekreftelse — feilen koster ett trykk.
+  // opts.detail: en andre linje under meldinga (kudos-varianten bruker den).
+  function show(message, type = 'success', duration = 3000, opts = null) {
     const id = nextId++
-    const toast = { id, message, type, action: null }
-    if (action) {
-      toast.action = { label: action.label, run: () => { dismiss(id); action.handler?.() } }
+    const toast = { id, message, type, action: null, detail: opts?.detail || '' }
+    if (opts?.action) {
+      const a = opts.action
+      toast.action = { label: a.label, run: () => { dismiss(id); a.handler?.() } }
     }
     state.toasts.push(toast)
     if (duration > 0) setTimeout(() => dismiss(id), duration)
