@@ -342,18 +342,20 @@ function armBench(id) { armedBenchId.value = armedBenchId.value === id ? null : 
 // ── Rettferdig andel ─────────────────────────────────────────────────────────
 //
 // Sju på banen hele kampen delt på troppen: det er tida hver spiller «skulle»
-// hatt akkurat nå. Den som ligger klart over på banen bør ut, den som ligger
-// klart under på benken bør inn. Treneren skal se det uten å lese tall —
-// tallene står der fortsatt, men tonen er det som treffer i et blikk.
+// hatt akkurat nå. Avstanden fra den andelen er en glidende skala, ikke en
+// bryter: på banen blir tida varmere (hvit → gul → rød) jo lenger over
+// spilleren ligger, på benken blir chipen grønnere jo lenger under. Treneren
+// ser hvem som er «mest moden» uten å lese tall — tallene står der fortsatt.
 //
-// Marginen er tre minutter, eller en femtedel av andelen når kampen har gått
-// en stund. Uten margin lyser alt de første minuttene, og da betyr det
-// ingenting.
+// Spennet er fem minutter absolutt: fem minutter over andelen er full rød,
+// fem under er full grønn. Relativt til andelen fungerer ikke — med ni i
+// troppen kan ingen komme mer enn 22 % over, og skalaen ville aldri nådd rødt.
 const fairShare = computed(() =>
   squad.value.length ? (currentClock.value * FORMATION.length) / squad.value.length : 0)
-const toneMargin = computed(() => Math.max(180, fairShare.value * 0.2))
-function harMye(id) { return timeFor(id) - fairShare.value >= toneMargin.value }
-function harLite(id) { return fairShare.value - timeFor(id) >= toneMargin.value }
+const TONE_SPAN = 300
+function grad(delta) { return Math.min(1, Math.max(0, delta / TONE_SPAN)) }
+function varme(id) { return grad(timeFor(id) - fairShare.value) }   // på banen: over andel
+function kulde(id) { return grad(fairShare.value - timeFor(id)) }   // på benken: under andel
 
 // ── Forslaget ────────────────────────────────────────────────────────────────
 //
@@ -1031,10 +1033,10 @@ async function undoMove() {
             'marker--lifted': dragId && dragFromSlot === slot.id,
             'marker--droppable': dragId && playerAtPosition(slot.id) && dragFromSlot !== slot.id && hoverSlot !== slot.id,
             'marker--drop': dragId && hoverSlot === slot.id && playerAtPosition(slot.id) && dragFromSlot !== slot.id,
-            'marker--mye': playerAtPosition(slot.id) && roleOf(playerAtPosition(slot.id)) !== 'keeper' && harMye(playerAtPosition(slot.id))
+            'marker--varm': playerAtPosition(slot.id) && roleOf(playerAtPosition(slot.id)) !== 'keeper' && varme(playerAtPosition(slot.id)) > .12
           }"
           :data-team="playerById(playerAtPosition(slot.id))?.primary_team || 'none'"
-          :style="{ left: slot.x + '%', top: slot.y + '%' }"
+          :style="{ left: slot.x + '%', top: slot.y + '%', '--h': playerAtPosition(slot.id) && roleOf(playerAtPosition(slot.id)) !== 'keeper' ? varme(playerAtPosition(slot.id)) : 0 }"
           @click="onMarkerClick(slot)"
           @pointerdown="onMarkerDown($event, slot)"
           @pointermove="onMarkerMove"
@@ -1086,7 +1088,8 @@ async function undoMove() {
           :key="p.id"
           type="button"
           class="mm__bchip"
-          :class="{ 'mm__bchip--armed': armedBenchId === p.id, 'mm__bchip--lite': armedBenchId !== p.id && harLite(p.id) }"
+          :class="{ 'mm__bchip--armed': armedBenchId === p.id, 'mm__bchip--klar': armedBenchId !== p.id && kulde(p.id) > .05 }"
+          :style="{ '--k': kulde(p.id) }"
           @click="armBench(p.id)"
         >
           <span class="mm__bname">{{ firstName(p.name) }}</span>
@@ -1591,14 +1594,23 @@ async function undoMove() {
 }
 .marker--gk .marker__circle { background: var(--ds-color-warning); color: #fff; }
 
-/* Har mye tid: tida står i en hvit pille med svart tekst. Det er det eneste på
-   banen som ikke er hvitt-på-grønt, så blikket finner det uten å lese. Ikke
-   rødt: rødt er et lag. */
-.marker--mye .marker__time {
+/* Varme: tida under drakta blir en pille som går hvit → gul → rød med --h
+   (0–1, avstand over rettferdig andel). Drakta selv beholder lagfargen —
+   signalrødt (#E5484D) er tydelig noe annet enn Halsen Rød. Ringen rundt
+   drakta tar samme tone, så det leses også på avstand. */
+.marker--live {
+  --varm: color-mix(in srgb,
+    color-mix(in srgb, #F6B73C calc(min(1, var(--h, 0) * 2) * 100%), #FFFFFF)
+    calc((1 - max(0, (var(--h, 0) - .5) * 2)) * 100%), #E5484D);
+}
+.marker--live .marker__circle {
+  border-color: color-mix(in srgb, var(--varm) calc(var(--h, 0) * 100%), rgba(255,255,255,.9));
+}
+.marker--varm .marker__time {
   padding: 1px 6px;
   border-radius: var(--ds-radius-full);
-  background: #fff;
-  color: #0A0A0A;
+  background: color-mix(in srgb, var(--varm) calc(min(1, .6 + var(--h, 0)) * 100%), transparent);
+  color: color-mix(in srgb, #fff calc(clamp(0, (var(--h, 0) - .7) * 6, 1) * 100%), #0A0A0A);
   text-shadow: none;
 }
 
@@ -1743,9 +1755,19 @@ async function undoMove() {
 .mm__bench { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }
 .mm__bchip { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-elevated); cursor: pointer; transition: all .15s ease; -webkit-tap-highlight-color: transparent; }
 .mm__bchip--armed { border-color: var(--ds-color-accent); background: var(--ds-color-accent); color: var(--ds-color-accent-text); }
-/* Har lite tid: svart omriss og full tekst — den bør inn. Armert vinner. */
-.mm__bchip--lite { border-color: var(--ds-color-text-primary); box-shadow: inset 0 0 0 0.5px var(--ds-color-text-primary); }
-.mm__bchip--lite .mm__btime { opacity: 1; font-weight: var(--ds-weight-semibold); }
+/* Klar: chipen blir grønnere med --k (0–1, avstand under rettferdig andel).
+   Benken ligger på lys flate, så grønt fungerer her — ikke på gresset.
+   Armert vinner. */
+.mm__bchip--klar {
+  border-color: color-mix(in srgb, var(--ds-color-success) calc(var(--k, 0) * 100%), var(--ds-color-border));
+  background: color-mix(in srgb, var(--ds-color-success-light) calc(var(--k, 0) * 100%), var(--ds-color-bg-elevated));
+}
+.mm__bchip--klar .mm__btime {
+  opacity: 1; font-weight: var(--ds-weight-semibold);
+  padding: 1px 7px; margin-right: -4px; border-radius: var(--ds-radius-full);
+  background: color-mix(in srgb, var(--ds-color-success) calc(clamp(0, (var(--k, 0) - .4) * 2.5, 1) * 100%), transparent);
+  color: color-mix(in srgb, #fff calc(clamp(0, (var(--k, 0) - .55) * 6, 1) * 100%), var(--ds-color-success-text));
+}
 .mm__bname { font-size: var(--ds-text-md); font-weight: var(--ds-weight-medium); }
 .mm__btime { font-variant-numeric: tabular-nums; font-size: var(--ds-text-sm); opacity: .65; }
 .mm__btag { font-size: var(--ds-text-xs); opacity: .6; }
