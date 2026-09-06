@@ -381,17 +381,30 @@ export function useToday() {
 
   async function refresh() {
     loading.value = matches.value.length === 0
-    await Promise.all([fetchSeasons(), fetchCoaches(), fetchCups(), fetchWeek(), fetchSerieStatus()])
+
+    // Kampene avhenger av sesongen, og dét ga en ekstra rundtur hver gang.
+    // Men sesongen ligger i cachen fra sist. Da går kampene i SAMME bølge som
+    // sesongene, og bare hvis den aktive sesongen viser seg å være en annen,
+    // hentes de på nytt. Fra seks serielle bølger til to på en varm start.
+    const kjentSesong = activeSeason.value?.id || null
+    const kjentCup = cupInProgress.value ? activeCup.value?.id : null
+    const forste = [fetchSeasons(), fetchCoaches(), fetchCups(), fetchWeek(), fetchSerieStatus()]
+    if (kjentSesong) {
+      forste.push(fetchMatches(kjentSesong))
+      if (activeCohort.value?.id) forste.push(fetchSeasonTeams(activeCohort.value.id, kjentSesong))
+    }
+    if (kjentCup) forste.push(fetchCupMatches(kjentCup))
+    await Promise.all(forste)
 
     const jobs = []
-    if (activeSeason.value) jobs.push(fetchMatches(activeSeason.value.id))
-    // Lag-til-trener: uten denne vet ikke Hjem hvilket lag som er mitt, og
-    // faller tilbake på den statiske configen i lib/seasonTeams.js.
-    if (activeCohort.value?.id && activeSeason.value) {
-      jobs.push(fetchSeasonTeams(activeCohort.value.id, activeSeason.value.id))
+    if (activeSeason.value && activeSeason.value.id !== kjentSesong) {
+      jobs.push(fetchMatches(activeSeason.value.id))
+      // Lag-til-trener: uten denne vet ikke Hjem hvilket lag som er mitt, og
+      // faller tilbake på den statiske configen i lib/seasonTeams.js.
+      if (activeCohort.value?.id) jobs.push(fetchSeasonTeams(activeCohort.value.id, activeSeason.value.id))
     }
     // Ferdig cup trenger ikke lastes på Hjem — cup-sidene henter selv for historikken.
-    if (cupInProgress.value) jobs.push(fetchCupMatches(activeCup.value.id))
+    if (cupInProgress.value && activeCup.value?.id !== kjentCup) jobs.push(fetchCupMatches(activeCup.value.id))
     await Promise.all(jobs)
 
     // Prep for dagens kamp OG neste kamp — neste-kortet viser nå hva som

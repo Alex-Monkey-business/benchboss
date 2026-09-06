@@ -2,12 +2,13 @@ import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { localISODate } from '../lib/dateLabels'
 import { registerReset } from '../stores/dataReset'
-import { fetchRows, STATUS } from '../lib/query'
+import { fetchRows, STATUS, dedupe } from '../lib/query'
 import { scoped, withCohort } from '../lib/scope'
 import { slugify } from '../lib/playerList'
+import { persistRef } from '../lib/persist'
 
-const cups = ref([])
-const activeCup = ref(null)
+const cups = persistRef('cups', ref([]))
+const activeCup = persistRef('activeCup', ref(null))
 const loaded = ref(false)
 const status = ref(STATUS.IDLE)
 
@@ -166,5 +167,5 @@ export function useCups() {
     activeCup.value = cups.value.find(c => c.id === id) || activeCup.value
   }
 
-  return { cups, activeCup, cupInProgress, loaded, status, fetchCups, createCup, updateCup, deleteCup, selectCup }
+  return { cups, activeCup, cupInProgress, loaded, status, fetchCups: dedupe(fetchCups, 'fetchCups'), createCup, updateCup, deleteCup, selectCup }
 }

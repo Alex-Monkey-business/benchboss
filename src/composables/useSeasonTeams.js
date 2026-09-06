@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
 import { useAuth } from '../stores/auth'
 import { SEASON_TEAMS } from '../lib/seasonTeams'
+import { persistRef } from '../lib/persist'
 
 // Lagene som ÉN kilde for hele appen.
 //
@@ -14,7 +15,7 @@ import { SEASON_TEAMS } from '../lib/seasonTeams'
 // Views skal lese herfra, aldri importere SEASON_TEAMS direkte.
 
 // Kullets lag. Nøkkelet på kull-id.
-const teamRows = ref([])
+const teamRows = persistRef('teamRows', ref([]))
 const teamsCohort = ref(null)
 let teamsInflight = null
 

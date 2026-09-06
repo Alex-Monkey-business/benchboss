@@ -160,7 +160,7 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
       </div>
 
       <div v-else-if="displayedMatches.length === 0" class="ds-empty">
-        <img src="/illustrations/bench-boss-feature-icons/512/matches-transparent.png" alt="" class="ds-empty__illo" />
+        <img src="/illustrations/bench-boss-feature-icons/512/matches-transparent.webp" alt="" class="ds-empty__illo" />
         <h3 class="ds-empty__title">
           {{ timeFilter === 'past' ? 'Ingen tidligere kamper' : 'Ingen kommende kamper' }}
         </h3>

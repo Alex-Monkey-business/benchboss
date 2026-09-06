@@ -109,7 +109,7 @@ async function handleAdd() {
       <div v-if="!ready" class="cmd-muted">Henter tropp …</div>
 
       <div v-else-if="canEdit && players.length === 0" class="ds-empty">
-        <img src="/illustrations/bench-boss-state-icons/512/empty-squad-transparent.png" alt="" class="ds-empty__illo" />
+        <img src="/illustrations/bench-boss-state-icons/512/empty-squad-transparent.webp" alt="" class="ds-empty__illo" />
         <h3 class="ds-empty__title">Ingen spillere ennå</h3>
         <p class="ds-empty__description">Legg inn spillerne i kullet, så kan du fordele dem på lag og sette posisjoner.</p>
         <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="openAdd">Ny spiller</button>

@@ -13,10 +13,18 @@
   [headers.values]
     Cache-Control = "no-cache, no-store, must-revalidate"
 
+# Alt under /assets har innholdshash i navnet — en ny versjon er en ny fil.
+# Ett døgn her betydde at appen lastet 130 KB JS på nytt hver dag. Ett år,
+# immutable: nettleseren spør ikke engang. Samme for fontene.
 [[headers]]
   for = "/assets/*"
   [headers.values]
-    Cache-Control = "public, max-age=86400"
+    Cache-Control = "public, max-age=31536000, immutable"
+
+[[headers]]
+  for = "/fonts/*"
+  [headers.values]
+    Cache-Control = "public, max-age=31536000, immutable"
 
 [[headers]]
   for = "/illustrations/*"

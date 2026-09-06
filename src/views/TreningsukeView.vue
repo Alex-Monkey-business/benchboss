@@ -40,7 +40,9 @@ const { days: dager, supportsDuration, fetchWeek, createDay, updateDay, removeDa
 const { exercises, supportsCategory, fetchExercises, createExercise } = useExercises()
 const { show: showToast } = useToast()
 
-const loading = ref(true)
+// Ligger uka i cachen fra sist, tegnes den med en gang; skjelettet er for
+// første besøk.
+const loading = ref(dager.value.length === 0)
 
 // ── Dagene ──────────────────────────────────────────────────────────────────
 //
@@ -591,7 +593,7 @@ onMounted(async () => {
          uka har ingen sluttdato å gå ut på. Står det ingenting her, har ingen
          lagt inn en dag. -->
     <div v-else-if="!dager.length" class="ds-empty">
-      <img src="/illustrations/bench-boss-feature-icons/512/training-plan-transparent.png" alt="" class="ds-empty__illo" />
+      <img src="/illustrations/bench-boss-feature-icons/512/training-plan-transparent.webp" alt="" class="ds-empty__illo" />
       <div class="ds-empty__title">Ingen treningsuke ennå</div>
       <div class="ds-empty__description">
         Legg inn dagene dere trener. De blir stående — uka gjentar seg til dere endrer den.

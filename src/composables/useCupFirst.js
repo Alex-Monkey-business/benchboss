@@ -2,6 +2,8 @@ import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { useAuth } from '../stores/auth'
 import { registerReset } from '../stores/dataReset'
+import { persistRef } from '../lib/persist'
+import { dedupe } from '../lib/query'
 
 // «Har dette kullet en serie i det hele tatt?»
 //
@@ -14,7 +16,7 @@ import { registerReset } from '../stores/dataReset'
 // ville Halsen flippet til cup-først hver gang en ny sesong står tom, og det
 // er nettopp den slags overraskelse ingen har bedt om. Halsen har 63 kamper i
 // basen; de kan aldri bli cup-først.
-const serieKamper = ref(null)
+const serieKamper = persistRef('serieKamper', ref(null))
 const maaltKull = ref(null)
 
 registerReset(() => { serieKamper.value = null; maaltKull.value = null })
@@ -42,5 +44,5 @@ export function useCupFirst() {
   // halvsekund etter innlasting er verre enn å vente på svaret.
   const cupFirst = computed(() => serieKamper.value === 0)
 
-  return { cupFirst, fetchSerieStatus }
+  return { cupFirst, fetchSerieStatus: dedupe(fetchSerieStatus, 'fetchSerieStatus') }
 }

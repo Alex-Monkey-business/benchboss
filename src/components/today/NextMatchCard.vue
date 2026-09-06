@@ -102,7 +102,7 @@ const detailLine = computed(() => {
 
     <img
       class="next-match__illo"
-      src="/illustrations/bench-boss-state-icons/512/upcoming-match-transparent.png"
+      src="/illustrations/bench-boss-state-icons/512/upcoming-match-transparent.webp"
       alt=""
       width="88"
       height="88"

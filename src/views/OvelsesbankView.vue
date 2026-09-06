@@ -222,7 +222,7 @@ onMounted(async () => {
     />
 
     <div v-if="exercises.length === 0" class="ds-empty">
-      <img src="/illustrations/bench-boss-feature-icons/512/training-plan-transparent.png" alt="" class="ds-empty__illo" />
+      <img src="/illustrations/bench-boss-feature-icons/512/training-plan-transparent.webp" alt="" class="ds-empty__illo" />
       <div class="ds-empty__title">Ingen øvelser ennå</div>
       <div class="ds-empty__description">
         Øvelser du lager mens du planlegger uka havner her automatisk — og deles med

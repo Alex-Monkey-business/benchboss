@@ -2,8 +2,9 @@ import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
 import { fetchRows, STATUS } from '../lib/query'
+import { persistRef } from '../lib/persist'
 
-const cupMatches = ref([])
+const cupMatches = persistRef('cupMatches', ref([]))
 const loading = ref(false)
 const loadedCup = ref(null)
 const status = ref(STATUS.IDLE)

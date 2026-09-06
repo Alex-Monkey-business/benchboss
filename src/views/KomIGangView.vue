@@ -316,7 +316,7 @@ function hoppOver() {
         <div class="kig-hero" aria-hidden="true">
           <img
             class="kig-hero__trener"
-            src="/illustrations/bench-boss-transparent-library/coach-mascot-520.png"
+            src="/illustrations/bench-boss-transparent-library/coach-mascot-520.webp"
             alt=""
             width="520"
             height="520"
@@ -482,7 +482,7 @@ function hoppOver() {
       <template v-else-if="steg === 'ferdig'">
         <img
           class="kig__kvittering"
-          src="/illustrations/bench-boss-feature-icons/season-import-420.png"
+          src="/illustrations/bench-boss-feature-icons/season-import-420.webp"
           alt=""
           width="420"
           height="420"

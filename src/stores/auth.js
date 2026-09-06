@@ -1,6 +1,7 @@
 import { reactive, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { resetAllData } from './dataReset'
+import { clearPersisted } from '../lib/persist'
 import { readLegacyUser, clearLegacyUser, refreshLegacyFlag } from './legacyAuth'
 
 // Identiteten i BenchBoss.
@@ -192,7 +193,7 @@ function applyMemberships(profile, rows) {
 
   // Byttet person bak skjermen? De 18 composablene er singletons som lever så
   // lenge fanen gjør det, og ville ellers vist forrige brukers kamper.
-  if (previousProfile && previousProfile !== profile?.id) resetAllData()
+  if (previousProfile && previousProfile !== profile?.id) { clearPersisted(); resetAllData() }
 
   // Ekte innlogging vinner over PIN-broen.
   if (state.memberships.length) state.legacy = null
@@ -237,6 +238,14 @@ async function bootstrap() {
     return
   }
 
+  // Kjenner vi brukeren fra sist (profil og medlemskap i localStorage), er
+  // routeren klar NÅ. Før ventet den på getSession + to spørringer mot basen
+  // før første skjerm i det hele tatt fikk tegnes — en hel rundtur med tom
+  // flate på hver kalde start, for å bekrefte noe vi allerede visste. Nå
+  // tegnes appen fra cachen, og medlemskapet friskes opp i bakgrunnen. Er
+  // sesjonen borte, rydder bootstrap opp og App.vue sender til innlogging.
+  if (state.profile && state.memberships.length) finishReady()
+
   try {
     const { data } = await supabase.auth.getSession()
     if (data?.session?.user) {
@@ -260,6 +269,9 @@ async function bootstrap() {
     // auth-mutexen, og et kall herfra låser den — appen henger ved kald start,
     // uten feilmelding.
     setTimeout(async () => {
+      // INITIAL_SESSION er sesjonen bootstrap nettopp leste. Å laste
+      // medlemskapet en gang til her ga to identiske spørringer ved hver start.
+      if (event === 'INITIAL_SESSION') return
       if (event === 'SIGNED_OUT' || !session?.user) {
         if (state.holdSession) {
           state.sessionLost = true
@@ -284,6 +296,7 @@ function clearAuthState() {
   state.memberships = []
   state.activeCohortId = null
   clearCache()
+  clearPersisted()
   resetAllData()
 }
 

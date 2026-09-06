@@ -5,7 +5,6 @@ import { useCupMatches } from '../composables/useCupMatches'
 import { useCupTeams } from '../composables/useCupTeams'
 import { useToast } from '../composables/useToast'
 import { useAuth } from '../stores/auth'
-import { parseCupMatchFile, fordelLag } from '../lib/cupExcel'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
 
@@ -142,6 +141,8 @@ async function lesFil(fil) {
   if (!activeCup.value) return
   leser.value = true
   try {
+    // xlsx (419 KB) lastes først når en fil faktisk skal leses.
+    const { parseCupMatchFile, fordelLag } = await import('../lib/cupExcel')
     const rader = await parseCupMatchFile(fil)
     if (!rader.length) {
       showToast('Fant ingen kamper i filen', 'error')
@@ -253,7 +254,7 @@ const sorterteKamper = computed(() =>
       <p v-if="!ready" class="turn-muted">Henter turneringer …</p>
 
       <div v-else-if="!cups.length" class="ds-empty">
-        <img src="/illustrations/bench-boss-feature-icons/512/cup-tournament-transparent.png" alt="" class="ds-empty__illo" />
+        <img src="/illustrations/bench-boss-feature-icons/512/cup-tournament-transparent.webp" alt="" class="ds-empty__illo" />
         <h3 class="ds-empty__title">Ingen turneringer ennå</h3>
         <p class="ds-empty__description">
           Legg inn cupen med lagene dere stiller med, så kan du fordele troppen og

@@ -4,17 +4,18 @@ import { demoId } from './useTrainingWeek'
 import { registerReset } from '../stores/dataReset'
 import { clubScoped, withClub, cohortId } from '../lib/scope'
 import { useAuth } from '../stores/auth'
+import { persistRef } from '../lib/persist'
 
 // Øvelsesbank — gjenbrukbare øvelser (training_exercises).
 // Copy-on-add: banken er malen, økta eier sin egen kopi (drills-JSONB).
 
-const exercises = ref([])
+const exercises = persistRef('exercises', ref([]))
 const loading = ref(false)
 const loaded = ref(false)
 // Kull-navnene i klubben din. `cohorts` er medlemsskapsstyrt, så en trener i
 // G2020 kan ikke lese raden til G2015 — men navnet på et kull i sin egen klubb
 // skal han se, ellers står øvelsene der uten avsender.
-const kullNavn = ref({})
+const kullNavn = persistRef('kullNavn', ref({}))
 
 registerReset(() => { exercises.value = []; loading.value = false; loaded.value = false; kullNavn.value = {} })
 

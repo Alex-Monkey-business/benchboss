@@ -1,10 +1,11 @@
 import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
-import { fetchRows, STATUS } from '../lib/query'
+import { fetchRows, STATUS, dedupe } from '../lib/query'
 import { scoped } from '../lib/scope'
+import { persistRef } from '../lib/persist'
 
-const coaches = ref([])
+const coaches = persistRef('coaches', ref([]))
 const loaded = ref(false)
 const status = ref(STATUS.IDLE)
 
@@ -60,5 +61,5 @@ export function useCoaches() {
     return coaches.value
   }
 
-  return { coaches, status, fetchCoaches }
+  return { coaches, status, fetchCoaches: dedupe(fetchCoaches, 'fetchCoaches') }
 }

@@ -223,7 +223,7 @@ function getCoachNamesForMatch(matchId) {
 
     <div v-else-if="filteredMatches.length === 0" class="px-lg ds-anim-fade-up ds-anim-delay-3">
       <div class="ds-empty">
-        <img src="/illustrations/bench-boss-feature-icons/512/matches-transparent.png" alt="" class="ds-empty__illo" />
+        <img src="/illustrations/bench-boss-feature-icons/512/matches-transparent.webp" alt="" class="ds-empty__illo" />
         <h3 class="ds-empty__title">Ingen kamper enda</h3>
         <p class="ds-empty__description">Last opp terminlista, så fyller resten av appen seg selv.</p>
         <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="$router.push('/admin/sesong-kamper')">Last opp kampprogram</button>
@@ -233,7 +233,7 @@ function getCoachNamesForMatch(matchId) {
     <div v-else>
       <div v-if="displayedCount === 0" class="px-lg">
         <div class="ds-empty">
-          <img src="/illustrations/bench-boss-feature-icons/512/matches-transparent.png" alt="" class="ds-empty__illo" />
+          <img src="/illustrations/bench-boss-feature-icons/512/matches-transparent.webp" alt="" class="ds-empty__illo" />
           <h3 class="ds-empty__title">
             {{ timeFilter === 'past' ? 'Ingen tidligere kamper' : 'Ingen kommende kamper' }}
           </h3>

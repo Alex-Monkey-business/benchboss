@@ -41,7 +41,7 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
       <img
         v-else
         class="next-training__illo next-training__illo--fallback"
-        src="/illustrations/bench-boss-state-icons/512/upcoming-training-transparent.png"
+        src="/illustrations/bench-boss-state-icons/512/upcoming-training-transparent.webp"
         alt=""
         decoding="async"
       />

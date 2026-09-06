@@ -25,7 +25,7 @@ function open(slug) {
     </div>
 
     <header class="handbook__hero">
-      <img class="handbook__icon" src="/illustrations/bench-boss-feature-icons/512/training-handbook-transparent.png" alt="" />
+      <img class="handbook__icon" src="/illustrations/bench-boss-feature-icons/512/training-handbook-transparent.webp" alt="" />
       <span class="handbook__eyebrow">Trener-håndbok</span>
       <h1 class="handbook__title">{{ handbokOpphav ? `Slik trener vi i ${klubbNavn}` : `Slik trener vi ${cohortName}` }}</h1>
       <p v-if="hasHandbook" class="handbook__lead">

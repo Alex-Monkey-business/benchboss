@@ -1,8 +1,9 @@
 import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
+import { persistRef } from '../lib/persist'
 
-const expenses = ref([])
+const expenses = persistRef('expenses', ref([]))
 
 registerReset(() => { expenses.value = [] })
 

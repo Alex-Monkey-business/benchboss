@@ -16,6 +16,10 @@
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <meta name="apple-mobile-web-app-title" content="BenchBoss" />
     <title>BenchBoss</title>
+    <!-- Kald start: DNS + TLS mot basen og fontene starter før JS-en er lest. -->
+    <link rel="preconnect" href="%VITE_SUPABASE_URL%" crossorigin />
+    <link rel="preload" href="/fonts/inter-latin.woff2" as="font" type="font/woff2" crossorigin />
+    <link rel="preload" href="/fonts/fraunces-latin.woff2" as="font" type="font/woff2" crossorigin />
     <meta name="description" content="Built for the beautiful chaos of grassroots football" />
   </head>
   <body>

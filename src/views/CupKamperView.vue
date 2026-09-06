@@ -86,7 +86,7 @@ const groups = computed(() => {
            Cup-fanen. Da må den peke videre: en tom skjerm uten utvei er
            nøyaktig den døde knappen vi allerede har brukt en dag på. -->
       <div v-else-if="filteredMatches.length === 0" class="ds-empty">
-        <img src="/illustrations/bench-boss-feature-icons/512/cup-tournament-transparent.png" alt="" class="ds-empty__illo" />
+        <img src="/illustrations/bench-boss-feature-icons/512/cup-tournament-transparent.webp" alt="" class="ds-empty__illo" />
         <h3 class="ds-empty__title">{{ activeCup ? 'Ingen kamper ennå' : 'Ingen turnering lagt inn' }}</h3>
         <p class="ds-empty__description">
           {{ activeCup

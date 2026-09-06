@@ -1,11 +1,12 @@
 import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
-import { fetchRows, STATUS } from '../lib/query'
+import { fetchRows, STATUS, dedupe } from '../lib/query'
 import { normalizePositions } from '../lib/playerPositions'
 import { scoped, withCohort } from '../lib/scope'
+import { persistRef } from '../lib/persist'
 
-const players = ref([])
+const players = persistRef('players', ref([]))
 const loaded = ref(false)
 const status = ref(STATUS.IDLE)
 
@@ -133,5 +134,5 @@ export function usePlayers() {
     return players.value.find(p => p.id === id) || null
   }
 
-  return { players, status, fetchPlayers, addPlayer, updatePlayer, deletePlayer, getPlayerById }
+  return { players, status, fetchPlayers: dedupe(fetchPlayers, 'fetchPlayers'), addPlayer, updatePlayer, deletePlayer, getPlayerById }
 }

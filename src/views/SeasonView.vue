@@ -11,7 +11,6 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Skeleton from '../components/Skeleton.vue'
 import AnimatedNumber from '../components/AnimatedNumber.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
-import { exportSeasonToExcel } from '../lib/excelExport'
 
 const { coach: currentCoach, activeCohort } = useAuth()
 const { usesReferees } = useFeatures()
@@ -72,7 +71,9 @@ async function confirmSettle() {
   }
 }
 
-function handleExport() {
+async function handleExport() {
+  // xlsx er 419 KB og trengs bare her. Lastes når knappen trykkes, ikke når sida åpnes.
+  const { exportSeasonToExcel } = await import('../lib/excelExport')
   exportSeasonToExcel({
     seasonName: viewingSeason.value?.name,
     matches: matches.value,

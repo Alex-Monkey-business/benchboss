@@ -174,7 +174,7 @@ const PARENTS = [
       <div class="px-lg">
         <div class="ds-empty">
           <img
-            src="/illustrations/bench-boss-feature-icons/512/admin-settings-transparent.png"
+            src="/illustrations/bench-boss-feature-icons/512/admin-settings-transparent.webp"
             alt=""
             class="ds-empty__illo"
           />
@@ -308,7 +308,7 @@ const PARENTS = [
       <div class="px-lg">
         <div class="ds-empty">
           <img
-            src="/illustrations/bench-boss-feature-icons/512/squad-players-transparent.png"
+            src="/illustrations/bench-boss-feature-icons/512/squad-players-transparent.webp"
             alt=""
             class="ds-empty__illo"
           />

@@ -1,6 +1,6 @@
 <script setup>
-import { computed } from 'vue'
-import { useRoute } from 'vue-router'
+import { computed, watch } from 'vue'
+import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from './stores/auth'
 import { useToast } from './composables/useToast'
 import { isSupabaseConfigured } from './supabase'
@@ -9,8 +9,31 @@ import ToastNotification from './components/ToastNotification.vue'
 import IosInstallBanner from './components/IosInstallBanner.vue'
 
 const route = useRoute()
+const router = useRouter()
 const { isLoggedIn, ready } = useAuth()
 const { toasts } = useToast()
+
+// Fanene i bunnmenyen er hver sin fil og lastes først når du trykker. Det
+// er 100–300 ms med tom flate på første trykk på hver fane, over mobilnett.
+// Etter at første skjerm står, hentes de i bakgrunnen mens appen har ro.
+const FANER = ['kamper', 'trening', 'statistikk', 'admin', 'cup', 'serie', 'serie-tropp', 'match']
+function forhandslastFaner() {
+  const start = () => {
+    for (const r of router.getRoutes()) {
+      if (!FANER.includes(r.name)) continue
+      const c = r.components?.default
+      if (typeof c === 'function') { try { c() } catch { /* ok */ } }
+    }
+  }
+  if (typeof requestIdleCallback === 'function') requestIdleCallback(start, { timeout: 3000 })
+  else setTimeout(start, 1200)
+}
+
+watch([ready, isLoggedIn], ([r, inn]) => {
+  if (r && inn) forhandslastFaner()
+  // Routeren slapp deg inn på cachen, men bootstrap fant ingen sesjon.
+  if (r && !inn && route.name && !route.meta?.public) router.replace({ name: 'login', query: { redirect: route.fullPath } })
+}, { immediate: true })
 
 // 'kom-i-gang' er fullskjerm: en bunnmeny til fire tomme faner er ikke en
 // utvei, den er støy.

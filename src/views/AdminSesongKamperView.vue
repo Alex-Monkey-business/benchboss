@@ -4,7 +4,6 @@ import { useSeasons } from '../composables/useSeasons'
 import { useMatches } from '../composables/useMatches'
 import { useExpenses } from '../composables/useExpenses'
 import { useToast } from '../composables/useToast'
-import { parseMatchFile, detectSeasonName } from '../lib/excelParser'
 import { isOurMatch } from '../lib/matchMeta'
 import { useAuth } from '../stores/auth'
 import { trimAbbrevDots, weekdayDateLabel } from '../lib/dateLabels'
@@ -179,6 +178,8 @@ async function onFileSelect(e) {
 async function processFile(file) {
   try {
     loading.value = true
+    // xlsx (419 KB) lastes først når en fil faktisk skal leses.
+    const { parseMatchFile, detectSeasonName } = await import('../lib/excelParser')
     const result = await parseMatchFile(file)
 
     // Serieoppsettet fra kretsen inneholder hele avdelingen. Bare kamper der

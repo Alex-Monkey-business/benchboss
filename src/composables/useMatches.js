@@ -6,12 +6,13 @@ import { defaultCoachIdsForMatch } from '../lib/coachTeams'
 import { useSeasonTeams } from './useSeasonTeams'
 import { useAuth } from '../stores/auth'
 import { registerReset } from '../stores/dataReset'
-import { fetchRows, STATUS } from '../lib/query'
+import { fetchRows, STATUS, dedupe } from '../lib/query'
+import { persistRef } from '../lib/persist'
 
-const matches = ref([])
-const matchCoaches = ref([])
-const matchPlayers = ref([])
-const matchAbsences = ref([])
+const matches = persistRef('matches', ref([]))
+const matchCoaches = persistRef('matchCoaches', ref([]))
+const matchPlayers = persistRef('matchPlayers', ref([]))
+const matchAbsences = persistRef('matchAbsences', ref([]))
 const loading = ref(false)
 const status = ref(STATUS.IDLE)
 
@@ -429,7 +430,7 @@ export function useMatches() {
 
   return {
     matches, matchCoaches, matchPlayers, matchAbsences, loading, status,
-    fetchMatches, getMatch, updateMatch, addMatch, bulkAddMatches,
+    fetchMatches: dedupe(fetchMatches, 'fetchMatches'), getMatch, updateMatch, addMatch, bulkAddMatches,
     setMatchCoaches, getCoachesForMatch, fetchMatchCoaches, backfillDefaultCoaches,
     setMatchPlayers, getPlayersForMatch, fetchMatchPlayers, fetchAllMatchPlayers,
     fetchAllMatchAbsences, fetchMatchAbsences, getAbsencesForMatch, toggleAbsence,

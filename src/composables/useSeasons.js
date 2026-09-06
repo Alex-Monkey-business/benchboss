@@ -1,16 +1,21 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
-import { fetchRows, STATUS } from '../lib/query'
+import { fetchRows, STATUS, dedupe } from '../lib/query'
 import { scoped, withCohort } from '../lib/scope'
+import { persistRef } from '../lib/persist'
 
-const seasons = ref([])
-const activeSeason = ref(null)
+const seasons = persistRef('seasons', ref([]))
+const activeSeason = persistRef('activeSeason', ref(null))
 // Sesongen brukeren ser på (browsing) — kan avvike fra activeSeason der nye kamper lander.
 // Kun in-memory: nullstilles ved cold start så man alltid åpner appen i inneværende sesong.
 const viewingSeason = ref(null)
 const loaded = ref(false)
 const status = ref(STATUS.IDLE)
+
+// Sesongen ligger i cachen fra sist; da skal Kamper-sida vise den med en gang,
+// ikke vente på at fetchSeasons setter den.
+if (!viewingSeason.value && activeSeason.value) viewingSeason.value = activeSeason.value
 
 registerReset(() => {
   seasons.value = []
@@ -118,5 +123,5 @@ export function useSeasons() {
     !!viewingSeason.value && !!activeSeason.value && viewingSeason.value.id !== activeSeason.value.id
   )
 
-  return { seasons, activeSeason, viewingSeason, isViewingPast, loaded, status, fetchSeasons, createSeason, settleSeason, setViewingSeason }
+  return { seasons, activeSeason, viewingSeason, isViewingPast, loaded, status, fetchSeasons: dedupe(fetchSeasons, 'fetchSeasons'), createSeason, settleSeason, setViewingSeason }
 }

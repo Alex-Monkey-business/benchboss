@@ -1,8 +1,9 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
-import { fetchRows, STATUS } from '../lib/query'
+import { fetchRows, STATUS, dedupe } from '../lib/query'
 import { scoped, withCohort } from '../lib/scope'
+import { persistRef } from '../lib/persist'
 
 // TRENINGSUKA — kullets faste uke, én rad per treningsdag.
 //
@@ -15,7 +16,7 @@ import { scoped, withCohort } from '../lib/scope'
 // Det som forsvant sammen med perioden: to sekvensielle spørringer på hver
 // lasting (finn måneden, så hent øktene i den). Nå er uka ett oppslag.
 
-const days = ref([])
+const days = persistRef('trainingDays', ref([]))
 const loading = ref(false)
 const status = ref(STATUS.IDLE)
 
@@ -202,5 +203,5 @@ export function useTrainingWeek() {
     if (!error && data?.length) days.value = days.value.filter(s => s.id !== id)
   }
 
-  return { days, loading, status, supportsDuration, fetchWeek, createDay, updateDay, removeDay }
+  return { days, loading, status, supportsDuration, fetchWeek: dedupe(fetchWeek, 'fetchWeek'), createDay, updateDay, removeDay }
 }

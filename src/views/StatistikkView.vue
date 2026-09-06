@@ -332,7 +332,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
          for den er nyttig FØR første kamp — den viser hvem som er booket. -->
     <div v-if="!loading && !hasPlayedMatches" class="px-lg ds-anim-fade-up ds-anim-delay-1">
       <div class="ds-empty">
-        <img src="/illustrations/bench-boss-feature-icons/512/statistics-transparent.png" alt="" class="ds-empty__illo" />
+        <img src="/illustrations/bench-boss-feature-icons/512/statistics-transparent.webp" alt="" class="ds-empty__illo" />
         <h3 class="ds-empty__title">Ingen kamper spilt i {{ viewingSeason?.name || 'sesongen' }}</h3>
         <p class="ds-empty__description">Tabell, mål og spilletid kommer så snart første kamp er ferdigspilt.</p>
         <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="$router.push('/kamper')">Se kampprogrammet</button>
