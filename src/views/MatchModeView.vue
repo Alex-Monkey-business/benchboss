@@ -1610,7 +1610,9 @@ async function undoMove() {
   padding: 1px 6px;
   border-radius: var(--ds-radius-full);
   background: color-mix(in srgb, var(--varm) calc(min(1, .6 + var(--h, 0)) * 100%), transparent);
-  color: color-mix(in srgb, #fff calc(clamp(0, (var(--h, 0) - .7) * 6, 1) * 100%), #0A0A0A);
+  /* Skarpt bytte svart → hvit rett etter gul (h ≈ .6). En myk overgang ga
+     grå tekst på oransjerødt i et helt minutt. */
+  color: color-mix(in srgb, #fff calc(clamp(0, (var(--h, 0) - .6) * 50, 1) * 100%), #0A0A0A);
   text-shadow: none;
 }
 
