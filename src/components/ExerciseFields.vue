@@ -27,6 +27,7 @@ const props = defineProps({
   showGruppe: { type: Boolean, default: false },
   showSeEtter: { type: Boolean, default: false },
   showSiTilBarna: { type: Boolean, default: false },
+  showVanligeFeil: { type: Boolean, default: false },
   showNokkeltall: { type: Boolean, default: false }
 })
 
@@ -146,6 +147,11 @@ function pickCategory(value) {
   <div v-if="showSiTilBarna" class="ds-form-group">
     <label class="ds-label" for="ex-si-til-barna">Si dette til barna — én frase per linje</label>
     <textarea id="ex-si-til-barna" v-model="form.si_til_barna" class="ds-input" rows="3" placeholder="Selg skuddet&#10;Vend raskt (valgfri)"></textarea>
+  </div>
+
+  <div v-if="showVanligeFeil" class="ds-form-group">
+    <label class="ds-label" for="ex-vanlige-feil">Vanlige feil — én per linje</label>
+    <textarea id="ex-vanlige-feil" v-model="form.vanlige_feil" class="ds-input" rows="3" placeholder="Holder ballen for lenge&#10;Går for tidlig i press (valgfri)"></textarea>
   </div>
 
   <div class="ds-form-group">

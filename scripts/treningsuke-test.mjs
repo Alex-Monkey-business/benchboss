@@ -120,7 +120,7 @@ ok('videoen har avsender', /tiim\.no/.test(sheet.kilde || ''), sheet.kilde)
 ok('tida i dag står øverst blant nøkkeltallene', sheet.tidIDag === 0 && sheet.tidVerdi === '20 min', `${sheet.fakta.join('/')} → ${sheet.tidVerdi}`)
 ok('nøkkeltall: spillere, alder, plass, utstyr', ['Spillere', 'Alder', 'Plass', 'Utstyr'].every(k => sheet.fakta.includes(k)), sheet.fakta.join('/'))
 ok('kortene i bankens rekkefølge',
-  sheet.kort.join('/') === 'Læringsmål/Gruppe/Gjennomføring/Se etter dette/Si dette til barna', sheet.kort.join('/'))
+  sheet.kort.join('/') === 'Læringsmål/Gruppe/Gjennomføring/Se etter dette/Si dette til barna/Vanlige feil', sheet.kort.join('/'))
 ok('gjennomføringen er nummerert', sheet.steg >= 2, `${sheet.steg} steg`)
 ok('gruppa står som tekst med avsnittene i behold', sheet.hvitrom === 'pre-line', sheet.hvitrom)
 ok('tiim-lenka vises ikke to ganger (kilde + lenke)', sheet.ingenLenkeDobbelt === 0, `${sheet.ingenLenkeDobbelt} egne lenker`)

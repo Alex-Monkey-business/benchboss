@@ -12,7 +12,7 @@ const router = useRouter()
 const route = useRoute()
 const { activeCohort } = useAuth()
 const klubbNavn = computed(() => activeCohort.value?.club_short_name || activeCohort.value?.club_name || '')
-const { exercises, supportsCategory, supportsGruppe, supportsSeEtter, supportsSiTilBarna, supportsNokkeltall, fetchExercises, createExercise, updateExercise, deleteExercise, opphavFor } = useExercises()
+const { exercises, supportsCategory, supportsGruppe, supportsSeEtter, supportsSiTilBarna, supportsVanligeFeil, supportsNokkeltall, fetchExercises, createExercise, updateExercise, deleteExercise, opphavFor } = useExercises()
 
 // Ekte tilbake: dit du kom fra (perioden, en økt …); /trening som fallback.
 function goBack() {
@@ -86,7 +86,7 @@ function linjer(tekst) {
 }
 
 function emptyForm() {
-  return { name: '', type: 'none', category: '', tema: '', gruppe: '', organisering: '', laeringsmomenter: '', se_etter: '', si_til_barna: '', min_spillere: null, maks_spillere: null, utstyr_tags: [], plass: null, min_alder: null, link: { label: '', url: '' } }
+  return { name: '', type: 'none', category: '', tema: '', gruppe: '', organisering: '', laeringsmomenter: '', se_etter: '', si_til_barna: '', vanlige_feil: '', min_spillere: null, maks_spillere: null, utstyr_tags: [], plass: null, min_alder: null, link: { label: '', url: '' } }
 }
 
 function openView(ex) {
@@ -114,6 +114,7 @@ function startEdit() {
     laeringsmomenter: (ex.laeringsmomenter || []).join('\n'),
     se_etter: (ex.se_etter || []).join('\n'),
     si_til_barna: (ex.si_til_barna || []).join('\n'),
+    vanlige_feil: (ex.vanlige_feil || []).join('\n'),
     min_spillere: ex.min_spillere ?? null,
     maks_spillere: ex.maks_spillere ?? null,
     utstyr_tags: [...(ex.utstyr_tags || [])],
@@ -136,6 +137,7 @@ async function save() {
     laeringsmomenter: linjer(form.value.laeringsmomenter),
     se_etter: linjer(form.value.se_etter),
     si_til_barna: linjer(form.value.si_til_barna),
+    vanlige_feil: linjer(form.value.vanlige_feil),
     min_spillere: form.value.min_spillere || null,
     maks_spillere: form.value.maks_spillere || null,
     utstyr_tags: [...(form.value.utstyr_tags || [])],
@@ -298,7 +300,7 @@ onMounted(async () => {
 
       <!-- REDIGERING / NY -->
       <form v-else @submit.prevent="save">
-        <ExerciseFields :form="form" :show-category="supportsCategory" :show-gruppe="supportsGruppe" :show-se-etter="supportsSeEtter" :show-si-til-barna="supportsSiTilBarna" :show-nokkeltall="supportsNokkeltall" />
+        <ExerciseFields :form="form" :show-category="supportsCategory" :show-gruppe="supportsGruppe" :show-se-etter="supportsSeEtter" :show-si-til-barna="supportsSiTilBarna" :show-vanlige-feil="supportsVanligeFeil" :show-nokkeltall="supportsNokkeltall" />
         <div class="bank__form-actions">
           <button
             v-if="mode === 'edit'"

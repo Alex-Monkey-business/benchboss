@@ -158,6 +158,7 @@ export function exerciseToDrill(ex) {
     laeringsmomenter: [...(ex.laeringsmomenter || [])],
     se_etter: [...(ex.se_etter || [])],
     si_til_barna: [...(ex.si_til_barna || [])],
+    vanlige_feil: [...(ex.vanlige_feil || [])],
     min_spillere: ex.min_spillere ?? null,
     maks_spillere: ex.maks_spillere ?? null,
     utstyr_tags: [...(ex.utstyr_tags || [])],
@@ -203,6 +204,7 @@ export function drillToExercise(d) {
     laeringsmomenter: [...(d.laeringsmomenter || [])],
     se_etter: [...(d.se_etter || [])],
     si_til_barna: [...(d.si_til_barna || [])],
+    vanlige_feil: [...(d.vanlige_feil || [])],
     min_spillere: d.min_spillere ?? null,
     maks_spillere: d.maks_spillere ?? null,
     utstyr_tags: [...(d.utstyr_tags || [])],
@@ -240,6 +242,11 @@ const supportsSiTilBarna = computed(() =>
   exercises.value.length === 0 || 'si_til_barna' in (exercises.value[0] || {})
 )
 
+// Vanlige feil kom i 20260905150000. Samme mønster.
+const supportsVanligeFeil = computed(() =>
+  exercises.value.length === 0 || 'vanlige_feil' in (exercises.value[0] || {})
+)
+
 // Nøkkeltallene kom i 20260904140000. Fem kolonner, én guard: de settes av
 // samme migrasjon, så de finnes eller mangler sammen.
 const supportsNokkeltall = computed(() =>
@@ -262,6 +269,7 @@ function utenUstottede(payload) {
   if (!supportsCategory.value) delete p.category
   if (!supportsSeEtter.value) delete p.se_etter
   if (!supportsSiTilBarna.value) delete p.si_til_barna
+  if (!supportsVanligeFeil.value) delete p.vanlige_feil
   if (!supportsNokkeltall.value) for (const f of NOKKELTALL_FELT) delete p[f]
   if (!supportsVideo.value) delete p.video
   return p
@@ -387,5 +395,5 @@ export function useExercises() {
     return kortKullnavn(navn, useAuth().activeCohort.value?.club_short_name || '')
   }
 
-  return { exercises, loading, loaded, supportsCategory, supportsGruppe, supportsUtstyr, supportsSeEtter, supportsSiTilBarna, supportsNokkeltall, supportsVideo, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill, opphavFor }
+  return { exercises, loading, loaded, supportsCategory, supportsGruppe, supportsUtstyr, supportsSeEtter, supportsSiTilBarna, supportsVanligeFeil, supportsNokkeltall, supportsVideo, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill, opphavFor }
 }

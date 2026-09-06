@@ -91,12 +91,13 @@ const nokkeltall = computed(() => {
 const momenter = computed(() => ex.value.laeringsmomenter || [])
 const seEtter = computed(() => ex.value.se_etter || [])
 const siTilBarna = computed(() => ex.value.si_til_barna || [])
+const vanligeFeil = computed(() => ex.value.vanlige_feil || [])
 
 // Har øvelsen noe å vise utover navnet? Uten dette står treneren på banen og
 // ser på en tom sheet uten å skjønne om det er appen eller øvelsen som mangler.
 const harInnhold = computed(() =>
   !!(video.value || ex.value.tema || nokkeltall.value.length || momenter.value.length || ex.value.gruppe ||
-    gjennomforing.value.linjer.length || seEtter.value.length || siTilBarna.value.length || lenke.value)
+    gjennomforing.value.linjer.length || seEtter.value.length || siTilBarna.value.length || vanligeFeil.value.length || lenke.value)
 )
 </script>
 
@@ -195,6 +196,15 @@ const harInnhold = computed(() =>
       <h4 class="ex-sek__tittel">Si dette til barna</h4>
       <ul class="ex-fraser">
         <li v-for="(p, i) in siTilBarna" :key="i">«{{ p }}»</li>
+      </ul>
+    </section>
+
+    <!-- Det som går galt. se_etter er tegnene på at det virker; dette er det
+         du griper inn på. Sist, fordi du leser det når noe skurrer. -->
+    <section v-if="vanligeFeil.length" class="ex-sek">
+      <h4 class="ex-sek__tittel">Vanlige feil</h4>
+      <ul class="ex-punkter">
+        <li v-for="(p, i) in vanligeFeil" :key="i">{{ p }}</li>
       </ul>
     </section>
 
