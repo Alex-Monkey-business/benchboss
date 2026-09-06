@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from './stores/auth'
 import { useToast } from './composables/useToast'
 import { isSupabaseConfigured } from './supabase'
+import { navHidden } from './lib/shell'
 import BottomNav from './components/BottomNav.vue'
 import ToastNotification from './components/ToastNotification.vue'
 import IosInstallBanner from './components/IosInstallBanner.vue'
@@ -40,7 +41,7 @@ watch([ready, isLoggedIn], ([r, inn]) => {
 const AUTH_ROUTES = ['login', 'auth-callback', 'kom-i-gang']
 
 // Både trenere og foreldre får navigasjonen (BottomNav viser rollebaserte faner).
-const showNav = computed(() => isLoggedIn.value && !AUTH_ROUTES.includes(route.name))
+const showNav = computed(() => isLoggedIn.value && !AUTH_ROUTES.includes(route.name) && !navHidden.value)
 const showDemo = computed(() => !isSupabaseConfigured)
 </script>
 

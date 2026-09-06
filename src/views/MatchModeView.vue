@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { navHidden } from '../lib/shell'
 import { useRoute, useRouter } from 'vue-router'
 import { useMatches } from '../composables/useMatches'
 import { usePlayers } from '../composables/usePlayers'
@@ -77,6 +78,7 @@ onMounted(async () => {
   window.addEventListener('touchmove', preventScrollWhileDragging, { passive: false })
 })
 onUnmounted(() => {
+  navHidden.value = false
   flushLineupSave()
   clearTimeout(pressTimer)
   stopClockTick()
@@ -234,6 +236,8 @@ const phase = computed(() => {
   if (s === 'finished') return 'done'
   return 'setup'
 })
+// Live tar hele skjermen: bunnmenyen vekk, banen får de 72 pikslene.
+watch(phase, v => { navHidden.value = v === 'live' }, { immediate: true })
 
 function fmt(sec) {
   const s = Math.max(0, Math.floor(sec || 0))
@@ -852,7 +856,7 @@ async function undoMove() {
 
 <template>
   <div class="mm">
-    <div class="mm__bar">
+    <div v-if="phase !== 'live'" class="mm__bar">
       <button class="mm__back" @click="router.back()" aria-label="Tilbake">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
@@ -975,6 +979,9 @@ async function undoMove() {
     <div v-else-if="phase === 'live'" class="mm__live">
       <div class="mm__cockpit-top">
       <div class="mm__clockrow">
+        <button class="mm__back" @click="router.back()" aria-label="Tilbake">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
         <div class="mm__clockwrap">
           <div class="mm__clock" :class="{ 'mm__clock--paused': !isRunning }">{{ fmt(currentClock) }}</div>
           <div class="mm__phase" :class="{ 'mm__phase--break': atHalfBreak }">{{ phaseLabel }}</div>
@@ -986,17 +993,14 @@ async function undoMove() {
       </div>
 
       <div class="mm__score">
-        <div class="mm__score-side">
-          <span class="mm__score-team">{{ halsenName }}</span>
+        <div class="mm__score-caption">{{ halsenName }} – {{ oppName }}</div>
+        <div class="mm__score-row">
           <div class="mm__score-ctrl">
             <button type="button" class="mm__score-btn" :disabled="halsenScore === 0" @click="halsenGoalMinus">−</button>
             <span class="mm__score-num">{{ halsenScore }}</span>
             <button type="button" class="mm__score-btn mm__score-btn--plus" @click="halsenGoalPlus">+</button>
           </div>
-        </div>
-        <span class="mm__score-dash">–</span>
-        <div class="mm__score-side">
-          <span class="mm__score-team">{{ oppName }}</span>
+          <span class="mm__score-dash">–</span>
           <div class="mm__score-ctrl">
             <button type="button" class="mm__score-btn" :disabled="oppScore === 0" @click="oppGoalMinus">−</button>
             <span class="mm__score-num">{{ oppScore }}</span>
@@ -1405,6 +1409,36 @@ async function undoMove() {
   padding: var(--ds-space-sm) var(--ds-space-lg) max(var(--ds-space-sm), env(safe-area-inset-bottom));
 }
 
+/* Kompakt topp i cockpit. Hver pixel her er banehøyde — og banehøyden er
+   det som avgjør om tida under én drakt havner bak drakta under.
+   – Topplinja er borte i live: tilbakepila står i klokkeraden, lagnavnene
+     står i resultatraden, og Nullstill finnes etter Avslutt.
+   – Resultatet: lagnavnene som én tynn linje over, tallene under. Navn ved
+     siden av tallene ble «Hals…» og «Tøn…» — verdiløst. */
+.mm__live .mm__clockrow { gap: var(--ds-space-sm); }
+.mm__live .mm__clockrow .mm__back { flex: none; margin-left: -8px; }
+.mm__live .mm__clockwrap { flex: 1; min-width: 0; }
+.mm__live .mm__ctrl { padding: 10px 14px; }
+.mm__live .mm__phase { margin-top: 0; }
+.mm__live .mm__score { flex-direction: column; align-items: stretch; padding: 6px var(--ds-space-md) 8px; gap: 2px; }
+.mm__score-caption {
+  font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-tertiary);
+  text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2;
+}
+.mm__score-row { display: flex; align-items: center; justify-content: center; gap: var(--ds-space-lg); }
+.mm__live .mm__score-ctrl { gap: 8px; }
+.mm__live .mm__score-num { font-size: 1.5rem; min-width: 20px; line-height: 1; }
+.mm__live .mm__score-btn { width: 30px; height: 30px; font-size: 18px; }
+.mm__live .mm__score-dash { padding-top: 0; align-self: center; }
+
+/* Draktene skalerer med banehøyden (cqh), så radene ikke kolliderer når
+   telefonen er lav. 48 px ved ≥ 420 px bane, 38 px ved ~330. */
+.pitch--live { container-type: size; }
+.pitch--live .marker { gap: clamp(2px, 1.2cqh, 5px); }
+.pitch--live .marker__circle { width: clamp(38px, 11.5cqh, 48px); height: clamp(38px, 11.5cqh, 48px); font-size: clamp(14px, 3.8cqh, 16px); }
+.pitch--live .marker__label { font-size: clamp(11px, 3cqh, 12.5px); }
+.pitch--live .marker__time { font-size: clamp(10px, 2.6cqh, 11px); }
+
 /* Kompaktere topp i cockpit — klokkerad mister sticky + breakout */
 .mm__live .mm__clockrow {
   position: static;
@@ -1414,12 +1448,11 @@ async function undoMove() {
   top: auto;
   background: transparent;
 }
-.mm__live .mm__clock { font-size: 2.5rem; }
+.mm__live .mm__clock { font-size: 2.25rem; }
 .mm__live .mm__score {
   margin-top: var(--ds-space-sm);
   padding: var(--ds-space-sm) var(--ds-space-md);
 }
-.mm__live .mm__score-dash { padding-top: 16px; }
 
 /* Scorere på én linje (horisontal scroll, ingen scrollbar) */
 .mm__live .mm__scorers {
@@ -1729,11 +1762,6 @@ async function undoMove() {
   border: 1px solid var(--ds-color-border-light);
   border-radius: var(--ds-radius-lg);
 }
-.mm__score-side { display: flex; flex-direction: column; align-items: center; gap: 6px; flex: 1; min-width: 0; }
-.mm__score-team {
-  font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-tertiary);
-  max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
 .mm__score-ctrl { display: flex; align-items: center; gap: 10px; }
 .mm__score-num { font-family: var(--ds-font-heading); font-size: 2rem; font-weight: var(--ds-weight-bold); font-variant-numeric: tabular-nums; color: var(--ds-color-text-primary); min-width: 24px; text-align: center; }
 .mm__score-dash { align-self: center; padding-top: 22px; color: var(--ds-color-text-tertiary); font-size: 1.25rem; }
@@ -1767,8 +1795,10 @@ async function undoMove() {
 .mm__bchip--klar .mm__btime {
   opacity: 1; font-weight: var(--ds-weight-semibold);
   padding: 1px 7px; margin-right: -4px; border-radius: var(--ds-radius-full);
-  background: color-mix(in srgb, var(--ds-color-success) calc(clamp(0, (var(--k, 0) - .4) * 2.5, 1) * 100%), transparent);
-  color: color-mix(in srgb, #fff calc(clamp(0, (var(--k, 0) - .55) * 6, 1) * 100%), var(--ds-color-success-text));
+  /* Pille og tekst bytter SAMTIDIG og skarpt ved k = .5 — mørkegrønn tekst på
+     lys chip under, hvit på grønn pille over. En myk overgang ga grå på grønt. */
+  background: color-mix(in srgb, var(--ds-color-success) calc(clamp(0, (var(--k, 0) - .5) * 50, 1) * 100%), transparent);
+  color: color-mix(in srgb, #fff calc(clamp(0, (var(--k, 0) - .5) * 50, 1) * 100%), var(--ds-color-success-text));
 }
 .mm__bname { font-size: var(--ds-text-md); font-weight: var(--ds-weight-medium); }
 .mm__btime { font-variant-numeric: tabular-nums; font-size: var(--ds-text-sm); opacity: .65; }
