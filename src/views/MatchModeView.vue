@@ -9,7 +9,8 @@ import { useToast } from '../composables/useToast'
 import { useAuth } from '../stores/auth'
 import { teamColorsForMatch, isHomeMatch, teamLabel } from '../lib/matchMeta'
 import { formationFor } from '../lib/formations'
-import { positionForSlot, positionLabel, slotLabel, splitByFit } from '../lib/playerPositions'
+import { positionForSlot, positionLabel, slotLabel, splitByFit, fitsPosition } from '../lib/playerPositions'
+import { kudosFor } from '../lib/byttekudos'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 
@@ -22,7 +23,7 @@ const {
   session, currentClock, isRunning,
   startClockTick, stopClockTick,
   fetchSession, fetchStints,
-  saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
+  saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, undoSubstitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
   isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer,
   adjustPlayingTime, undoAdjustment, movableSeconds
 } = useMatchMode()
@@ -278,15 +279,98 @@ const subGroups = computed(() => splitByFit(bench.value, subPosition.value))
 
 function armBench(id) { armedBenchId.value = armedBenchId.value === id ? null : id }
 
+// ── Rettferdig andel ─────────────────────────────────────────────────────────
+//
+// Sju på banen hele kampen delt på troppen: det er tida hver spiller «skulle»
+// hatt akkurat nå. Den som ligger klart over på banen bør ut, den som ligger
+// klart under på benken bør inn. Treneren skal se det uten å lese tall —
+// tallene står der fortsatt, men tonen er det som treffer i et blikk.
+//
+// Marginen er tre minutter, eller en femtedel av andelen når kampen har gått
+// en stund. Uten margin lyser alt de første minuttene, og da betyr det
+// ingenting.
+const fairShare = computed(() =>
+  squad.value.length ? (currentClock.value * FORMATION.length) / squad.value.length : 0)
+const toneMargin = computed(() => Math.max(180, fairShare.value * 0.2))
+function harMye(id) { return timeFor(id) - fairShare.value >= toneMargin.value }
+function harLite(id) { return fairShare.value - timeFor(id) >= toneMargin.value }
+
+// ── Forslaget ────────────────────────────────────────────────────────────────
+//
+// Appen vet hvem som har minst tid på benken og hvem som har mest på banen.
+// Da kan den si det, i én knapp, i stedet for å la treneren regne det ut med
+// blikket vekk fra kampen. Inn: den på benken med minst tid. Ut: den på banen
+// med mest tid som spiller en plass innbytteren passer i — ellers den med mest
+// tid uansett. Keeperen byttes aldri av forslaget. Vises først når gapet er
+// tre minutter: er alt jevnt, er det ingenting å foreslå.
+const FORSLAG_GAP = 180
+
+const forslag = computed(() => {
+  if (phase.value !== 'live') return null
+  const inn = bench.value[0]
+  if (!inn) return null
+  const kandidater = squad.value
+    .filter(p => isOnField(p.id) && roleOf(p.id) !== 'keeper')
+    .map(p => ({ ...p, sec: timeFor(p.id) }))
+    .sort((a, b) => b.sec - a.sec || a.name.localeCompare(b.name, 'no'))
+  if (!kandidater.length) return null
+  const passer = kandidater.filter(k => fitsPosition(inn, positionForSlot(positionOf(k.id))))
+  const ut = passer[0] || kandidater[0]
+  if (ut.sec - inn.sec < FORSLAG_GAP) return null
+  return { inn, ut }
+})
+
+// ── Byttet ───────────────────────────────────────────────────────────────────
+//
+// Ett trykk, ingen bekreftelse. Varslinga sier hva byttet gjorde med
+// spilletida og bærer Angre i fem sekunder. Et rettferdig bytte (minst tid
+// inn, mer tid ut) får kudos med et glimt i øyet — Alex' stikk til trenerne
+// som favoriserer. Feil vei får fakta, ikke skam: taktiske bytter er ekte og
+// skal gå på ett trykk.
+let antallKudos = 0
+
+async function gjorBytte(outId, inId) {
+  const inn = playerById(inId)
+  const ut = playerById(outId)
+  if (!inn || !ut) return
+  const innSec = timeFor(inId)
+  const utSec = timeFor(outId)
+  const minstPaBenken = bench.value[0]?.id === inId
+  try {
+    const kvittering = await substitute(matchId, { outPlayerId: outId, inPlayerId: inId })
+    let melding = `${firstName(inn.name)} inn for ${firstName(ut.name)}`
+    let type = 'success'
+    if (innSec - utSec >= 60) {
+      melding += ` · ${firstName(inn.name)} har allerede mer tid enn ${firstName(ut.name)}`
+      type = 'warning'
+    } else if (utSec - innSec >= 60 && minstPaBenken) {
+      melding += `. ${kudosFor(antallKudos++)}`
+    }
+    showToast(melding, type, 5000, {
+      label: 'Angre',
+      handler: async () => {
+        try {
+          const ok = await undoSubstitute(matchId, kvittering)
+          showToast(ok ? `Angret: ${firstName(ut.name)} står igjen` : 'Kunne ikke angre, det har skjedd et nytt bytte', ok ? 'success' : 'error')
+        } catch (e) { reportError(e) }
+      }
+    })
+  } catch (e) { reportError(e) }
+}
+
+function utforForslag() {
+  const f = forslag.value
+  if (!f) return
+  armedBenchId.value = null
+  gjorBytte(f.ut.id, f.inn.id)
+}
+
 async function tapPitchPlayer(playerId) {
   if (!playerId) return
   if (armedBenchId.value) {
     const inId = armedBenchId.value
     armedBenchId.value = null
-    try {
-      await substitute(matchId, { outPlayerId: playerId, inPlayerId: inId })
-      showToast(`${firstName(playerById(inId)?.name)} inn for ${firstName(playerById(playerId)?.name)}`, 'success')
-    } catch (e) { reportError(e) }
+    await gjorBytte(playerId, inId)
   } else {
     actionPlayer.value = playerById(playerId)
   }
@@ -296,10 +380,7 @@ async function subFromSheet(inId) {
   const out = actionPlayer.value
   if (!out) return
   actionPlayer.value = null
-  try {
-    await substitute(matchId, { outPlayerId: out.id, inPlayerId: inId })
-    showToast(`${firstName(playerById(inId)?.name)} inn for ${firstName(out.name)}`, 'success')
-  } catch (e) { reportError(e) }
+  await gjorBytte(out.id, inId)
 }
 async function makeKeeperFromSheet() {
   const p = actionPlayer.value
@@ -847,7 +928,8 @@ async function undoMove() {
             'marker--empty': !playerAtPosition(slot.id),
             'marker--lifted': dragId && dragFromSlot === slot.id,
             'marker--droppable': dragId && playerAtPosition(slot.id) && dragFromSlot !== slot.id && hoverSlot !== slot.id,
-            'marker--drop': dragId && hoverSlot === slot.id && playerAtPosition(slot.id) && dragFromSlot !== slot.id
+            'marker--drop': dragId && hoverSlot === slot.id && playerAtPosition(slot.id) && dragFromSlot !== slot.id,
+            'marker--mye': playerAtPosition(slot.id) && roleOf(playerAtPosition(slot.id)) !== 'keeper' && harMye(playerAtPosition(slot.id))
           }"
           :data-team="playerById(playerAtPosition(slot.id))?.primary_team || 'none'"
           :style="{ left: slot.x + '%', top: slot.y + '%' }"
@@ -884,13 +966,25 @@ async function undoMove() {
       <div class="mm__cockpit-bottom">
         <div v-if="dragId && !dragLearned" class="mm__sub-hint">Slipp på en spiller for å bytte plass</div>
         <div v-else-if="armedBenchId" class="mm__sub-hint">Tapp spilleren som skal ut</div>
+        <!-- Forslaget: ett trykk gjør byttet appen ville gjort. Skjules mens et
+             manuelt bytte er i gang, så det ikke konkurrerer om oppmerksomheten. -->
+        <button
+          v-else-if="forslag"
+          type="button"
+          class="mm__forslag"
+          @click="utforForslag"
+        >
+          <span class="mm__forslag-merke">Neste bytte</span>
+          <span class="mm__forslag-tekst">{{ firstName(forslag.inn.name) }} inn for {{ firstName(forslag.ut.name) }}</span>
+          <span class="mm__forslag-tid">{{ fmt(forslag.inn.sec) }} mot {{ fmt(forslag.ut.sec) }}</span>
+        </button>
         <div class="mm__bench mm__bench--bar">
         <button
           v-for="p in bench"
           :key="p.id"
           type="button"
           class="mm__bchip"
-          :class="{ 'mm__bchip--armed': armedBenchId === p.id }"
+          :class="{ 'mm__bchip--armed': armedBenchId === p.id, 'mm__bchip--lite': armedBenchId !== p.id && harLite(p.id) }"
           @click="armBench(p.id)"
         >
           <span class="mm__bname">{{ firstName(p.name) }}</span>
@@ -1251,6 +1345,53 @@ async function undoMove() {
   margin-bottom: var(--ds-space-sm);
 }
 
+/* Forslaget: én bred knapp over benken. Svart flate, så den skiller seg fra
+   chipsene og leses som «gjør dette». */
+.mm__forslag {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: baseline;
+  column-gap: 10px;
+  width: 100%;
+  min-height: 52px;
+  margin-bottom: var(--ds-space-sm);
+  padding: 10px 14px;
+  border: none;
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+  font-family: var(--ds-font-body);
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mm__forslag:active { transform: scale(0.99); }
+
+.mm__forslag-merke {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  opacity: 0.7;
+}
+
+.mm__forslag-tekst {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ds-text-base);
+  font-weight: var(--ds-weight-semibold);
+}
+
+.mm__forslag-tid {
+  font-size: var(--ds-text-sm);
+  font-variant-numeric: tabular-nums;
+  opacity: 0.7;
+  white-space: nowrap;
+}
+
 .mm__bar {
   display: flex; align-items: center; gap: var(--ds-space-sm);
   padding: var(--ds-space-md) var(--ds-space-lg);
@@ -1342,6 +1483,17 @@ async function undoMove() {
   color: #fff; box-shadow: none;
 }
 .marker--gk .marker__circle { background: var(--ds-color-warning); color: #fff; }
+
+/* Har mye tid: tida står i en hvit pille med svart tekst. Det er det eneste på
+   banen som ikke er hvitt-på-grønt, så blikket finner det uten å lese. Ikke
+   rødt: rødt er et lag. */
+.marker--mye .marker__time {
+  padding: 1px 6px;
+  border-radius: var(--ds-radius-full);
+  background: #fff;
+  color: #0A0A0A;
+  text-shadow: none;
+}
 
 /* Spilleren som løftes ut av banen mens den dras */
 .marker--lifted { opacity: .25; }
@@ -1468,6 +1620,9 @@ async function undoMove() {
 .mm__bench { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }
 .mm__bchip { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-elevated); cursor: pointer; transition: all .15s ease; -webkit-tap-highlight-color: transparent; }
 .mm__bchip--armed { border-color: var(--ds-color-accent); background: var(--ds-color-accent); color: var(--ds-color-accent-text); }
+/* Har lite tid: svart omriss og full tekst — den bør inn. Armert vinner. */
+.mm__bchip--lite { border-color: var(--ds-color-text-primary); box-shadow: inset 0 0 0 0.5px var(--ds-color-text-primary); }
+.mm__bchip--lite .mm__btime { opacity: 1; font-weight: var(--ds-weight-semibold); }
 .mm__bname { font-size: var(--ds-text-md); font-weight: var(--ds-weight-medium); }
 .mm__btime { font-variant-numeric: tabular-nums; font-size: var(--ds-text-sm); opacity: .65; }
 .mm__btag { font-size: var(--ds-text-xs); opacity: .6; }

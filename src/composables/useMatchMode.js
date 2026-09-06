@@ -234,13 +234,32 @@ export function useMatchMode() {
 
   // Bytte: lukk utgående spillers stint, åpne ny for innbytter
   // (arver rolle OG formasjons-slot).
+  //
+  // Returnerer en kvittering som undoSubstitute tar imot. Byttet går uten
+  // bekreftelse på sidelinja; angre er det som gjør det trygt.
   async function substitute(matchId, { outPlayerId, inPlayerId }) {
     const clk = currentClock.value
     const out = openStintFor(matchId, outPlayerId)
     const role = out?.role || 'field'
     const position = out?.position || null
     if (out) await patchStint(out.id, { off_clock: clk })
-    await insertStints([{ match_id: matchId, player_id: inPlayerId, role, position, on_clock: clk }])
+    const [inn] = await insertStints([{ match_id: matchId, player_id: inPlayerId, role, position, on_clock: clk }])
+    return { outStintId: out?.id || null, inStintId: inn?.id || null }
+  }
+
+  // Angre et bytte: den nye perioden slettes, den gamle åpnes igjen. Ikke et
+  // nytt bytte tilbake — det ville gitt to perioder på noen sekunder hver og
+  // et tall i statistikken som aldri skjedde. Nekter hvis noe har hendt siden:
+  // innbytteren er byttet ut igjen, eller den gamle perioden er rørt.
+  async function undoSubstitute(matchId, receipt) {
+    if (!receipt) return false
+    const inn = stints.value.find(s => s.id === receipt.inStintId)
+    if (!inn || inn.off_clock != null) return false
+    const out = receipt.outStintId ? stints.value.find(s => s.id === receipt.outStintId) : null
+    if (receipt.outStintId && (!out || out.off_clock == null)) return false
+    await deleteStint(inn.id)
+    if (out) await patchStint(out.id, { off_clock: null })
+    return true
   }
 
   // Bytt plass live: to utespillere bytter formasjons-slot. Posisjon brukes
@@ -415,7 +434,7 @@ export function useMatchMode() {
     session, stints, currentClock, isRunning,
     startClockTick, stopClockTick,
     fetchSession, fetchStints, fetchAllStints,
-    saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
+    saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, undoSubstitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
     matchStints, isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer,
     adjustPlayingTime, undoAdjustment, movableSeconds
   }

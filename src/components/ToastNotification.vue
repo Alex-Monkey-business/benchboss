@@ -18,7 +18,8 @@ defineProps({
         <svg v-else-if="toast.type === 'error'" class="ds-toast__icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/>
         </svg>
-        {{ toast.message }}
+        <span class="ds-toast__text">{{ toast.message }}</span>
+        <button v-if="toast.action" type="button" class="ds-toast__action" @click="toast.action.run()">{{ toast.action.label }}</button>
       </div>
     </TransitionGroup>
   </div>

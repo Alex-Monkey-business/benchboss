@@ -6,8 +6,11 @@
 .ds-toast-container {
   position: fixed;
   bottom: calc(var(--ds-space-xl) + env(safe-area-inset-bottom, 0px));
-  left: 50%;
-  transform: translateX(-50%);
+  /* left: 50% + translate ga beholderen bare halve skjermen å bre seg på, så en
+     lang melding brakk på 195 px med knappen klemt inn. Kant til kant, med
+     innholdet sentrert, gir hele bredden. */
+  left: var(--ds-space-lg);
+  right: var(--ds-space-lg);
   z-index: var(--ds-z-toast);
   display: flex;
   flex-direction: column;
@@ -29,7 +32,7 @@
   letter-spacing: -0.005em;
   box-shadow: var(--ds-shadow-lg);
   pointer-events: auto;
-  max-width: calc(100vw - var(--ds-space-2xl));
+  max-width: 100%;
 }
 
 .ds-toast--success {
@@ -46,6 +49,28 @@
   background: var(--ds-color-warning);
   color: #ffffff;
 }
+
+/* ---- Handling («Angre») ----
+   Stor nok til en tommel på sidelinja, tydelig som knapp mot den mørke flaten. */
+.ds-toast__text { min-width: 0; }
+
+.ds-toast__action {
+  flex-shrink: 0;
+  min-height: 36px;
+  margin: -6px -8px -6px 4px;
+  padding: 0 12px;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: var(--ds-radius-sm);
+  background: rgba(255, 255, 255, 0.14);
+  color: inherit;
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ds-toast__action:active { background: rgba(255, 255, 255, 0.28); }
 
 /* ---- Toast Icon ---- */
 .ds-toast__icon {
