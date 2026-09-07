@@ -21,7 +21,7 @@ const { getMatch, updateMatch, fetchMatchPlayers, fetchMatchAbsences } = useMatc
 const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals()
 const { players, fetchPlayers } = usePlayers()
 const {
-  session, currentClock, isRunning,
+  session, stints, currentClock, isRunning,
   startClockTick, stopClockTick,
   fetchSession, fetchStints,
   saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, undoSubstitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
@@ -343,23 +343,33 @@ const subGroups = computed(() => splitByFit(bench.value, subPosition.value))
 
 function armBench(id) { armedBenchId.value = armedBenchId.value === id ? null : id }
 
-// ── Rettferdig andel ─────────────────────────────────────────────────────────
+// ── Tone: hvor lenge har hen stått, og hvor lenge har hen ventet ────────────
 //
-// Sju på banen hele kampen delt på troppen: det er tida hver spiller «skulle»
-// hatt akkurat nå. Avstanden fra den andelen er en glidende skala, ikke en
-// bryter: på banen blir tida varmere (hvit → gul → rød) jo lenger over
-// spilleren ligger, på benken blir chipen grønnere jo lenger under. Treneren
-// ser hvem som er «mest moden» uten å lese tall — tallene står der fortsatt.
+// På banen teller SAMMENHENGENDE tid siden siste innbytte, ikke totalen.
+// Totalen gjør alle røde mot slutten av en 2×25 uansett hvor rettferdig man
+// har byttet; strekket sier «ta hen av nå». Trappa er Alex' (7. sep): gul
+// etter 7 min, oransje etter 15, rød etter 20. Tallet under drakta er
+// fortsatt total tid — det er det forslaget og statistikken regner med.
 //
-// Spennet er fem minutter absolutt: fem minutter over andelen er full rød,
-// fem under er full grønn. Relativt til andelen fungerer ikke — med ni i
-// troppen kan ingen komme mer enn 22 % over, og skalaen ville aldri nådd rødt.
+// På benken teller avstanden under rettferdig andel (klokke × plasser /
+// tropp): jo lenger under, jo grønnere. Fem minutter under er full grønn.
 const fairShare = computed(() =>
   squad.value.length ? (currentClock.value * FORMATION.length) / squad.value.length : 0)
+const TRAPP = [[0, 0], [7 * 60, .5], [15 * 60, .75], [20 * 60, 1]]   // [sekunder i strekk, h]
+function strekk(id) {
+  const s = stints.value.find(x => x.match_id === session.value?.match_id && x.player_id === id && x.off_clock == null)
+  return s ? Math.max(0, currentClock.value - s.on_clock) : 0
+}
+function varme(id) {
+  const t = strekk(id)
+  for (let i = 1; i < TRAPP.length; i++) {
+    const [t0, h0] = TRAPP[i - 1], [t1, h1] = TRAPP[i]
+    if (t <= t1) return h0 + (h1 - h0) * (t - t0) / (t1 - t0)
+  }
+  return 1
+}
 const TONE_SPAN = 300
-function grad(delta) { return Math.min(1, Math.max(0, delta / TONE_SPAN)) }
-function varme(id) { return grad(timeFor(id) - fairShare.value) }   // på banen: over andel
-function kulde(id) { return grad(fairShare.value - timeFor(id)) }   // på benken: under andel
+function kulde(id) { return Math.min(1, Math.max(0, (fairShare.value - timeFor(id)) / TONE_SPAN)) }
 
 // ── Forslaget ────────────────────────────────────────────────────────────────
 //
