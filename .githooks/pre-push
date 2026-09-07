@@ -37,7 +37,20 @@ fi
 
 # Egen port, egen dev-server: din egen skal få stå i fred, og den peker
 # sannsynligvis på prod uansett (.env.local gjør det).
+# Svarer noe på porten, må det være BenchBoss. 7. sep sto et annet prosjekt
+# på 5173, og hele QA-flyten testet Larvik Beach Volley — rødt overalt, og
+# ingenting av det handlet om oss. Er porten opptatt av noe annet, flytter vi.
 PORT=5173
+er_benchboss() { curl -s --max-time 2 "http://localhost:$1/" | grep -q "<title>BenchBoss</title>"; }
+port_ledig() { ! lsof -iTCP:"$1" -sTCP:LISTEN >/dev/null 2>&1; }
+if ! port_ledig "$PORT" && ! er_benchboss "$PORT"; then
+  for kandidat in 5183 5184 5185 5186 5187; do
+    if port_ledig "$kandidat"; then
+      si "${YELLOW}port 5173 er opptatt av noe annet — bruker $kandidat${OFF}"
+      PORT=$kandidat; break
+    fi
+  done
+fi
 QA_APP="http://localhost:$PORT"
 EGEN_SERVER=0
 if ! curl -s -o /dev/null --max-time 2 "$QA_APP"; then
