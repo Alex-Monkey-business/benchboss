@@ -9,6 +9,7 @@ import { useSeasonTeams } from '../composables/useSeasonTeams'
 import { useCoaches } from '../composables/useCoaches'
 import { playerPositions } from '../lib/playerPositions'
 import Sheet from '../components/Sheet.vue'
+import { meldEvent } from '../lib/sporing'
 
 const { isParent } = useAuth()
 const { activeSeason, fetchSeasons } = useSeasons()
@@ -63,9 +64,11 @@ const missingPositions = computed(() =>
 // Hurtig lag-bytte (chip-prikkene / ×)
 async function assign(playerId, team) {
   await updatePlayer(playerId, { primary_team: team })
+  meldEvent('lag_endret', { flate: 'spiller', satt: true })
 }
 async function remove(playerId) {
   await updatePlayer(playerId, { primary_team: null })
+  meldEvent('lag_endret', { flate: 'spiller', satt: false })
 }
 
 // Ny spiller

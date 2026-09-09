@@ -14,6 +14,7 @@ import { positionForSlot, positionLabel, slotLabel, splitByFit, fitsPosition } f
 import { kudosFor } from '../lib/byttekudos'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import { meldEvent } from '../lib/sporing'
 
 const route = useRoute()
 const router = useRouter()
@@ -422,6 +423,7 @@ async function gjorBytte(outId, inId) {
   if (navigator.vibrate) { try { navigator.vibrate(12) } catch { /* ok */ } }
   try {
     const kvittering = await substitute(matchId, { outPlayerId: outId, inPlayerId: inId })
+    meldEvent('kampmodus_bytte', { minst_pa_benken: minstPaBenken })
     const melding = `${firstName(inn.name)} inn for ${firstName(ut.name)}`
     const angre = {
       label: 'Angre',
@@ -689,6 +691,7 @@ async function handleFinish() {
   showFinish.value = false
   try {
     await finishMatch(matchId)
+    meldEvent('kampmodus_avsluttet')
     showToast('Kamp avsluttet', 'success')
   } catch (e) { reportError(e) }
 }

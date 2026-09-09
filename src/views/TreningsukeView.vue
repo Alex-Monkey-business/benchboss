@@ -32,6 +32,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ExercisePicker from '../components/ExercisePicker.vue'
 import ExerciseView from '../components/ExerciseView.vue'
 import Skeleton from '../components/Skeleton.vue'
+import { meldEvent } from '../lib/sporing'
 
 const { hasHandbook } = useContent()
 
@@ -298,6 +299,7 @@ const apenTidsrom = computed(() => {
 })
 
 function visDrill(s, i) {
+  meldEvent('ovelse_apnet', { fra: 'treningsuke' })
   apen.value = { sessionId: s.id, i }
 }
 

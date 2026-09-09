@@ -1,6 +1,7 @@
 <script setup>
 import { useRouter } from 'vue-router'
 import { useDismissedReminders } from '../../composables/useDismissedReminders'
+import { meldEvent } from '../../lib/sporing'
 
 defineProps({
   reminders: { type: Array, required: true }
@@ -9,8 +10,16 @@ defineProps({
 const router = useRouter()
 const { dismiss } = useDismissedReminders()
 
+// Måler om «Å ordne»-logikken treffer: hvilke korttyper folk faktisk handler
+// på, og hvilke de skyver bort. Bare `kind` sendes — ingen kamp-id, ingen navn.
 function open(reminder) {
+  meldEvent('hjemkort_trykket', { kind: reminder.kind })
   router.push(reminder.to || `/kamp/${reminder.matchId}`)
+}
+
+function skjul(reminder) {
+  meldEvent('hjemkort_avvist', { kind: reminder.kind })
+  dismiss(reminder)
 }
 </script>
 
@@ -35,7 +44,7 @@ function open(reminder) {
         type="button"
         class="reminder__dismiss"
         aria-label="Skjul påminnelse"
-        @click="dismiss(r)"
+        @click="skjul(r)"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
       </button>

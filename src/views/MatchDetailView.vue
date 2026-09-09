@@ -21,6 +21,7 @@ import { relativeDateLabel, isPast } from '../lib/dateLabels'
 import { matchCta } from '../lib/matchCta'
 import { teamSlugFromName, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, isPlayed, teamLabel, isOurs } from '../lib/matchMeta'
 import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
+import { meldEvent } from '../lib/sporing'
 
 const route = useRoute()
 const router = useRouter()
@@ -317,6 +318,7 @@ async function togglePlayer(playerId) {
   }
   await setMatchPlayers(match.value.id, current)
   matchPlayerIds.value = current
+  meldEvent('laguttak_endret', { type: 'hospitant', antall: current.length })
   showToast('Lånespillere oppdatert', 'success')
 }
 
@@ -337,6 +339,10 @@ const availableCount = computed(() =>
 async function handleToggleAbsence(playerId) {
   if (isLocked.value) return
   await toggleAbsence(match.value.id, playerId)
+  meldEvent('laguttak_endret', {
+    type: 'frafall',
+    meldt: !matchAbsenceIds.value.includes(playerId),
+  })
   matchAbsenceIds.value = matchAbsenceIds.value.includes(playerId)
     ? matchAbsenceIds.value.filter(id => id !== playerId)
     : [...matchAbsenceIds.value, playerId]

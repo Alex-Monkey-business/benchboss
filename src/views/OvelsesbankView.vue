@@ -7,6 +7,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ExerciseFields from '../components/ExerciseFields.vue'
 import ExerciseView from '../components/ExerciseView.vue'
 import { useAuth } from '../stores/auth'
+import { meldEvent } from '../lib/sporing'
 
 const router = useRouter()
 const route = useRoute()
@@ -90,6 +91,7 @@ function emptyForm() {
 }
 
 function openView(ex) {
+  meldEvent('ovelse_apnet', { fra: 'bank' })
   activeId.value = ex.id
   mode.value = 'view'
   showSheet.value = true

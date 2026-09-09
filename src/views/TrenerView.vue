@@ -22,6 +22,7 @@ import { shortRelativeDate } from '../lib/dateLabels'
 import { AREAS, areaNote } from '../content/ansvar'
 import Sheet from '../components/Sheet.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
+import { meldEvent } from '../lib/sporing'
 
 const route = useRoute()
 const { activeCohort } = useAuth()
@@ -128,6 +129,7 @@ async function saveTeam(slug) {
     return true
   }
 
+  meldEvent('lag_endret', { flate: 'trener', satt: !!slug })
   const { data, error } = await supabase.functions.invoke('member-admin', {
     body: { action: 'set_team', coach_id: coach.value.id, team: slug || null }
   })
