@@ -251,11 +251,11 @@ onMounted(async () => {
           <button v-for="ex in group.items" :key="ex.id" type="button" class="kort" @click="openView(ex)">
             <span class="kort__bilde" :class="{ 'kort__bilde--tom': !plakat(ex) }">
               <img v-if="plakat(ex)" :src="plakat(ex)" alt="" loading="lazy" decoding="async" />
-              <span v-else class="kort__tomt">Ingen video</span>
+              <span v-else class="kort__tittel">{{ ex.name }}</span>
               <span v-if="ex.type && ex.type !== 'none'" class="kort__badge" :class="`kort__badge--${ex.type}`">{{ ex.type === 'diff' ? 'Diff' : 'Mix' }}</span>
               <span v-if="varighet(ex)" class="kort__tid">{{ varighet(ex) }}</span>
             </span>
-            <span class="kort__navn">{{ ex.name }}</span>
+            <span v-if="plakat(ex)" class="kort__navn">{{ ex.name }}</span>
             <span v-if="ex.tema || opphavFor(ex)" class="kort__under">
               <template v-if="opphavFor(ex)">Fra {{ opphavFor(ex) }}<template v-if="ex.tema"> · </template></template>{{ ex.tema }}
             </span>
@@ -463,12 +463,23 @@ onMounted(async () => {
   object-fit: cover;
 }
 
-.kort__tomt {
+/* Uten film er flata typografisk: navnet står inne i kortet, der bildet
+   ellers ville stått. En grå boks med «Ingen video» var en tom flate som
+   sa fra om at den var tom — fem av seks kort på rekka. */
+.kort__tittel {
   position: absolute;
-  left: 10px;
-  bottom: 8px;
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-tertiary);
+  left: 12px;
+  right: 12px;
+  bottom: 10px;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
+  line-height: 1.3;
+  letter-spacing: -0.005em;
+  color: var(--ds-color-text-primary);
 }
 
 /* Merkene ligger PÅ bildet, i hjørnene — de skal ikke ta en linje under det. */
