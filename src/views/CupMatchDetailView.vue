@@ -32,6 +32,8 @@ const homeScoreInput = ref('')
 const awayScoreInput = ref('')
 const reportInput = ref('')
 const isEditingReport = ref(false)
+// Samme regel som seriekampen: resultatet leses før det redigeres.
+const editingResult = ref(false)
 const showScorerSheet = ref(false)
 const lastTappedPlayerId = ref('')
 
@@ -160,14 +162,24 @@ async function saveReport() {
 
   <div v-else-if="!match" class="desktop-container">
     <div class="px-lg" style="padding-top: var(--ds-space-md);">
-      <button class="back-btn" @click="router.back()">← Tilbake</button>
+      <button class="back-btn" @click="router.back()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Tilbake
+      </button>
     </div>
     <p class="cmd-readmuted" style="padding:30px 16px;text-align:center;">Fant ikke kampen.</p>
   </div>
 
   <div v-else class="desktop-container">
     <div class="px-lg" style="padding-top: var(--ds-space-md);">
-      <button class="back-btn" @click="router.back()">← Tilbake</button>
+      <button class="back-btn" @click="router.back()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="15 18 9 12 15 6"/>
+        </svg>
+        Tilbake
+      </button>
     </div>
 
     <!-- Header -->
@@ -189,8 +201,11 @@ async function saveReport() {
     <div class="px-lg mt-lg cmd-sections">
       <!-- Resultat -->
       <section class="cmd-section">
-        <div class="cmd-label">Resultat</div>
-        <template v-if="canEdit">
+        <div class="cmd-label">
+          Resultat
+          <button v-if="canEdit && hasResult" type="button" class="cmd-editlink" @click="editingResult = !editingResult">{{ editingResult ? 'Ferdig' : 'Rediger' }}</button>
+        </div>
+        <template v-if="canEdit && (!hasResult || editingResult)">
           <div class="result-form">
             <input v-model="homeScoreInput" type="number" min="0" max="99" inputmode="numeric" class="ds-input result-input" :aria-label="`Mål ${teamName}`" @keydown.enter="saveResult" />
             <span class="result-dash">–</span>
@@ -227,8 +242,8 @@ async function saveReport() {
           <div v-if="!isEditingReport && match.report" class="cmd-report-read">{{ match.report }}</div>
           <template v-else>
             <textarea v-model="reportInput" class="ds-input cmd-textarea" rows="6" maxlength="1000" placeholder="Skriv kort om kampen — høydepunkter, læring …"></textarea>
-            <div style="display:flex;justify-content:flex-end;margin-top:8px;">
-              <button type="button" class="ds-btn ds-btn--primary ds-btn--sm" :disabled="!isReportChanged" @click="saveReport">{{ isReportChanged ? 'Lagre referat' : 'Lagret' }}</button>
+            <div v-if="isReportChanged" style="display:flex;justify-content:flex-end;margin-top:8px;">
+              <button type="button" class="ds-btn ds-btn--primary ds-btn--sm" @click="saveReport">Lagre referat</button>
             </div>
           </template>
         </template>

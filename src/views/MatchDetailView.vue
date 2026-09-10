@@ -78,6 +78,12 @@ const newPlayerTeam = ref('')
 const reportInput = ref('')
 const reportSavedAt = ref(null)
 const isEditingReport = ref(false)
+// Resultatet leses før det redigeres. Står det et resultat, viser seksjonen
+// det som tekst; tallfeltene kommer bak «Rediger» (eller ved trykk på
+// resultatet i toppkortet). Uten resultat er det ingenting å lese — da står
+// feltene rett fram.
+const editingResult = ref(false)
+const resultReadMode = computed(() => hasResult.value && (isLocked.value || !editingResult.value))
 
 onMounted(async () => {
   await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllMatchPlayers()])
@@ -769,6 +775,7 @@ function cappedList(list, max = 3) {
 
 function focusSummaryGroup() {
   open.value.summary = true
+  editingResult.value = true
   setTimeout(() => {
     const el = document.querySelector('[data-section="summary"]')
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -1203,8 +1210,27 @@ function focusSummaryGroup() {
           <span v-if="match.report" class="sum-chip sum-chip--more">Referat</span>
         </template>
 
+        <!-- Lesemodus: resultatet og scorerne som tekst. -->
+        <div v-if="resultReadMode" class="sub-section">
+          <div class="result-read">
+            <span class="result-read__score">{{ match.home_score }}–{{ match.away_score }}</span>
+            <span v-if="aggregatedScorers.length" class="result-read__scorers">
+              <span
+                v-for="s in aggregatedScorers"
+                :key="s.player_id"
+                :class="['result-read__scorer', s.player?.primary_team ? `scorer-pill--${s.player.primary_team}` : '']"
+              >{{ s.player?.name || 'Ukjent' }}<template v-if="s.count > 1"> ×{{ s.count }}</template></span>
+            </span>
+            <span v-else class="result-read__none">Ingen scorere registrert</span>
+            <button v-if="!isLocked" type="button" class="report-edit-link result-read__edit" @click="editingResult = true">Rediger</button>
+          </div>
+        </div>
+
         <!-- Resultat: score + scorere som én enhet -->
-        <div class="sub-section">
+        <div v-else class="sub-section">
+          <div v-if="hasResult" class="sub-section__label sub-section__label--hoyre">
+            <button type="button" class="report-edit-link" @click="editingResult = false">Ferdig</button>
+          </div>
           <div class="score-edit">
             <div class="score-edit__side">
               <input
@@ -1310,11 +1336,13 @@ function focusSummaryGroup() {
               maxlength="1000"
               placeholder="Skriv kort om kampen — taktikk, høydepunkter, læring …"
             ></textarea>
-            <div class="report-meta">
-              <span class="report-meta__count">{{ reportInput.length }} / 1000</span>
+            <div v-if="reportInput.length > 900 || (reportSavedLabel && !isReportChanged)" class="report-meta">
+              <span v-if="reportInput.length > 900" class="report-meta__count">{{ reportInput.length }} / 1000</span>
               <span v-if="reportSavedLabel && !isReportChanged" class="report-meta__saved">{{ reportSavedLabel }}</span>
             </div>
-            <div class="report-edit-actions">
+            <!-- Knappene finnes bare når det er noe å gjøre. En grå «Lagret»
+                 som ikke kan trykkes var det tyngste på sida. -->
+            <div v-if="match.report || isReportChanged" class="report-edit-actions">
               <button
                 v-if="match.report"
                 type="button"
@@ -1324,12 +1352,12 @@ function focusSummaryGroup() {
                 Avbryt
               </button>
               <button
+                v-if="isReportChanged"
                 type="button"
                 class="ds-btn ds-btn--primary report-save-btn"
-                :disabled="!isReportChanged"
                 @click="saveReport"
               >
-                {{ isReportChanged ? 'Lagre referat' : 'Lagret' }}
+                Lagre referat
               </button>
             </div>
           </template>
@@ -2150,6 +2178,57 @@ function focusSummaryGroup() {
   color: var(--ds-color-text-tertiary);
   text-align: center;
   line-height: 1.25;
+}
+
+.result-read {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  padding-top: 6px;
+}
+
+.result-read__score {
+  font-family: var(--ds-font-heading);
+  font-size: 1.75rem;
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-color-text-primary);
+  line-height: 1;
+}
+
+.result-read__scorers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 12px;
+}
+
+.result-read__scorer {
+  position: relative;
+  padding-left: 14px;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+}
+
+.result-read__scorer::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 50%;
+  width: 8px;
+  height: 8px;
+  margin-top: -4px;
+  border-radius: 50%;
+  background: var(--ds-color-text-tertiary);
+}
+
+.result-read__edit { margin-left: auto; }
+.sub-section__label--hoyre { justify-content: flex-end; }
+
+.result-read__none {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-tertiary);
 }
 
 .result-clear-btn {
