@@ -310,7 +310,7 @@ const sorterteKamper = computed(() =>
 
         <section v-if="activeCup" class="turn-kamper">
           <div class="turn-kamper__hode">
-            <h2 class="hjem-section-kicker">Kampprogram</h2>
+            <h2 class="turn-kicker">Kampprogram</h2>
             <button class="ds-btn ds-btn--secondary ds-btn--sm" @click="apneNyKamp">Legg til kamp</button>
           </div>
 
@@ -680,10 +680,28 @@ const sorterteKamper = computed(() =>
   gap: var(--ds-space-md);
 }
 
+/* Verktøyside: sans. Serifen er forbeholdt innholdet (håndbok, referater,
+   navn) — ikke navigasjon og admin. */
 .turn-kort__navn {
   margin: 0;
+  font-family: var(--ds-font-heading);
   font-size: var(--ds-text-lg);
   font-weight: 700;
+  letter-spacing: var(--ds-tracking-tight);
+  font-variation-settings: normal;
+  font-feature-settings: normal;
+}
+
+.turn-kicker {
+  margin: 0;
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+  font-variation-settings: normal;
+  font-feature-settings: normal;
 }
 
 .turn-kort__meta {
@@ -785,9 +803,7 @@ const sorterteKamper = computed(() =>
 
 .turn-rad__hoved {
   font-weight: 600;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  overflow-wrap: anywhere;
 }
 
 .turn-slett {

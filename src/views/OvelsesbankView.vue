@@ -358,14 +358,16 @@ onMounted(async () => {
 .bank__head-text { min-width: 0; }
 .bank__new { flex-shrink: 0; }
 
+/* Verktøyside: sans, som Trening. */
 .bank__title {
-  font-family: var(--ds-font-display);
-  font-size: clamp(2rem, 6.5vw, 2.8rem);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-tighter);
-  line-height: 1.1;
+  font-family: var(--ds-font-heading);
+  font-size: var(--ds-text-2xl);
+  font-weight: var(--ds-weight-black);
+  letter-spacing: var(--ds-tracking-tight);
+  line-height: var(--ds-leading-tight);
   color: var(--ds-color-text-primary);
-  font-variation-settings: var(--ds-font-display-settings);
+  font-variation-settings: normal;
+  font-feature-settings: normal;
   margin: 0 0 4px;
 }
 

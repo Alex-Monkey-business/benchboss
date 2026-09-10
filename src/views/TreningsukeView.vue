@@ -958,14 +958,17 @@ Torsdag
 
 .uke__head { margin-bottom: 2px; }
 
+/* Sidetittel i en fane: sans, som Hjem, Kamper og Statistikk. Serifen er
+   innholdets stemme (håndboka, referatene, navnene), ikke navigasjonens. */
 .uke__title {
-  font-family: var(--ds-font-display);
-  font-size: clamp(2rem, 6.5vw, 2.8rem);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-tighter);
-  line-height: 1.1;
+  font-family: var(--ds-font-heading);
+  font-size: var(--ds-text-2xl);
+  font-weight: var(--ds-weight-black);
+  letter-spacing: var(--ds-tracking-tight);
+  line-height: var(--ds-leading-tight);
   color: var(--ds-color-text-primary);
-  font-variation-settings: var(--ds-font-display-settings);
+  font-variation-settings: normal;
+  font-feature-settings: normal;
   margin: 0;
 }
 
