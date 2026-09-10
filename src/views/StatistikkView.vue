@@ -391,35 +391,28 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
           <span class="standings__header-diff">+/-</span>
           <span class="standings__header-points">P</span>
         </div>
-        <div v-for="team in teamStats" :key="team.key" class="standings__row">
-          <span class="standings__team">
-            <span :class="['standings__dot', `standings__dot--${team.key}`]" aria-hidden="true"></span>
-            {{ team.label }}
-          </span>
-          <span class="standings__num standings__num--muted">{{ team.played }}</span>
-          <span class="standings__num">{{ team.w }}</span>
-          <span class="standings__num standings__num--muted">{{ team.d }}</span>
-          <span class="standings__num standings__num--muted">{{ team.l }}</span>
-          <span class="standings__goals">{{ team.gf }} – {{ team.ga }}</span>
-          <span :class="['standings__diff', team.diff > 0 ? 'standings__diff--pos' : team.diff < 0 ? 'standings__diff--neg' : '']">
-            {{ team.diff > 0 ? '+' : '' }}{{ team.diff }}
-          </span>
-          <span class="standings__points">{{ team.points }}</span>
-        </div>
-      </div>
-
-      <!-- Form per team — last 10 matches -->
-      <div v-if="teamStats.some(t => t.recent.length > 0)" class="form-section">
-        <div class="form-section__label">Form siste 10</div>
-        <div class="form-section__rows">
-          <div v-for="team in teamStats" :key="team.key" class="form-section__row">
-            <span class="form-section__team">
+        <template v-for="team in teamStats" :key="team.key">
+          <div class="standings__row">
+            <span class="standings__team">
               <span :class="['standings__dot', `standings__dot--${team.key}`]" aria-hidden="true"></span>
               {{ team.label }}
             </span>
+            <span class="standings__num standings__num--muted">{{ team.played }}</span>
+            <span class="standings__num">{{ team.w }}</span>
+            <span class="standings__num standings__num--muted">{{ team.d }}</span>
+            <span class="standings__num standings__num--muted">{{ team.l }}</span>
+            <span class="standings__goals">{{ team.gf }} – {{ team.ga }}</span>
+            <span :class="['standings__diff', team.diff > 0 ? 'standings__diff--pos' : team.diff < 0 ? 'standings__diff--neg' : '']">
+              {{ team.diff > 0 ? '+' : '' }}{{ team.diff }}
+            </span>
+            <span class="standings__points">{{ team.points }}</span>
+          </div>
+          <!-- Forma (siste 10) står i lagets egen rad, ikke i en egen boks under
+               tabellen. Samme tall, én seksjon mindre. -->
+          <div v-if="team.recent.length" class="standings__form">
             <FormCurve :results="team.recent" :max="10" label="" />
           </div>
-        </div>
+        </template>
       </div>
     </div>
 
@@ -642,42 +635,9 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   border-top: 1px solid var(--ds-color-border-light);
 }
 
-.form-section {
-  margin-top: var(--ds-space-md);
-  padding: var(--ds-space-md) var(--ds-space-lg);
-  background: var(--ds-color-bg-subtle);
-  border-radius: var(--ds-radius-md);
-}
-
-.form-section__label {
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-medium);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
-  color: var(--ds-color-text-tertiary);
-  margin-bottom: var(--ds-space-sm);
-}
-
-.form-section__rows {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-sm);
-}
-
-.form-section__row {
-  display: grid;
-  grid-template-columns: 90px 1fr;
-  align-items: center;
-  gap: var(--ds-space-sm);
-}
-
-.form-section__team {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-primary);
+.standings__form {
+  padding: 0 14px 10px 37px;
+  margin-top: -4px;
 }
 
 .stat-skel-stack {
