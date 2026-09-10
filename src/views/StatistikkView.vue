@@ -432,8 +432,9 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
             <router-link :to="`/spiller/${item.id}`" class="leaderboard__link">{{ item.name }}</router-link>
             <span v-if="item.primary_team" :class="['leaderboard__tag', `leaderboard__tag--${teamAccent(item.primary_team)}`]">{{ teamLabel(item.primary_team) }}</span>
           </span>
-          <span class="leaderboard__metric">{{ item.count || '–' }}</span>
-          <span class="leaderboard__metric leaderboard__metric--upcoming">{{ item.upcoming || '–' }}</span>
+          <!-- Tomt i stedet for strek: øyet leser bare tallene. -->
+          <span class="leaderboard__metric">{{ item.count || '' }}</span>
+          <span class="leaderboard__metric leaderboard__metric--upcoming">{{ item.upcoming || '' }}</span>
         </div>
       </div>
     </div>
