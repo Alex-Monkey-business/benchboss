@@ -3,8 +3,6 @@ import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import { useFeatures } from '../composables/useFeatures'
-import { useToast } from '../composables/useToast'
-import { supabase } from '../supabase'
 import { useCoaches } from '../composables/useCoaches'
 import { useTheme } from '../composables/useTheme'
 import { clubLogo } from '../lib/klubblogo'
@@ -12,29 +10,9 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import InstallAppCard from '../components/InstallAppCard.vue'
 
 const router = useRouter()
-const { coach, logout, isAdmin, isPlatformAdmin, memberships, activeCohort, setActiveCohort, refreshMember } = useAuth()
+const { coach, logout, isAdmin, isPlatformAdmin, memberships, activeCohort, setActiveCohort } = useAuth()
 const { usesReferees } = useFeatures()
-const { show: showToast } = useToast()
 
-// Bryteren for dommere. Kun admin — RLS sier det samme (admin_cohort_update),
-// så en vanlig trener ville uansett fått 403.
-const kanStyreKullet = computed(() => isAdmin.value || isPlatformAdmin.value)
-const lagrerDommere = ref(false)
-
-async function settDommere(pa) {
-  const id = activeCohort.value?.id
-  if (!id || pa === usesReferees.value || lagrerDommere.value) return
-  lagrerDommere.value = true
-  // Samme tabell og samme policy som låste Sten ute av veiviseren. Bryteren er
-  // gjemt bak kanStyreKullet, så UI og RLS er enige i dag — men det er en
-  // enighet ingen håndhever, og toasten under sier «Dommere er på».
-  const { data, error } = await supabase
-    .from('cohorts').update({ uses_referees: pa }).eq('id', id).select('id')
-  lagrerDommere.value = false
-  if (error || !data?.length) { showToast('Kunne ikke lagre', 'error'); return }
-  await refreshMember()
-  showToast(pa ? 'Dommere er på' : 'Dommere er av', 'success')
-}
 const { coaches, fetchCoaches } = useCoaches()
 
 // Klubbmerket gjør kull-velgeren til noe man kjenner igjen på en halv
@@ -181,32 +159,6 @@ const links = computed(() => [
     </div>
 
     <InstallAppCard />
-
-    <div v-if="kanStyreKullet" class="px-lg" style="margin-top: var(--ds-space-xl);">
-      <div class="admin-section-label">Dommere</div>
-      <div class="theme-toggle" role="radiogroup" aria-label="Skaffer laget dommer selv?">
-        <button
-          type="button"
-          role="radio"
-          :aria-checked="usesReferees"
-          :disabled="lagrerDommere"
-          :class="['theme-toggle__option', { 'theme-toggle__option--active': usesReferees }]"
-          @click="settDommere(true)"
-        >Vi skaffer dommer</button>
-        <button
-          type="button"
-          role="radio"
-          :aria-checked="!usesReferees"
-          :disabled="lagrerDommere"
-          :class="['theme-toggle__option', { 'theme-toggle__option--active': !usesReferees }]"
-          @click="settDommere(false)"
-        >Trenger ikke</button>
-      </div>
-      <p class="admin-hint">
-        Av: dommerfeltet på kampen, dommerlista og sesongoppgjøret forsvinner. Det som alt er
-        registrert blir stående.
-      </p>
-    </div>
 
     <div class="px-lg" style="margin-top: var(--ds-space-xl);">
       <div class="admin-section-label">Utseende</div>
@@ -454,10 +406,4 @@ const links = computed(() => [
   box-shadow: var(--ds-shadow-xs);
 }
 
-.admin-hint {
-  margin: var(--ds-space-sm) 0 0;
-  font-size: var(--ds-text-sm);
-  line-height: var(--ds-leading-snug);
-  color: var(--ds-color-text-tertiary);
-}
 </style>

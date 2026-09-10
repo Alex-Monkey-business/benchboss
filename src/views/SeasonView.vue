@@ -7,12 +7,13 @@ import { useMatches } from '../composables/useMatches'
 import { useExpenses } from '../composables/useExpenses'
 import { useCoaches } from '../composables/useCoaches'
 import { useToast } from '../composables/useToast'
+import { supabase } from '../supabase'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Skeleton from '../components/Skeleton.vue'
 import AnimatedNumber from '../components/AnimatedNumber.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
 
-const { coach: currentCoach, activeCohort } = useAuth()
+const { coach: currentCoach, activeCohort, isAdmin, isPlatformAdmin, refreshMember } = useAuth()
 const { usesReferees } = useFeatures()
 const clubShort = computed(() => activeCohort.value?.club_name?.split(' ')[0] || 'Klubben')
 const { seasons, viewingSeason, fetchSeasons, settleSeason } = useSeasons()
@@ -49,6 +50,24 @@ const settlement = computed(() => {
 const totalAmount = computed(() => expenses.value.reduce((s, e) => s + e.amount, 0))
 const registeredCount = computed(() => expenses.value.length)
 const isSettled = computed(() => viewingSeason.value?.status === 'settled')
+
+// Bryteren for dommere bor her, ikke på Admin-forsida: det er dette
+// oppgjøret den slår av og på. Kun admin — RLS sier det samme
+// (admin_cohort_update), så en vanlig trener ville uansett fått 403.
+const kanStyreKullet = computed(() => isAdmin.value || isPlatformAdmin.value)
+const lagrerDommere = ref(false)
+
+async function settDommere(pa) {
+  const id = activeCohort.value?.id
+  if (!id || pa === usesReferees.value || lagrerDommere.value) return
+  lagrerDommere.value = true
+  const { data, error } = await supabase
+    .from('cohorts').update({ uses_referees: pa }).eq('id', id).select('id')
+  lagrerDommere.value = false
+  if (error || !data?.length) { showToast('Kunne ikke lagre', 'error'); return }
+  await refreshMember()
+  showToast(pa ? 'Dommere er på' : 'Dommere er av', 'success')
+}
 
 // My own owed-by-the-club balance for the active season
 const myOwed = computed(() => {
@@ -160,7 +179,7 @@ async function handleExport() {
               </tr>
             </thead>
             <tbody>
-              <tr v-for="s in settlement" :key="s.coach.id" :class="{ 'settlement-row--me': s.coach.id === currentCoach?.id }">
+              <tr v-for="s in settlement" :key="s.coach.id" :class="{ 'settlement-row--me': s.coach.id === currentCoach?.id, 'settlement-row--null': !s.paid }">
                 <td>
                   <span :style="s.coach.id === currentCoach?.id ? 'font-weight: 600;' : ''">{{ s.coach.name }}</span>
                 </td>
@@ -184,9 +203,10 @@ async function handleExport() {
         </button>
       </div>
 
-      <!-- Settle button -->
+      <!-- Avslutt sesong er det mest irreversible på sida, og gjøres én gang i
+           halvåret. Da skal den ikke være det mest synlige. -->
       <div v-if="!isSettled" class="px-lg mb-lg">
-        <button class="ds-btn ds-btn--confirm" @click="showSettleDialog = true">
+        <button class="ds-btn ds-btn--ghost" style="width: 100%;" @click="showSettleDialog = true">
           Avslutt sesong
         </button>
       </div>
@@ -203,6 +223,31 @@ async function handleExport() {
           </div>
         </div>
       </div>
+      <div v-if="kanStyreKullet" class="px-lg mb-lg dommere">
+        <h3 class="dommere__tittel">Dommere</h3>
+        <div class="segment" role="radiogroup" aria-label="Skaffer laget dommer selv?">
+          <button
+            type="button"
+            role="radio"
+            :aria-checked="usesReferees"
+            :disabled="lagrerDommere"
+            :class="['segment__valg', { 'segment__valg--aktiv': usesReferees }]"
+            @click="settDommere(true)"
+          >Vi skaffer dommer</button>
+          <button
+            type="button"
+            role="radio"
+            :aria-checked="!usesReferees"
+            :disabled="lagrerDommere"
+            :class="['segment__valg', { 'segment__valg--aktiv': !usesReferees }]"
+            @click="settDommere(false)"
+          >Trenger ikke</button>
+        </div>
+        <p class="dommere__hint">
+          Av: dommerfeltet på kampen, dommerlista og utleggene her forsvinner. Det som alt er
+          registrert blir stående.
+        </p>
+      </div>
     </template>
 
     <ConfirmDialog
@@ -218,6 +263,57 @@ async function handleExport() {
 </template>
 
 <style scoped>
+.settlement-row--null td { color: var(--ds-color-text-tertiary); }
+.settlement-row--null .settlement-amount { font-weight: var(--ds-weight-regular); color: var(--ds-color-text-tertiary); }
+
+.dommere { margin-top: var(--ds-space-xl); }
+
+.dommere__tittel {
+  margin: 0 0 var(--ds-space-sm);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+}
+
+.dommere__hint {
+  margin: var(--ds-space-sm) 0 0;
+  font-size: var(--ds-text-sm);
+  line-height: var(--ds-leading-snug);
+  color: var(--ds-color-text-tertiary);
+}
+
+.segment {
+  display: inline-flex;
+  padding: 3px;
+  background: var(--ds-color-bg-subtle);
+  border-radius: var(--ds-radius-md);
+  gap: 2px;
+}
+
+.segment__valg {
+  appearance: none;
+  border: 0;
+  background: transparent;
+  padding: 8px 16px;
+  border-radius: var(--ds-radius-sm);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  letter-spacing: -0.005em;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.segment__valg--aktiv {
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-primary);
+  font-weight: var(--ds-weight-semibold);
+  box-shadow: var(--ds-shadow-xs);
+}
+
 .my-balance {
   padding: var(--ds-space-xl);
   background: var(--ds-color-warm-bg);
