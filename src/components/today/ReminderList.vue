@@ -37,7 +37,6 @@ function skjul(reminder) {
           <span class="reminder__title">{{ r.title }}</span>
           <span class="reminder__sub">{{ r.body }}</span>
         </span>
-        <svg class="reminder__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
       <button
         v-if="r.dismissable"
@@ -96,7 +95,7 @@ function skjul(reminder) {
   flex: 1;
   min-width: 0;
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr;
   align-items: center;
   gap: 12px;
   padding: 14px var(--ds-space-md);
@@ -153,14 +152,8 @@ function skjul(reminder) {
 .reminder-row--urgent .reminder__sub { color: var(--ds-color-warm-text); }
 .reminder-row--soft .reminder__sub { color: var(--ds-color-text-tertiary); }
 
-.reminder__chevron {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-}
-
-.reminder-row--urgent .reminder__chevron { color: var(--ds-color-warm-text); }
-.reminder-row--soft .reminder__chevron { color: var(--ds-color-text-tertiary); }
+/* Ingen chevron: hele kortet er trykkflata, og på radene som kan skjules
+   sto chevron og kryss side om side — to handlinger på én rad. */
 
 .reminder__dismiss {
   flex-shrink: 0;

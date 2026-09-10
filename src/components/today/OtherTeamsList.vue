@@ -114,21 +114,16 @@ function sub(item) {
   min-width: 0;
 }
 
+/* Motstandernavnet brytes, det klippes ikke — det er hele poenget med rada. */
 .other-row__title {
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
   color: var(--ds-color-text-secondary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .other-row__sub {
   font-size: var(--ds-text-xs);
   color: var(--ds-color-text-tertiary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .other-row__chevron {

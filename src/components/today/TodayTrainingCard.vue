@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { sessionIllustration, illoWebp, illoPng as illoPngPath } from '../../lib/sessionVisuals'
 import { dagLink } from '../../lib/trainingLinks'
+import { splitFocus } from '../../lib/focusText'
 
 const props = defineProps({
   session: { type: Object, required: true }
@@ -15,15 +16,8 @@ const illoPng = computed(() => illoPngPath(illo.value))
 const drillCount = computed(() => (props.session.drills || []).length)
 const drillLabel = computed(() => drillCount.value === 1 ? '1 øvelse' : `${drillCount.value} øvelser`)
 
-// Focus er skrevet som «[Kort tema]. [Detalj].» — splitt så temaet blir hero
-// og detaljen dempet støttetekst. Skannbart i ett blikk, ikke en vegg.
-const focusParts = computed(() => {
-  const f = (props.session.focus || '').trim()
-  if (!f) return { lead: props.session.title || '', detail: '' }
-  const m = f.match(/^(.+?[.!?])\s+(.+)$/s)
-  if (m && m[1].length <= 48) return { lead: m[1], detail: m[2] }
-  return { lead: f, detail: '' }
-})
+// Temaet blir hero, detaljen dempet støttetekst (lib/focusText).
+const focusParts = computed(() => splitFocus(props.session.focus, props.session.title || ''))
 </script>
 
 <template>
@@ -92,17 +86,14 @@ const focusParts = computed(() => {
   overflow: hidden;
 }
 
-/* Detalj: dempet støttetekst under temaet, klemt til to linjer. */
+/* Detalj: dempet støttetekst under temaet. Hel — en setning som slutter i
+   «…» sier mindre enn ingen setning. */
 .today-training__focus {
   margin: 0;
   font-size: var(--ds-text-sm);
   line-height: 1.4;
   color: var(--accent-text, var(--ds-color-text-secondary));
   opacity: 0.85;
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 .today-training__meta {

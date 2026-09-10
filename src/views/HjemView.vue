@@ -32,6 +32,17 @@ const { coaches } = useCoaches()
 
 // Cup-inngangen: eget kort mens en cup er i gang (ingen fane i bunnmenyen).
 const { activeCup, cups, cupInProgress: showCupEntry } = useCups()
+// Kortet er en hero. Fem måneder før cupen er to heroer ingen hero — da står
+// den som rad nederst til den er nær. Fjorten dager: da begynner troppen og
+// kjøringa å bli noe man faktisk ordner.
+const CUP_NAER_DAGER = 14
+const cupNear = computed(() => {
+  const start = activeCup.value?.start_date
+  if (!start) return true
+  const idag = new Date(); idag.setHours(12, 0, 0, 0)
+  const dager = (new Date(start + 'T12:00:00') - idag) / 86400000
+  return dager <= CUP_NAER_DAGER
+})
 // Uten serie er cup ikke et avbrekk — det er alt laget har. Da skal en tom
 // skjerm peke på den ene jobben som gir den innhold, ikke gratulere med fri.
 const { cupFirst } = useCupFirst()
@@ -101,6 +112,13 @@ const upNext = computed(() => {
   return items.sort((a, b) => a.date.localeCompare(b.date))
 })
 
+// Står kampen alt under «Å ordne» (dommer mangler), skal den ikke stå som
+// «Andre lag» også. Påminnelsen er den man handler på.
+const otherTeamsItems = computed(() => {
+  const opptatt = new Set(reminders.value.map(r => r.to || `/kamp/${r.matchId}`))
+  return otherTeamsNext.value.filter(i => !opptatt.has(i.to))
+})
+
 const showEmpty = computed(() =>
   ready.value && !loading.value && !onboardingActive.value && !hasToday.value && weekItems.value.length === 0 && upNext.value.length === 0 && reminders.value.length === 0 && !showCupEntry.value
 )
@@ -158,7 +176,7 @@ function coachNamesForMatch(matchId) {
       />
 
       <CupEntryCard
-        v-if="showCupEntry"
+        v-if="showCupEntry && cupNear"
         :cup="activeCup"
         :today-count="cupMatchesToday"
         class="ds-anim-fade-up ds-anim-delay-2"
@@ -217,9 +235,15 @@ function coachNamesForMatch(matchId) {
       <!-- Klubben ellers, sist: dette er lag du IKKE trener. Seksjonen lå
            øverst og ledet hele skjermen på dager uten kamp — stikk i strid
            med at den skal ligge der «uten å ta fokus». -->
-      <section v-if="otherTeamsNext.length && !onboardingActive" class="ds-anim-fade-up ds-anim-delay-3">
+      <section v-if="otherTeamsItems.length && !onboardingActive" class="ds-anim-fade-up ds-anim-delay-3">
         <h2 class="hjem-section-kicker">Andre lag</h2>
-        <OtherTeamsList :items="otherTeamsNext" />
+        <OtherTeamsList :items="otherTeamsItems" />
+      </section>
+
+      <!-- Cupen langt fram: en rad man finner, ikke et kort som leder. -->
+      <section v-if="showCupEntry && !cupNear && !onboardingActive" class="ds-anim-fade-up ds-anim-delay-3">
+        <h2 class="hjem-section-kicker">Senere</h2>
+        <CupEntryCard :cup="activeCup" compact />
       </section>
 
       <div v-if="showEmpty" class="ds-empty ds-anim-fade-up ds-anim-delay-1">
