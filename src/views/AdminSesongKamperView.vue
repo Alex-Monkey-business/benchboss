@@ -1038,13 +1038,8 @@ function formatMatchDate(dateStr) {
 .match-row__team {
   font-weight: 500;
   color: var(--ds-color-text-primary);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  /* Uten dette er elementet shrink-to-fit i kolonne-varianten under 480px, og
-     da måler `overflow: hidden` mot sin egen bredde — ellipsen slår aldri inn
-     og lange bortelagsnavn blir klippet av skjermkanten i stedet. */
-  max-width: 100%;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .match-row__vs {

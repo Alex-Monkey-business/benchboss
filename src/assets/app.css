@@ -198,9 +198,9 @@
   line-height: var(--ds-leading-snug);
   color: var(--ds-color-text-primary);
   min-width: 0;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Navnet brytes, det klippes ikke. «Store Berg…» på 360 px var det
+     viktigste på kortet som forsvant først. */
+  overflow-wrap: anywhere;
 }
 
 /* FotMob pattern: team names anchor INWARD toward the central time/score,
