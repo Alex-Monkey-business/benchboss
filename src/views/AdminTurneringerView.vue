@@ -185,6 +185,13 @@ async function lagreImport() {
 }
 
 // ---- Slette ----
+// Kampen åpnes i et ark før noe slettes. Tolv røde «Slett» nedover lista
+// var tolv destruktive knapper på ei side der jobben er å lese programmet.
+const apenKamp = ref(null)
+function slettApenKamp() {
+  kampTilSletting.value = apenKamp.value
+  apenKamp.value = null
+}
 const kampTilSletting = ref(null)
 const cupTilSletting = ref(null)
 
@@ -249,8 +256,6 @@ const sorterteKamper = computed(() =>
     </div>
 
     <div class="px-lg">
-      <button class="ds-btn ds-btn--primary turn-ny" @click="visNyCup = true">Ny turnering</button>
-
       <p v-if="!ready" class="turn-muted">Henter turneringer …</p>
 
       <div v-else-if="!cups.length" class="ds-empty">
@@ -260,6 +265,7 @@ const sorterteKamper = computed(() =>
           Legg inn cupen med lagene dere stiller med, så kan du fordele troppen og
           føre kampene underveis.
         </p>
+        <button class="ds-btn ds-btn--primary ds-empty__action" @click="visNyCup = true">Ny turnering</button>
       </div>
 
       <template v-else>
@@ -299,7 +305,6 @@ const sorterteKamper = computed(() =>
               class="ds-btn ds-btn--secondary"
               @click="settStatus(activeCup.status === 'completed' ? 'active' : 'completed')"
             >{{ activeCup.status === 'completed' ? 'Åpne igjen' : 'Avslutt' }}</button>
-            <button class="turn-slett" @click="cupTilSletting = activeCup">Slett turneringen</button>
           </div>
         </section>
 
@@ -329,20 +334,39 @@ const sorterteKamper = computed(() =>
           </template>
 
           <ul v-else class="turn-liste">
-            <li v-for="m in sorterteKamper" :key="m.id" class="turn-rad">
-              <div class="turn-rad__tekst">
-                <span class="turn-rad__topp">{{ kampDato(m) }}</span>
-                <span class="turn-rad__hoved">{{ lagNavn(m.our_team) }} mot {{ m.opponent || 'TBD' }}</span>
-                <span v-if="m.pitch || m.round" class="turn-rad__bunn">
-                  {{ [m.pitch, m.round].filter(Boolean).join(' · ') }}
+            <li v-for="m in sorterteKamper" :key="m.id">
+              <button type="button" class="turn-rad" @click="apenKamp = m">
+                <span class="turn-rad__tekst">
+                  <span class="turn-rad__topp">{{ kampDato(m) }}</span>
+                  <span class="turn-rad__hoved">{{ lagNavn(m.our_team) }} mot {{ m.opponent || 'TBD' }}</span>
+                  <span v-if="m.pitch || m.round" class="turn-rad__bunn">
+                    {{ [m.pitch, m.round].filter(Boolean).join(' · ') }}
+                  </span>
                 </span>
-              </div>
-              <button class="turn-slett" @click="kampTilSletting = m">Slett</button>
+                <svg class="turn-rad__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              </button>
             </li>
           </ul>
         </section>
+
+        <!-- Sjeldent og irreversibelt står sist og alene. En ny turnering
+             legges inn én gang i året; sletting nesten aldri. -->
+        <button class="ds-btn ds-btn--secondary turn-ny turn-ny--bunn" @click="visNyCup = true">Ny turnering</button>
+        <button v-if="activeCup" class="turn-slett turn-slett--bunn" @click="cupTilSletting = activeCup">Slett turneringen</button>
       </template>
     </div>
+
+    <Sheet :show="!!apenKamp" :title="apenKamp ? `${lagNavn(apenKamp.our_team)} mot ${apenKamp.opponent || 'TBD'}` : ''" @close="apenKamp = null">
+      <template v-if="apenKamp">
+        <p class="turn-kampinfo">{{ kampDato(apenKamp) }}</p>
+        <p v-if="apenKamp.pitch || apenKamp.round" class="turn-kampinfo turn-kampinfo--meta">
+          {{ [apenKamp.pitch, apenKamp.round].filter(Boolean).join(' · ') }}
+        </p>
+        <div class="sheet-actions">
+          <button class="ds-btn ds-btn--danger" @click="slettApenKamp">Slett kampen</button>
+        </div>
+      </template>
+    </Sheet>
 
     <Sheet :show="visNyCup" title="Ny turnering" @close="visNyCup = false">
       <div class="ds-form-group">
@@ -595,6 +619,27 @@ const sorterteKamper = computed(() =>
   margin-bottom: var(--ds-space-lg);
 }
 
+.turn-ny--bunn { margin: var(--ds-space-xl) 0 0; }
+
+.turn-slett--bunn {
+  display: block;
+  margin: var(--ds-space-lg) auto 0;
+  padding: var(--ds-space-sm) var(--ds-space-md);
+  color: var(--ds-color-text-tertiary);
+}
+
+.turn-kampinfo {
+  margin: 0 0 var(--ds-space-xs);
+  font-size: var(--ds-text-base);
+  color: var(--ds-color-text-primary);
+}
+
+.turn-kampinfo--meta {
+  margin-bottom: var(--ds-space-lg);
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+}
+
 .turn-muted {
   color: var(--ds-color-text-secondary);
   font-size: var(--ds-text-sm);
@@ -706,8 +751,23 @@ const sorterteKamper = computed(() =>
   align-items: center;
   justify-content: space-between;
   gap: var(--ds-space-md);
+  width: 100%;
   padding: var(--ds-space-md) 0;
+  background: none;
+  border: 0;
   border-bottom: 1px solid var(--ds-color-border);
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.turn-rad__chevron {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--ds-color-text-tertiary);
 }
 
 .turn-rad__tekst {
