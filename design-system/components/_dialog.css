@@ -158,6 +158,55 @@
   -webkit-overflow-scrolling: touch;
 }
 
+/* Uten media: header står, kroppen scroller. Stacken er bare en flex-kolonne
+   som arver sheetens høyde, så body kan scrolle i den. */
+.ds-sheet__stack {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+/* Med media (video på toppen): ett scrollende stykke. Filmen går kant til
+   kant og tar sheetens runde topphjørner; tittelen står under filmen, uten
+   strek — det er filmen som skiller den fra det som ligger bak. */
+.ds-sheet__scroll {
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  min-height: 0;
+}
+
+.ds-sheet--media .ds-sheet__body { overflow: visible; }
+
+.ds-sheet__media { background: #0E0E0D; }
+.ds-sheet__media .ex-video__spiller { border-radius: 0; }
+
+.ds-sheet__header--media {
+  border-bottom: 0;
+  padding: var(--ds-space-md) var(--ds-space-lg) 0;
+}
+
+.ds-sheet--media .ds-sheet__body { padding-top: var(--ds-space-md); }
+
+.ds-sheet__header--media .ds-sheet__title {
+  font-size: var(--ds-text-lg);
+  line-height: 1.2;
+}
+
+.ds-sheet__close--float {
+  position: absolute;
+  top: var(--ds-space-sm);
+  right: var(--ds-space-sm);
+  z-index: 1;
+  width: 36px;
+  height: 36px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-primary);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.ds-sheet__close--float:hover { background: var(--ds-color-bg-elevated); }
+
 /* Mobile: bottom sheet */
 @media (max-width: 768px) {
   .ds-sheet-overlay {

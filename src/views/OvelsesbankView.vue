@@ -6,6 +6,7 @@ import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ExerciseFields from '../components/ExerciseFields.vue'
 import ExerciseView from '../components/ExerciseView.vue'
+import ExerciseVideo from '../components/ExerciseVideo.vue'
 import { useAuth } from '../stores/auth'
 import { meldEvent } from '../lib/sporing'
 
@@ -79,6 +80,9 @@ const saving = ref(false)
 const form = ref(emptyForm())
 
 const active = computed(() => exercises.value.find(e => e.id === activeId.value) || null)
+// Filmen ligger på toppen av arket, over tittelen — bildet er det man kjenner
+// øvelsen igjen på, tittelen forklarer det man allerede ser.
+const activeVideo = computed(() => (mode.value === 'view' && active.value) ? ovelsensVideo(active.value) : null)
 
 // Tre felt skrives som «ett per linje» i samme slags tekstfelt. Å splitte dem
 // tre steder er tre steder å glemme .filter(Boolean) på.
@@ -290,10 +294,13 @@ onMounted(async () => {
 
     <!-- Detalj: visning først, redigering sekundært -->
     <Sheet :show="showSheet" :title="mode === 'new' ? 'Ny øvelse' : mode === 'edit' ? 'Rediger øvelse' : (active?.name || '')" @close="closeSheet">
+      <template v-if="activeVideo" #media>
+        <ExerciseVideo :video="activeVideo" />
+      </template>
       <!-- VISNING — samme rendring som dagen bruker (ExerciseView). Retter du
            noe her i banken, er det det treneren ser på tirsdag. -->
       <template v-if="mode === 'view' && active">
-        <ExerciseView class="ex-view--sheet" :exercise="active" :opphav="opphavFor(active)">
+        <ExerciseView class="ex-view--sheet" :exercise="active" :opphav="opphavFor(active)" :video-ute="!!activeVideo">
           <button type="button" class="ds-btn ds-btn--secondary ds-btn--lg ex-view__edit" @click="startEdit">
             Rediger
           </button>

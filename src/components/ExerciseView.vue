@@ -19,6 +19,7 @@
 // nøkkeltallene når den finnes.
 import { computed } from 'vue'
 import { EXERCISE_CATEGORIES, equipmentLabel, plassLabel, spillereLabel, ovelsensVideo } from '../composables/useExercises'
+import ExerciseVideo from './ExerciseVideo.vue'
 
 const props = defineProps({
   // Bankrad eller drill fra økta (resolveDrills gir dem samme form; navnet
@@ -28,7 +29,10 @@ const props = defineProps({
   // «Fra G2015» — tom for eget kull.
   opphav: { type: String, default: '' },
   // Hvor i treninga vi er: «Tirsdag · 2 av 3 · 0:20–0:40». Tom i banken.
-  hvor: { type: String, default: '' }
+  hvor: { type: String, default: '' },
+  // Arket viser filmen på toppen (Sheet sin media-slot). Da tegner vi den
+  // ikke her igjen, men kilden og lengden går inn i hoderaden.
+  videoUte: { type: Boolean, default: false }
 })
 
 const ex = computed(() => props.exercise || {})
@@ -104,32 +108,10 @@ const harInnhold = computed(() =>
 <template>
   <div class="ex-view">
     <!-- Videoen først. Tjue sekunder film sier det oppsettet bruker fem
-         linjer på — og på banen har du ikke fem linjer. Treneren står på
-         mobilnett, så filmen lastes først når han trykker; uten poster
-         hentes bare metadata, nok til at første bilde vises i stedet for
-         en svart boks. -->
-    <figure v-if="video" class="ex-video">
-      <video
-        v-if="video.kind === 'mp4'"
-        class="ex-video__spiller"
-        :src="video.url"
-        :poster="video.poster || null"
-        controls
-        playsinline
-        :preload="video.poster ? 'none' : 'metadata'"
-      ></video>
-      <!-- YouTube/Vimeo: spilleren deres i en ramme. nocookie-domenet holder
-           sporingen unna til noen faktisk trykker play. -->
-      <iframe
-        v-else
-        class="ex-video__spiller"
-        :src="video.url"
-        title="Video av øvelsen"
-        loading="lazy"
-        allow="accelerometer; encrypted-media; gyroscope; picture-in-picture; fullscreen"
-        allowfullscreen
-        referrerpolicy="strict-origin-when-cross-origin"
-      ></iframe>
+         linjer på — og på banen har du ikke fem linjer. I arket ligger den
+         på toppen (videoUte); her tegnes den bare når visninga står alene. -->
+    <figure v-if="video && !videoUte" class="ex-video">
+      <ExerciseVideo :video="video" />
       <figcaption class="ex-video__tekst">
         <span>Video fra {{ videoKilde }}<template v-if="video.duration"> · {{ varighet(video.duration) }}</template></span>
         <a v-if="video.source_url" :href="video.source_url" target="_blank" rel="noopener">Åpne på {{ videoKilde }}</a>
@@ -139,11 +121,20 @@ const harInnhold = computed(() =>
     <!-- Én linje: hvor i treninga vi er, og hva slags øvelse. Tre korte
          rader under hverandre (eyebrow, merke, tema) ble tre avsnitt for tre
          ord — nå er det én rad og temaet. -->
-    <div v-if="hvor || (ex.type && ex.type !== 'none') || categoryLabel || opphav" class="ex-view__head">
+    <div v-if="hvor || (ex.type && ex.type !== 'none') || categoryLabel || opphav || (video && videoUte)" class="ex-view__head">
       <span v-if="hvor" class="ex-view__hvor">{{ hvor }}</span>
       <span v-if="ex.type && ex.type !== 'none'" class="ex-badge" :class="`ex-badge--${ex.type}`">{{ ex.type === 'diff' ? 'Diff' : 'Mix' }}</span>
       <span v-if="categoryLabel" class="ex-view__category">{{ categoryLabel }}</span>
       <span v-if="opphav" class="ex-view__opphav">Fra {{ opphav }}</span>
+      <!-- Filmen står på toppen; her står bare hvor den er fra, som lenke. -->
+      <component
+        v-if="video && videoUte"
+        :is="video.source_url ? 'a' : 'span'"
+        class="ex-view__kilde"
+        :href="video.source_url || null"
+        :target="video.source_url ? '_blank' : null"
+        :rel="video.source_url ? 'noopener' : null"
+      >{{ videoKilde }}<template v-if="video.duration"> · {{ varighet(video.duration) }}</template></component>
     </div>
     <p v-if="ex.tema" class="ex-view__tema">{{ ex.tema }}</p>
 
@@ -279,15 +270,15 @@ const harInnhold = computed(() =>
 /* ---- Video ---- */
 .ex-video { margin: 0; }
 
-/* I sheeten går videoen kant til kant, rett under tittelen — en hero, ikke et
-   bilde i en tekst. Sheet-kroppen har lg-padding rundt seg; vi trekker
-   figuren ut i den. */
-.ex-view--sheet .ex-video {
-  margin: calc(-1 * var(--ds-space-lg)) calc(-1 * var(--ds-space-lg)) 0;
+.ex-view__kilde {
+  margin-left: auto;
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+  text-decoration: none;
+  white-space: nowrap;
 }
 
-.ex-view--sheet .ex-video__spiller { border-radius: 0; }
-.ex-view--sheet .ex-video__tekst { padding: 0 var(--ds-space-lg); }
+a.ex-view__kilde { text-decoration: underline; text-underline-offset: 2px; }
 
 .ex-view__hvor {
   margin: 0 auto 0 0;
@@ -300,19 +291,6 @@ const harInnhold = computed(() =>
   color: var(--ds-color-text-tertiary);
 }
 
-
-/* 16:9 låst før filmen er lastet, så siden ikke hopper når posteren kommer.
-   Mørk flate bak: filmene er filmet ute, og en hvit boks rundt en grønn bane
-   ser ut som en feil. */
-.ex-video__spiller {
-  display: block;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  border: 0;
-  border-radius: var(--ds-radius-md);
-  background: #0E0E0D;
-  object-fit: cover;
-}
 
 .ex-video__tekst {
   display: flex;

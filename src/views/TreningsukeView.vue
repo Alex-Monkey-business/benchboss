@@ -31,6 +31,7 @@ import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ExercisePicker from '../components/ExercisePicker.vue'
 import ExerciseView from '../components/ExerciseView.vue'
+import ExerciseVideo from '../components/ExerciseVideo.vue'
 import Skeleton from '../components/Skeleton.vue'
 import { meldEvent } from '../lib/sporing'
 
@@ -283,6 +284,7 @@ const apen = ref(null) // { sessionId, i }
 const apenDag = computed(() => dager.value.find(s => s.id === apen.value?.sessionId) || null)
 const apenListe = computed(() => (apenDag.value ? drillsFor(apenDag.value) : []))
 const apenDrill = computed(() => (apen.value ? apenListe.value[apen.value.i] || null : null))
+const apenVideo = computed(() => (apenDrill.value ? ovelsensVideo(apenDrill.value) : null))
 const forrige = computed(() => (apen.value ? apenListe.value[apen.value.i - 1] || null : null))
 const neste = computed(() => (apen.value ? apenListe.value[apen.value.i + 1] || null : null))
 
@@ -901,11 +903,15 @@ Torsdag
     <!-- Øvelsen — samme visning som banken. Forrige/Neste nederst: på banen
          blar du gjennom treninga, du navigerer ikke. -->
     <Sheet :show="!!apenDrill" :title="apenDrill?.text || ''" @close="apen = null">
+      <template v-if="apenVideo" #media>
+        <ExerciseVideo :video="apenVideo" />
+      </template>
       <template v-if="apenDrill">
         <ExerciseView
           class="ex-view--sheet"
           :exercise="apenDrill"
           :minutes="apenDrill.minutes || 0"
+          :video-ute="!!apenVideo"
           :hvor="`${apenDag.title} · ${apen.i + 1} av ${apenListe.length}${apenTidsrom ? ' · ' + apenTidsrom : ''}`"
         >
           <nav v-if="apenListe.length > 1" class="ovelse-sheet__bla" aria-label="Bla i treninga">

@@ -48,18 +48,33 @@ watch(() => props.show, (val) => {
   <Teleport to="body">
   <Transition :name="transitionName">
     <div v-if="show" class="ds-overlay ds-sheet-overlay" @click.self="emit('close')">
-      <div class="ds-sheet" role="dialog" aria-modal="true">
-        <div v-if="title" class="ds-sheet__header">
-          <h3 class="ds-sheet__title">{{ title }}</h3>
-          <button type="button" class="ds-sheet__close" @click="emit('close')" aria-label="Lukk">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-        </div>
-        <div ref="bodyRef" class="ds-sheet__body">
-          <slot />
+      <div class="ds-sheet" :class="{ 'ds-sheet--media': !!$slots.media }" role="dialog" aria-modal="true">
+        <!-- Med media (video på toppen) scroller hele arket som ett stykke:
+             filmen, tittelen og kroppen. Lukk-krysset ligger utenfor
+             scrolleren, festet i hjørnet, så det står der også når filmen har
+             scrollet ut av bildet. -->
+        <button v-if="$slots.media" type="button" class="ds-sheet__close ds-sheet__close--float" @click="emit('close')" aria-label="Lukk">
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18"/>
+            <line x1="6" y1="6" x2="18" y2="18"/>
+          </svg>
+        </button>
+        <div :class="$slots.media ? 'ds-sheet__scroll' : 'ds-sheet__stack'">
+          <div v-if="$slots.media" class="ds-sheet__media">
+            <slot name="media" />
+          </div>
+          <div v-if="title" class="ds-sheet__header" :class="{ 'ds-sheet__header--media': !!$slots.media }">
+            <h3 class="ds-sheet__title">{{ title }}</h3>
+            <button v-if="!$slots.media" type="button" class="ds-sheet__close" @click="emit('close')" aria-label="Lukk">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <div ref="bodyRef" class="ds-sheet__body">
+            <slot />
+          </div>
         </div>
       </div>
     </div>
