@@ -49,7 +49,7 @@ onMounted(async () => {
     homeScoreInput.value = match.value.home_score ?? ''
     awayScoreInput.value = match.value.away_score ?? ''
     reportInput.value = match.value.report || ''
-    isEditingReport.value = !match.value.report
+    isEditingReport.value = false
   }
   loading.value = false
 })
@@ -236,14 +236,15 @@ async function saveReport() {
       <section class="cmd-section">
         <div class="cmd-label">
           Kampreferat
-          <button v-if="canEdit && !isEditingReport && match.report" type="button" class="cmd-editlink" @click="isEditingReport = true">Rediger</button>
+          <button v-if="canEdit && !isEditingReport" type="button" class="cmd-editlink" @click="isEditingReport = true">{{ match.report ? 'Rediger' : 'Skriv referat' }}</button>
         </div>
         <template v-if="canEdit">
           <div v-if="!isEditingReport && match.report" class="cmd-report-read">{{ match.report }}</div>
-          <template v-else>
+          <template v-else-if="isEditingReport">
             <textarea v-model="reportInput" class="ds-input cmd-textarea" rows="6" maxlength="1000" placeholder="Skriv kort om kampen — høydepunkter, læring …"></textarea>
-            <div v-if="isReportChanged" style="display:flex;justify-content:flex-end;margin-top:8px;">
-              <button type="button" class="ds-btn ds-btn--primary ds-btn--sm" @click="saveReport">Lagre referat</button>
+            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
+              <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" @click="reportInput = match.report || ''; isEditingReport = false">Avbryt</button>
+              <button v-if="isReportChanged" type="button" class="ds-btn ds-btn--primary ds-btn--sm" @click="saveReport">Lagre referat</button>
             </div>
           </template>
         </template>

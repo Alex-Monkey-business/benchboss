@@ -1,6 +1,6 @@
 // Påminnelser for hjem-skjermen — rene funksjoner, ingen state.
 //
-// Rangert: dommer → utlegg → treningsplan → resultat → referat. Maks tre kort,
+// Rangert: dommer → utlegg → treningsplan → resultat. Maks tre kort,
 // og flere ærend på SAMME kamp blir ett kort. Rekkefølgen bestemmes til slutt,
 // ikke av hvilken sjekk som kjører først — ellers kunne utlegg falle ut av
 // taket fordi dens sjekk lå sist i fila.
@@ -155,46 +155,17 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
     })
   }
 
-  // 4. Referat mangler på nylig spilt kamp der resultatet er inne (lavest hast —
-  //    først når tallene finnes; ellers dekker «resultat mangler» kampen alt).
-  const reportFloor = isoDaysFrom(today, -RESULT_LOOKBACK_DAYS)
-  const reportLess = matches
-    .filter(m =>
-      isOurMatch(m) &&
-      !excluded.has(m.id) &&
-      m.match_date >= reportFloor &&
-      m.match_date <= today &&
-      isPlayed(m) &&
-      hasResult(m) &&
-      !(m.report || '').trim() &&
-      mine(m)
-    )
-    .sort((a, b) => b.match_date.localeCompare(a.match_date))
-  if (reportLess.length > 0) {
-    const m = reportLess[0]
-    const opponent = isHomeMatch(m) ? m.away_team : m.home_team
-    reminders.push({
-      kind: 'no-report',
-      tone: 'soft',
-      dismissable: true,
-      title: reportLess.length === 1
-        ? `Referat mangler mot ${opponent}`
-        : `${reportLess.length} kamper mangler referat`,
-      body: reportLess.length === 1 ? 'Skriv referatet' : 'Skriv referatene',
-      action: reportLess.length === 1 ? 'Skriv referatet' : 'Skriv referatene',
-      matchId: m.id
-    })
-  }
+  // Referat mangler er IKKE en påminnelse. Svært få skriver referat, og et
+  // kort om det på Hjem var støy for alle de andre (Alex, 10. sep 2026).
 
   // Rangeringen. Dommer først fordi kampen ikke kan spilles uten; utlegg
   // fordi det er dine egne penger. Så treningsplanen — den har en dato foran
-  // seg. Resultat og referat er data som kan hentes inn senere.
+  // seg. Resultatet er data som kan hentes inn senere.
   const VEKT = {
     'no-ref': 1,
     'pending-expense': 2,
     'no-training-plan': 3,
-    'no-result': 4,
-    'no-report': 5
+    'no-result': 4
   }
   const vekt = r => VEKT[r.lead || r.kind] ?? 9
 

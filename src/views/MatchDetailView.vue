@@ -104,7 +104,9 @@ onMounted(async () => {
     awayScoreInput.value = match.value.away_score ?? ''
     reportInput.value = match.value.report || ''
     // Tomt referat → edit-modus direkte; lagret referat → lese-modus med "Rediger"
-    isEditingReport.value = !match.value.report && !isLocked.value
+    // Feltet står ikke framme før noen vil skrive. Få skriver referat, og
+    // et tomt tekstfelt på hver spilte kamp var det mest plasskrevende på sida.
+    isEditingReport.value = false
     // Show custom input if current referee is not in known list
     if (match.value.referee && !referees.value.some(r => r.name === match.value.referee) && !isLocked.value) {
       customReferee.value = true
@@ -1313,12 +1315,12 @@ function focusSummaryGroup() {
           <div class="sub-section__label">
             Kampreferat
             <button
-              v-if="!isEditingReport && match.report && !isLocked"
+              v-if="!isEditingReport && !isLocked"
               type="button"
               class="report-edit-link"
               @click="startEditingReport"
             >
-              Rediger
+              {{ match.report ? 'Rediger' : 'Skriv referat' }}
             </button>
           </div>
 
@@ -1328,7 +1330,7 @@ function focusSummaryGroup() {
           </div>
 
           <!-- EDIT-MODUS: textarea + Lagre/Avbryt -->
-          <template v-else-if="!isLocked">
+          <template v-else-if="isEditingReport && !isLocked">
             <textarea
               v-model="reportInput"
               class="ds-input report-textarea"
@@ -1342,9 +1344,8 @@ function focusSummaryGroup() {
             </div>
             <!-- Knappene finnes bare når det er noe å gjøre. En grå «Lagret»
                  som ikke kan trykkes var det tyngste på sida. -->
-            <div v-if="match.report || isReportChanged" class="report-edit-actions">
+            <div class="report-edit-actions">
               <button
-                v-if="match.report"
                 type="button"
                 class="ds-btn ds-btn--secondary report-cancel-btn"
                 @click="cancelEditingReport"
@@ -2183,7 +2184,6 @@ function focusSummaryGroup() {
 .result-read {
   display: flex;
   align-items: center;
-  flex-wrap: wrap;
   gap: 8px 14px;
   padding-top: 6px;
 }
@@ -2200,6 +2200,8 @@ function focusSummaryGroup() {
 
 .result-read__scorers {
   display: flex;
+  flex: 1;
+  min-width: 0;
   flex-wrap: wrap;
   gap: 6px 12px;
 }
@@ -2223,10 +2225,12 @@ function focusSummaryGroup() {
   background: var(--ds-color-text-tertiary);
 }
 
-.result-read__edit { margin-left: auto; }
+.result-read__edit { flex: none; }
 .sub-section__label--hoyre { justify-content: flex-end; }
 
 .result-read__none {
+  flex: 1;
+  min-width: 0;
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-tertiary);
 }
