@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from '../supabase'
 import { resetAllData } from './dataReset'
 import { clearPersisted } from '../lib/persist'
 import { readLegacyUser, clearLegacyUser, refreshLegacyFlag } from './legacyAuth'
+import { meldPwa } from '../lib/pwa'
 
 // Identiteten i BenchBoss.
 //
@@ -202,6 +203,10 @@ function applyMemberships(profile, rows) {
 }
 
 async function loadMember(user) {
+  // Ikke await: en treg eller feilende telemetrimelding skal aldri holde
+  // igjen innlastingen av kullet.
+  void meldPwa()
+
   const [profileRes, memberRes] = await Promise.all([
     supabase
       .from('profiles')
