@@ -218,6 +218,28 @@
     max-height: 90dvh;
     border-radius: var(--ds-radius-lg) var(--ds-radius-lg) 0 0;
     border-bottom: 0;
+    /* Draget følger fingeren uten forsinkelse; slippet glir tilbake. */
+    transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+    touch-action: pan-y;
+  }
+  .ds-sheet--dragging { transition: none; }
+
+  /* Gripetaket: sier «dette kan dras». Over filmen ville det ligget på
+     bildet — der bærer krysset og formen på arket den beskjeden. */
+  .ds-sheet:not(.ds-sheet--media)::before {
+    content: '';
+    position: absolute;
+    top: 8px;
+    left: 50%;
+    width: 36px;
+    height: 4px;
+    margin-left: -18px;
+    border-radius: 2px;
+    background: var(--ds-color-border-strong, var(--ds-color-border));
+    z-index: 1;
+  }
+  .ds-sheet:not(.ds-sheet--media) .ds-sheet__header {
+    padding-top: calc(var(--ds-space-md) + 8px);
   }
   .ds-sheet__body {
     padding-bottom: calc(var(--ds-space-lg) + env(safe-area-inset-bottom, 0px));
