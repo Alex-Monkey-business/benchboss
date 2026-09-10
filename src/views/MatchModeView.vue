@@ -11,7 +11,6 @@ import { useAuth } from '../stores/auth'
 import { teamColorsForMatch, isHomeMatch, teamLabel } from '../lib/matchMeta'
 import { formationFor } from '../lib/formations'
 import { positionForSlot, positionLabel, slotLabel, splitByFit, fitsPosition } from '../lib/playerPositions'
-import { kudosFor } from '../lib/byttekudos'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { meldEvent } from '../lib/sporing'
@@ -25,9 +24,9 @@ const {
   session, stints, currentClock, isRunning,
   startClockTick, stopClockTick,
   fetchSession, fetchStints,
-  saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, undoSubstitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
+  saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
   isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer,
-  adjustPlayingTime, undoAdjustment, movableSeconds
+  adjustPlayingTime, movableSeconds
 } = useMatchMode()
 const { show: showToast } = useToast()
 const { setSessionHold, sessionLost, activeCohort } = useAuth()
@@ -406,44 +405,21 @@ const forslag = computed(() => {
 
 // ── Byttet ───────────────────────────────────────────────────────────────────
 //
-// Ett trykk, ingen bekreftelse. Varslinga sier hva byttet gjorde med
-// spilletida og bærer Angre i fem sekunder. Et rettferdig bytte (minst tid
-// inn, mer tid ut) får kudos med et glimt i øyet — Alex' stikk til trenerne
-// som favoriserer. Feil vei får fakta, ikke skam: taktiske bytter er ekte og
-// skal gå på ett trykk.
-let antallKudos = 0
+// Ett trykk, ingen bekreftelse, ingen varsling. Banen og benken viser
+// resultatet i samme sekund — spilleren står der, spilletida teller. En toast
+// over det er bare noe som må leses bort under en kamp der byttene kommer tett
+// i tett, og Angre i den toasten dekket et bytte til før den rakk å bli lest.
+// Skal et bytte bort, byttes det tilbake, like raskt som det ble gjort.
 
 async function gjorBytte(outId, inId) {
   const inn = playerById(inId)
   const ut = playerById(outId)
   if (!inn || !ut) return
-  const innSec = timeFor(inId)
-  const utSec = timeFor(outId)
   const minstPaBenken = bench.value[0]?.id === inId
   if (navigator.vibrate) { try { navigator.vibrate(12) } catch { /* ok */ } }
   try {
-    const kvittering = await substitute(matchId, { outPlayerId: outId, inPlayerId: inId })
+    await substitute(matchId, { outPlayerId: outId, inPlayerId: inId })
     meldEvent('kampmodus_bytte', { minst_pa_benken: minstPaBenken })
-    const melding = `${firstName(inn.name)} inn for ${firstName(ut.name)}`
-    const angre = {
-      label: 'Angre',
-      handler: async () => {
-        try {
-          const ok = await undoSubstitute(matchId, kvittering)
-          showToast(ok ? `Angret: ${firstName(ut.name)} står igjen` : 'Kunne ikke angre, det har skjedd et nytt bytte', ok ? 'neutral' : 'error')
-        } catch (e) { reportError(e) }
-      }
-    }
-    // Rettferdig: kudos, uten Angre — det er en feiring, ikke et valg. Feil
-    // vei: fakta og Angre. Alt annet: mørk toast med Angre. Ingen av dem er
-    // grønne, for de står på en grønn bane.
-    if (utSec - innSec >= 60 && minstPaBenken) {
-      showToast(melding, 'kudos', 4500, { detail: kudosFor(antallKudos++) })
-    } else if (innSec - utSec >= 60) {
-      showToast(`${melding} · ${firstName(inn.name)} har allerede mer tid enn ${firstName(ut.name)}`, 'warning', 5000, { action: angre })
-    } else {
-      showToast(melding, 'neutral', 5000, { action: angre })
-    }
   } catch (e) { reportError(e) }
 }
 
@@ -782,7 +758,6 @@ const summary = computed(() =>
 const adjusting = ref(false)
 const giver = ref(null)
 const taker = ref(null)
-const undoStack = ref([])
 let holdTimer = null
 let holdFrom = null
 
@@ -829,7 +804,6 @@ function closeAdjust() {
   adjusting.value = false
   giver.value = null
   taker.value = null
-  undoStack.value = []
 }
 
 // Første trykk velger den som gir, andre den som får. Trykk på en valgt
@@ -854,17 +828,10 @@ async function moveTime(seconds) {
     showToast(`${firstName(playerById(to)?.name)} sto allerede på banen`, 'error')
     return
   }
-  undoStack.value.push(res.ops)
   const partial = res.moved < seconds ? ' (så mye det var plass til)' : ''
   showToast(`${fmt(res.moved)} fra ${firstName(playerById(from)?.name)} til ${firstName(playerById(to)?.name)}${partial}`, 'success')
 }
 
-async function undoMove() {
-  const ops = undoStack.value.pop()
-  if (!ops) return
-  await undoAdjustment(ops)
-  showToast('Angret', 'success')
-}
 </script>
 
 <template>
@@ -1184,7 +1151,6 @@ async function undoMove() {
           </p>
         </template>
         <div class="adj__foot">
-          <button v-if="undoStack.length" type="button" class="adj__link" @click="undoMove">Angre</button>
           <button type="button" class="adj__link" @click="closeAdjust">Ferdig</button>
         </div>
       </div>
