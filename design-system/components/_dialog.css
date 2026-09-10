@@ -224,9 +224,9 @@
   }
   .ds-sheet--dragging { transition: none; }
 
-  /* Gripetaket: sier «dette kan dras». Over filmen ville det ligget på
-     bildet — der bærer krysset og formen på arket den beskjeden. */
-  .ds-sheet:not(.ds-sheet--media)::before {
+  /* Gripetaket: sier «dette kan dras». På alle ark — også over filmen, der
+     det står lyst mot bildet. Signalet er viktigere enn et rent bilde. */
+  .ds-sheet::before {
     content: '';
     position: absolute;
     top: 8px;
@@ -236,7 +236,12 @@
     margin-left: -18px;
     border-radius: 2px;
     background: var(--ds-color-border-strong, var(--ds-color-border));
-    z-index: 1;
+    z-index: 2;
+    pointer-events: none;
+  }
+  .ds-sheet--media::before {
+    background: rgba(255, 255, 255, 0.9);
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
   }
   .ds-sheet:not(.ds-sheet--media) .ds-sheet__header {
     padding-top: calc(var(--ds-space-md) + 8px);
