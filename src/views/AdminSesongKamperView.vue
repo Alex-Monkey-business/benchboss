@@ -11,6 +11,7 @@ import { useFiks } from '../composables/useFiks'
 import { useTerminlisteVarsel } from '../composables/useTerminlisteVarsel'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
+import DisclosureSection from '../components/DisclosureSection.vue'
 
 const { seasons, activeSeason, viewingSeason, fetchSeasons, createSeason, setViewingSeason } = useSeasons()
 const { matches, fetchMatches, bulkAddMatches, addMatch, updateMatch, deleteAllMatches, backfillDefaultCoaches } = useMatches()
@@ -27,6 +28,14 @@ const skippedForeign = ref(0)
 const showPreview = ref(false)
 const importing = ref(false)
 const detectedSeason = ref(null)
+
+// Har sesongen kamper, er sida kamplista. De to måtene å hente kamper inn på
+// ligger da sammenslått under «Legg til kamper» — utfoldet bare i en tom
+// sesong, der de er hele jobben. Lukkes/åpnes når kamptallet krysser null,
+// ikke ved hvert klikk.
+const harKamper = computed(() => matches.value.length > 0)
+const apneSeksjoner = ref({ import: false, fiks: false })
+watch(harKamper, h => { apneSeksjoner.value = { import: !h, fiks: !h } }, { immediate: true })
 
 // ---- Terminliste fra fotball.no ----
 //
@@ -415,10 +424,48 @@ function formatMatchDate(dateStr) {
       </div>
     </div>
 
-    <!-- ═══ IMPORT ═══ -->
+    <!-- ═══ MATCH LIST ═══ -->
+    <div v-if="matches.length > 0" class="px-lg mb-lg">
+      <div class="section-label">Kamper i {{ viewingSeason?.name }}</div>
+      <div class="ds-card ds-card--compact match-list-card">
+        <div
+          v-for="m in matches"
+          :key="m.id"
+          class="match-row"
+        >
+          <div class="match-row__when">
+            <span class="match-row__date">{{ formatMatchDate(m.match_date) }}</span>
+            <span
+              v-if="m.match_time && m.match_time.substring(0, 5) !== '00:00'"
+              class="match-row__time"
+            >{{ m.match_time.substring(0, 5) }}</span>
+          </div>
+          <div class="match-row__teams">
+            <span class="match-row__team">{{ m.home_team }}</span>
+            <span class="match-row__vs">vs</span>
+            <span class="match-row__team">{{ m.away_team }}</span>
+          </div>
+          <button
+            type="button"
+            class="match-row__edit"
+            aria-label="Endre tidspunkt"
+            @click="openEditDateTime(m)"
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M12 20h9"/>
+              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ LEGG TIL KAMPER ═══ -->
     <div class="px-lg mb-lg">
-      <div class="section-label">Last opp kampprogram</div>
-      <div class="ds-card">
+      <div class="section-label">Legg til kamper</div>
+      <div class="legg-til">
+    <!-- ═══ IMPORT ═══ -->
+      <DisclosureSection v-model="apneSeksjoner.import" label="Last opp kampprogram" empty-text="">
         <div v-if="!showPreview">
           <div
             :class="['file-drop', { 'file-drop--active': dragActive }]"
@@ -488,13 +535,10 @@ function formatMatchDate(dateStr) {
             </button>
           </div>
         </div>
-      </div>
-    </div>
+      </DisclosureSection>
 
     <!-- ═══ TERMINLISTE FRA FOTBALL.NO ═══ -->
-    <div class="px-lg mb-lg">
-      <div class="section-label">Terminliste fra fotball.no</div>
-      <div class="ds-card">
+      <DisclosureSection v-model="apneSeksjoner.fiks" label="Terminliste fra fotball.no" empty-text="">
         <!-- Klubben er ikke koblet: da finnes ingen terminliste å se på. -->
         <template v-if="!activeCohort?.club_fiks_id">
           <p class="fiks-lead">
@@ -582,11 +626,8 @@ function formatMatchDate(dateStr) {
             </button>
           </div>
         </template>
-      </div>
-    </div>
+      </DisclosureSection>
 
-    <!-- ═══ ADD MATCH ═══ -->
-    <div class="px-lg mb-lg">
       <button class="action-row" @click="showAddMatch = true">
         <span class="action-row__icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
@@ -594,6 +635,8 @@ function formatMatchDate(dateStr) {
         <span class="action-row__label">Legg til kamp manuelt</span>
         <svg class="action-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
+
+      </div>
     </div>
 
     <!-- ═══ BACKFILL TRENERE ═══ -->
@@ -605,42 +648,6 @@ function formatMatchDate(dateStr) {
         <span class="action-row__label">{{ backfilling ? 'Setter trenere…' : 'Sett standardtrenere på kamper uten' }}</span>
         <svg class="action-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
-    </div>
-
-    <!-- ═══ MATCH LIST ═══ -->
-    <div v-if="matches.length > 0" class="px-lg mb-lg">
-      <div class="section-label">Kamper i {{ viewingSeason?.name }}</div>
-      <div class="ds-card ds-card--compact match-list-card">
-        <div
-          v-for="m in matches"
-          :key="m.id"
-          class="match-row"
-        >
-          <div class="match-row__when">
-            <span class="match-row__date">{{ formatMatchDate(m.match_date) }}</span>
-            <span
-              v-if="m.match_time && m.match_time.substring(0, 5) !== '00:00'"
-              class="match-row__time"
-            >{{ m.match_time.substring(0, 5) }}</span>
-          </div>
-          <div class="match-row__teams">
-            <span class="match-row__team">{{ m.home_team }}</span>
-            <span class="match-row__vs">vs</span>
-            <span class="match-row__team">{{ m.away_team }}</span>
-          </div>
-          <button
-            type="button"
-            class="match-row__edit"
-            aria-label="Endre tidspunkt"
-            @click="openEditDateTime(m)"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 20h9"/>
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
-            </svg>
-          </button>
-        </div>
-      </div>
     </div>
 
     <!-- ═══ DANGER ZONE ═══ -->
@@ -815,6 +822,12 @@ function formatMatchDate(dateStr) {
   flex-direction: column;
   gap: var(--ds-space-sm);
   margin-top: var(--ds-space-lg);
+}
+
+.legg-til {
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
 }
 
 .section-label {
