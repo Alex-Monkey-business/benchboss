@@ -12,9 +12,20 @@ import { useAuth } from '../stores/auth'
 // gyldig lenke som «ikke virket». Derfor venter dette viewet.
 
 const router = useRouter()
-const { refreshMember, isLoggedIn, isParent } = useAuth()
+const { refreshMember, isLoggedIn, isParent, logout } = useAuth()
 
 const error = ref('')
+// Innlogget, men uten medlemskap. Med Google som primærvei er dette ikke
+// lenger et hjørnetilfelle: den vanligste årsaken er at nettleseren husket
+// jobbkontoen, ikke den adressen treneren ble invitert på. Derfor er det en
+// egen tilstand med adressen synlig og en vei ut — ikke en rød feilmelding
+// om en innlogging som faktisk gikk helt fint.
+const noAccessEmail = ref('')
+
+async function tryAnother() {
+  await logout()
+  router.replace('/login')
+}
 
 onMounted(async () => {
   if (!isSupabaseConfigured) {
@@ -22,11 +33,24 @@ onMounted(async () => {
     return
   }
 
-  // Supabase legger også FEIL i fragmentet — utløpt lenke, brukt lenke.
+  // Supabase legger også FEIL i fragmentet — utløpt lenke, brukt lenke. Google
+  // legger sine i QUERY-en i stedet, så begge må leses: en avbrutt innlogging
+  // som bare viser en tom spinner er verre enn en feilmelding.
   const hash = new URLSearchParams(window.location.hash.replace(/^#/, ''))
-  const hashError = hash.get('error_description') || hash.get('error')
-  if (hashError) {
-    error.value = decodeURIComponent(hashError.replace(/\+/g, ' '))
+  const query = new URLSearchParams(window.location.search)
+  const code = query.get('error') || hash.get('error')
+  const desc = query.get('error_description') || hash.get('error_description')
+
+  // «access_denied» er ikke en feil. Det er noen som trykket Avbryt hos
+  // Google, og de skal tilbake til knappen de kom fra — ikke møte rød tekst
+  // for å ha ombestemt seg.
+  if (code === 'access_denied') {
+    router.replace('/login')
+    return
+  }
+
+  if (code || desc) {
+    error.value = decodeURIComponent((desc || code).replace(/\+/g, ' '))
     return
   }
 
@@ -53,7 +77,7 @@ onMounted(async () => {
   await refreshMember()
 
   if (!isLoggedIn.value) {
-    error.value = 'Kontoen har ingen tilgang til et kull ennå.'
+    noAccessEmail.value = session.user?.email || ''
     return
   }
 
@@ -63,7 +87,19 @@ onMounted(async () => {
 
 <template>
   <div class="callback-screen">
-    <template v-if="error">
+    <template v-if="noAccessEmail">
+      <p class="callback-status">
+        <strong>{{ noAccessEmail }}</strong> har ingen tilgang til et kull.
+      </p>
+      <p class="callback-status">
+        Er du invitert på en annen adresse, logg inn med den. Ellers spør den
+        som styrer kullet.
+      </p>
+      <button type="button" class="callback-link" @click="tryAnother">
+        Prøv en annen konto
+      </button>
+    </template>
+    <template v-else-if="error">
       <p class="callback-error">{{ error }}</p>
       <router-link to="/login" class="callback-link">Tilbake til innlogging</router-link>
     </template>
@@ -98,8 +134,13 @@ onMounted(async () => {
 }
 
 .callback-link {
+  font-family: var(--ds-font-body);
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
   text-decoration: underline;
   text-underline-offset: 3px;
 }

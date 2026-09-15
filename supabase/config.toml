@@ -325,6 +325,25 @@ max_frequency = "5s"
 # Use an external OAuth provider. The full list of providers are: `apple`, `azure`, `bitbucket`,
 # `discord`, `facebook`, `github`, `gitlab`, `google`, `keycloak`, `linkedin_oidc`, `notion`, `twitch`,
 # `twitter`, `x`, `slack`, `spotify`, `workos`, `zoom`.
+# Google er primærveien inn i BenchBoss. Lokalt står den AV: uten nøkler ville
+# knappen bare gitt en feil, og da er koden riktigere vei inn i testing.
+# Skal du teste den EKTE Google-flyten lokalt, sett enabled = true, legg
+# client-id og secret i .env.local og kjør
+# `set -a && . ./.env.local && set +a` foran `supabase start`.
+# Redirect-URI-en som må ligge i Google Cloud for LOKAL testing er
+# http://127.0.0.1:54321/auth/v1/callback — ikke appens egen /auth/callback.
+[auth.external.google]
+enabled = false
+client_id = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_CLIENT_ID)"
+secret = "env(SUPABASE_AUTH_EXTERNAL_GOOGLE_SECRET)"
+redirect_uri = ""
+url = ""
+# Google sender ingen nonce tilbake i den lokale flyten. Uten denne avvises
+# hver eneste lokale innlogging med «Passed nonce and nonce in id_token
+# should either both be set or both be empty».
+skip_nonce_check = true
+email_optional = false
+
 [auth.external.apple]
 enabled = false
 client_id = ""

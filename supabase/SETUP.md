@@ -98,11 +98,65 @@ Per prosjekt, Authentication → Providers → Email:
 
 - **Enable email provider**: på
 - **Confirm email**: av (engangskoden *er* bekreftelsen)
-- **OTP expiry**: `600` (10 min — en 6-sifret kode som lever en time er svak)
+- **OTP expiry**: `3600` (1 time — se under)
 - **OTP length**: `6`
+
+`600` sto her lenge, og det var feil. Lenka og koden i invitasjonen er **samme
+engangstoken** og deler utløpstid, og det er lenka folk trykker på — en
+invitasjon åpnet i lunsjpausen var død. 1 time er forsvarlig fordi
+`token_verifications` tillater 30 forsøk per 5 minutter per IP: 360 gjett i
+timen mot en million kombinasjoner. Vil du ha et døgn (`86400`), sett
+`otp_length` til `8` først.
 
 Og Authentication → Sessions: **ikke** skru på kort refresh-token-utløp. Det er
 det som lar en installert PWA overleve ukene mellom kamper.
+
+---
+
+## 5b. Google-innlogging
+
+Google er primærveien inn. Koden er reserven under «Annen e-post».
+
+**Google Cloud** (console.cloud.google.com → APIs & Services → Credentials →
+OAuth client ID → Web application). Authorized redirect URIs — begge:
+
+```
+https://qhgtiioahameqevaugjp.supabase.co/auth/v1/callback
+http://127.0.0.1:54321/auth/v1/callback
+```
+
+Merk at URI-en peker på **Supabase**, ikke på appen. Appens egen
+`/auth/callback` er der GoTrue sender deg etterpå, og den hører hjemme i
+redirect-hvitelista i punkt 4 — ikke her. Å blande de to er den vanligste
+grunnen til at flyten dør stille.
+
+OAuth consent screen står i testmodus til den publiseres; i testmodus kommer
+bare eksplisitt oppførte testbrukere inn.
+
+**Supabase**: Authentication → Providers → Google, på, med client-id og secret.
+
+**Det som må verifiseres på en ekte konto før dette rulles ut:**
+en invitert person har allerede en auth-bruker, opprettet av `member-admin`
+med `email_confirm: true`, og `cohort_members.profile_id` peker på den. Logger
+hun så inn med Google på samme adresse, skal Supabase henge Google-identiteten
+på den eksisterende brukeren. Gjør den i stedet en NY bruker, blir medlemsraden
+liggende igjen på den gamle — og `bb_claim_membership` redder det ikke, for den
+rører aldri en rad som allerede har `profile_id`. Resultatet er en invitert
+person som møter «har ingen tilgang til et kull», uten noen vei inn.
+
+Sjekken, etter første ekte Google-innlogging:
+
+```sql
+select u.email, count(i.id) as identiteter,
+       string_agg(i.provider, ', ' order by i.provider) as providere
+from auth.users u
+left join auth.identities i on i.user_id = u.id
+group by u.email having count(*) > 0
+order by u.email;
+```
+
+Én rad per e-post med både `email` og `google` = koblingen virket. To rader med
+samme adresse = den virket ikke.
 
 ---
 

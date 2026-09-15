@@ -338,7 +338,13 @@ async function signInWithGoogle() {
   if (!await isGoogleEnabled()) return { error: new Error('Google-innlogging er ikke aktivert ennå. Bruk e-post foreløpig.') }
   return supabase.auth.signInWithOAuth({
     provider: 'google',
-    options: { redirectTo: `${window.location.origin}/auth/callback` }
+    options: {
+      redirectTo: `${window.location.origin}/auth/callback`,
+      // Uten select_account logger Google deg rett inn på kontoen nettleseren
+      // husker. Treneren som ble invitert på privatadressen, men står innlogget
+      // med jobbkontoen, får da aldri se at hun havnet feil.
+      queryParams: { prompt: 'select_account' }
+    }
   })
 }
 
@@ -355,6 +361,17 @@ async function sendCode(email) {
   })
 }
 
+// Google er primærveien inn, og den har ingen `shouldCreateUser: false`.
+// Hvem som helst med en Google-konto kan altså skaffe seg en auth-bruker.
+// Det er greit, fordi tilgang i BenchBoss ikke ER kontoen — det er medlemsraden:
+// bb_my_cohorts() svarer tomt for en bruker uten medlemskap, så RLS gir henne
+// null rader i hele basen, og bb_claim_membership rører aldri en rad som
+// allerede har profile_id. En fremmed får en konto og ingenting å se i den.
+//
+// `prompt: 'select_account'` er ikke pynt. Uten den hopper Google rett inn med
+// kontoen nettleseren husker, og en trener med jobbkonto i samme Chrome havner
+// i «ingen tilgang til et kull» uten å skjønne hvorfor — og uten vei tilbake,
+// siden neste forsøk gjør nøyaktig det samme.
 async function verifyCode(email, token) {
   return supabase.auth.verifyOtp({
     email: email.trim().toLowerCase(),
@@ -435,6 +452,7 @@ export function useAuth() {
     setActiveCohort,
     signInWithGoogle,
     sendCode,
+    signInWithGoogle,
     verifyCode,
     refreshMember,
     demoLogin
