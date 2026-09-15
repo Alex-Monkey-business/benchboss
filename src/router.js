@@ -40,6 +40,14 @@ const routes = [
     component: () => import('./views/PersonvernView.vue'),
     meta: { public: true }
   },
+  // Også offentlig: Google vil ha en side som forklarer appen for noen som
+  // ikke er logget inn, og rot-domenet er appen selv.
+  {
+    path: '/om',
+    name: 'om',
+    component: () => import('./views/OmView.vue'),
+    meta: { public: true }
+  },
   {
     path: '/',
     name: 'hjem',
