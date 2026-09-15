@@ -11,33 +11,33 @@
   /* ---- Background ---- */
   --ds-color-bg:              #FFFFFF;
   --ds-color-bg-elevated:     #FFFFFF;
-  --ds-color-bg-subtle:       #F4F3EE;
-  --ds-color-bg-hover:        #EDECE7;
-  --ds-color-bg-sunken:       #E8E7E1;
+  --ds-color-bg-subtle:       #F1F6F3;
+  --ds-color-bg-hover:        #E7EFEB;
+  --ds-color-bg-sunken:       #DFE9E3;
 
   /* ---- Border ---- */
-  --ds-color-border:          #DEDDD8;
-  --ds-color-border-strong:   #B8B7B0;
-  --ds-color-border-light:    #ECEBE5;
-  --ds-color-border-focus:    #0A0A0A;
+  --ds-color-border:          #D5E1DA;
+  --ds-color-border-strong:   #9BB5A7;
+  --ds-color-border-light:    #E8EFEA;
+  --ds-color-border-focus:    #034F46;
 
   /* ---- Text ---- */
-  --ds-color-text-primary:    #0A0A0A;
-  --ds-color-text-secondary:  #4F4E48;
-  --ds-color-text-tertiary:   #8A8983;
+  --ds-color-text-primary:    #034F46;
+  --ds-color-text-secondary:  #48645A;
+  --ds-color-text-tertiary:   #74887E;
   --ds-color-text-inverse:    #FFFFFF;
 
   /* ---- Accent ---- */
-  --ds-color-accent:          #0A0A0A;
-  --ds-color-accent-hover:    #000000;
-  --ds-color-accent-light:    #EDECE7;
+  --ds-color-accent:          #034F46;
+  --ds-color-accent-hover:    #023D36;
+  --ds-color-accent-light:    #E7EFEB;
   --ds-color-accent-text:     #FFFFFF;
 
-  /* ---- Warm secondary accent ---- */
-  --ds-color-warm:            #B9603F;
-  --ds-color-warm-hover:      #9F4F32;
-  --ds-color-warm-bg:         #F8E8E0;
-  --ds-color-warm-text:       #7A3A24;
+  /* ---- Rose secondary accent (legacy token names retained) ---- */
+  --ds-color-warm:            #A34368;
+  --ds-color-warm-hover:      #853451;
+  --ds-color-warm-bg:         #FBE9EF;
+  --ds-color-warm-text:       #873F58;
 
   /* ---- Semantic: Success ---- */
   --ds-color-success:         #16A34A;
@@ -58,15 +58,15 @@
   --ds-color-error-text:      #7F1D1D;
 
   /* ---- Semantic: Info ---- */
-  --ds-color-info:            #1A1A1A;
-  --ds-color-info-light:      #F1F1EF;
+  --ds-color-info:            #204D41;
+  --ds-color-info-light:      #EDF4F0;
 
   /* ---- Lagfarger (Halsen Grønn/Rød/Hvit) — tonal palett, ikke status-farger ----
      -bg = tonet flate, base = mettet tekst/prikk, -border til hvit-flaten */
   --ds-team-gronn:        #3D5C44;
   --ds-team-gronn-bg:     #E2EDDE;
-  --ds-team-rod:          #7A3A24;
-  --ds-team-rod-bg:       #F8E8E0;
+  --ds-team-rod:          #873F58;
+  --ds-team-rod-bg:       #FBE9EF;
   --ds-team-hvit:         #5C5C57;
   --ds-team-hvit-bg:      var(--ds-color-bg-elevated);
   --ds-team-hvit-border:  var(--ds-color-border-strong);
@@ -75,7 +75,7 @@
      Disse betyr INGENTING. De skiller ting fra hverandre — en tirsdag fra en
      torsdag, en trener fra en annen.
 
-     Derfor kan de ikke være lagfargene. #3D5C44 er Halsen Grønn og #7A3A24 er
+     Derfor kan de ikke være lagfargene. #3D5C44 er Halsen Grønn og #873F58 er
      Halsen Rød overalt ellers i appen; da kan ikke en torsdag være rød og et
      Diff-merke grønt. Fargen sa noe den ikke mente, og hjernen hadde allerede
      lært hva den betyr. Grønn og rød er tatt ut her og hører nå bare laget til.
@@ -89,7 +89,7 @@
      Navnene står — de er lagret på økter, kull og referater — men fargene
      bak dem er byttet: olive er nå petrol, taupe er grafitt. Blå, indigo,
      petrol og plomme er kalde og rene; grafitt er den ene stille. Ingen av
-     dem ligger i nærheten av #3D5C44 eller #7A3A24, og ingen er brun.
+     dem ligger i nærheten av #3D5C44 eller #873F58, og ingen er brun.
 
      Paletten sto kopiert inn i åtte filer. Nå står den her. */
   --ds-accent-sky-text:         #2C5F8F;
@@ -107,9 +107,9 @@
      To verdier av én egenskap, ikke to statuser. De bar grønt og rødt — altså
      lagfargene — for en forskjell ordet allerede sier. Nøytrale nå: Diff er
      fylt, Mix er omriss. */
-  --ds-badge-bg:                #EDECE7;
-  --ds-badge-text:              #4F4E48;
-  --ds-badge-border:            #DEDDD8;
+  --ds-badge-bg:                #E7EFEB;
+  --ds-badge-text:              #48645A;
+  --ds-badge-border:            #D5E1DA;
 
   /* ---- Overlay ---- */
   --ds-color-overlay:         rgba(15, 15, 15, 0.32);
@@ -122,17 +122,17 @@
    ============================================ */
 [data-theme="dark"] {
   /* ---- Background ---- */
-  --ds-color-bg:              #0E0E0D;
-  --ds-color-bg-elevated:     #1A1A18;
-  --ds-color-bg-subtle:       #19191A;
-  --ds-color-bg-hover:        #242422;
-  --ds-color-bg-sunken:       #050505;
+  --ds-color-bg:              #0C201B;
+  --ds-color-bg-elevated:     #142E26;
+  --ds-color-bg-subtle:       #163127;
+  --ds-color-bg-hover:        #203D32;
+  --ds-color-bg-sunken:       #081812;
 
   /* ---- Border ---- */
-  --ds-color-border:          #2B2B28;
-  --ds-color-border-strong:   #4A4A45;
-  --ds-color-border-light:    #232321;
-  --ds-color-border-focus:    #F5F5F2;
+  --ds-color-border:          #2B483B;
+  --ds-color-border-strong:   #506D5E;
+  --ds-color-border-light:    #233F33;
+  --ds-color-border-focus:    #EDF5EF;
 
   /* ---- Dekorfarger ---- */
   --ds-accent-sky-text:         #9FC4E8;
@@ -147,28 +147,28 @@
   --ds-accent-taupe-bg:         #202124;
 
   /* ---- Diff/Mix ---- */
-  --ds-badge-bg:                #242422;
+  --ds-badge-bg:                #203D32;
   --ds-badge-text:              #B5B4AE;
-  --ds-badge-border:            #2B2B28;
+  --ds-badge-border:            #2B483B;
 
 
   /* ---- Text ---- */
-  --ds-color-text-primary:    #F5F5F2;
-  --ds-color-text-secondary:  #B5B5AE;
-  --ds-color-text-tertiary:   #7A7A74;
-  --ds-color-text-inverse:    #0A0A0A;
+  --ds-color-text-primary:    #EDF5EF;
+  --ds-color-text-secondary:  #B5CBBE;
+  --ds-color-text-tertiary:   #809E8D;
+  --ds-color-text-inverse:    #034F46;
 
   /* ---- Accent (inverted — white on dark) ---- */
-  --ds-color-accent:          #F5F5F2;
+  --ds-color-accent:          #EDF5EF;
   --ds-color-accent-hover:    #FFFFFF;
-  --ds-color-accent-light:    #242422;
-  --ds-color-accent-text:     #0A0A0A;
+  --ds-color-accent-light:    #203D32;
+  --ds-color-accent-text:     #034F46;
 
-  /* ---- Warm secondary (brighter for dark contrast) ---- */
-  --ds-color-warm:            #E08866;
-  --ds-color-warm-hover:      #EC9A7A;
-  --ds-color-warm-bg:         #2C201A;
-  --ds-color-warm-text:       #EFB99E;
+  /* ---- Rose secondary in dark mode ---- */
+  --ds-color-warm:            #F2C9D4;
+  --ds-color-warm-hover:      #F8DCE4;
+  --ds-color-warm-bg:         #38232F;
+  --ds-color-warm-text:       #F2C9D4;
 
   /* ---- Semantic ---- */
   --ds-color-success:         #4ADE80;
@@ -186,14 +186,14 @@
   --ds-color-error-light:     #2A1414;
   --ds-color-error-text:      #FCA5A5;
 
-  --ds-color-info:            #F5F5F2;
+  --ds-color-info:            #EDF5EF;
   --ds-color-info-light:      #1F1F1E;
 
   /* ---- Lagfarger (dark) ---- */
   --ds-team-gronn:        #B5D2B0;
   --ds-team-gronn-bg:     #1A241D;
-  --ds-team-rod:          #EFB99E;
-  --ds-team-rod-bg:       #2C201A;
+  --ds-team-rod:          #F2C9D4;
+  --ds-team-rod-bg:       #38232F;
   --ds-team-hvit:         #B8B8B2;
   --ds-team-hvit-bg:      var(--ds-color-bg-elevated);
   --ds-team-hvit-border:  var(--ds-color-border-strong);

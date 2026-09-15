@@ -18,7 +18,7 @@ function applyTheme() {
   document.documentElement.setAttribute('data-theme', resolved)
   // Sync browser chrome color
   const meta = document.querySelector('meta[name="theme-color"]')
-  if (meta) meta.setAttribute('content', resolved === 'dark' ? '#0E0E0D' : '#FFFFFF')
+  if (meta) meta.setAttribute('content', resolved === 'dark' ? '#1A1A1A' : '#FFFFEB')
 }
 
 // Initialize once on module load

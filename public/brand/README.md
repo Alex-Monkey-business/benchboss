@@ -1,14 +1,12 @@
-# Bench Boss Logo Assets
+# BenchBoss — Sidelinja / Whspr
 
-Concept: a compact `BB` monogram that combines a coach's tactical board with a bench underline. The warm terracotta accent reuses the app's existing warm token (`#B9603F`) so the logo feels native to the current design system.
+Chosen palette: ink #1A1A1A, cream #FFFFEB, lavender #F0D7FF.
 
-Files:
+Current logo: stacked bench / boss with the bench integrated between the words.
+The square mark and app icons use the cream variant. Small favicons use a cream BB monogram on ink.
 
-- `bench-boss-mark.svg` - square app mark / favicon / avatar.
-- `bench-boss-logo.svg` - light-background horizontal lockup.
-- `bench-boss-logo-dark.svg` - dark presentation or splash variant.
+Download-ready files and usage notes: output/branding/benchboss-whspr/.
+Regenerate with node scripts/export-brand-icons.mjs.
 
-Suggested usage:
-
-- App icon or favicon: `bench-boss-mark.svg`.
-- Header/splash/marketing: `bench-boss-logo.svg` or `bench-boss-logo-dark.svg`.
+The standalone SVG exports embed the raster source and theme filter. They are not fully vector artwork.
+bench-boss-symbol.svg is the earlier BB concept, retained for reference and not used by the login.

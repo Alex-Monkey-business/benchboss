@@ -35,3 +35,7 @@ src/skills-lock.json
 # Supabase CLI, lokal tilstand
 supabase/.branches
 supabase/.temp
+
+# Generert av scripts/export-brand-icons.mjs — kildene er BenchBossBrand.vue
+# og public/brand/. 6,5 MB PNG/SVG som kan lages på nytt når som helst.
+output
