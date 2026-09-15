@@ -17,6 +17,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
 import Skeleton from '../components/Skeleton.vue'
 import DisclosureSection from '../components/DisclosureSection.vue'
+import MatchPlayingTime from '../components/MatchPlayingTime.vue'
 import { relativeDateLabel, isPast } from '../lib/dateLabels'
 import { matchCta } from '../lib/matchCta'
 import { teamSlugFromName, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, isPlayed, teamLabel, isOurs } from '../lib/matchMeta'
@@ -32,7 +33,7 @@ const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } =
 const { players, fetchPlayers, addPlayer, getPlayerById } = usePlayers()
 const { fetchPlayerSeasonTeams, isLoanEligible } = usePlayerSeasonTeams()
 const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals()
-const { session: mmSession, fetchSession: fetchMmSession } = useMatchMode()
+const { session: mmSession, fetchSession: fetchMmSession, fetchStints: fetchMmStints } = useMatchMode()
 const { seasons, fetchSeasons } = useSeasons()
 const { coach: currentCoach } = useAuth()
 const { usesReferees } = useFeatures()
@@ -64,8 +65,13 @@ const editTimeInput = ref('')
 const open = ref({
   logistics: false,  // Dommer + Hvem la ut
   team: false,       // Lånespillere + Trenere
-  summary: false     // Resultat + Scorere + Kampreferat
+  summary: false,    // Resultat + Scorere + Kampreferat
+  playtime: false    // Spilletid — kun når kampen er kjørt i match mode
 })
+
+// Har kampen vært i match mode? Uten stints er det ingen spilletid å vise,
+// og seksjonen skal ikke stå der som en tom lovnad.
+const hasPlayingTime = ref(false)
 
 // Scorer sheet state — tap-to-increment-flow
 const showScorerSheet = ref(false)
@@ -78,12 +84,6 @@ const newPlayerTeam = ref('')
 const reportInput = ref('')
 const reportSavedAt = ref(null)
 const isEditingReport = ref(false)
-// Resultatet leses før det redigeres. Står det et resultat, viser seksjonen
-// det som tekst; tallfeltene kommer bak «Rediger» (eller ved trykk på
-// resultatet i toppkortet). Uten resultat er det ingenting å lese — da står
-// feltene rett fram.
-const editingResult = ref(false)
-const resultReadMode = computed(() => hasResult.value && (isLocked.value || !editingResult.value))
 
 onMounted(async () => {
   await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllMatchPlayers()])
@@ -91,11 +91,13 @@ onMounted(async () => {
   if (match.value) {
     // Hent sesongens kamper — grunnlag for ekstra-kamp-tall og konflikt-/uke-sjekk.
     if (match.value.season_id) await fetchMatches(match.value.season_id)
-    await Promise.all([
+    const [, , , mmStints] = await Promise.all([
       fetchExpenses([match.value.id]),
       fetchMatchGoals(match.value.id),
-      fetchMmSession(match.value.id)
+      fetchMmSession(match.value.id),
+      fetchMmStints(match.value.id)
     ])
+    hasPlayingTime.value = (mmStints || []).length > 0
     refereeInput.value = match.value.referee || ''
     matchCoachIds.value = await fetchMatchCoaches(match.value.id)
     matchPlayerIds.value = await fetchMatchPlayers(match.value.id)
@@ -219,13 +221,13 @@ const teamColors = computed(() => teamColorsForMatch(match.value))
 // .detail-disclosures gjør omrokeringen uten å endre DOM-en.
 const sectionOrder = computed(() => {
   if (isPast(match.value?.match_date)) {
-    return { summary: 1, team: 2, logistics: 3 }
+    return { summary: 1, playtime: 2, team: 3, logistics: 4 }
   }
   if (isHomeMatch.value) {
-    return { logistics: 1, team: 2, summary: 3 }
+    return { logistics: 1, team: 2, summary: 3, playtime: 4 }
   }
   // Kommende bortekamp — ingen dommer-ansvar, lag øverst
-  return { team: 1, summary: 2, logistics: 3 }
+  return { team: 1, summary: 2, playtime: 3, logistics: 4 }
 })
 
 const formattedDate = computed(() => relativeDateLabel(match.value?.match_date))
@@ -597,7 +599,7 @@ const matchGoals = computed(() => {
     .sort((a, b) => a.position - b.position)
 })
 
-// Aggregert per spiller: { player_id, player, count, goalIds, firstPosition }
+// Aggregert per spiller: { player_id, player, count, goalIds, firstPosition, timing }
 const aggregatedScorers = computed(() => {
   const groups = new Map()
   for (const g of matchGoals.value) {
@@ -607,19 +609,50 @@ const aggregatedScorers = computed(() => {
         player: getPlayerById(g.player_id),
         count: 0,
         goalIds: [],
+        minutes: [],
         firstPosition: g.position
       })
     }
     const entry = groups.get(g.player_id)
     entry.count++
     entry.goalIds.push(g.id)
+    if (g.clock_seconds != null) entry.minutes.push(Math.floor(g.clock_seconds / 60))
   }
-  return Array.from(groups.values()).sort((a, b) => a.firstPosition - b.firstPosition)
+  return Array.from(groups.values())
+    .map(e => ({ ...e, timing: scorerTiming(e) }))
+    .sort((a, b) => a.firstPosition - b.firstPosition)
 })
+
+// Minuttet er den eneste nye opplysninga vi faktisk har, så den skal fram.
+// Men den finnes bare på mål ført i match mode — resten er lagt inn etterpå
+// og har ingen klokke. Da er antallet det eneste sanne vi kan si, og et mål
+// uten tid skal ikke låne et minutt fra naboen: «4′ · 29′ + 1».
+function scorerTiming(entry) {
+  const mins = entry.minutes.slice().sort((a, b) => a - b)
+  if (mins.length === 0) return entry.count > 1 ? `${entry.count} mål` : ''
+  const shown = mins.map(m => `${m}′`).join(' · ')
+  const rest = entry.count - mins.length
+  return rest > 0 ? `${shown} + ${rest}` : shown
+}
 
 function goalCountForPlayer(playerId) {
   return matchGoals.value.filter(g => g.player_id === playerId).length
 }
+
+// player_id → antall mål, for spilletid-lista.
+const goalCountByPlayer = computed(() => {
+  const out = {}
+  for (const g of matchGoals.value) out[g.player_id] = (out[g.player_id] || 0) + 1
+  return out
+})
+
+// Kamplengda i den lukkede seksjonen. Det er tallet spilletidene summerer mot,
+// så en klokke som stoppet i pausen står som «30 min» og røper seg selv.
+const playingTimeSummary = computed(() => {
+  if (mmSession.value?.match_id !== match.value?.id) return ''
+  const sec = mmSession.value?.clock_base_seconds || 0
+  return sec ? `${Math.round(sec / 60)} min` : ''
+})
 
 // Halsens mål — home_score hvis vi er hjemme, away_score hvis vi er borte
 const halsenGoalCount = computed(() => {
@@ -777,7 +810,6 @@ function cappedList(list, max = 3) {
 
 function focusSummaryGroup() {
   open.value.summary = true
-  editingResult.value = true
   setTimeout(() => {
     const el = document.querySelector('[data-section="summary"]')
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -868,6 +900,15 @@ function focusSummaryGroup() {
           </button>
           <span v-else class="match-card__vs">vs</span>
           <span class="match-card__team">{{ match.away_team }}</span>
+        </div>
+
+        <!-- Scorerne hører til resultatet, ikke til redigeringa. Her ser du dem
+             uten å åpne noe; seksjonen under er der for å endre dem. -->
+        <div v-if="aggregatedScorers.length" class="scoreline">
+          <div v-for="s in aggregatedScorers" :key="s.player_id" class="scoreline__row">
+            <span class="scoreline__name">{{ s.player?.name || 'Ukjent' }}</span>
+            <span v-if="s.timing" class="scoreline__timing">{{ s.timing }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -1212,27 +1253,11 @@ function focusSummaryGroup() {
           <span v-if="match.report" class="sum-chip sum-chip--more">Referat</span>
         </template>
 
-        <!-- Lesemodus: resultatet og scorerne som tekst. -->
-        <div v-if="resultReadMode" class="sub-section">
-          <div class="result-read">
-            <span class="result-read__score">{{ match.home_score }}–{{ match.away_score }}</span>
-            <span v-if="aggregatedScorers.length" class="result-read__scorers">
-              <span
-                v-for="s in aggregatedScorers"
-                :key="s.player_id"
-                :class="['result-read__scorer', s.player?.primary_team ? `scorer-pill--${s.player.primary_team}` : '']"
-              >{{ s.player?.name || 'Ukjent' }}<template v-if="s.count > 1"> ×{{ s.count }}</template></span>
-            </span>
-            <span v-else class="result-read__none">Ingen scorere registrert</span>
-            <button v-if="!isLocked" type="button" class="report-edit-link result-read__edit" @click="editingResult = true">Rediger</button>
-          </div>
-        </div>
-
-        <!-- Resultat: score + scorere som én enhet -->
-        <div v-else class="sub-section">
-          <div v-if="hasResult" class="sub-section__label sub-section__label--hoyre">
-            <button type="button" class="report-edit-link" @click="editingResult = false">Ferdig</button>
-          </div>
+        <!-- Resultat: score + scorere som én enhet.
+             Lesemodusen som lå her viste resultatet og scorerne på nytt, rett
+             under toppkortet som allerede viser begge. Seksjonen er stedet du
+             ENDRER dem — du åpner den fordi du vil skrive. -->
+        <div class="sub-section">
           <div class="score-edit">
             <div class="score-edit__side">
               <input
@@ -1362,6 +1387,26 @@ function focusSummaryGroup() {
               </button>
             </div>
           </template>
+        </div>
+      </DisclosureSection>
+
+      <!-- Gruppe 4: Spilletid — hva match mode faktisk målte.
+           Lå før bare bak live-modus, der ingen andre enn treneren kom. -->
+      <DisclosureSection
+        v-if="hasPlayingTime"
+        v-model="open.playtime"
+        data-section="playtime"
+        :style="{ order: sectionOrder.playtime }"
+        label="Spilletid"
+        empty-text="Ikke målt"
+        :has-content="!!playingTimeSummary"
+      >
+        <template #summary>
+          <span class="sum-chip sum-chip--squad">{{ playingTimeSummary }}</span>
+        </template>
+
+        <div class="sub-section">
+          <MatchPlayingTime :match-id="match.id" :goals-by-player="goalCountByPlayer" />
         </div>
       </DisclosureSection>
     </div>
@@ -2181,58 +2226,40 @@ function focusSummaryGroup() {
   line-height: 1.25;
 }
 
-.result-read {
+/* Scorerne under resultatet i toppkortet. Én rad per spiller, minuttene
+   høyrestilt i tabular-nums så de danner en kolonne uansett navnelengde.
+   Ingen farget prikk: den viste primary_team, altså hvilket lag spilleren
+   tilhører — i en kamprapport for ett lag betydde den i praksis «lånt inn». */
+.scoreline {
+  margin-top: var(--ds-space-md);
+  padding-top: var(--ds-space-md);
+  border-top: 1px solid var(--ds-color-border-light);
   display: flex;
-  align-items: center;
-  gap: 8px 14px;
-  padding-top: 6px;
+  flex-direction: column;
+  gap: 6px;
 }
 
-.result-read__score {
-  font-family: var(--ds-font-heading);
-  font-size: 1.75rem;
-  font-weight: var(--ds-weight-bold);
-  letter-spacing: -0.02em;
-  font-variant-numeric: tabular-nums;
+.scoreline__row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.scoreline__name {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--ds-text-sm);
   color: var(--ds-color-text-primary);
-  line-height: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-.result-read__scorers {
-  display: flex;
-  flex: 1;
-  min-width: 0;
-  flex-wrap: wrap;
-  gap: 6px 12px;
-}
-
-.result-read__scorer {
-  position: relative;
-  padding-left: 14px;
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-secondary);
-}
-
-.result-read__scorer::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  width: 8px;
-  height: 8px;
-  margin-top: -4px;
-  border-radius: 50%;
-  background: var(--ds-color-text-tertiary);
-}
-
-.result-read__edit { flex: none; }
-.sub-section__label--hoyre { justify-content: flex-end; }
-
-.result-read__none {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--ds-text-sm);
+.scoreline__timing {
+  flex: none;
+  font-size: 0.875rem;
   color: var(--ds-color-text-tertiary);
+  font-variant-numeric: tabular-nums;
 }
 
 .result-clear-btn {

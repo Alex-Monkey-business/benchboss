@@ -37,6 +37,19 @@ function nowIso() {
   return new Date().toISOString()
 }
 
+// Lukkede stints fra de to spilte demo-kampene, så spilletid er synlig uten
+// Supabase — både på Statistikk og på kampen.
+const DEMO_STINTS = [
+  { id: 'ds-1', match_id: 'dm-1', player_id: 'p-1', role: 'keeper', position: 'gk', on_clock: 0, off_clock: 3600 },
+  { id: 'ds-2', match_id: 'dm-1', player_id: 'p-2', role: 'field', position: 'd1', on_clock: 0, off_clock: 3300 },
+  { id: 'ds-3', match_id: 'dm-1', player_id: 'p-3', role: 'field', position: 'd2', on_clock: 0, off_clock: 2700 },
+  { id: 'ds-4', match_id: 'dm-1', player_id: 'p-4', role: 'field', position: 'm1', on_clock: 600, off_clock: 3600 },
+  { id: 'ds-5', match_id: 'dm-1', player_id: 'p-5', role: 'field', position: 'f1', on_clock: 1800, off_clock: 3600 },
+  { id: 'ds-6', match_id: 'dm-2', player_id: 'p-10', role: 'field', position: 'm1', on_clock: 0, off_clock: 3600 },
+  { id: 'ds-7', match_id: 'dm-2', player_id: 'p-12', role: 'field', position: 'd1', on_clock: 0, off_clock: 2400 },
+  { id: 'ds-8', match_id: 'dm-2', player_id: 'p-14', role: 'field', position: 'f1', on_clock: 900, off_clock: 3600 }
+]
+
 // Aktuell kampklokke i sekunder (avledet — aldri lagret direkte).
 function computeClock(sess, nowMs) {
   if (!sess) return 0
@@ -68,6 +81,9 @@ export function useMatchMode() {
 
   async function fetchStints(matchId) {
     if (!isSupabaseConfigured) {
+      // Samme som for mål: uten seeding filtrerer kampdetalj mot en tom liste
+      // og viser ingen spilletid før Statistikk har vært innom.
+      if (stints.value.length === 0) stints.value = [...DEMO_STINTS]
       return stints.value.filter(s => s.match_id === matchId)
     }
     const { data } = await supabase
@@ -85,16 +101,7 @@ export function useMatchMode() {
   // spilletid per lag er synlig på statistikksiden uten Supabase.
   async function fetchAllStints() {
     if (!isSupabaseConfigured) {
-      if (stints.value.length === 0) stints.value = [
-        { id: 'ds-1', match_id: 'dm-1', player_id: 'p-1', role: 'keeper', position: 'gk', on_clock: 0, off_clock: 3600 },
-        { id: 'ds-2', match_id: 'dm-1', player_id: 'p-2', role: 'field', position: 'd1', on_clock: 0, off_clock: 3300 },
-        { id: 'ds-3', match_id: 'dm-1', player_id: 'p-3', role: 'field', position: 'd2', on_clock: 0, off_clock: 2700 },
-        { id: 'ds-4', match_id: 'dm-1', player_id: 'p-4', role: 'field', position: 'm1', on_clock: 600, off_clock: 3600 },
-        { id: 'ds-5', match_id: 'dm-1', player_id: 'p-5', role: 'field', position: 'f1', on_clock: 1800, off_clock: 3600 },
-        { id: 'ds-6', match_id: 'dm-2', player_id: 'p-10', role: 'field', position: 'm1', on_clock: 0, off_clock: 3600 },
-        { id: 'ds-7', match_id: 'dm-2', player_id: 'p-12', role: 'field', position: 'd1', on_clock: 0, off_clock: 2400 },
-        { id: 'ds-8', match_id: 'dm-2', player_id: 'p-14', role: 'field', position: 'f1', on_clock: 900, off_clock: 3600 },
-      ]
+      if (stints.value.length === 0) stints.value = [...DEMO_STINTS]
       return stints.value
     }
     const { data } = await scoped(supabase.from('match_stints').select('*'))

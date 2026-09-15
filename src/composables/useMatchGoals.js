@@ -25,6 +25,13 @@ const DEMO_GOALS = [
 export function useMatchGoals() {
   async function fetchMatchGoals(matchId) {
     if (!isSupabaseConfigured) {
+      // Demo: seed hele settet første gang. Uten dette filtrerte kampdetalj
+      // mot en tom liste og sto alltid med «Ingen scorere registrert», mens
+      // Statistikk viste de samme fem målene — den lastes via fetchAllGoals.
+      if (!loadedAll.value) {
+        goals.value = [...DEMO_GOALS]
+        loadedAll.value = true
+      }
       return goals.value.filter(g => g.match_id === matchId)
     }
 
