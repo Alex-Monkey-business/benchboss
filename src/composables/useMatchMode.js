@@ -37,6 +37,14 @@ function nowIso() {
   return new Date().toISOString()
 }
 
+// De to spilte demo-kampene er ferdige 2×30. Uten session-raden er
+// `clock_base_seconds` null, og da er både søylene og justeringen døde —
+// transferableSeconds har ingen kamplengde å måle vinduet mot.
+const DEMO_SESSIONS = {
+  'dm-1': { match_id: 'dm-1', status: 'finished', clock_base_seconds: 3600, running_since: null, period: 2, period_count: 2, period_minutes: 30, lineup: null },
+  'dm-2': { match_id: 'dm-2', status: 'finished', clock_base_seconds: 3600, running_since: null, period: 2, period_count: 2, period_minutes: 30, lineup: null }
+}
+
 // Lukkede stints fra de to spilte demo-kampene, så spilletid er synlig uten
 // Supabase — både på Statistikk og på kampen.
 const DEMO_STINTS = [
@@ -67,7 +75,9 @@ export function useMatchMode() {
   // ── Henting ───────────────────────────────────────────────────────────────
   async function fetchSession(matchId) {
     if (!isSupabaseConfigured) {
-      if (session.value?.match_id !== matchId) session.value = null
+      if (session.value?.match_id !== matchId) {
+        session.value = DEMO_SESSIONS[matchId] ? { ...DEMO_SESSIONS[matchId] } : null
+      }
       return session.value
     }
     const { data } = await supabase

@@ -20,13 +20,22 @@ export function minutesToKickoff(matchDate, matchTime, now = Date.now()) {
 }
 
 export function matchCta({ status, hasLineup, hasResult, matchDate, matchTime, now = Date.now() }) {
-  if (status === 'finished' || hasResult) {
-    return { label: 'Se spilletid', tone: 'quiet', icon: 'bars' }
-  }
+  // En kamp som fortsatt går skal alltid ha veien tilbake til klokka — også
+  // om noen har ført resultatet underveis.
   if (status === 'running' || status === 'paused') {
     return { label: 'Tilbake til kampen', tone: 'live', icon: 'live' }
   }
+  // Ferdig kamp har INGEN vei inn i match mode. Da er kampen historie, og
+  // kampsida er stedet du leser den — spilletid, scorere, referat. Knappen sto
+  // før som «Se spilletid» og førte rett inn i live-flata, som er en helt annen
+  // modus: klokke, bytter, nullstill. Null her betyr ingen knapp.
+  if (status === 'finished' || hasResult) return null
+
   const mins = minutesToKickoff(matchDate, matchTime, now)
+  // Avspark + 1,5 t har passert uten at noe ble registrert. Kampen er over
+  // uansett, og en klokke som starter på null hjelper ingen.
+  if (mins !== null && mins < -90) return null
+
   if (mins !== null && mins <= 60) {
     return { label: 'Start kamp', tone: 'start', icon: 'play' }
   }

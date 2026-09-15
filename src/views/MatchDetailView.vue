@@ -84,6 +84,10 @@ const newPlayerTeam = ref('')
 const reportInput = ref('')
 const reportSavedAt = ref(null)
 const isEditingReport = ref(false)
+// En spilt kamp åpnes for å leses. Tallfeltene ligger bak «Rediger» — eller
+// bak trykk på resultatet i toppkortet, som går rett i skrivemodus.
+const editingResult = ref(false)
+const resultReadMode = computed(() => hasResult.value && (isLocked.value || !editingResult.value))
 
 onMounted(async () => {
   await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllMatchPlayers()])
@@ -221,7 +225,10 @@ const teamColors = computed(() => teamColorsForMatch(match.value))
 // .detail-disclosures gjør omrokeringen uten å endre DOM-en.
 const sectionOrder = computed(() => {
   if (isPast(match.value?.match_date)) {
-    return { summary: 1, playtime: 2, team: 3, logistics: 4 }
+    // Spilt kamp leses før den endres: spilletid er det match mode faktisk
+    // målte, mens Resultat-seksjonen er tallfeltene og referatet. Resultatet
+    // og scorerne står uansett i toppkortet.
+    return { playtime: 1, summary: 2, team: 3, logistics: 4 }
   }
   if (isHomeMatch.value) {
     return { logistics: 1, team: 2, summary: 3, playtime: 4 }
@@ -646,6 +653,20 @@ const goalCountByPlayer = computed(() => {
   return out
 })
 
+// Lesemodus sier det toppkortet ikke kan si: om scorerne er ferdig ført.
+// Det er nettopp etterarbeidet en trener åpner kampen for å sjekke.
+const scorerCoverage = computed(() => {
+  const mal = halsenGoalCount.value
+  const ført = matchGoals.value.length
+  if (mal === null || mal === undefined) {
+    return ført ? `${ført} ${ført === 1 ? 'scorer' : 'scorere'} registrert` : 'Ingen scorere registrert'
+  }
+  if (mal === 0) return 'Ingen mål'
+  if (ført === 0) return `Ingen av de ${mal} målene er registrert`
+  if (ført === mal) return mal === 1 ? 'Målet er registrert' : `Alle ${mal} målene er registrert`
+  return `${ført} av ${mal} mål registrert`
+})
+
 // Kamplengda i den lukkede seksjonen. Det er tallet spilletidene summerer mot,
 // så en klokke som stoppet i pausen står som «30 min» og røper seg selv.
 const playingTimeSummary = computed(() => {
@@ -810,6 +831,7 @@ function cappedList(list, max = 3) {
 
 function focusSummaryGroup() {
   open.value.summary = true
+  editingResult.value = true
   setTimeout(() => {
     const el = document.querySelector('[data-section="summary"]')
     el?.scrollIntoView({ behavior: 'smooth', block: 'center' })
@@ -918,8 +940,9 @@ function focusSummaryGroup() {
       <p class="locked-note">Sesongen er avsluttet — kampen er låst.</p>
     </div>
 
-    <!-- Match mode — label + tyngde følger kampens livsløp -->
-    <div v-if="!isLocked" class="px-lg mt-lg">
+    <!-- Match mode — label + tyngde følger kampens livsløp. Er kampen ferdig,
+         finnes knappen ikke: da er dette en leseflate, ikke en klokke. -->
+    <div v-if="!isLocked && matchModeCta" class="px-lg mt-lg">
       <button
         type="button"
         class="match-mode-cta"
@@ -1253,11 +1276,27 @@ function focusSummaryGroup() {
           <span v-if="match.report" class="sum-chip sum-chip--more">Referat</span>
         </template>
 
-        <!-- Resultat: score + scorere som én enhet.
-             Lesemodusen som lå her viste resultatet og scorerne på nytt, rett
-             under toppkortet som allerede viser begge. Seksjonen er stedet du
-             ENDRER dem — du åpner den fordi du vil skrive. -->
-        <div class="sub-section">
+        <!-- Lesemodus. En spilt kamp åpnes for å SES, ikke for å endres, så
+             tallfeltene kommer bak «Rediger». Resultatet og scorerne står
+             allerede i toppkortet — her står det som ikke står noe annet sted:
+             om registreringa er komplett. -->
+        <div v-if="resultReadMode" class="sub-section">
+          <div class="result-read">
+            <span class="result-read__state">{{ scorerCoverage }}</span>
+            <button
+              v-if="!isLocked"
+              type="button"
+              class="report-edit-link result-read__edit"
+              @click="editingResult = true"
+            >Rediger</button>
+          </div>
+        </div>
+
+        <!-- Resultat: score + scorere som én enhet -->
+        <div v-else class="sub-section">
+          <div v-if="hasResult && !isLocked" class="sub-section__label sub-section__label--hoyre">
+            <button type="button" class="report-edit-link" @click="editingResult = false">Ferdig</button>
+          </div>
           <div class="score-edit">
             <div class="score-edit__side">
               <input
@@ -1406,7 +1445,7 @@ function focusSummaryGroup() {
         </template>
 
         <div class="sub-section">
-          <MatchPlayingTime :match-id="match.id" :goals-by-player="goalCountByPlayer" />
+          <MatchPlayingTime :match-id="match.id" :goals-by-player="goalCountByPlayer" :locked="isLocked" />
         </div>
       </DisclosureSection>
     </div>
@@ -2261,6 +2300,23 @@ function focusSummaryGroup() {
   color: var(--ds-color-text-tertiary);
   font-variant-numeric: tabular-nums;
 }
+
+.result-read {
+  display: flex;
+  align-items: baseline;
+  gap: 14px;
+  padding-top: 6px;
+}
+
+.result-read__state {
+  flex: 1;
+  min-width: 0;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+}
+
+.result-read__edit { flex: none; }
+.sub-section__label--hoyre { justify-content: flex-end; }
 
 .result-clear-btn {
   display: block;
