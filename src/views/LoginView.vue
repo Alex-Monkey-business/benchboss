@@ -251,7 +251,6 @@ function onDemo(role) {
     <!-- Personvernlenka hører hjemme her og ikke bak en meny: Google krever
          den synlig for å publisere innloggingen. -->
     <p class="login-footer">
-      For laget. Fra sidelinja.
       <router-link to="/personvern" class="login-footer__lenke">Personvern</router-link>
     </p>
   </div>
@@ -455,7 +454,7 @@ function onDemo(role) {
 
 .login-content { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 44px; margin-block: auto; padding-block: 38px; }
 .login-footer { margin: 0; color: var(--ds-color-text-secondary); font-size: 12px; letter-spacing: .01em; }
-.login-footer__lenke { color: inherit; text-decoration: underline; text-underline-offset: 2px; margin-left: 6px; }
+.login-footer__lenke { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .login-footer__lenke:hover { color: var(--ds-color-text-primary); }
 .login-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
 .login-button:hover:not(:disabled) { opacity: .85; }
