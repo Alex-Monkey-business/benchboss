@@ -68,6 +68,10 @@ onBeforeUnmount(() => { bounce?.cancel(); settle?.cancel(); clearTimeout(revealH
 
 <style scoped>
 .bench-brand {
+  /* Merkets farge — ordmerket og ballen leser den SAMME variabelen, så de
+     kan ikke drifte fra hverandre. Standard lys overstyrer den én gang
+     under, alt annet følger text-primary. */
+  --merke: var(--ds-color-text-primary);
   position: relative;
   width: min(200px, 60vw);
 
@@ -81,7 +85,7 @@ onBeforeUnmount(() => { bounce?.cancel(); settle?.cancel(); clearTimeout(revealH
   display: block;
   width: 100%;
   aspect-ratio: 1123 / 600;
-  background: var(--ds-color-text-primary);
+  background: var(--merke);
   -webkit-mask: url('/brand/bench-boss-wordmark.png') center / contain no-repeat;
   mask: url('/brand/bench-boss-wordmark.png') center / contain no-repeat;
 
@@ -91,13 +95,9 @@ onBeforeUnmount(() => { bounce?.cancel(); settle?.cancel(); clearTimeout(revealH
 
 
 /* Standard i lys modus: blekk, ikke teal. Teal er overskriftsfargen i det
-   designet, men merket er merket — det skal se likt ut uansett hvilken
-   palett resten av skjermen har. Mørk modus og Whspr følger fortsatt
-   text-primary, som allerede er riktig der. */
-:global(html:not([data-design="whspr"]):not([data-theme="dark"]) .bench-wordmark) { background: #1a1a1a; }
-/* Ballen er en gjenstand, ikke tekst — men den sitter på merket, så den følger samme farge. */
-:global(html .bench-ball) { color: var(--ds-color-text-primary); }
-:global(html:not([data-design="whspr"]):not([data-theme="dark"]) .bench-ball) { color: #1a1a1a; }
+   designet, men merket er merket — likt uansett palett rundt. Mørk modus og
+   Whspr følger text-primary, som allerede er blekk eller krem der. */
+:global(html:not([data-design="whspr"]):not([data-theme="dark"]) .bench-brand) { --merke: #1a1a1a; }
 
 .bench-ball {
   position: absolute;
@@ -112,14 +112,14 @@ onBeforeUnmount(() => { bounce?.cancel(); settle?.cancel(); clearTimeout(revealH
   border: 0;
   border-radius: 50%;
   background: transparent;
-  color: #034F46;
+  color: var(--merke);
   cursor: pointer;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
 }
 .bench-ball svg { display: block; width: 25px; height: 25px; }
 
-.bench-ball:focus-visible { outline: 2px solid #034F46; outline-offset: 2px; }
+.bench-ball:focus-visible { outline: 2px solid var(--merke); outline-offset: 2px; }
 
 .bench-ball-hint { position: absolute; right: 52px; top: -62px; color: var(--ds-color-text-secondary); font: 11px var(--ds-font-body); white-space: nowrap; pointer-events: none; }
 .bench-ball-hint svg { position: absolute; left: calc(100% + 5px); top: 3px; }
