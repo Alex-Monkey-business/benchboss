@@ -89,9 +89,9 @@ onBeforeUnmount(() => { bounce?.cancel(); settle?.cancel(); clearTimeout(revealH
   animation: brand-settle 1500ms 180ms both;
 }
 
-:global(html[data-palette="iris"] .bench-ball) { color: #363054; }
 
-:global(html[data-palette="whspr"] .bench-ball) { color: #1a1a1a; }
+/* Ballen er blekk i alle design — den er en gjenstand, ikke tekst. */
+:global(html .bench-ball) { color: var(--ds-color-text-primary); }
 
 .bench-ball {
   position: absolute;

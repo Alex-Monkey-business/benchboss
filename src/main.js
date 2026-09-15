@@ -6,6 +6,7 @@ import { startErrorReporting } from './lib/errorReporter'
 import { startSporing } from './lib/sporing'
 // Side-effect import: applies stored theme to <html> before first paint
 import './composables/useTheme'
+import './composables/useDesign'
 // Side-effect import: registers PWA install listeners at boot (catches early beforeinstallprompt)
 import './composables/usePwaInstall'
 import '../design-system/index.css'

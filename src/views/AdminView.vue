@@ -5,6 +5,7 @@ import { useAuth } from '../stores/auth'
 import { useFeatures } from '../composables/useFeatures'
 import { useCoaches } from '../composables/useCoaches'
 import { useTheme } from '../composables/useTheme'
+import { useDesign } from '../composables/useDesign'
 import { clubLogo } from '../lib/klubblogo'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import InstallAppCard from '../components/InstallAppCard.vue'
@@ -19,11 +20,18 @@ const { coaches, fetchCoaches } = useCoaches()
 // sekund. Mangler koblingen til fotball.no, står navnet alene.
 const klubbmerke = m => clubLogo(m.club_fiks_id)
 const { theme, setTheme } = useTheme()
+const { design, setDesign } = useDesign()
 
 const THEME_OPTIONS = [
   { value: 'light', label: 'Lys' },
   { value: 'dark', label: 'Mørk' },
   { value: 'system', label: 'System' }
+]
+
+// Egen akse fra temaet: Whspr finnes i både lys og mørk.
+const DESIGN_OPTIONS = [
+  { value: 'standard', label: 'Standard' },
+  { value: 'whspr', label: 'Whspr' }
 ]
 
 const showLogoutDialog = ref(false)
@@ -175,6 +183,26 @@ const links = computed(() => [
           {{ opt.label }}
         </button>
       </div>
+
+      <div class="design-row">
+        <div class="theme-toggle" role="radiogroup" aria-label="Velg design">
+          <button
+            v-for="opt in DESIGN_OPTIONS"
+            :key="opt.value"
+            type="button"
+            role="radio"
+            :aria-checked="design === opt.value"
+            :class="['theme-toggle__option', { 'theme-toggle__option--active': design === opt.value }]"
+            @click="setDesign(opt.value)"
+          >
+            {{ opt.label }}
+          </button>
+        </div>
+        <span class="design-beta">Beta</span>
+      </div>
+      <p v-if="design === 'whspr'" class="design-note">
+        Whspr er under utprøving. Si fra om noe ser rart ut — det er poenget.
+      </p>
     </div>
 
     <div class="px-lg mb-lg" style="margin-top: var(--ds-space-xl);">
@@ -360,6 +388,24 @@ const links = computed(() => [
 }
 
 /* Theme toggle — segmented control style */
+.design-row {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-sm);
+}
+.design-beta {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  letter-spacing: var(--ds-tracking-wider);
+  text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+}
+.design-note {
+  margin: var(--ds-space-sm) 0 0;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-tertiary);
+}
 .theme-toggle {
   display: inline-flex;
   padding: 3px;

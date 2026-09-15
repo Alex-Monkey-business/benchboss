@@ -1,0 +1,136 @@
+/* Whspr Flow som egen designakse. Kilde: DESIGN.md («cream broadsheet, dark
+   velvet chambers»), og den kjørende implementasjonen i Larvik Beach.
+
+   Dette er BARE token-overstyringer. Komponentene er ikke rørt — de leser
+   allerede var(--ds-*) 368 steder, så knapper, kort, felt, piller og badges
+   skifter uttrykk herfra. Det er også grensen for hva denne fila kan gjøre:
+   120px display-typografi og vekslende lyse/mørke kamre er layout, ikke
+   tokens, og må tegnes per skjerm.
+
+   @font-face koster ingenting for de som ikke slår den på — nettleseren
+   laster en font først når en regel faktisk bruker familien. */
+
+@font-face { font-family: 'Figtree'; font-weight: 400; font-display: swap; src: url('/fonts/figtree-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Figtree'; font-weight: 500; font-display: swap; src: url('/fonts/figtree-latin-500-normal.woff2') format('woff2'); }
+@font-face { font-family: 'Figtree'; font-weight: 600; font-display: swap; src: url('/fonts/figtree-latin-600-normal.woff2') format('woff2'); }
+@font-face { font-family: 'EB Garamond'; font-weight: 400; font-display: swap; src: url('/fonts/eb-garamond-latin-400-normal.woff2') format('woff2'); }
+@font-face { font-family: 'EB Garamond'; font-weight: 400; font-style: italic; font-display: swap; src: url('/fonts/eb-garamond-latin-400-italic.woff2') format('woff2'); }
+
+[data-design="whspr"] {
+  --color-lavender: #f0d7ff;
+  --color-forest:   #034f46;
+  --color-ember:    #ffa946;
+  --color-ink:      #1a1a1a;
+  --color-cream:    #ffffeb;
+  --color-stone:    #e4e4d0;
+  --color-fog:      #68685f;
+  --color-charcoal: #222222;
+
+  /* Eb Garamond kommanderer gjennom størrelse, ikke vekt — derfor 400 og
+     ingen variable-innstillinger fra Fraunces. */
+  --ds-font-display: 'EB Garamond', 'Cormorant Garamond', Georgia, serif;
+  /* Sideoverskriftene leser --ds-font-heading, som i standard peker på en
+     tung sans. I Whspr er overskrifter serif i regular — størrelsen bærer. */
+  --ds-font-heading: var(--ds-font-display);
+  --ds-font-body:    'Figtree', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --ds-font-numeric: 'Figtree', ui-sans-serif, system-ui, sans-serif;
+  --ds-font-display-settings: normal;
+  --ds-weight-semibold: 600;
+
+  /* «Polished pebble»: knapper og felt 12px, kort langt rundere. */
+  --ds-radius-sm:   8px;
+  --ds-radius-md:   12px;
+  --ds-radius-lg:   20px;
+  --ds-radius-xl:   32px;
+  --ds-radius-2xl:  40px;
+
+  /* 2px ink er signaturen. Den ene linja gir hver knapp, hvert kort og hvert
+     felt Whspr-kanten samtidig. */
+  --ds-border-width:       2px;
+  --ds-border-width-heavy: 2px;
+
+  --ds-color-bg:          var(--color-cream);
+  --ds-color-bg-elevated: #fffff5;
+  --ds-color-bg-subtle:   #f7f6e2;
+  --ds-color-bg-hover:    var(--color-stone);
+  --ds-color-bg-sunken:   #f2f1dd;
+
+  --ds-color-text-primary:   var(--color-ink);
+  --ds-color-text-secondary: var(--color-charcoal);
+  --ds-color-text-tertiary:  var(--color-fog);
+  --ds-color-text-inverse:   var(--color-cream);
+
+  --ds-color-border:        var(--color-ink);
+  --ds-color-border-light:  var(--color-stone);
+  --ds-color-border-strong: var(--color-ink);
+  --ds-color-border-focus:  var(--color-forest);
+
+  /* Lavendel er den ene klikkbare tingen. Den er lys, så teksten på den er
+     blekk — ikke hvit, som ville forsvunnet. */
+  --ds-color-accent:       var(--color-lavender);
+  --ds-color-accent-hover: #e3c2f7;
+  --ds-color-accent-light: #f9ecff;
+  --ds-color-accent-text:  var(--color-ink);
+
+  --ds-color-warm:       var(--color-forest);
+  --ds-color-warm-hover: #023b35;
+  --ds-color-warm-bg:    #e2ece9;
+  --ds-color-warm-text:  var(--color-forest);
+
+  --ds-color-success:       var(--color-forest);
+  --ds-color-success-hover: #023b35;
+  --ds-color-success-light: #e2ece9;
+  --ds-color-success-text:  var(--color-forest);
+
+  --ds-color-warning:        var(--color-ember);
+  --ds-color-warning-light:  #fff0dc;
+  --ds-color-warning-text:   #8a4f00;
+  --ds-color-warning-border: var(--color-ember);
+
+  --ds-color-info:       var(--color-forest);
+  --ds-color-info-light: #e2ece9;
+
+  --ds-color-overlay: rgba(26, 26, 26, .55);
+}
+
+/* Dark velvet chamber. Samme system, motsatt rom. */
+[data-design="whspr"][data-theme="dark"] {
+  --ds-color-bg:          var(--color-ink);
+  --ds-color-bg-elevated: var(--color-charcoal);
+  --ds-color-bg-subtle:   #1f1f1f;
+  --ds-color-bg-hover:    #2c2c2c;
+  --ds-color-bg-sunken:   #141414;
+
+  --ds-color-text-primary:   var(--color-cream);
+  --ds-color-text-secondary: var(--color-stone);
+  --ds-color-text-tertiary:  #9a9a8f;
+  --ds-color-text-inverse:   var(--color-ink);
+
+  --ds-color-border:        var(--color-cream);
+  --ds-color-border-light:  #3a3a34;
+  --ds-color-border-strong: var(--color-cream);
+  --ds-color-border-focus:  var(--color-lavender);
+
+  --ds-color-accent:       var(--color-lavender);
+  --ds-color-accent-hover: #e3c2f7;
+  --ds-color-accent-light: #2f2438;
+  --ds-color-accent-text:  var(--color-ink);
+
+  --ds-color-warm:       #0b7d70;
+  --ds-color-warm-hover: #099184;
+  --ds-color-warm-bg:    #0f2b28;
+  --ds-color-warm-text:  #7fd8cd;
+
+  --ds-color-success:       #0b7d70;
+  --ds-color-success-light: #0f2b28;
+  --ds-color-success-text:  #7fd8cd;
+
+  --ds-color-warning:       var(--color-ember);
+  --ds-color-warning-light: #3a2a14;
+  --ds-color-warning-text:  var(--color-ember);
+
+  --ds-color-info:       #0b7d70;
+  --ds-color-info-light: #0f2b28;
+
+  --ds-color-overlay: rgba(0, 0, 0, .7);
+}

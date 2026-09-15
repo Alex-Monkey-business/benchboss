@@ -9,6 +9,7 @@
 @import './tokens/_colors.css';
 @import './tokens/_typography.css';
 @import './tokens/_spacing.css';
+@import './tokens/_design-whspr.css';
 
 /* 2. Base / Reset */
 @import './base/_reset.css';
