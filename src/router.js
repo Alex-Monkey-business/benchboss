@@ -31,6 +31,15 @@ const routes = [
     component: () => import('./views/AuthCallbackView.vue'),
     meta: { public: true }
   },
+  // Offentlig, og må forbli det: Google leser den for å publisere
+  // innloggingen, og en forelder skal kunne lese hva vi lagrer uten å logge
+  // inn først.
+  {
+    path: '/personvern',
+    name: 'personvern',
+    component: () => import('./views/PersonvernView.vue'),
+    meta: { public: true }
+  },
   {
     path: '/',
     name: 'hjem',
