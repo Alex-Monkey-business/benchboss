@@ -4,10 +4,13 @@ import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import { isSupabaseConfigured } from '../supabase'
 import PinInput from '../components/PinInput.vue'
+import BenchBossBrand from '../components/BenchBossBrand.vue'
+import PalettePreview from '../components/PalettePreview.vue'
+const isLocalPreview = import.meta.env.DEV
 
 const route = useRoute()
 const router = useRouter()
-const { sendCode, verifyCode, refreshMember, isLoggedIn, isParent, demoLogin } = useAuth()
+const { signInWithGoogle, sendCode, verifyCode, refreshMember, isLoggedIn, isParent, demoLogin } = useAuth()
 
 // 'email' → 'code'. Kodeboksen er primærveien etter «send», ikke gjemt bak en
 // «jeg har en kode»-lenke: e-posten inneholder både lenke og kode, og på iOS
@@ -29,6 +32,21 @@ const isIosStandalone = (() => {
 })()
 
 const step = ref('email')
+const showEmail = ref(false)
+const googleBusy = ref(false)
+async function onGoogle() {
+  if (googleBusy.value) return
+  googleBusy.value = true
+  error.value = ''
+  try {
+    const { error: err } = await signInWithGoogle()
+    if (err) throw err
+  } catch (err) {
+    error.value = err?.message || 'Kunne ikke åpne Google. Bruk e-post.'
+    showEmail.value = true
+    googleBusy.value = false
+  }
+}
 const email = ref('')
 const sending = ref(false)
 const verifying = ref(false)
@@ -137,13 +155,25 @@ function onDemo(role) {
 
 <template>
   <div class="login-screen">
+    <div class="login-content">
+      <BenchBossBrand />
     <Transition name="step-fade" mode="out-in">
 
       <!-- STEG 1 — e-post -->
-      <div v-if="step === 'email'" key="email" class="login-step">
-        <h1 class="login-title">BenchBoss</h1>
+      <div v-if="step === 'email'" key="email" class="login-step login-step--email">
+        <h1 class="login-sr-only">Logg inn på BenchBoss</h1>
 
-        <form class="login-form" @submit.prevent="onSend">
+        <button type="button" class="login-google" :disabled="googleBusy || sending" @click="onGoogle">
+          <svg width="20" height="20" viewBox="0 0 48 48" aria-hidden="true">
+            <path fill="#4285F4" d="M43.6 20.5H24v8h11.3C33.8 33.7 29.5 36 24 36a12 12 0 1 1 8.5-20.5l6-6A20.5 20.5 0 1 0 44.5 24c0-1.2-.3-2.4-.9-3.5Z"/>
+            <path fill="#34A853" d="M24 44.5c5.6 0 10.5-1.8 14.1-5.1l-6.8-5.3A12 12 0 0 1 12.7 28l-7 5.4A20.5 20.5 0 0 0 24 44.5Z"/>
+            <path fill="#FBBC05" d="M12.7 28a12 12 0 0 1 0-8l-7-5.4a20.5 20.5 0 0 0 0 18.8Z"/>
+            <path fill="#EA4335" d="M24 12c3.3 0 6.2 1.2 8.5 3.5l6-6A20.5 20.5 0 0 0 5.7 14.6l7 5.4A12 12 0 0 1 24 12Z"/>
+          </svg>
+          {{ googleBusy ? 'Åpner Google…' : 'Fortsett med Google' }}
+        </button>
+        <button v-if="!showEmail" type="button" class="login-link" @click="showEmail = true">Annen e-post</button>
+        <form v-if="showEmail" class="login-form" @submit.prevent="onSend">
           <label class="login-label" for="login-email">E-post</label>
           <input
             id="login-email"
@@ -154,6 +184,8 @@ function onDemo(role) {
             autocapitalize="off"
             spellcheck="false"
             class="login-input"
+            placeholder="deg@eksempel.no"
+            required
             :disabled="sending"
           />
           <button type="submit" class="login-button" :disabled="sending || !email.trim()">
@@ -162,7 +194,7 @@ function onDemo(role) {
         </form>
 
         <Transition name="ds-fade">
-          <p v-if="error" class="login-error">{{ error }}</p>
+          <p v-if="error" class="login-error" role="alert">{{ error }}</p>
         </Transition>
 
         <div v-if="!isSupabaseConfigured" class="login-demo">
@@ -201,7 +233,7 @@ function onDemo(role) {
             @complete="onCodeComplete"
           />
           <Transition name="ds-fade">
-            <p v-if="error" class="login-error">{{ error }}</p>
+            <p v-if="error" class="login-error" role="alert">{{ error }}</p>
           </Transition>
         </div>
 
@@ -214,6 +246,9 @@ function onDemo(role) {
       </div>
 
     </Transition>
+    </div>
+    <PalettePreview v-if="isLocalPreview" />
+    <p class="login-footer">For laget. Fra sidelinja.</p>
   </div>
 </template>
 
@@ -222,14 +257,16 @@ function onDemo(role) {
   min-height: 100dvh;
   background: var(--ds-color-bg);
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 36px;
   padding: var(--ds-space-xl) var(--ds-space-lg) calc(var(--ds-space-xl) + env(safe-area-inset-bottom, 0px));
 }
 
 .login-step {
   width: 100%;
-  max-width: 420px;
+  max-width: 320px;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -299,12 +336,15 @@ function onDemo(role) {
   background: var(--ds-color-surface);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-md);
-  box-shadow: var(--ds-shadow-xs);
+  box-shadow: none;
+  min-height: 54px;
 }
 
 .login-input:focus {
   outline: none;
-  border-color: var(--ds-color-border-strong);
+  border-color: var(--ds-color-text-primary);
+  outline: 2px solid var(--ds-color-text-primary);
+  outline-offset: 3px;
 }
 
 .login-button {
@@ -320,7 +360,8 @@ function onDemo(role) {
   border-radius: var(--ds-radius-md);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  transition: transform var(--ds-duration-fast) var(--ds-ease-out);
+  transition: transform 180ms ease, opacity 180ms ease, background 180ms ease;
+  min-height: 52px;
 }
 
 .login-button:active {
@@ -407,6 +448,15 @@ function onDemo(role) {
   cursor: pointer;
 }
 
+.login-content { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 44px; margin-block: auto; padding-block: 38px; }
+.login-footer { margin: 0; color: var(--ds-color-text-secondary); font-size: 12px; letter-spacing: .01em; }
+.login-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
+.login-button:hover:not(:disabled) { opacity: .85; }
+.login-link, .login-demo__role { min-height: 44px; }
+.login-link:focus-visible, .login-button:focus-visible, .login-demo__role:focus-visible { outline: 2px solid var(--ds-color-text-primary); outline-offset: 4px; }
+.login-hint { overflow-wrap: anywhere; }
+@media (max-height: 650px) { .login-content { gap: 28px; padding-block: 0; } }
+
 /* ---- Steg-overgang ---- */
 .step-fade-enter-active {
   transition:
@@ -437,4 +487,13 @@ function onDemo(role) {
     transform: none;
   }
 }
+</style>
+
+<style scoped>
+.login-step--email { gap: 16px; }
+.login-google { display: flex; align-items: center; justify-content: center; gap: 12px; width: fit-content; max-width: 100%; padding: 0 22px; min-height: 52px; border: 1px solid var(--ds-color-border); border-radius: 10px; background: var(--ds-color-bg-elevated); color: var(--ds-color-text-primary); font: 500 15px var(--ds-font-body); cursor: pointer; transition: background 180ms, transform 180ms; }
+.login-google:hover { background: var(--ds-color-bg-hover); }
+.login-google:active { transform: scale(.985); }
+.login-google:focus-visible { outline: 2px solid var(--ds-color-accent); outline-offset: 4px; }
+.login-google:disabled { opacity: .6; cursor: wait; }
 </style>

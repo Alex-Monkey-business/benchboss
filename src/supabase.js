@@ -79,3 +79,12 @@ function lagKlient(url, key) {
 export const supabase = supabaseUrl && supabaseKey ? lagKlient(supabaseUrl, supabaseKey) : null
 
 export const isSupabaseConfigured = !!supabase
+
+export async function isGoogleEnabled() {
+  if (!isSupabaseConfigured) return false
+  const response = await fetch(new URL('auth/v1/settings', supabaseUrl), {
+    headers: { apikey: supabaseKey }
+  })
+  if (!response.ok) throw new Error('Kunne ikke sjekke innlogging.')
+  return (await response.json()).external?.google === true
+}

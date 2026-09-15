@@ -1,5 +1,5 @@
 import { reactive, computed } from 'vue'
-import { supabase, isSupabaseConfigured } from '../supabase'
+import { supabase, isSupabaseConfigured, isGoogleEnabled } from '../supabase'
 import { resetAllData } from './dataReset'
 import { clearPersisted } from '../lib/persist'
 import { readLegacyUser, clearLegacyUser, refreshLegacyFlag } from './legacyAuth'
@@ -333,6 +333,15 @@ async function refreshMember() {
   if (data?.session?.user) await loadMember(data.session.user)
 }
 
+async function signInWithGoogle() {
+  if (!isSupabaseConfigured) return { error: new Error('Google-innlogging er ikke tilgjengelig i demo-modus.') }
+  if (!await isGoogleEnabled()) return { error: new Error('Google-innlogging er ikke aktivert ennå. Bruk e-post foreløpig.') }
+  return supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: { redirectTo: `${window.location.origin}/auth/callback` }
+  })
+}
+
 async function sendCode(email) {
   // shouldCreateUser: false er hele grunnen til at det ikke finnes
   // selvregistrering. Uten den kan hvem som helst skrive inn en e-post og få
@@ -424,6 +433,7 @@ export function useAuth() {
     sessionLost: computed(() => state.sessionLost),
     setSessionHold,
     setActiveCohort,
+    signInWithGoogle,
     sendCode,
     verifyCode,
     refreshMember,
