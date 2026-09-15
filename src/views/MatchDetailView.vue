@@ -18,7 +18,8 @@ import Sheet from '../components/Sheet.vue'
 import Skeleton from '../components/Skeleton.vue'
 import DisclosureSection from '../components/DisclosureSection.vue'
 import MatchPlayingTime from '../components/MatchPlayingTime.vue'
-import { relativeDateLabel, isPast } from '../lib/dateLabels'
+import TeamCrest from '../components/TeamCrest.vue'
+import { relativeDateLabel, isPast, trimAbbrevDots } from '../lib/dateLabels'
 import { matchCta } from '../lib/matchCta'
 import { teamSlugFromName, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, isPlayed, teamLabel, isOurs } from '../lib/matchMeta'
 import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
@@ -238,6 +239,20 @@ const sectionOrder = computed(() => {
 })
 
 const formattedDate = computed(() => relativeDateLabel(match.value?.match_date))
+
+// Midtkolonnen i heroen er smal. «I dag» og «Onsdag» får stå; «Lørdag 28.
+// februar» blir «lør 28. feb».
+const heroDate = computed(() => {
+  const label = formattedDate.value
+  if (!match.value?.match_date || label.length <= 12) return label
+  const d = new Date(match.value.match_date + 'T12:00:00')
+  return trimAbbrevDots(d.toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' }))
+})
+
+const heroTime = computed(() => {
+  const t = (match.value?.match_time || '').slice(0, 5)
+  return t && t !== '00:00' ? t : ''
+})
 
 async function selectReferee(name) {
   if (isLocked.value) return
@@ -824,11 +839,6 @@ const selectedCoaches = computed(() => {
     .filter(Boolean)
 })
 
-// Begrens chip-rader i summary: vis maks `max`, resten som "+N".
-function cappedList(list, max = 3) {
-  return { shown: list.slice(0, max), extra: Math.max(0, list.length - max) }
-}
-
 function focusSummaryGroup() {
   open.value.summary = true
   editingResult.value = true
@@ -846,7 +856,7 @@ function focusSummaryGroup() {
       <Skeleton :width="80" :height="14" />
     </div>
     <div class="px-lg" style="margin-top: var(--ds-space-lg);">
-      <div class="ds-card md-skel__card">
+      <div class="md-skel__card">
         <div class="md-skel__top">
           <Skeleton :width="80" :height="13" />
           <Skeleton :width="40" :height="13" />
@@ -871,69 +881,70 @@ function focusSummaryGroup() {
   </div>
 
   <div v-else-if="match" class="desktop-container">
-    <div class="px-lg" style="padding-top: var(--ds-space-md);">
-      <button class="back-btn" @click="router.back()">
+    <div class="px-lg md-top">
+      <button class="md-icon-btn" aria-label="Tilbake" @click="router.back()">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
+          <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
         </svg>
-        Tilbake
+      </button>
+      <button
+        v-if="!isLocked"
+        type="button"
+        class="md-icon-btn"
+        aria-label="Mer"
+        @click="showMatchMenu = true"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="5" cy="12" r="1"/>
+          <circle cx="12" cy="12" r="1"/>
+          <circle cx="19" cy="12" r="1"/>
+        </svg>
       </button>
     </div>
 
-    <!-- Match Header — same visual language as dashboard MatchCard -->
-    <div class="px-lg mt-lg">
-      <div class="ds-card match-card match-detail-card">
-        <div class="match-card__top">
-          <span class="match-card__datetime">
-            <span
-              v-for="color in teamColors"
-              :key="color"
-              class="match-card__team-tag"
-              :class="`match-card__team-tag--${color}`"
-            >{{ teamLabel(color) }}</span>
-            {{ formattedDate }}<template v-if="match.match_time && match.match_time.substring(0, 5) !== '00:00'"> · {{ match.match_time.substring(0, 5) }}</template><template v-if="match.round"> · Runde {{ match.round }}</template>
-          </span>
-          <button
-            v-if="!isLocked"
-            type="button"
-            class="match-card__edit-btn"
-            aria-label="Mer"
-            @click="showMatchMenu = true"
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <circle cx="5" cy="12" r="1"/>
-              <circle cx="12" cy="12" r="1"/>
-              <circle cx="19" cy="12" r="1"/>
-            </svg>
-          </button>
+    <!-- Kampen som overskrift, sentrert rundt midtaksen: hjemmelag til
+         venstre, tid eller resultat i midten, bortelag til høyre. Ingen
+         ramme, ingen brikker. Hvor vi spiller sier plassen. -->
+    <header class="px-lg hero">
+      <div class="hero__grid">
+        <div class="hero__side">
+          <TeamCrest :name="match.home_team" :size="48" />
+          <span class="hero__team">{{ match.home_team }}</span>
         </div>
-        <div class="match-card__teams match-detail-teams">
-          <span class="match-card__team">{{ match.home_team }}</span>
-          <button
-            v-if="hasResult"
-            type="button"
-            class="match-detail-score"
-            aria-label="Rediger resultat"
-            @click="focusSummaryGroup"
-          >
-            <span class="match-detail-score__num">{{ match.home_score }}</span>
-            <span class="match-detail-score__dash">—</span>
-            <span class="match-detail-score__num">{{ match.away_score }}</span>
-          </button>
-          <span v-else class="match-card__vs">vs</span>
-          <span class="match-card__team">{{ match.away_team }}</span>
-        </div>
-
-        <!-- Scorerne hører til resultatet, ikke til redigeringa. Her ser du dem
-             uten å åpne noe; seksjonen under er der for å endre dem. -->
-        <div v-if="aggregatedScorers.length" class="scoreline">
-          <div v-for="s in aggregatedScorers" :key="s.player_id" class="scoreline__row">
-            <span class="scoreline__name">{{ s.player?.name || 'Ukjent' }}</span>
-            <span v-if="s.timing" class="scoreline__timing">{{ s.timing }}</span>
-          </div>
+        <component
+          :is="hasResult && !isLocked ? 'button' : 'div'"
+          :type="hasResult && !isLocked ? 'button' : undefined"
+          class="hero__mid"
+          :class="{ 'hero__mid--tappable': hasResult && !isLocked }"
+          :aria-label="hasResult && !isLocked ? 'Rediger resultat' : undefined"
+          @click="hasResult && !isLocked && focusSummaryGroup()"
+        >
+          <span v-if="hasResult" class="hero__big">{{ match.home_score }} – {{ match.away_score }}</span>
+          <span v-else-if="heroTime" class="hero__big">{{ heroTime }}</span>
+          <span v-else class="hero__big hero__big--tba">–</span>
+          <span class="hero__sub">{{ heroDate }}</span>
+        </component>
+        <div class="hero__side">
+          <TeamCrest :name="match.away_team" :size="48" />
+          <span class="hero__team">{{ match.away_team }}</span>
         </div>
       </div>
-    </div>
+
+      <!-- Scorerne står under laget de scoret for. -->
+      <div v-if="aggregatedScorers.length" class="hero__grid hero__scorers">
+        <div class="hero__side">
+          <template v-if="isHomeMatch">
+            <span v-for="s in aggregatedScorers" :key="s.player_id" class="hero__scorer">{{ s.player?.name || 'Ukjent' }} <span v-if="s.timing" class="hero__timing">{{ s.timing }}</span></span>
+          </template>
+        </div>
+        <div class="hero__mid" aria-hidden="true"></div>
+        <div class="hero__side">
+          <template v-if="!isHomeMatch">
+            <span v-for="s in aggregatedScorers" :key="s.player_id" class="hero__scorer">{{ s.player?.name || 'Ukjent' }} <span v-if="s.timing" class="hero__timing">{{ s.timing }}</span></span>
+          </template>
+        </div>
+      </div>
+    </header>
 
     <!-- Låst kamp — sesongen er gjort opp -->
     <div v-if="isLocked" class="px-lg mt-lg">
@@ -967,14 +978,14 @@ function focusSummaryGroup() {
     </div>
 
     <!-- Action sections — 3 grouped disclosures (collapsed = lese, expanded = edit) -->
-    <div class="mt-lg detail-disclosures">
+    <div class="px-lg mt-lg detail-disclosures">
 
       <!-- Gruppe 1: Dommer & utlegg (kun på hjemmekamper — vi har ikke dommer-ansvar borte) -->
       <DisclosureSection
         v-if="isHomeMatch && usesReferees"
         v-model="open.logistics"
         :style="{ order: sectionOrder.logistics }"
-        label="Dommer & utlegg"
+        label="Dommer og utlegg"
         empty-text="Ikke satt"
         :has-content="!!(refereeSummary || payerSummary)"
       >
@@ -1125,12 +1136,7 @@ function focusSummaryGroup() {
       >
         <template #summary>
           <span v-if="teamSquad.length" class="sum-chip sum-chip--squad">{{ availableCount }} på laget</span>
-          <span
-            v-for="p in cappedList(selectedLanespillere, 2).shown"
-            :key="p.id"
-            :class="['lanespiller-chip', p.primary_team ? `lanespiller-chip--${p.primary_team}` : '']"
-          >{{ p.name }}</span>
-          <span v-if="cappedList(selectedLanespillere, 2).extra" class="sum-chip sum-chip--more">+{{ cappedList(selectedLanespillere, 2).extra }} lån</span>
+          <span v-if="selectedLanespillere.length" class="sum-chip sum-chip--more">{{ selectedLanespillere.length }} lån</span>
           <span v-if="selectedCoaches.length" class="coach-avatar-pile">
             <span
               v-for="c in selectedCoaches"
@@ -1717,9 +1723,6 @@ function focusSummaryGroup() {
 }
 
 /* Match detail card — reuses global .match-card classes, adds team tag locally */
-.match-detail-card {
-  padding: var(--ds-space-lg);
-}
 
 /* Låst kamp (avsluttet sesong) */
 .locked-note {
@@ -1729,6 +1732,111 @@ function focusSummaryGroup() {
   text-align: center;
   margin: 0;
 }
+
+/* ─── Toppen: to ikonknapper, så kampen som overskrift ────────────────── */
+.md-top {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding-top: var(--ds-space-sm);
+}
+
+.md-icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-left: -8px;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--ds-color-text-primary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.md-icon-btn + .md-icon-btn { margin-left: 0; margin-right: -8px; }
+.md-icon-btn svg { width: 22px; height: 22px; }
+.md-icon-btn:active { background: var(--ds-color-bg-subtle); }
+
+.hero {
+  margin-top: var(--ds-space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-md);
+}
+
+.hero__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  column-gap: var(--ds-space-md);
+  align-items: start;
+}
+
+.hero__side {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  text-align: center;
+}
+
+.hero__team {
+  font-size: var(--ds-text-sm);
+  overflow-wrap: break-word;
+  font-weight: var(--ds-weight-semibold);
+  line-height: 1.25;
+  color: var(--ds-color-text-primary);
+}
+
+.hero__mid {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  min-width: 84px;
+  padding: 8px 0 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+}
+
+.hero__mid--tappable { cursor: pointer; -webkit-tap-highlight-color: transparent; }
+.hero__mid--tappable:active .hero__big { color: var(--ds-color-text-secondary); }
+
+.hero__big {
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-2xl);
+  font-weight: var(--ds-weight-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ds-color-text-primary);
+  white-space: nowrap;
+}
+
+.hero__big--tba { color: var(--ds-color-text-tertiary); }
+
+.hero__sub {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-secondary);
+  text-align: center;
+}
+
+.hero__scorers { margin-top: calc(-1 * var(--ds-space-xs)); }
+.hero__scorers .hero__side { gap: 2px; }
+
+.hero__scorer {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-secondary);
+  line-height: 1.4;
+}
+
+.hero__timing { color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; }
 
 /* Match mode CTA */
 .match-mode-cta {
@@ -1786,39 +1894,9 @@ function focusSummaryGroup() {
   100% { box-shadow: 0 0 0 0 rgba(255, 255, 255, 0); }
 }
 
-.match-detail-card .match-card__top {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 8px;
-}
 
-.match-card__edit-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: none;
-  border-radius: 6px;
-  background: transparent;
-  color: var(--ds-color-text-tertiary);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  -webkit-tap-highlight-color: transparent;
-  flex-shrink: 0;
-}
 
-.match-card__edit-btn:hover {
-  background: var(--ds-color-bg-elevated);
-  color: var(--ds-color-text-primary);
-}
 
-.match-card__edit-btn svg {
-  width: 14px;
-  height: 14px;
-}
 
 .edit-datetime-form {
   margin-top: 12px;
@@ -1846,81 +1924,17 @@ function focusSummaryGroup() {
 }
 
 /* Override the flex:1 spread — center teams compactly in detail view */
-.match-detail-card .match-card__teams {
-  justify-content: center;
-  gap: 14px;
-}
 
-.match-detail-card .match-card__team {
-  flex: none;
-}
 
-.match-detail-card .match-card__team:last-child {
-  text-align: left;
-}
 
 /* Score-blokk på match-card (tappbar — åpner Resultat-seksjonen) */
-.match-detail-score {
-  display: inline-flex;
-  align-items: baseline;
-  gap: 6px;
-  padding: 6px 10px;
-  border: none;
-  border-radius: 8px;
-  background: transparent;
-  font-family: var(--ds-font-body);
-  font-size: 1.75rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  color: var(--ds-color-text-primary);
-  letter-spacing: -0.01em;
-  line-height: 1;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background 0.15s ease;
-}
 
-.match-detail-score:active {
-  transform: scale(0.96);
-}
 
-@media (hover: hover) and (pointer: fine) {
-  .match-detail-score:hover {
-    background: var(--ds-color-bg-elevated);
-  }
-}
 
-.match-detail-score__dash {
-  font-weight: 500;
-  color: var(--ds-color-text-tertiary);
-  font-size: 1.25rem;
-}
 
-.match-detail-card .match-card__team-tag {
-  display: inline-block;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: var(--ds-radius-sm);
-  letter-spacing: 0.02em;
-  margin-right: 4px;
-}
 
-.match-detail-card .match-card__team-tag--gronn {
-  background: var(--ds-team-gronn-bg);
-  color: var(--ds-team-gronn);
-}
 
-.match-detail-card .match-card__team-tag--rod {
-  background: var(--ds-team-rod-bg);
-  color: var(--ds-team-rod);
-}
 
-.match-detail-card .match-card__team-tag--hvit {
-  background: var(--ds-team-hvit-bg);
-  color: var(--ds-team-hvit);
-  border: 1px solid var(--ds-team-hvit-border);
-}
 
 /* Referee pill buttons - compact horizontal chips */
 .referee-pills {
@@ -2269,37 +2283,9 @@ function focusSummaryGroup() {
    høyrestilt i tabular-nums så de danner en kolonne uansett navnelengde.
    Ingen farget prikk: den viste primary_team, altså hvilket lag spilleren
    tilhører — i en kamprapport for ett lag betydde den i praksis «lånt inn». */
-.scoreline {
-  margin-top: var(--ds-space-md);
-  padding-top: var(--ds-space-md);
-  border-top: 1px solid var(--ds-color-border-light);
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
-}
 
-.scoreline__row {
-  display: flex;
-  align-items: baseline;
-  gap: 10px;
-}
 
-.scoreline__name {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-primary);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
 
-.scoreline__timing {
-  flex: none;
-  font-size: 0.875rem;
-  color: var(--ds-color-text-tertiary);
-  font-variant-numeric: tabular-nums;
-}
 
 .result-read {
   display: flex;
@@ -2433,11 +2419,7 @@ function focusSummaryGroup() {
   font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary);
 }
 
-.sum-chip--squad {
-  background: var(--ds-color-bg-subtle);
-  color: var(--ds-color-text-secondary);
-  font-weight: var(--ds-weight-semibold);
-}
+.sum-chip--squad { color: var(--ds-color-text-secondary); }
 
 /* ─── Match-meny (⋯-sheet) ──────────────────────────────────────────── */
 .match-menu {
@@ -2486,16 +2468,13 @@ function focusSummaryGroup() {
 }
 
 /* ─── Summary-chips i collapsed disclosure-headere (lese-modus) ───────── */
+/* Sammendraget er tekst, ikke brikker. */
 .sum-chip {
   display: inline-flex;
   align-items: center;
-  padding: 3px 10px;
-  border-radius: var(--ds-radius-full);
-  background: var(--ds-color-bg);
-  border: 1px solid var(--ds-color-border-light);
-  font-size: 0.75rem;
+  font-size: var(--ds-text-xs);
   font-weight: 500;
-  color: var(--ds-color-text-primary);
+  color: var(--ds-color-text-secondary);
   white-space: nowrap;
 }
 
@@ -2510,81 +2489,54 @@ function focusSummaryGroup() {
   font-weight: 600;
 }
 
-.lanespiller-chip {
-  display: inline-flex;
-  align-items: center;
-  padding: 3px 9px 3px 18px;
-  border-radius: var(--ds-radius-full);
-  background: var(--ds-color-bg);
-  border: 1px solid var(--ds-color-border-light);
-  font-size: 0.75rem;
-  font-weight: 500;
-  color: var(--ds-color-text-primary);
-  position: relative;
-}
 
-.lanespiller-chip::before {
-  content: '';
-  position: absolute;
-  left: 7px;
-  top: 50%;
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  transform: translateY(-50%);
-  background: var(--ds-color-text-tertiary);
-}
 
-.lanespiller-chip--gronn::before { background: var(--ds-team-gronn); }
-.lanespiller-chip--rod::before { background: var(--ds-team-rod); }
-.lanespiller-chip--hvit::before {
-  background: var(--ds-team-hvit-bg);
-  border: 1px solid var(--ds-team-hvit-border);
-}
 
-/* ─── Sub-sections inni grupperte disclosures ─────────────────────────── */
-/* Samlet detaljliste: tre seksjoner som ÉN overflate med hårfine skillelinjer,
-   så kamp-kort + CTA over står som egne høyder. Chipsene bærer fargen. */
+/* ─── Seksjonene: myke grupper, som dagene i kamplista ─────────────────── */
 .detail-disclosures {
   display: flex;
   flex-direction: column;
-  gap: 0;
-  /* Kortet sitter i samme side-gutter som kamp-kort/CTA over. Intern padding
-     kommer fra disclosure-radene selv, så px-lg her ville fullbleede kanten. */
-  margin-left: var(--ds-space-lg);
-  margin-right: var(--ds-space-lg);
-  background: var(--ds-color-bg-elevated);
-  border: 1px solid var(--ds-color-border-light);
-  border-radius: 14px;
-  overflow: hidden;
+  gap: 10px;
 }
 
-/* Disclosurene mister egen kort-chrome inne i den samlede flaten. */
 .detail-disclosures :deep(.disclosure) {
   border: none;
-  border-radius: 0;
-  background: transparent;
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-bg-subtle);
   box-shadow: none;
-  /* Skillelinje mellom seksjoner; -1px kollapser toppen mot container-rammen
-     uansett flex-order, så ingen dobbel strek i topp/bunn. */
-  border-top: 1px solid var(--ds-color-border-light);
-  margin-top: -1px;
 }
 
-/* Åpen seksjon blir værende på den hvite flaten — ingen grå fyll, ingen
-   skygge. Skillelinja holdes hårfin (ikke den mørkere åpen-borderen). */
 .detail-disclosures :deep(.disclosure--open) {
-  border-top-color: var(--ds-color-border-light);
   box-shadow: none;
-  background: transparent;
+  background: var(--ds-color-bg-subtle);
 }
 
-/* Skarpere seksjons-eyebrow: mindre, mer tracking, ankrer hierarkiet uten
-   å konkurrere med chips/innhold. */
+.detail-disclosures :deep(.disclosure__header) {
+  padding: 16px var(--ds-space-md);
+  min-height: 56px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .detail-disclosures :deep(.disclosure__header:hover) { background: transparent; }
+}
+
 .detail-disclosures :deep(.disclosure__label) {
-  font-size: 12px;
-  letter-spacing: 0.06em;
-  color: var(--ds-color-text-tertiary);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ds-color-text-primary);
+}
+
+.detail-disclosures :deep(.disclosure__summary) {
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-secondary);
+}
+
+.detail-disclosures :deep(.disclosure__summary--rich) { gap: 8px; }
+
+.detail-disclosures :deep(.disclosure--open .disclosure__inner) {
+  padding: 0 var(--ds-space-md) var(--ds-space-lg);
 }
 
 .sub-section {

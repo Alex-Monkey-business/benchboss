@@ -2,12 +2,23 @@
 import Skeleton from './Skeleton.vue'
 
 defineProps({
-  count: { type: Number, default: 3 }
+  count: { type: Number, default: 3 },
+  // 'row' speiler kamprada i lista; standard er kortet på Hjem.
+  variant: { type: String, default: 'card' }
 })
 </script>
 
 <template>
-  <div class="match-skel-stack" aria-hidden="true">
+  <div v-if="variant === 'row'" class="match-skel-rows" aria-hidden="true">
+    <div v-for="i in count" :key="i" class="match-skel-row" :style="{ animationDelay: `${i * 60}ms` }">
+      <Skeleton :width="'70%'" :height="14" />
+      <Skeleton :width="28" :height="28" radius="50%" />
+      <Skeleton :width="40" :height="14" />
+      <Skeleton :width="28" :height="28" radius="50%" />
+      <Skeleton :width="'70%'" :height="14" />
+    </div>
+  </div>
+  <div v-else class="match-skel-stack" aria-hidden="true">
     <div v-for="i in count" :key="i" class="ds-card match-skel" :style="{ animationDelay: `${i * 60}ms` }">
       <div class="match-skel__top">
         <Skeleton :width="58" :height="14" />
@@ -69,7 +80,29 @@ defineProps({
   gap: var(--ds-space-md);
 }
 
+.match-skel-rows {
+  display: flex;
+  flex-direction: column;
+  background: var(--ds-color-bg-subtle);
+  border-radius: var(--ds-radius-lg);
+  padding: 8px var(--ds-space-md);
+}
+
+.match-skel-row {
+  display: grid;
+  grid-template-columns: 1fr auto auto auto 1fr;
+  align-items: center;
+  justify-items: center;
+  column-gap: 10px;
+  padding: 16px 0;
+  opacity: 0;
+  animation: skel-fade-in 0.35s var(--ds-ease-out) forwards;
+}
+
+.match-skel-row > :first-child { justify-self: end; }
+.match-skel-row > :last-child { justify-self: start; }
+
 @media (prefers-reduced-motion: reduce) {
-  .match-skel { animation: none; opacity: 1; }
+  .match-skel, .match-skel-row { animation: none; opacity: 1; }
 }
 </style>

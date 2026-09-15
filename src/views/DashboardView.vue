@@ -127,6 +127,13 @@ const venueCounts = computed(() => {
   }
 })
 
+// Filtrene finnes bare når lista er lang nok til å trenge dem. To filterrader
+// over to kamper var det tyngste på sida, og de filtrerte ingenting.
+const showFilters = computed(() => timeScopedHalsenMatches.value.length >= 6)
+watch(showFilters, (v) => {
+  if (!v) { teamFilter.value = 'alle'; venueFilter.value = 'alle' }
+})
+
 const upcomingMatches = computed(() => filteredMatches.value.filter(m => m.match_date >= today.value))
 const pastMatches = computed(() =>
   [...filteredMatches.value.filter(m => m.match_date < today.value)].reverse()
@@ -160,13 +167,8 @@ const displayedCount = computed(() =>
   timeFilter.value === 'past' ? pastMatches.value.length : upcomingMatches.value.length
 )
 
-function getCoachName(coachId) {
-  return coaches.value.find(c => c.id === coachId)?.name || ''
-}
-
-function getCoachNamesForMatch(matchId) {
-  const ids = getCoachesForMatch(matchId)
-  return ids.map(id => getCoachName(id)).filter(Boolean).join(', ')
+function getCoachesForMatchList(matchId) {
+  return getCoachesForMatch(matchId).map(id => coaches.value.find(c => c.id === id)).filter(Boolean)
 }
 </script>
 
@@ -199,7 +201,7 @@ function getCoachNamesForMatch(matchId) {
       </button>
     </div>
 
-    <div class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-2">
+    <div v-if="showFilters" class="px-lg mb-md ds-anim-fade-up ds-anim-delay-2">
       <div class="filter-row">
         <div class="ds-pills">
           <button
@@ -218,7 +220,7 @@ function getCoachNamesForMatch(matchId) {
     </div>
 
     <div v-if="loading" class="px-lg">
-      <MatchCardSkeleton :count="4" />
+      <MatchCardSkeleton :count="4" variant="row" />
     </div>
 
     <div v-else-if="filteredMatches.length === 0" class="px-lg ds-anim-fade-up ds-anim-delay-3">
@@ -230,8 +232,8 @@ function getCoachNamesForMatch(matchId) {
       </div>
     </div>
 
-    <div v-else>
-      <div v-if="displayedCount === 0" class="px-lg">
+    <div v-else class="px-lg">
+      <div v-if="displayedCount === 0">
         <div class="ds-empty">
           <img src="/illustrations/bench-boss-feature-icons/512/matches-transparent.webp" alt="" class="ds-empty__illo" />
           <h3 class="ds-empty__title">
@@ -243,56 +245,45 @@ function getCoachNamesForMatch(matchId) {
         </div>
       </div>
 
-      <div v-for="group in displayedGroups" :key="group.date" class="mb-md">
-        <div class="day-header" :class="{ 'day-header--today': isToday(group.date) }">
-          <span v-if="isToday(group.date)" class="day-header__dot" aria-hidden="true"></span>
-          <span class="day-header__label">{{ group.label }}</span>
-        </div>
-        <div class="px-lg ds-stack--sm" :class="{ 'ds-anim-stagger-list': playStagger }">
+      <section v-for="group in displayedGroups" :key="group.date" class="daygroup">
+        <h2 class="day-header" :class="{ 'day-header--today': isToday(group.date) }">{{ group.label }}</h2>
+        <div class="mlist" :class="{ 'ds-anim-stagger-list': playStagger }">
           <MatchCard
             v-for="match in group.matches"
             :key="match.id"
             :match="match"
             :expense="getExpenseForMatch(match.id)"
-            :paid-by-name="getCoachName(getExpenseForMatch(match.id)?.paid_by)"
-            :coach-names="getCoachNamesForMatch(match.id)"
+            :coaches="getCoachesForMatchList(match.id)"
           />
         </div>
-      </div>
+      </section>
     </div>
   </div>
 </template>
 
 <style scoped>
-/* Smart prompt banner — warm accent, full-row tappable */
+/* Én myk gruppe per dag, radene inni uten streker. Dagen er gruppas tittel. */
+.daygroup {
+  background: var(--ds-color-bg-subtle);
+  border-radius: var(--ds-radius-lg);
+  padding: 4px 12px 6px;
+  margin-bottom: 10px;
+}
 
 .day-header {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 6px var(--ds-space-lg) 4px;
-}
-
-.day-header__label {
-  font-size: 0.8125rem;
+  margin: 0;
+  padding: 12px 0 4px;
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-tertiary);
-  letter-spacing: -0.005em;
+  color: var(--ds-color-text-primary);
+  letter-spacing: 0;
+  text-transform: none;
 }
 
-.day-header--today .day-header__label {
-  color: var(--ds-color-warm-text);
-  font-weight: var(--ds-weight-semibold);
-}
+.day-header--today { color: var(--ds-color-warm-text); }
 
-.day-header__dot {
-  width: 6px;
-  height: 6px;
-  border-radius: 50%;
-  background: var(--ds-color-warm);
-  box-shadow: 0 0 0 4px var(--ds-color-warm-bg);
-  flex-shrink: 0;
-}
+.mlist { display: flex; flex-direction: column; }
 
 .filter-row {
   display: flex;
@@ -310,9 +301,7 @@ function getCoachNamesForMatch(matchId) {
 }
 
 @media (max-width: 480px) {
-  .filter-row__divider {
-    display: none;
-  }
+  .filter-row__divider { display: none; }
 }
 
 .time-tabs {
@@ -325,8 +314,8 @@ function getCoachNamesForMatch(matchId) {
 
 .time-tabs__option {
   display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  align-items: baseline;
+  gap: 6px;
   padding: 12px 0;
   border: 0;
   border-bottom: 2px solid transparent;
@@ -341,29 +330,18 @@ function getCoachNamesForMatch(matchId) {
   margin-bottom: -1px;
 }
 
-.time-tabs__option:hover {
-  color: var(--ds-color-text-primary);
-}
+.time-tabs__option:hover { color: var(--ds-color-text-primary); }
 
 .time-tabs__option--active {
   color: var(--ds-color-text-primary);
   border-bottom-color: var(--ds-color-accent);
 }
 
+/* Tallet er tall, ikke en brikke. */
 .time-tabs__count {
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.8125rem;
+  font-weight: 500;
   color: var(--ds-color-text-tertiary);
-  background: var(--ds-color-bg-subtle);
-  padding: 1px 7px;
-  border-radius: var(--ds-radius-full);
   font-variant-numeric: tabular-nums;
-  min-width: 20px;
-  text-align: center;
-}
-
-.time-tabs__option--active .time-tabs__count {
-  background: var(--ds-color-accent-light);
-  color: var(--ds-color-accent);
 }
 </style>
