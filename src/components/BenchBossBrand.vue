@@ -90,8 +90,14 @@ onBeforeUnmount(() => { bounce?.cancel(); settle?.cancel(); clearTimeout(revealH
 }
 
 
-/* Ballen er blekk i alle design — den er en gjenstand, ikke tekst. */
+/* Standard i lys modus: blekk, ikke teal. Teal er overskriftsfargen i det
+   designet, men merket er merket — det skal se likt ut uansett hvilken
+   palett resten av skjermen har. Mørk modus og Whspr følger fortsatt
+   text-primary, som allerede er riktig der. */
+:global(html:not([data-design="whspr"]):not([data-theme="dark"]) .bench-wordmark) { background: #1a1a1a; }
+/* Ballen er en gjenstand, ikke tekst — men den sitter på merket, så den følger samme farge. */
 :global(html .bench-ball) { color: var(--ds-color-text-primary); }
+:global(html:not([data-design="whspr"]):not([data-theme="dark"]) .bench-ball) { color: #1a1a1a; }
 
 .bench-ball {
   position: absolute;
