@@ -5,8 +5,6 @@ import { useAuth } from '../stores/auth'
 import { isSupabaseConfigured } from '../supabase'
 import PinInput from '../components/PinInput.vue'
 import BenchBossBrand from '../components/BenchBossBrand.vue'
-import PalettePreview from '../components/PalettePreview.vue'
-const isLocalPreview = import.meta.env.DEV
 
 const route = useRoute()
 const router = useRouter()
@@ -247,7 +245,6 @@ function onDemo(role) {
 
     </Transition>
     </div>
-    <PalettePreview v-if="isLocalPreview" />
     <!-- Personvernlenka hører hjemme her og ikke bak en meny: Google krever
          den synlig for å publisere innloggingen. -->
     <p class="login-footer">
