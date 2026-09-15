@@ -62,35 +62,7 @@ onBeforeUnmount(() => { bounce?.cancel(); settle?.cancel(); clearTimeout(revealH
         </g>
       </svg>
     </button>
-    <svg ref="logo" class="bench-wordmark" viewBox="0 0 1536 1024" role="img" aria-label="BenchBoss">
-      <defs>
-        <!-- Remove the near-white paper while retaining both brand colors. -->
-        <filter id="bench-paper" color-interpolation-filters="sRGB">
-          <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  -10 -10 -10 0 29" />
-        </filter>
-        <filter id="bench-paper-dark" color-interpolation-filters="sRGB">
-          <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  -10 -10 -10 0 29" />
-          <feColorMatrix type="matrix" values="-.035 0 0 0 .975  -.18 0 0 0 .975  -.14 0 0 0 .975  0 0 0 1 0" />
-        </filter>
-        <filter id="bench-iris" color-interpolation-filters="sRGB">
-          <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  -10 -10 -10 0 29" />
-          <feColorMatrix type="matrix" values=".54 0 0 0 .08  .46 0 0 0 .08  .97 0 0 0 .08  0 0 0 1 0" />
-        </filter>
-        <filter id="bench-iris-dark" color-interpolation-filters="sRGB">
-          <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  -10 -10 -10 0 29" />
-          <feColorMatrix type="matrix" values="-.38 0 0 0 .975  -.48 0 0 0 .975  .025 0 0 0 .975  0 0 0 1 0" />
-        </filter>
-        <filter id="bench-whspr" color-interpolation-filters="sRGB">
-          <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  -10 -10 -10 0 29" />
-          <feColorMatrix type="matrix" values=".89 0 0 0 .08  .79 0 0 0 .08  .97 0 0 0 .08  0 0 0 1 0" />
-        </filter>
-        <filter id="bench-whspr-dark" color-interpolation-filters="sRGB">
-          <feColorMatrix type="matrix" values="1 0 0 0 0  0 1 0 0 0  0 0 1 0 0  -10 -10 -10 0 29" />
-          <feColorMatrix type="matrix" values="-.065 0 0 0 1  -.17 0 0 0 1  .086 0 0 0 .919  0 0 0 1 0" />
-        </filter>
-      </defs>
-      <image class="bench-wordmark__image" href="/brand/bench-boss-sidelinja.png" width="1536" height="1024" />
-    </svg>
+    <div ref="logo" class="bench-wordmark" role="img" aria-label="BenchBoss"></div>
   </div>
 </template>
 
@@ -101,31 +73,31 @@ onBeforeUnmount(() => { bounce?.cancel(); settle?.cancel(); clearTimeout(revealH
 
   animation: brand-arrive 1100ms cubic-bezier(.22, 1, .36, 1) both;
 }
+/* Ordmerket er en alfamaske, ikke et bilde. Fargen kommer fra
+   --ds-color-text-primary, som allerede skifter med tema OG palett — så de
+   seks feColorMatrix-filtrene (tre paletter ganger lys og mørk) er borte, og
+   det samme er den synlige firkanten rundt et PNG med papirbakgrunn. */
 .bench-wordmark {
   display: block;
   width: 100%;
-  height: auto;
+  aspect-ratio: 1123 / 600;
+  background: var(--ds-color-text-primary);
+  -webkit-mask: url('/brand/bench-boss-wordmark.png') center / contain no-repeat;
+  mask: url('/brand/bench-boss-wordmark.png') center / contain no-repeat;
 
   transform-origin: 50% 55%;
   animation: brand-settle 1500ms 180ms both;
 }
 
-.bench-wordmark__image { filter: url(#bench-paper); }
-:global([data-theme="dark"] .bench-wordmark__image) { filter: url(#bench-paper-dark); }
-
-:global([data-palette="iris"] .bench-wordmark__image) { filter: url(#bench-iris); }
-:global([data-palette="iris"][data-theme="dark"] .bench-wordmark__image) { filter: url(#bench-iris-dark); }
 :global(html[data-palette="iris"] .bench-ball) { color: #363054; }
 
-:global(html[data-palette="whspr"] .bench-wordmark__image) { filter: url(#bench-whspr); }
-:global(html[data-palette="whspr"][data-theme="dark"] .bench-wordmark__image) { filter: url(#bench-whspr-dark); }
 :global(html[data-palette="whspr"] .bench-ball) { color: #1a1a1a; }
 
 .bench-ball {
   position: absolute;
   z-index: 1;
-  top: -17px;
-  right: 6px;
+  top: -42px;
+  right: -2px;
   display: grid;
   place-items: center;
   width: 48px;
@@ -143,7 +115,7 @@ onBeforeUnmount(() => { bounce?.cancel(); settle?.cancel(); clearTimeout(revealH
 
 .bench-ball:focus-visible { outline: 2px solid #034F46; outline-offset: 2px; }
 
-.bench-ball-hint { position: absolute; right: 57px; top: -39px; color: var(--ds-color-text-secondary); font: 11px var(--ds-font-body); white-space: nowrap; pointer-events: none; }
+.bench-ball-hint { position: absolute; right: 52px; top: -62px; color: var(--ds-color-text-secondary); font: 11px var(--ds-font-body); white-space: nowrap; pointer-events: none; }
 .bench-ball-hint svg { position: absolute; left: calc(100% + 5px); top: 3px; }
 .ball-hint-enter-active, .ball-hint-leave-active { transition: opacity 300ms ease, transform 300ms ease; }
 .ball-hint-enter-from, .ball-hint-leave-to { opacity: 0; transform: translateY(3px); }
