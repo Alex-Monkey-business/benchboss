@@ -67,7 +67,24 @@ const b = await chromium.launch()
 const c = await b.newContext({ viewport: { width: 390, height: 844 }, isMobile: true, hasTouch: true })
 const p = await c.newPage()
 const sidefeil = []; p.on('pageerror', e => sidefeil.push(e.message))
+
+// Peker appen på PROD, blir hele fila rød på en måte som ser ut som ekte
+// funn: tokenet lages i lokal GoTrue, prod avviser det med 403, og hver
+// eneste flate svarer med innloggingsskjermen. Verst er referat-påstanden,
+// som blir grønn fordi den ikke ser noe som helst. Si fra med én gang.
+p.on('response', r => {
+  const u = r.url()
+  if (/\/\/[a-z0-9]+\.supabase\.co/.test(u) && !fjern) {
+    fjern = true
+    console.error(`\nAppen på ${APP} snakker med PROD, ikke med ${API}.`)
+    console.error('Start dev-serveren med lokale verdier:')
+    console.error(`  VITE_SUPABASE_URL=${API} VITE_SUPABASE_ANON_KEY=<lokal anon> npx vite --port 5189\n`)
+    process.exit(1)
+  }
+})
+let fjern = false
 await p.goto(lenke, { waitUntil: 'networkidle' })
+
 await p.waitForTimeout(2500)
 
 // ---------- 1. Øvelsesbanken arves, med avsender ----------
