@@ -21,6 +21,9 @@ const error = ref('')
 // egen tilstand med adressen synlig og en vei ut — ikke en rød feilmelding
 // om en innlogging som faktisk gikk helt fint.
 const noAccessEmail = ref('')
+// Skjermen vises også når ingen sesjon ble opprettet i det hele tatt, og da
+// finnes ingen adresse å vise. Derfor en egen boolean.
+const noAccess = ref(false)
 
 async function tryAnother() {
   await logout()
@@ -40,6 +43,21 @@ onMounted(async () => {
   const query = new URLSearchParams(window.location.search)
   const code = query.get('error') || hash.get('error')
   const desc = query.get('error_description') || hash.get('error_description')
+  const errCode = query.get('error_code') || hash.get('error_code')
+  const lesbar = desc ? decodeURIComponent(desc.replace(/\+/g, ' ')) : ''
+
+  // Ingen nye brukere er et bevisst valg: den inviterte finnes allerede, laget
+  // av member-admin. Den som treffer veggen er derfor nesten alltid en trener
+  // som valgte jobbkontoen i stedet for adressen hun ble invitert på.
+  //
+  // Må stå FØR access_denied: GoTrue sender avvisningen den veien, og der
+  // sendes man stille tilbake til /login uten et ord om hvorfor. Alternativet
+  // er GoTrues egen tekst, «Signups not allowed for this instance» — engelsk,
+  // og feil diagnose for en som VET at hun er invitert.
+  if (errCode === 'signup_disabled' || /signups? not allowed/i.test(lesbar)) {
+    noAccess.value = true
+    return
+  }
 
   // «access_denied» er ikke en feil. Det er noen som trykket Avbryt hos
   // Google, og de skal tilbake til knappen de kom fra — ikke møte rød tekst
@@ -50,7 +68,7 @@ onMounted(async () => {
   }
 
   if (code || desc) {
-    error.value = decodeURIComponent((desc || code).replace(/\+/g, ' '))
+    error.value = lesbar || decodeURIComponent(code.replace(/\+/g, ' '))
     return
   }
 
@@ -78,6 +96,7 @@ onMounted(async () => {
 
   if (!isLoggedIn.value) {
     noAccessEmail.value = session.user?.email || ''
+    noAccess.value = true
     return
   }
 
@@ -87,9 +106,12 @@ onMounted(async () => {
 
 <template>
   <div class="callback-screen">
-    <template v-if="noAccessEmail">
-      <p class="callback-status">
+    <template v-if="noAccess">
+      <p v-if="noAccessEmail" class="callback-status">
         <strong>{{ noAccessEmail }}</strong> har ingen tilgang til et kull.
+      </p>
+      <p v-else class="callback-status">
+        Kontoen du valgte har ingen tilgang til et kull.
       </p>
       <p class="callback-status">
         Er du invitert på en annen adresse, logg inn med den. Ellers spør den
