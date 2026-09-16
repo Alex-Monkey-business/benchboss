@@ -268,7 +268,8 @@ function getCoachesForMatchList(matchId) {
 
 .day-header {
   margin: 0;
-  padding: 4px 4px 8px;
+  /* Samme innmarg som teksten i kortet under, så dagen og lagene står på linje. */
+  padding: 4px var(--ds-space-md) 8px;
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);

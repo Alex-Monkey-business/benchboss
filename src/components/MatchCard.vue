@@ -4,9 +4,11 @@ import { useFeatures } from '../composables/useFeatures'
 import { isPast } from '../lib/dateLabels'
 import { isOurs, isPlayed, hasResult } from '../lib/matchMeta'
 
-// Kampen som én rad rundt en midtakse: hjemmelag til venstre, tid eller
-// resultat i midten, bortelag til høyre. Hvor vi spiller sier plassen, ikke
-// et ord. Klubbmerkene ble for trange på 360 px — de bor på kampsida. Under raden står bare det som ikke kan leses ut av den: hvem som
+// Kampen som ett kort med ÉN justering: lagene under hverandre på venstre
+// kant, hjemmelaget først, tid eller mål på høyre kant. Bunnlinja følger de
+// samme kantene. Midtakse-varianten (som FotMob) skurret uten merker: ulikt
+// lange navn gjorde aksen skjev, og bunnlinja hang på kantene uansett.
+// Hvem vi er sier vekten, ikke et ord eller en brikke. Under raden står bare det som ikke kan leses ut av den: hvem som
 // har kampen, og om noe mangler.
 
 const { usesReferees } = useFeatures()
@@ -53,17 +55,17 @@ const showFoot = computed(() => !!status.value || !!referee.value || props.coach
 
 <template>
   <router-link :to="`/kamp/${match.id}`" class="mrow">
-    <span class="mrow__side mrow__side--home">
-      <span class="mrow__name">{{ match.home_team }}</span>
+    <span class="mrow__teams">
+      <span class="mrow__team">
+        <span class="mrow__name" :class="{ 'mrow__name--ours': isOurs(match.home_team) }">{{ match.home_team }}</span>
+        <span v-if="hasResult(match)" class="mrow__goals">{{ match.home_score }}</span>
+      </span>
+      <span class="mrow__team">
+        <span class="mrow__name" :class="{ 'mrow__name--ours': isOurs(match.away_team) }">{{ match.away_team }}</span>
+        <span v-if="hasResult(match)" class="mrow__goals">{{ match.away_score }}</span>
+      </span>
     </span>
-    <span class="mrow__mid">
-      <span v-if="hasResult(match)" class="mrow__score">{{ match.home_score }} – {{ match.away_score }}</span>
-      <span v-else-if="time" class="mrow__time">{{ time }}</span>
-      <span v-else class="mrow__time mrow__time--tba">–</span>
-    </span>
-    <span class="mrow__side mrow__side--away">
-      <span class="mrow__name">{{ match.away_team }}</span>
-    </span>
+    <span v-if="!hasResult(match)" class="mrow__time" :class="{ 'mrow__time--tba': !time }">{{ time || '–' }}</span>
 
     <span v-if="showFoot" class="mrow__foot">
       <span class="mrow__left">
@@ -82,11 +84,11 @@ const showFoot = computed(() => !!status.value || !!referee.value || props.coach
 
 <style scoped>
 .mrow {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  column-gap: 14px;
-  padding: 18px 14px;
+  column-gap: var(--ds-space-md);
+  padding: var(--ds-space-md);
   background: var(--ds-color-bg-subtle);
   border-radius: var(--ds-radius-lg);
   text-decoration: none;
@@ -96,58 +98,62 @@ const showFoot = computed(() => !!status.value || !!referee.value || props.coach
 
 .mrow:active { background: var(--ds-color-bg-hover); }
 
-.mrow__side {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+.mrow__teams {
+  flex: 1;
   min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.mrow__side--home { justify-content: flex-end; text-align: right; }
-.mrow__side--away { justify-content: flex-start; text-align: left; }
+.mrow__team {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ds-space-md);
+}
 
 .mrow__name {
   min-width: 0;
   font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
+  font-weight: var(--ds-weight-regular);
   color: var(--ds-color-text-primary);
-  line-height: 1.25;
-  /* Lange navn brytes mellom ordene, ikke inni dem. */
+  line-height: 1.35;
   overflow-wrap: break-word;
 }
 
-.mrow__mid {
-  min-width: 52px;
-  text-align: center;
+/* Vårt lag bærer vekten. */
+.mrow__name--ours { font-weight: var(--ds-weight-semibold); }
+
+.mrow__goals {
+  flex: none;
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-base);
+  font-weight: var(--ds-weight-bold);
   font-variant-numeric: tabular-nums;
-  line-height: 1;
+  color: var(--ds-color-text-primary);
+  line-height: 1.35;
 }
 
 .mrow__time {
+  flex: none;
   font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
+  font-weight: var(--ds-weight-semibold);
+  font-variant-numeric: tabular-nums;
   color: var(--ds-color-text-secondary);
 }
 
 .mrow__time--tba { color: var(--ds-color-text-tertiary); }
 
-.mrow__score {
-  font-family: var(--ds-font-display-sans);
-  font-size: var(--ds-text-md);
-  font-weight: var(--ds-weight-bold);
-  letter-spacing: -0.01em;
-  color: var(--ds-color-text-primary);
-}
-
-/* Bunnlinja: tilstand til venstre, hvem som har kampen til høyre. */
+/* Bunnlinja: dommer og tilstand til venstre, hvem som har kampen til høyre. */
 .mrow__foot {
-  grid-column: 1 / -1;
+  flex-basis: 100%;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 10px;
-  min-height: 20px;
+  margin-top: 12px;
+  min-height: 22px;
 }
 
 .mrow__left {
@@ -164,7 +170,7 @@ const showFoot = computed(() => !!status.value || !!referee.value || props.coach
 }
 
 .mrow__referee { color: var(--ds-color-text-tertiary); }
-.mrow__state--muted { color: var(--ds-color-text-tertiary); }
+.mrow__state--muted { color: var(--ds-color-text-secondary); }
 .mrow__state--warn {
   color: var(--ds-color-warm-text);
   font-weight: var(--ds-weight-semibold);

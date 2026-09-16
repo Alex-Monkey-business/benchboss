@@ -11,9 +11,11 @@ defineProps({
 <template>
   <div v-if="variant === 'row'" class="match-skel-rows" aria-hidden="true">
     <div v-for="i in count" :key="i" class="match-skel-row" :style="{ animationDelay: `${i * 60}ms` }">
-      <Skeleton :width="'64%'" :height="14" />
+      <div class="match-skel-row__teams">
+        <Skeleton :width="'46%'" :height="14" />
+        <Skeleton :width="'62%'" :height="14" />
+      </div>
       <Skeleton :width="40" :height="14" />
-      <Skeleton :width="'64%'" :height="14" />
     </div>
   </div>
   <div v-else class="match-skel-stack" aria-hidden="true">
@@ -81,20 +83,17 @@ defineProps({
 .match-skel-rows { display: flex; flex-direction: column; gap: 10px; }
 
 .match-skel-row {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
-  justify-items: center;
-  column-gap: 14px;
-  padding: 22px 14px;
+  gap: var(--ds-space-md);
+  padding: 22px var(--ds-space-md);
   background: var(--ds-color-bg-subtle);
   border-radius: var(--ds-radius-lg);
   opacity: 0;
   animation: skel-fade-in 0.35s var(--ds-ease-out) forwards;
 }
 
-.match-skel-row > :first-child { justify-self: end; }
-.match-skel-row > :last-child { justify-self: start; }
+.match-skel-row__teams { flex: 1; display: flex; flex-direction: column; gap: 10px; }
 
 @media (prefers-reduced-motion: reduce) {
   .match-skel, .match-skel-row { animation: none; opacity: 1; }
