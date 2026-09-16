@@ -3,11 +3,10 @@ import { computed } from 'vue'
 import { useFeatures } from '../composables/useFeatures'
 import { isPast } from '../lib/dateLabels'
 import { isOurs, isPlayed, hasResult } from '../lib/matchMeta'
-import TeamCrest from './TeamCrest.vue'
 
 // Kampen som én rad rundt en midtakse: hjemmelag til venstre, tid eller
 // resultat i midten, bortelag til høyre. Hvor vi spiller sier plassen, ikke
-// et ord. Under raden står bare det som ikke kan leses ut av den: hvem som
+// et ord. Klubbmerkene ble for trange på 360 px — de bor på kampsida. Under raden står bare det som ikke kan leses ut av den: hvem som
 // har kampen, og om noe mangler.
 
 const { usesReferees } = useFeatures()
@@ -51,7 +50,6 @@ const showFoot = computed(() => !!status.value || props.coaches.length > 0)
   <router-link :to="`/kamp/${match.id}`" class="mrow">
     <span class="mrow__side mrow__side--home">
       <span class="mrow__name">{{ match.home_team }}</span>
-      <TeamCrest :name="match.home_team" :size="26" />
     </span>
     <span class="mrow__mid">
       <span v-if="hasResult(match)" class="mrow__score">{{ match.home_score }} – {{ match.away_score }}</span>
@@ -59,7 +57,6 @@ const showFoot = computed(() => !!status.value || props.coaches.length > 0)
       <span v-else class="mrow__time mrow__time--tba">–</span>
     </span>
     <span class="mrow__side mrow__side--away">
-      <TeamCrest :name="match.away_team" :size="26" />
       <span class="mrow__name">{{ match.away_team }}</span>
     </span>
 
@@ -81,7 +78,7 @@ const showFoot = computed(() => !!status.value || props.coaches.length > 0)
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
-  column-gap: 8px;
+  column-gap: 14px;
   padding: 16px 0;
   text-decoration: none;
   color: inherit;
@@ -102,7 +99,7 @@ const showFoot = computed(() => !!status.value || props.coaches.length > 0)
 
 .mrow__name {
   min-width: 0;
-  font-size: 0.875rem;
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);
   color: var(--ds-color-text-primary);
   line-height: 1.25;

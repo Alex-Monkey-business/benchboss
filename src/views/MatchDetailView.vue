@@ -19,6 +19,7 @@ import Skeleton from '../components/Skeleton.vue'
 import DisclosureSection from '../components/DisclosureSection.vue'
 import MatchPlayingTime from '../components/MatchPlayingTime.vue'
 import TeamCrest from '../components/TeamCrest.vue'
+import { useKlubbmerke } from '../composables/useKlubbmerke'
 import { relativeDateLabel, isPast, trimAbbrevDots } from '../lib/dateLabels'
 import { matchCta } from '../lib/matchCta'
 import { teamSlugFromName, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, isPlayed, teamLabel, isOurs } from '../lib/matchMeta'
@@ -39,6 +40,7 @@ const { seasons, fetchSeasons } = useSeasons()
 const { coach: currentCoach } = useAuth()
 const { usesReferees } = useFeatures()
 const { show: showToast } = useToast()
+const { merkeFor } = useKlubbmerke()
 
 // Try cache first — instant render when arriving from Dashboard.
 // Skeleton only on direct-URL load when matches haven't been fetched yet.
@@ -908,7 +910,7 @@ function focusSummaryGroup() {
     <header class="px-lg hero">
       <div class="hero__grid">
         <div class="hero__side">
-          <TeamCrest :name="match.home_team" :size="48" />
+          <TeamCrest :name="match.home_team" :src="merkeFor(match.home_team)" :size="56" />
           <span class="hero__team">{{ match.home_team }}</span>
         </div>
         <component
@@ -925,7 +927,7 @@ function focusSummaryGroup() {
           <span class="hero__sub">{{ heroDate }}</span>
         </component>
         <div class="hero__side">
-          <TeamCrest :name="match.away_team" :size="48" />
+          <TeamCrest :name="match.away_team" :src="merkeFor(match.away_team)" :size="56" />
           <span class="hero__team">{{ match.away_team }}</span>
         </div>
       </div>

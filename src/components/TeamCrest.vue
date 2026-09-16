@@ -1,14 +1,20 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { isOurs, teamSlugFromName } from '../lib/matchMeta'
 
-// Der FotMob har klubbmerket, har vi dette: initialer i en sirkel. Våre lag
-// fylt i lagets farge, motstanderen dempet. Samme plass i hver rad, så øyet
-// finner midtaksen uten å lese.
+// Klubbmerket, som FotMob. Finnes det et bilde fra fotball.no, vises det
+// rett på flaten uten sirkel rundt. Finnes det ikke, står initialene i en
+// sirkel: våre lag fylt i lagets farge, motstanderen dempet.
 const props = defineProps({
   name: { type: String, required: true },
-  size: { type: Number, default: 28 }
+  size: { type: Number, default: 28 },
+  src: { type: String, default: null }
 })
+
+// Et bilde som ikke lastet skal ikke etterlate et tomt hull.
+const feilet = ref(false)
+watch(() => props.src, () => { feilet.value = false })
+const visBilde = computed(() => !!props.src && !feilet.value)
 
 const ours = computed(() => isOurs(props.name))
 const slug = computed(() => (ours.value ? teamSlugFromName(props.name) : ''))
@@ -21,7 +27,18 @@ const initials = computed(() => {
 </script>
 
 <template>
+  <img
+    v-if="visBilde"
+    class="crest crest--bilde"
+    :src="src"
+    alt=""
+    :style="{ '--crest-size': size + 'px' }"
+    loading="lazy"
+    decoding="async"
+    @error="feilet = true"
+  />
   <span
+    v-else
     class="crest"
     :class="[ours ? `crest--ours crest--${slug || 'other'}` : 'crest--them']"
     :style="{ '--crest-size': size + 'px' }"
@@ -40,6 +57,11 @@ const initials = computed(() => {
   width: var(--crest-size);
   height: var(--crest-size);
   border-radius: 50%;
+}
+
+.crest--bilde {
+  border-radius: 0;
+  object-fit: contain;
 }
 
 .crest--them {

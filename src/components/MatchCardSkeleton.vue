@@ -11,11 +11,9 @@ defineProps({
 <template>
   <div v-if="variant === 'row'" class="match-skel-rows" aria-hidden="true">
     <div v-for="i in count" :key="i" class="match-skel-row" :style="{ animationDelay: `${i * 60}ms` }">
-      <Skeleton :width="'70%'" :height="14" />
-      <Skeleton :width="28" :height="28" radius="50%" />
+      <Skeleton :width="'64%'" :height="14" />
       <Skeleton :width="40" :height="14" />
-      <Skeleton :width="28" :height="28" radius="50%" />
-      <Skeleton :width="'70%'" :height="14" />
+      <Skeleton :width="'64%'" :height="14" />
     </div>
   </div>
   <div v-else class="match-skel-stack" aria-hidden="true">
@@ -90,7 +88,7 @@ defineProps({
 
 .match-skel-row {
   display: grid;
-  grid-template-columns: 1fr auto auto auto 1fr;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
   justify-items: center;
   column-gap: 10px;
