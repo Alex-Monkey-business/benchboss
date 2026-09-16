@@ -79,13 +79,15 @@ const showFoot = computed(() => !!status.value || props.coaches.length > 0)
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   align-items: center;
   column-gap: 14px;
-  padding: 16px 0;
+  padding: 18px 14px;
+  background: var(--ds-color-bg-subtle);
+  border-radius: var(--ds-radius-lg);
   text-decoration: none;
   color: inherit;
   -webkit-tap-highlight-color: transparent;
 }
 
-.mrow:active .mrow__name { color: var(--ds-color-text-secondary); }
+.mrow:active { background: var(--ds-color-bg-hover); }
 
 .mrow__side {
   display: flex;
@@ -137,7 +139,7 @@ const showFoot = computed(() => !!status.value || props.coaches.length > 0)
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  margin-top: 8px;
+  margin-top: 10px;
   min-height: 20px;
 }
 

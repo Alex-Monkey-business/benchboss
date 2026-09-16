@@ -68,7 +68,8 @@ const editTimeInput = ref('')
 const open = ref({
   logistics: false,  // Dommer + Hvem la ut
   team: false,       // Lånespillere + Trenere
-  summary: false,    // Resultat + Scorere + Kampreferat
+  summary: false,    // Resultat + Scorere — bare når det er jobben, eller du redigerer
+  report: false,     // Kampreferat — bare når det finnes, eller du skriver
   playtime: false    // Spilletid — kun når kampen er kjørt i match mode
 })
 
@@ -90,7 +91,12 @@ const isEditingReport = ref(false)
 // En spilt kamp åpnes for å leses. Tallfeltene ligger bak «Rediger» — eller
 // bak trykk på resultatet i toppkortet, som går rett i skrivemodus.
 const editingResult = ref(false)
-const resultReadMode = computed(() => hasResult.value && (isLocked.value || !editingResult.value))
+// Resultatet og scorerne står i toppen. Seksjonen under finnes bare når den
+// er jobben (spilt kamp uten resultat) eller du har valgt Rediger i menyen.
+const played = computed(() => isPlayed(match.value))
+const showResultSection = computed(() =>
+  !isLocked.value && (played.value || hasResult.value) && (!hasResult.value || editingResult.value)
+)
 
 onMounted(async () => {
   await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllMatchPlayers()])
@@ -231,13 +237,13 @@ const sectionOrder = computed(() => {
     // Spilt kamp leses før den endres: spilletid er det match mode faktisk
     // målte, mens Resultat-seksjonen er tallfeltene og referatet. Resultatet
     // og scorerne står uansett i toppkortet.
-    return { playtime: 1, summary: 2, team: 3, logistics: 4 }
+    return { playtime: 1, summary: 2, report: 3, team: 4, logistics: 5 }
   }
   if (isHomeMatch.value) {
-    return { logistics: 1, team: 2, summary: 3, playtime: 4 }
+    return { logistics: 1, team: 2, summary: 3, report: 4, playtime: 5 }
   }
   // Kommende bortekamp — ingen dommer-ansvar, lag øverst
-  return { team: 1, summary: 2, playtime: 3, logistics: 4 }
+  return { team: 1, summary: 2, report: 3, playtime: 4, logistics: 5 }
 })
 
 const formattedDate = computed(() => relativeDateLabel(match.value?.match_date))
@@ -670,20 +676,6 @@ const goalCountByPlayer = computed(() => {
   return out
 })
 
-// Lesemodus sier det toppkortet ikke kan si: om scorerne er ferdig ført.
-// Det er nettopp etterarbeidet en trener åpner kampen for å sjekke.
-const scorerCoverage = computed(() => {
-  const mal = halsenGoalCount.value
-  const ført = matchGoals.value.length
-  if (mal === null || mal === undefined) {
-    return ført ? `${ført} ${ført === 1 ? 'scorer' : 'scorere'} registrert` : 'Ingen scorere registrert'
-  }
-  if (mal === 0) return 'Ingen mål'
-  if (ført === 0) return `Ingen av de ${mal} målene er registrert`
-  if (ført === mal) return mal === 1 ? 'Målet er registrert' : `Alle ${mal} målene er registrert`
-  return `${ført} av ${mal} mål registrert`
-})
-
 // Kamplengda i den lukkede seksjonen. Det er tallet spilletidene summerer mot,
 // så en klokke som stoppet i pausen står som «30 min» og røper seg selv.
 const playingTimeSummary = computed(() => {
@@ -801,12 +793,17 @@ async function saveReport() {
 function startEditingReport() {
   if (isLocked.value) return
   isEditingReport.value = true
+  open.value.report = true
+  setTimeout(() => {
+    document.querySelector('[data-section="report"]')?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  }, 60)
 }
 
 function cancelEditingReport() {
   // Tilbakestill input til lagret versjon, gå til lese-modus
   reportInput.value = match.value.report || ''
   isEditingReport.value = false
+  if (!match.value.report) open.value.report = false
 }
 
 const reportSavedLabel = computed(() => {
@@ -1270,38 +1267,19 @@ function focusSummaryGroup() {
         </div>
       </DisclosureSection>
 
-      <!-- Gruppe 3: Resultat, scorere & kampreferat (bunn) -->
+      <!-- Gruppe 3: Resultat og scorere. Finnes bare når den er jobben. -->
       <DisclosureSection
+        v-if="showResultSection"
         v-model="open.summary"
         data-section="summary"
         :style="{ order: sectionOrder.summary }"
-        label="Resultat"
-        empty-text="Ikke spilt"
-        :has-content="!!(hasResult || match.report)"
+        :label="hasResult ? 'Rediger resultat' : 'Resultat'"
+        empty-text="Mangler"
+        :has-content="false"
       >
-        <template #summary>
-          <span v-if="hasResult" class="sum-chip sum-chip--score">{{ match.home_score }}–{{ match.away_score }}</span>
-          <span v-if="match.report" class="sum-chip sum-chip--more">Referat</span>
-        </template>
-
-        <!-- Lesemodus. En spilt kamp åpnes for å SES, ikke for å endres, så
-             tallfeltene kommer bak «Rediger». Resultatet og scorerne står
-             allerede i toppkortet — her står det som ikke står noe annet sted:
-             om registreringa er komplett. -->
-        <div v-if="resultReadMode" class="sub-section">
-          <div class="result-read">
-            <span class="result-read__state">{{ scorerCoverage }}</span>
-            <button
-              v-if="!isLocked"
-              type="button"
-              class="report-edit-link result-read__edit"
-              @click="editingResult = true"
-            >Rediger</button>
-          </div>
-        </div>
 
         <!-- Resultat: score + scorere som én enhet -->
-        <div v-else class="sub-section">
+        <div class="sub-section">
           <div v-if="hasResult && !isLocked" class="sub-section__label sub-section__label--hoyre">
             <button type="button" class="report-edit-link" @click="editingResult = false">Ferdig</button>
           </div>
@@ -1382,24 +1360,27 @@ function focusSummaryGroup() {
           </div>
         </div>
 
-        <!-- Kampreferat -->
-        <div class="sub-section">
-          <div class="sub-section__label">
-            Kampreferat
-            <button
-              v-if="!isEditingReport && !isLocked"
-              type="button"
-              class="report-edit-link"
-              @click="startEditingReport"
-            >
-              {{ match.report ? 'Rediger' : 'Skriv referat' }}
-            </button>
-          </div>
+      </DisclosureSection>
 
+      <!-- Gruppe 3b: Kampreferat. Få skriver det, så rada finnes bare når det
+           er noe å lese, eller du har valgt Skriv referat i menyen. -->
+      <DisclosureSection
+        v-if="match.report || isEditingReport"
+        v-model="open.report"
+        data-section="report"
+        :style="{ order: sectionOrder.report }"
+        label="Kampreferat"
+        :has-content="false"
+        empty-text=""
+      >
+        <div class="sub-section">
           <!-- LESE-MODUS: vis lagret referat som tekst -->
-          <div v-if="!isEditingReport && match.report" class="report-read">
-            {{ match.report }}
-          </div>
+          <template v-if="!isEditingReport && match.report">
+            <div class="report-read">{{ match.report }}</div>
+            <div v-if="!isLocked" class="sub-section__label sub-section__label--hoyre" style="margin-top: 10px;">
+              <button type="button" class="report-edit-link" @click="startEditingReport">Rediger</button>
+            </div>
+          </template>
 
           <!-- EDIT-MODUS: textarea + Lagre/Avbryt -->
           <template v-else-if="isEditingReport && !isLocked">
@@ -1461,6 +1442,28 @@ function focusSummaryGroup() {
     <!-- Match-meny (⋯-ikon på match-card) — endre tidspunkt + slett -->
     <Sheet :show="showMatchMenu" title="Mer" @close="showMatchMenu = false">
       <div class="match-menu">
+        <button
+          v-if="played || hasResult"
+          type="button"
+          class="match-menu__item"
+          @click="showMatchMenu = false; focusSummaryGroup()"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="12" cy="12" r="9"/><path d="M12 7l4.5 3.3-1.7 5.3H9.2L7.5 10.3z"/>
+          </svg>
+          {{ hasResult ? 'Rediger resultat og scorere' : 'Legg inn resultat' }}
+        </button>
+        <button
+          v-if="played || hasResult"
+          type="button"
+          class="match-menu__item"
+          @click="showMatchMenu = false; startEditingReport()"
+        >
+          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
+          </svg>
+          {{ match.report ? 'Rediger referat' : 'Skriv referat' }}
+        </button>
         <button
           type="button"
           class="match-menu__item"
@@ -2289,21 +2292,8 @@ function focusSummaryGroup() {
 
 
 
-.result-read {
-  display: flex;
-  align-items: baseline;
-  gap: 14px;
-  padding-top: 6px;
-}
 
-.result-read__state {
-  flex: 1;
-  min-width: 0;
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-secondary);
-}
 
-.result-read__edit { flex: none; }
 .sub-section__label--hoyre { justify-content: flex-end; }
 
 .result-clear-btn {

@@ -78,21 +78,17 @@ defineProps({
   gap: var(--ds-space-md);
 }
 
-.match-skel-rows {
-  display: flex;
-  flex-direction: column;
-  background: var(--ds-color-bg-subtle);
-  border-radius: var(--ds-radius-lg);
-  padding: 8px var(--ds-space-md);
-}
+.match-skel-rows { display: flex; flex-direction: column; gap: 10px; }
 
 .match-skel-row {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
   justify-items: center;
-  column-gap: 10px;
-  padding: 16px 0;
+  column-gap: 14px;
+  padding: 22px 14px;
+  background: var(--ds-color-bg-subtle);
+  border-radius: var(--ds-radius-lg);
   opacity: 0;
   animation: skel-fade-in 0.35s var(--ds-ease-out) forwards;
 }

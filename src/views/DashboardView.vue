@@ -262,28 +262,24 @@ function getCoachesForMatchList(matchId) {
 </template>
 
 <style scoped>
-/* Én myk gruppe per dag, radene inni uten streker. Dagen er gruppas tittel. */
-.daygroup {
-  background: var(--ds-color-bg-subtle);
-  border-radius: var(--ds-radius-lg);
-  padding: 4px 12px 6px;
-  margin-bottom: 10px;
-}
+/* Hver kamp lever for seg selv i sin egen myke gruppe. Dagen er en liten
+   tittel over, ikke en boks rundt. */
+.daygroup { margin-bottom: var(--ds-space-md); }
 
 .day-header {
   margin: 0;
-  padding: 12px 0 4px;
+  padding: 4px 4px 8px;
   font-family: var(--ds-font-body);
-  font-size: var(--ds-text-sm);
+  font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-primary);
+  color: var(--ds-color-text-tertiary);
   letter-spacing: 0;
   text-transform: none;
 }
 
 .day-header--today { color: var(--ds-color-warm-text); }
 
-.mlist { display: flex; flex-direction: column; }
+.mlist { display: flex; flex-direction: column; gap: 10px; }
 
 .filter-row {
   display: flex;
