@@ -241,6 +241,14 @@ const routes = [
 
 export const router = createRouter({
   history: createWebHistory(),
+  // Uten denne beholder nettleseren scrollposisjonen fra forrige side når
+  // ruta byttes: åpner du en kamp fra langt nede i lista, åpner kampsida
+  // like langt nede. Tilbake-knappen skal derimot lande der du var.
+  scrollBehavior(to, from, savedPosition) {
+    if (savedPosition) return savedPosition
+    if (to.hash) return { el: to.hash }
+    return { top: 0 }
+  },
   routes
 })
 

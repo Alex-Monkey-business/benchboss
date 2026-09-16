@@ -43,7 +43,12 @@ const time = computed(() => {
   return t && t !== '00:00' ? t : ''
 })
 
-const showFoot = computed(() => !!status.value || props.coaches.length > 0)
+// Dommeren står i rada når han er satt. Er han ikke det, sier tilstanden det.
+const referee = computed(() =>
+  usesReferees.value && isHome.value && props.match.referee ? props.match.referee : ''
+)
+
+const showFoot = computed(() => !!status.value || !!referee.value || props.coaches.length > 0)
 </script>
 
 <template>
@@ -61,8 +66,10 @@ const showFoot = computed(() => !!status.value || props.coaches.length > 0)
     </span>
 
     <span v-if="showFoot" class="mrow__foot">
-      <span v-if="status" class="mrow__state" :class="`mrow__state--${status.tone}`">{{ status.label }}</span>
-      <span v-else></span>
+      <span class="mrow__left">
+        <span v-if="referee" class="mrow__referee">Dommer: {{ referee }}</span>
+        <span v-if="status" class="mrow__state" :class="`mrow__state--${status.tone}`">{{ status.label }}</span>
+      </span>
       <span v-if="coaches.length" class="mrow__faces">
         <span v-for="c in coaches" :key="c.id" class="mrow__face" :title="c.name">
           <img v-if="c.image" :src="c.image" alt="" />
@@ -143,10 +150,20 @@ const showFoot = computed(() => !!status.value || props.coaches.length > 0)
   min-height: 20px;
 }
 
+.mrow__left {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 10px;
+  min-width: 0;
+}
+
+.mrow__referee,
 .mrow__state {
   font-size: var(--ds-text-xs);
   line-height: 1.3;
 }
+
+.mrow__referee { color: var(--ds-color-text-tertiary); }
 .mrow__state--muted { color: var(--ds-color-text-tertiary); }
 .mrow__state--warn {
   color: var(--ds-color-warm-text);
