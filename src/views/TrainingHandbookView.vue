@@ -214,7 +214,9 @@ function open(slug) {
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
   font-variation-settings: var(--ds-font-display-settings);
-  border-radius: var(--ds-radius-md) 0 0 var(--ds-radius-md);
+  /* Flush innenfor kortets 1 px ramme: kortets hjørne minus rammen, så
+     de to buene er konsentriske. */
+  border-radius: calc(var(--ds-radius-lg) - 1px) 0 0 calc(var(--ds-radius-lg) - 1px);
   margin: calc(var(--ds-space-md) * -1) 0;
 }
 

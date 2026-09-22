@@ -67,7 +67,7 @@ function toggle() {
 .disclosure {
   background: var(--ds-color-bg-elevated);
   border: 1px solid var(--ds-color-border-light);
-  border-radius: 14px;
+  border-radius: var(--ds-radius-lg);
   overflow: hidden;
   transition: border-color 0.15s ease, box-shadow 0.15s ease;
 }
