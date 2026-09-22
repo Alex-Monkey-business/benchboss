@@ -288,7 +288,7 @@ async function handleExport() {
   display: inline-flex;
   padding: 3px;
   background: var(--ds-color-bg-subtle);
-  border-radius: var(--ds-radius-md);
+  border-radius: var(--ds-radius-full);
   gap: 2px;
 }
 
@@ -297,7 +297,7 @@ async function handleExport() {
   border: 0;
   background: transparent;
   padding: 8px 16px;
-  border-radius: var(--ds-radius-sm);
+  border-radius: var(--ds-radius-full);
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);

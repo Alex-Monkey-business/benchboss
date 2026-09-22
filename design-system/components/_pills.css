@@ -2,13 +2,19 @@
    FILTER PILLS / SEGMENTED CONTROL
    Notion-style: subtle container, no shadow on active,
    bg-shift only.
+
+   Hjørneregelen (23. sep 2026): flater har ett hjørne (lg), kontroller
+   inne i en flate får ytre minus innmarg, og alt som er en pille av
+   natur — chips, merkelapper, brytere, avatarer — er helt rund. Før var
+   «pillene» her rektangler, og da kolliderte de med ekte piller andre
+   steder i appen.
    ============================================ */
 
 .ds-pills {
   display: flex;
   align-items: center;
   background: var(--ds-color-bg-subtle);
-  border-radius: var(--ds-radius-md);
+  border-radius: var(--ds-radius-full);
   padding: 3px;
   gap: 2px;
   width: fit-content;
@@ -28,7 +34,7 @@
   gap: var(--ds-space-xs);
   padding: 6px 12px;
   border: 0;
-  border-radius: var(--ds-radius-sm);
+  border-radius: var(--ds-radius-full);
   background: transparent;
   color: var(--ds-color-text-secondary);
   font-family: var(--ds-font-body);

@@ -231,14 +231,14 @@ function pickCategory(value) {
   gap: 4px;
   padding: 3px;
   background: var(--ds-color-bg-subtle);
-  border-radius: var(--ds-radius-md);
+  border-radius: var(--ds-radius-full);
 }
 
 .type-toggle__opt {
   border: none;
   background: transparent;
   padding: 6px 14px;
-  border-radius: var(--ds-radius-sm);
+  border-radius: var(--ds-radius-full);
   font-size: var(--ds-text-xs);
   font-weight: 600;
   color: var(--ds-color-text-tertiary);

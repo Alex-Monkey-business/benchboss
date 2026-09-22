@@ -410,17 +410,30 @@ const links = computed(() => [
   display: inline-flex;
   padding: 3px;
   background: var(--ds-color-bg-subtle);
-  border-radius: var(--ds-radius-md);
+  border-radius: var(--ds-radius-full);
   gap: 2px;
 }
 
+/* Brekker gruppa over flere rader, er den løse chips, ikke ett omslag:
+   et pilleformet omslag rundt to rader blir en klump. Hver chip bærer da
+   sin egen flate, og den valgte får ring i stedet for skygge. */
 .theme-toggle--wrap {
   display: flex;
   flex-wrap: wrap;
+  gap: 8px;
+  padding: 0;
+  background: transparent;
+  border-radius: 0;
 }
 
 .theme-toggle--wrap .theme-toggle__option {
-  flex: 1 1 auto;
+  flex: 0 1 auto;
+  background: var(--ds-color-bg-subtle);
+}
+
+.theme-toggle--wrap .theme-toggle__option--active {
+  background: var(--ds-color-bg-elevated);
+  box-shadow: inset 0 0 0 1px var(--ds-color-border-strong);
 }
 
 .theme-toggle__option {
@@ -428,7 +441,7 @@ const links = computed(() => [
   border: 0;
   background: transparent;
   padding: 8px 16px;
-  border-radius: var(--ds-radius-sm);
+  border-radius: var(--ds-radius-full);
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);

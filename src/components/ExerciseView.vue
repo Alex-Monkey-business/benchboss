@@ -230,7 +230,7 @@ const harInnhold = computed(() =>
   font-size: 0.6875rem;
   font-weight: 600;
   padding: 2px 7px;
-  border-radius: var(--ds-radius-sm);
+  border-radius: var(--ds-radius-full);
   letter-spacing: 0.02em;
   text-transform: uppercase;
 }

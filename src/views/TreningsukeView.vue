@@ -1298,7 +1298,7 @@ Torsdag
   flex-shrink: 0;
   align-self: center;
   padding: 2px 7px;
-  border-radius: var(--ds-radius-sm);
+  border-radius: var(--ds-radius-full);
   font-size: 0.65rem;
   font-weight: 600;
   letter-spacing: 0.04em;
@@ -1743,7 +1743,7 @@ Torsdag
   flex: 1;
   min-width: 40px;
   padding: 9px 4px;
-  border-radius: var(--ds-radius-md);
+  border-radius: var(--ds-radius-full);
   border: 1px solid var(--ds-color-border);
   background: var(--ds-color-bg-elevated);
   color: var(--ds-color-text-secondary);

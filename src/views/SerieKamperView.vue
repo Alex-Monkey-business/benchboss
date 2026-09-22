@@ -241,7 +241,7 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
   font-size: 0.6875rem;
   font-weight: 600;
   padding: 1px 6px;
-  border-radius: var(--ds-radius-sm);
+  border-radius: var(--ds-radius-full);
   letter-spacing: 0.02em;
   margin-right: 4px;
 }
@@ -257,7 +257,7 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
   font-size: 0.6875rem;
   font-weight: 500;
   padding: 1px 6px;
-  border-radius: var(--ds-radius-sm);
+  border-radius: var(--ds-radius-full);
   letter-spacing: 0.02em;
   background: var(--ds-color-bg-subtle);
   color: var(--ds-color-text-tertiary);

@@ -490,7 +490,7 @@ onMounted(async () => {
   left: 8px;
   top: 8px;
   padding: 2px 7px;
-  border-radius: var(--ds-radius-sm);
+  border-radius: var(--ds-radius-full);
   font-size: 0.6875rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -507,7 +507,7 @@ onMounted(async () => {
   right: 8px;
   bottom: 8px;
   padding: 2px 6px;
-  border-radius: var(--ds-radius-sm);
+  border-radius: var(--ds-radius-full);
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-medium);
   font-variant-numeric: tabular-nums;
