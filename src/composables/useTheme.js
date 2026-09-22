@@ -1,4 +1,5 @@
 import { ref, watch } from 'vue'
+import { syncChromeColor } from '../lib/chromeColor'
 
 // Theme: 'light' | 'dark' | 'system'
 // Stored in localStorage. 'system' resolves to current OS preference.
@@ -16,9 +17,7 @@ const systemDark = ref(false)
 function applyTheme() {
   const resolved = theme.value === 'system' ? (systemDark.value ? 'dark' : 'light') : theme.value
   document.documentElement.setAttribute('data-theme', resolved)
-  // Sync browser chrome color
-  const meta = document.querySelector('meta[name="theme-color"]')
-  if (meta) meta.setAttribute('content', resolved === 'dark' ? '#1A1A1A' : '#FFFFEB')
+  syncChromeColor()
 }
 
 // Initialize once on module load

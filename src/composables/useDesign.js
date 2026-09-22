@@ -1,4 +1,5 @@
 import { ref, watch } from 'vue'
+import { syncChromeColor } from '../lib/chromeColor'
 
 // Design: 'standard' | 'whspr'
 //
@@ -23,6 +24,7 @@ const design = ref(readStored())
 
 function applyDesign() {
   document.documentElement.setAttribute('data-design', design.value)
+  syncChromeColor()
 }
 
 if (typeof window !== 'undefined') applyDesign()
