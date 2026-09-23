@@ -35,14 +35,19 @@
   max-width: 100%;
 }
 
+/* Bekreftelsen er grunnflaten, ikke grønn. Standardgrønnen (#16A34A) sto
+   utenfor paletten og ble lys og pastell midt i innfadingen. Haken sier
+   «lagret»; fargen trenger ikke si det én gang til. */
 .ds-toast--success {
-  background: var(--ds-color-success);
-  color: #ffffff;
+  background: var(--ds-color-text-primary);
+  color: var(--ds-color-text-inverse);
 }
 
+/* Feil får paletts rosa, samme tone som «Dommer mangler». */
 .ds-toast--error {
-  background: var(--ds-color-error);
-  color: #ffffff;
+  background: var(--ds-color-warm);
+  /* Rosa er mørk i lyst tema og lys i mørkt, så teksten følger bakgrunnen. */
+  color: var(--ds-color-bg);
 }
 
 .ds-toast--warning {

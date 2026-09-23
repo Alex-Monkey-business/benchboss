@@ -227,9 +227,10 @@ export function useFiks() {
       .filter(Boolean)
   }
 
-  // Den som setter opp kullet er foreløpig eneste trener — da trener han alle
-  // lagene. Uten denne koblingen får de importerte kampene ingen trener, og
-  // Hjem har ingenting å vise: «din kamp» finnes ikke før et lag har en trener.
+  // Den som setter opp kullet kobles til lagene de valgte i veiviseren, ikke
+  // til alle: alle lagene hentes, men hver trener er lagleder for sine. Uten
+  // koblingen får kampene ingen trener, og Hjem har ingenting å vise: «din
+  // kamp» finnes ikke før et lag har en trener.
   //
   // Kommer det flere trenere senere, endres dette i Admin → Tilgang. Dette er
   // en startverdi, ikke en låst sannhet.

@@ -165,8 +165,10 @@ const lagForKjonn = computed(() =>
 )
 
 // Et kull har som regel ALLE lagene sine i samme klasse — Halsen G2015 er
-// Grønn, Hvit og Rød, ikke ett av dem. Så lagene er huket av på forhånd, og
-// steg 3 er en bekreftelse, ikke en oppgave. Å ta bort er sjeldenheten.
+// Grønn, Hvit og Rød, ikke ett av dem. Alle hentes, med kampene sine. Det
+// treneren velger er hvilke av dem de selv er ansvarlig for og lagleder på: det
+// blir team_coaches, som styrer «mitt lag» og hvem som står på kampene.
+// Ett lag i klassen er valgt fra start; med flere velger treneren selv.
 //
 // Kjønnet er unntaket som gjør at vi ikke bare kan ta alle: 8-åringene i Stag
 // er både G8 og J8, og bare det ene settet hører til dette kullet.
@@ -176,7 +178,8 @@ const lagForKjonn = computed(() =>
 const kjonn = ref(genderFromCohortName(activeCohort.value?.name) || 'G')
 
 function forhandsvalg() {
-  valgte.value = new Set(lagForKjonn.value.map(t => t.fiksId))
+  const lag = lagForKjonn.value
+  valgte.value = new Set(lag.length === 1 ? [lag[0].fiksId] : [])
 }
 
 async function bekreftArgang() {
@@ -217,6 +220,18 @@ function toggle(t) {
 
 const valgteLag = computed(() => lagVises.value.filter(t => valgte.value.has(t.fiksId)))
 
+// Lagene som hentes. I årskullet er det alle; i hele klubben vet vi ikke
+// hvilke som hører til kullet, så der er det de valgte.
+const lagSomHentes = computed(() => (viserAlle.value ? valgteLag.value : lagForKjonn.value))
+
+const hentesTekst = computed(() => {
+  const n = lagForKjonn.value.length
+  return n === 1 ? 'Laget' : n === 2 ? 'Begge lagene' : `Alle ${n} lagene`
+})
+
+// «G11» — slik klassen står i FIKS, og slik treneren kjenner den.
+const klasseNavn = computed(() => `${kjonn.value}${alder.value}`)
+
 const kortNavn = t => shortTeamName(t.name, activeCohort.value?.club_name?.split(' ')[0] || '')
 
 // ------------------------------------------------------------ Henting
@@ -231,7 +246,9 @@ async function hent() {
   feil.value = ''
   steg.value = 'henter'
   try {
-    const opprettede = await createTeams(valgteLag.value)
+    const opprettede = await createTeams(lagSomHentes.value)
+    const valgteIder = new Set(valgteLag.value.map(t => Number(t.fiksId)))
+    const mine = opprettede.filter(t => valgteIder.has(Number(t.fiks_team_id)))
 
     let sesong = activeSeason.value
     if (!sesong) {
@@ -242,13 +259,13 @@ async function hent() {
     // Koblingen må skje FØR kampene importeres: bulkAddMatches setter
     // standard-trenere ut fra hvem som har laget, og leser den koblingen der
     // og da. Etterpå ville de 52 kampene stått uten trener.
-    if (sesong) await linkSelfToTeams(opprettede, sesong.id)
+    if (sesong) await linkSelfToTeams(mine, sesong.id)
 
     // Terminlista dekker hele året. Kamper som alt er spilt hører til forrige
     // sesong, ikke denne — og et tomt kull skal ikke fylles med historikk.
     const fra = `${NAA}-01-01`
     const r = sesong ? await importMatches(sesong.id, { from: fra, teams: opprettede }) : { lagt: 0 }
-    resultat.value = { lag: valgteLag.value.length, kamper: r.lagt, spillform: r.spillform }
+    resultat.value = { lag: lagSomHentes.value.length, kamper: r.lagt, spillform: r.spillform }
     await refreshSerieStatus()
     steg.value = 'ferdig'
   } catch (e) {
@@ -437,10 +454,10 @@ function hoppOver() {
       <!-- --------------------------------------------------- Lag -->
       <template v-else-if="steg === 'lag'">
         <p class="kig__steg">Steg {{ stegNr(3) }} av {{ stegTotalt }}</p>
-        <h1 class="kig__tittel">{{ valgteLag.length }} lag</h1>
+        <h1 class="kig__tittel">{{ viserAlle ? 'Hvilke lag hører til kullet?' : 'Hvilke lag er du ansvarlig for?' }}</h1>
         <p class="kig__lead">
-          <template v-if="lagVises.length && !viserAlle">Ta bort dem du ikke trener. Kampene til resten kommer med.</template>
-          <template v-else-if="viserAlle">Alle lagene i klubben. Hak av dine.</template>
+          <template v-if="lagVises.length && !viserAlle">{{ hentesTekst }} i {{ klasseNavn }} hentes med kampene sine. Velg dem du er lagleder for.</template>
+          <template v-else-if="viserAlle">Alle lagene i klubben. Velg kullets lag. Du blir lagleder for dem.</template>
           <template v-else>{{ klubb?.name }} har ingen lag registrert på {{ alder }}-åringer i FIKS.</template>
         </p>
 
@@ -456,23 +473,25 @@ function hoppOver() {
               <span class="kig__hake" aria-hidden="true">
                 <svg v-if="valgte.has(t.fiksId)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
               </span>
+              <!-- Navnet i appen er det store; fotball.no-navnet bekrefter at det
+                   er riktig lag. -->
               <span class="kig__lagtekst">
-                <span class="kig__lagnavn">{{ t.name }}</span>
-                <span class="kig__lagmeta">Heter «{{ kortNavn(t) }}» i appen</span>
+                <span class="kig__lagnavn">{{ kortNavn(t) }}</span>
+                <span class="kig__lagmeta">{{ t.name }}</span>
               </span>
             </button>
           </li>
         </ul>
 
         <button v-if="!viserAlle && klubb?.teams?.length" type="button" class="kig__lenke" @click="viserAlle = true">
-          Vis alle {{ klubb.teams.length }} lagene i klubben
+          Finner du ikke laget ditt? Vis alle {{ klubb.teams.length }}
         </button>
 
         <p v-if="feil" class="kig__status kig__status--feil">{{ feil }}</p>
 
         <div class="kig__handling">
           <button type="button" class="ds-btn ds-btn--primary kig__hovedknapp" :disabled="!valgteLag.length || henter" @click="hent">
-            Hent lag og kamper
+            {{ valgteLag.length ? 'Hent lagene og kampene' : 'Velg laget ditt' }}
           </button>
         </div>
       </template>
