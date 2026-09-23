@@ -50,38 +50,35 @@ const RESULT_LABEL = { w: 'V', d: 'U', l: 'T' }
   padding: 0;
 }
 
+/* Seier fylt i petrol, tap tonalt i rosa, uavgjort nøytralt. Appens egen
+   palett, ikke standard grønn/rød: forma skal leses, ikke rope. */
 .form-curve__chip {
-  width: 18px;
-  height: 18px;
-  border-radius: 4px;
+  width: 20px;
+  height: 20px;
+  border-radius: var(--ds-radius-full);
   display: inline-flex;
   align-items: center;
   justify-content: center;
   font-size: 10px;
   font-weight: var(--ds-weight-bold);
   letter-spacing: 0;
-  color: #ffffff;
   font-variant-numeric: tabular-nums;
   font-family: var(--ds-font-display-sans);
 }
 
 .form-curve__chip--w {
-  background: var(--ds-color-success);
-  color: #ffffff;
+  background: var(--ds-color-accent);
+  color: var(--ds-color-text-inverse);
 }
 
 .form-curve__chip--d {
-  background: #BFBEB8;
-  color: #0A0A0A;
-}
-
-:global([data-theme="dark"] .form-curve__chip--d) {
-  background: #4A4A45;
-  color: #F5F5F2;
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-secondary);
+  box-shadow: inset 0 0 0 1px var(--ds-color-border);
 }
 
 .form-curve__chip--l {
-  background: var(--ds-color-error);
-  color: #ffffff;
+  background: var(--ds-color-warm-bg);
+  color: var(--ds-color-warm-text);
 }
 </style>

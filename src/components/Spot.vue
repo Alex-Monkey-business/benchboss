@@ -9,7 +9,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 // er motivets egen handling, spilt én gang:
 //  - stats: søylene bygger seg opp når motivet blir synlig (play="auto")
 //  - import: pila går ned i kalenderen når forelderen sier at en fil er lest (play=true)
-//  - match-red/-green/-white: avspark fra midtsirkelen på neste kamp (play="auto")
+//  - match-red/-green/-white: ballen ruller inn til drakta på neste kamp (play="auto")
 //  - passing: ballen spilles gjennom portene på pasningsøkta (play="auto")
 // Alt annet står stille. Redusert bevegelse viser ferdig motiv uten animasjon,
 // og en skjult fane stopper bevegelsen.
@@ -30,9 +30,9 @@ const MOTION = {
   stats: 'bars',
   import: 'import',
   passing: 'pass',
-  'match-red': 'kickoff',
-  'match-green': 'kickoff',
-  'match-white': 'kickoff'
+  'match-red': 'roll',
+  'match-green': 'roll',
+  'match-white': 'roll'
 }
 const LAG = { stats: ['stats-lavender', 'stats-rose', 'stats-teal'] }
 const UNDERLAG = { import: 'import-blank' }
@@ -103,15 +103,6 @@ onBeforeUnmount(() => {
       </picture>
     </span>
     <template v-else>
-      <svg v-if="motion === 'kickoff'" class="spot__pitch" viewBox="0 0 100 30" preserveAspectRatio="none">
-        <rect x="1" y="1" width="98" height="28" rx="8" fill="#D8EBED" />
-        <g fill="none" stroke="#6E9189" stroke-width="1.1">
-          <rect x="6" y="5" width="88" height="20" rx="3" />
-          <path d="M50 5V25" />
-          <ellipse cx="50" cy="15" rx="9" ry="6" />
-        </g>
-        <circle cx="50" cy="15" r="1.4" fill="#034F46" />
-      </svg>
       <picture class="spot__base">
         <source type="image/avif" :srcset="srcset(base, 'avif')" :sizes="sizes" />
         <img :srcset="srcset(base, 'webp')" :sizes="sizes" :src="`${BASE}${base}-192.webp`" alt="" decoding="async" />
@@ -165,33 +156,6 @@ onBeforeUnmount(() => {
   z-index: 1;
 }
 
-/* Lagdrakt: drakten står, banen under, ballen ligger på midtpunktet. */
-.spot[data-motion="kickoff"] > picture.spot__base {
-  position: absolute;
-  width: 86%;
-  height: 86%;
-  left: 1%;
-  top: -3%;
-  z-index: 1;
-}
-.spot__pitch {
-  position: absolute;
-  display: block;
-  width: 100%;
-  height: 26%;
-  left: 0;
-  bottom: 4%;
-  z-index: 0;
-}
-.spot[data-motion="kickoff"] > picture.spot__ball {
-  width: 26%;
-  height: 26%;
-  left: 63%;
-  right: auto;
-  bottom: 4%;
-  z-index: 2;
-}
-
 /* Statistikk: tre søyler, hver sitt lag, så de kan vokse hver for seg. */
 .spot__bars {
   position: absolute;
@@ -232,8 +196,8 @@ onBeforeUnmount(() => {
   .spot--playing[data-motion="pass"] > picture.spot__ball {
     animation: spot-pass 1100ms cubic-bezier(0.2, 0.55, 0.35, 1) both;
   }
-  .spot--playing[data-motion="kickoff"] > picture.spot__ball {
-    animation: spot-kickoff 950ms cubic-bezier(0.18, 0.6, 0.3, 1) both;
+  .spot--playing[data-motion="roll"] > picture.spot__ball {
+    animation: spot-roll 900ms cubic-bezier(0.2, 0.7, 0.3, 1) both;
   }
   .spot--playing[data-motion="import"] .spot__symbol {
     animation: spot-import 650ms cubic-bezier(0.2, 0.75, 0.3, 1) both;
@@ -250,9 +214,12 @@ onBeforeUnmount(() => {
   to { transform: none; }
 }
 
-@keyframes spot-kickoff {
-  0%, 15% { transform: translateX(-100%) rotate(-115deg); }
-  to { transform: none; }
+/* Ballen ruller inn fra venstre og legger seg ved drakta. Opasiteten gjør
+   at den ikke dukker opp midt i teksten ved siden av. */
+@keyframes spot-roll {
+  from { transform: translateX(-120%) rotate(-240deg); opacity: 0; }
+  30% { opacity: 1; }
+  to { transform: none; opacity: 1; }
 }
 
 @keyframes spot-import {

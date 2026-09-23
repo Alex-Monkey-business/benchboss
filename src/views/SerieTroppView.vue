@@ -126,7 +126,7 @@ async function handleAdd() {
           <p v-if="missingPositions" class="star-legend">{{ missingPositions }} uten posisjon</p>
         </div>
 
-        <section v-for="t in seasonTeams" :key="t.slug" class="teamcard" :data-accent="t.accent">
+        <section v-for="t in seasonTeams" :key="t.slug" class="teamcard" :data-accent="t.accent" :data-team="t.slug">
           <header class="teamcard__head">
             <span class="teamcard__dot"></span>
             <span class="teamcard__name">{{ t.name }}</span>
@@ -168,6 +168,7 @@ async function handleAdd() {
                   type="button"
                   class="chip__dot"
                   :data-accent="t.accent"
+                  :data-team="t.slug"
                   :aria-label="`Sett ${p.name} på ${t.name}`"
                   :title="t.name"
                   @click="assign(p.id, t.slug)"
@@ -219,6 +220,12 @@ async function handleAdd() {
   color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm);
   margin: 0 0 var(--ds-space-md);
 }
+
+/* Lagene er identitet, ikke dekor. data-accent går via dekorpaletten i
+   app.css, der «sage» og «warm» peker til plomme og stein siden 30. aug, så
+   Grønn ble rosa og Rød grå her. Har laget en egen lagfarge, vinner den. */
+[data-team="gronn"] { --accent-bg: var(--ds-team-gronn-bg); --accent-text: var(--ds-team-gronn); }
+[data-team="rod"]   { --accent-bg: var(--ds-team-rod-bg);   --accent-text: var(--ds-team-rod); }
 
 /* Tonal accent-palett (delt med treningsplan/login) */
 /* Hvit = nøytral papir-chip med stroke (token-basert → følger dark mode) */

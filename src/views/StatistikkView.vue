@@ -573,6 +573,12 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 .leaderboard__link { color: inherit; text-decoration: none; }
 .leaderboard__link:hover { text-decoration: underline; }
 
+/* Hele raden er trykkflata, ikke bare navnet (21 px høyt). Raden svarer
+   med en rolig flate når den trykkes. */
+.leaderboard__row:has(.leaderboard__link) { position: relative; transition: background-color 150ms ease; }
+.leaderboard__link::after { content: ''; position: absolute; inset: 0; }
+.leaderboard__row:has(.leaderboard__link:active) { background: var(--ds-color-bg-subtle); }
+
 .playtime-row__name {
   font-size: 0.875rem;
   font-weight: 500;
@@ -786,11 +792,11 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .stat-card-large__metric--win .stat-card-large__value {
-  color: var(--ds-color-success);
+  color: var(--ds-color-accent);
 }
 
 .stat-card-large__metric--loss .stat-card-large__value {
-  color: var(--ds-color-error);
+  color: var(--ds-color-warm-text);
 }
 
 .stat-card-large__metric--draw .stat-card-large__value {
@@ -830,13 +836,13 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .stat-card-large__diff--pos {
-  background: var(--ds-color-success-light);
-  color: var(--ds-color-success);
+  background: var(--ds-color-accent-light);
+  color: var(--ds-color-text-primary);
 }
 
 .stat-card-large__diff--neg {
-  background: var(--ds-color-error-light);
-  color: var(--ds-color-error);
+  background: var(--ds-color-warm-bg);
+  color: var(--ds-color-warm-text);
 }
 
 .stat-empty {
@@ -965,13 +971,13 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .standings__diff--pos {
-  background: var(--ds-color-success-light);
-  color: var(--ds-color-success);
+  background: var(--ds-color-accent-light);
+  color: var(--ds-color-text-primary);
 }
 
 .standings__diff--neg {
-  background: var(--ds-color-error-light);
-  color: var(--ds-color-error);
+  background: var(--ds-color-warm-bg);
+  color: var(--ds-color-warm-text);
 }
 
 .standings__points {

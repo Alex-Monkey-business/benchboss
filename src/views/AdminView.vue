@@ -119,6 +119,7 @@ const links = computed(() => [
     </div>
 
     <div class="px-lg admin-list">
+      <div class="admin-list__group">
       <router-link
         v-for="link in links"
         :key="link.to"
@@ -164,6 +165,7 @@ const links = computed(() => [
         <span class="admin-row__label">{{ link.label }}</span>
         <svg class="admin-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </router-link>
+      </div>
     </div>
 
     <InstallAppCard />
@@ -251,34 +253,48 @@ const links = computed(() => [
 .admin-list {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+}
+
+/* Verktøyene er én gruppe, ikke sju kort: én flate med skillelinjer, så
+   lista leses som en meny og ikke som sju like viktige ting. */
+.admin-list__group {
+  background: var(--ds-color-bg-elevated);
+  border: var(--ds-border-width) solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  overflow: hidden;
 }
 
 .admin-row {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 14px;
   width: 100%;
-  padding: 14px 16px;
-  background: var(--ds-color-bg-elevated);
-  border: var(--ds-border-width) solid var(--ds-color-border);
-  border-radius: var(--ds-radius-lg);
+  min-height: 60px;
+  padding: 12px 16px;
   cursor: pointer;
-  transition: all 0.15s var(--ds-ease-default);
+  transition: background-color 150ms var(--ds-ease-default);
   text-align: left;
   text-decoration: none;
   color: inherit;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.admin-row:hover {
-  transform: translate(-2px, -2px);
-  box-shadow: var(--ds-shadow-md);
+/* Skillelinja starter ved teksten, ikke ved kanten. */
+.admin-row + .admin-row::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 66px;
+  right: 0;
+  border-top: var(--ds-border-width) solid var(--ds-color-border-light);
 }
 
-.admin-row:active {
-  transform: translate(1px, 1px);
-  box-shadow: none;
+@media (hover: hover) and (pointer: fine) {
+  .admin-row:hover { background: var(--ds-color-bg-subtle); }
 }
+
+.admin-row:active { background: var(--ds-color-bg-subtle); }
 
 .admin-row__icon {
   width: 36px;
@@ -298,14 +314,14 @@ const links = computed(() => [
 }
 
 .admin-row__icon svg.icon--wide {
-  width: 28px;
+  width: 24px;
   height: auto;
 }
 
 .admin-row__label {
   flex: 1;
   font-weight: 500;
-  font-size: var(--ds-text-sm);
+  font-size: var(--ds-text-base);
   color: var(--ds-color-text-primary);
   line-height: 1.3;
   min-width: 0;
@@ -373,12 +389,14 @@ const links = computed(() => [
 
 .admin-account-card__logout {
   align-self: flex-start;
-  margin-top: 4px;
+  margin: -8px 0 -12px -8px;
+  min-height: 44px;
   background: transparent;
   border: 0;
-  padding: 0;
+  border-radius: var(--ds-radius-md);
+  padding: 0 8px;
   font-size: 0.8125rem;
-  color: var(--ds-color-error);
+  color: var(--ds-color-warm-text);
   cursor: pointer;
   font-family: var(--ds-font-body);
 }

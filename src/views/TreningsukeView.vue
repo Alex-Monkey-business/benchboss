@@ -745,26 +745,38 @@ onMounted(async () => {
         </div>
       </section>
 
-      <!-- Én tydelig vei videre for uka, og den sjeldne (lim inn) dempet ved siden av. -->
-      <div class="uke__foot">
-        <button type="button" class="ds-btn ds-btn--secondary uke__foot-hoved" @click="openNewDay">Legg til dag</button>
-        <button type="button" class="ds-btn ds-btn--ghost" @click="showPaste = true">Lim inn plan</button>
-      </div>
+      <!-- Å legge til en dag er å forlenge lista, så handlinga står som siste
+           linje i den, ikke som enda en boks. «Lim inn plan» bor i arket for
+           ny dag: den brukes sjelden, og da er det nettopp en ny dag du vil ha. -->
+      <button type="button" class="uke__legg-til" @click="openNewDay">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+        Legg til dag
+      </button>
 
     </template>
 
     <!-- Banken og håndboka står utenfor uka, ikke inni den: er uka tom, er det
-         nettopp da du trenger et sted å hente øvelser fra. -->
-    <div v-if="!loading" class="uke__links">
-      <router-link to="/trening/ovelser" class="uke__link">
-        <span class="uke__link-eyebrow">Øvelsesbank</span>
-        <span class="uke__link-title">Alle øvelser</span>
+         nettopp da du trenger et sted å hente øvelser fra. Rader med motiv,
+         ikke kort, så de leses som steder å gå og ikke som flere dager. -->
+    <section v-if="!loading" class="uke__steder">
+      <h2 class="uke__kicker">Til treninga</h2>
+      <router-link to="/trening/ovelser" class="uke__sted">
+        <Spot name="skills" class="uke__sted-illo" :size="44" />
+        <span class="uke__sted-tekst">
+          <span class="uke__sted-tittel">Øvelsesbank</span>
+          <span class="uke__sted-under">{{ exercises.length ? `${exercises.length} øvelser` : 'Finn øvelser til dagene' }}</span>
+        </span>
+        <svg class="uke__sted-pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
       </router-link>
-      <router-link v-if="hasHandbook" to="/trening/handbok" class="uke__link">
-        <span class="uke__link-eyebrow">Håndbok</span>
-        <span class="uke__link-title">Slik trener vi</span>
+      <router-link v-if="hasHandbook" to="/trening/handbok" class="uke__sted">
+        <Spot name="book" class="uke__sted-illo" :size="44" />
+        <span class="uke__sted-tekst">
+          <span class="uke__sted-tittel">Håndbok</span>
+          <span class="uke__sted-under">Slik trener vi</span>
+        </span>
+        <svg class="uke__sted-pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
       </router-link>
-    </div>
+    </section>
 
     <!-- Dag: ukedag, lengde, fokus -->
     <Sheet :show="!!dayForm" :title="dayForm?.id ? 'Rediger dag' : 'Ny dag'" @close="dayForm = null">
@@ -821,6 +833,9 @@ onMounted(async () => {
             {{ savingDay ? 'Lagrer…' : dayForm.id ? 'Lagre' : 'Legg til dagen' }}
           </button>
         </div>
+        <button v-if="!dayForm.id" type="button" class="ds-btn ds-btn--ghost dag-lim" @click="dayForm = null; showPaste = true">
+          Har du hele planen som tekst? Lim den inn
+        </button>
       </form>
     </Sheet>
 
@@ -1606,54 +1621,93 @@ Torsdag
 
 
 /* ---- Bunn ---- */
-.uke__foot {
-  display: flex;
+.uke__legg-til {
+  display: inline-flex;
   align-items: center;
   gap: var(--ds-space-sm);
-  margin: var(--ds-space-lg) 0 var(--ds-space-xl);
-}
-
-
-
-.uke__foot-hoved { flex: 1; }
-
-.uke__links {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--ds-space-sm);
-}
-
-@media (max-width: 379px) {
-  .uke__links { grid-template-columns: 1fr; }
-}
-
-.uke__link {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  padding: 14px var(--ds-space-md);
-  background: var(--ds-color-bg-elevated);
-  border: 1px solid var(--ds-color-border-light);
-  border-radius: var(--ds-radius-lg);
-  text-decoration: none;
+  min-height: 48px;
+  margin: var(--ds-space-sm) 0 var(--ds-space-2xl);
+  padding: 0 var(--ds-space-sm);
+  margin-left: calc(var(--ds-space-sm) * -1);
+  background: none;
+  border: 0;
+  border-radius: var(--ds-radius-md);
+  font: inherit;
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-primary);
+  cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: background-color 150ms ease, transform 150ms ease;
 }
 
-.uke__link:active { transform: scale(0.99); }
+.uke__legg-til svg { width: 20px; height: 20px; }
 
-.uke__link-eyebrow {
+@media (hover: hover) and (pointer: fine) {
+  .uke__legg-til:hover { background: var(--ds-color-bg-subtle); }
+}
+
+.uke__legg-til:active { transform: scale(0.97); }
+
+.uke__kicker {
+  margin: 0 0 var(--ds-space-xs);
+  font-family: var(--ds-font-body);
   font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-medium);
-  letter-spacing: 0.06em;
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ds-color-text-tertiary);
 }
 
-.uke__link-title {
+.uke__sted {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-md);
+  min-height: 64px;
+  padding: var(--ds-space-sm) 0;
+  text-decoration: none;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+  transition: opacity 150ms ease;
+}
+
+.uke__sted + .uke__sted { border-top: 1px solid var(--ds-color-border-light); }
+
+.uke__sted:active { opacity: 0.6; }
+
+.uke__sted-illo { --spot-size: 44px; }
+
+.uke__sted-tekst {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  flex: 1;
+  min-width: 0;
+}
+
+.uke__sted-tittel {
   font-size: var(--ds-text-md);
   font-weight: var(--ds-weight-semibold);
   color: var(--ds-color-text-primary);
+}
+
+.uke__sted-under {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+}
+
+.uke__sted-pil {
+  width: 18px;
+  height: 18px;
+  flex: none;
+  color: var(--ds-color-text-tertiary);
+}
+
+.dag-lim {
+  width: 100%;
+  margin-top: var(--ds-space-sm);
+  color: var(--ds-color-text-secondary);
+  font-weight: var(--ds-weight-regular);
 }
 
 /* ---- Tom tilstand ---- */
@@ -1676,12 +1730,14 @@ Torsdag
 .sheet-actions__save { flex: 1; }
 
 /* ---- Ukedagsvelger ---- */
-.weekday-picker { display: flex; gap: 6px; flex-wrap: wrap; }
+/* Sju like kolonner: uka står på én linje på alle bredder. Med flex-wrap
+   falt søndag ned alene og ble strukket over hele arket. */
+.weekday-picker { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 
 .weekday-pill {
-  flex: 1;
-  min-width: 40px;
-  padding: 9px 4px;
+  min-width: 0;
+  height: 44px;
+  padding: 0;
   border-radius: var(--ds-radius-full);
   border: 1px solid var(--ds-color-border);
   background: var(--ds-color-bg-elevated);

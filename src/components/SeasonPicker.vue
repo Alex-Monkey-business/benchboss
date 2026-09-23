@@ -90,6 +90,7 @@ function pick(seasonId) {
 }
 
 .season-picker__trigger {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: 6px;
@@ -195,5 +196,12 @@ function pick(seasonId) {
   height: 16px;
   color: var(--ds-color-accent);
   flex-shrink: 0;
+}
+
+/* Etiketten er 23 px høy; trykkflata er 44. */
+.season-picker__trigger::after {
+  content: '';
+  position: absolute;
+  inset: -11px -8px;
 }
 </style>

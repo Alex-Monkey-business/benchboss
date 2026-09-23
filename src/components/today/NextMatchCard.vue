@@ -55,7 +55,7 @@ const cta = computed(() => {
   })
 })
 
-// Ett av våre lag i kampen → lagets drakt, og ballen tar et kort avspark
+// Ett av våre lag i kampen → lagets drakt, og ballen ruller inn til den
 // når kortet vises. Flere lag eller cup uten lagfarge → det nøytrale motivet.
 // Teksten over bærer fortsatt identiteten; drakten er ikke eneste signal.
 const DRAKT = { rod: 'match-red', gronn: 'match-green', hvit: 'match-white' }

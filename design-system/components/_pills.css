@@ -29,6 +29,7 @@
 }
 
 .ds-pill {
+  position: relative;
   display: inline-flex;
   align-items: center;
   gap: var(--ds-space-xs);
@@ -77,4 +78,12 @@
 
 .ds-pill--active .ds-pill__count {
   color: var(--ds-color-text-secondary);
+}
+
+/* Pillen er 32 px høy for å se lett ut, men fingeren trenger ~44. Utvidelsen
+   er usynlig og vertikal, så naboene i samme rad ikke stjeler trykk. */
+.ds-pill::after {
+  content: '';
+  position: absolute;
+  inset: -6px 0;
 }

@@ -1059,8 +1059,9 @@ function formatMatchDate(dateStr) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
+  margin: -4px;
   padding: 0;
   border: none;
   border-radius: 6px;
