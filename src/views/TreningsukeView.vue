@@ -692,7 +692,7 @@ onMounted(async () => {
           <div v-else-if="editDayId === s.id" class="plan">
             <div class="plan__topp">
               <span class="plan__tittel">Planlegg treninga</span>
-              <button type="button" class="plan__ferdig" @click="editDayId = null">Ferdig</button>
+              <button type="button" class="ds-btn ds-btn--primary ds-btn--sm" @click="editDayId = null">Ferdig</button>
             </div>
 
             <ul v-if="drillsFor(s).length" class="plan__liste">
@@ -726,7 +726,7 @@ onMounted(async () => {
               {{ tidslinjer[s.id].slutt.tekst }}
             </p>
 
-            <button type="button" class="knapp knapp--legg" @click="openPicker(s)">
+            <button type="button" class="ds-btn ds-btn--secondary knapp--legg" @click="openPicker(s)">
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
               Legg til øvelse
             </button>
@@ -735,19 +735,20 @@ onMounted(async () => {
           <!-- Foten: lesemodus har én vei videre — en ordentlig knapp, ikke en
                tekstlenke med blyant. Planmodus har dagen selv (ukedag, lengde, fokus). -->
           <div class="dag__foot">
-            <button v-if="editDayId === s.id" type="button" class="dag__action" @click="openDayForm(s)">
+            <button v-if="editDayId === s.id" type="button" class="ds-btn ds-btn--ghost dag__action" @click="openDayForm(s)">
               Rediger dagen
             </button>
-            <button v-else type="button" class="knapp dag__planlegg" @click="editDayId = s.id">
+            <button v-else type="button" class="ds-btn ds-btn--secondary" @click="editDayId = s.id">
               {{ drillsFor(s).length ? 'Planlegg treninga' : 'Legg til øvelser' }}
             </button>
           </div>
         </div>
       </section>
 
+      <!-- Én tydelig vei videre for uka, og den sjeldne (lim inn) dempet ved siden av. -->
       <div class="uke__foot">
-        <button type="button" class="uke__foot-btn" @click="openNewDay">Legg til dag</button>
-        <button type="button" class="uke__foot-btn" @click="showPaste = true">Lim inn plan</button>
+        <button type="button" class="ds-btn ds-btn--secondary uke__foot-hoved" @click="openNewDay">Legg til dag</button>
+        <button type="button" class="ds-btn ds-btn--ghost" @click="showPaste = true">Lim inn plan</button>
       </div>
 
     </template>
@@ -1030,9 +1031,8 @@ Torsdag
   white-space: nowrap;
   font-family: var(--ds-font-display-sans);
   font-size: var(--ds-text-xl);
-  font-weight: var(--ds-weight-bold);
-  letter-spacing: var(--ds-tracking-tight);
-  text-transform: uppercase;
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: -0.01em;
   color: var(--ds-color-text-primary);
 }
 
@@ -1091,8 +1091,8 @@ Torsdag
   margin-top: 6px;
   font-size: var(--ds-text-md);
   line-height: 1.5;
-  color: var(--ds-color-text-primary);
-  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-secondary);
+  font-weight: var(--ds-weight-regular);
   letter-spacing: -0.005em;
 }
 
@@ -1336,22 +1336,7 @@ Torsdag
   color: var(--ds-color-text-tertiary);
 }
 
-.plan__ferdig {
-  flex: none;
-  min-height: 36px;
-  padding: 0 16px;
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-full);
-  background: var(--ds-color-bg-elevated);
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-primary);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
 
-.plan__ferdig:active { transform: scale(0.98); }
 
 .plan__liste {
   list-style: none;
@@ -1372,9 +1357,12 @@ Torsdag
 
 .rad:last-child { border-bottom: none; }
 
+/* Smal skjerm: mindre bilde, så navnet får plass ved siden av pilene. */
+@media (max-width: 379px) { .rad { --rad-bilde: 72px; } }
+
 .rad__hode {
   display: grid;
-  grid-template-columns: 96px minmax(0, 1fr);
+  grid-template-columns: var(--rad-bilde, 96px) minmax(0, 1fr);
   align-items: center;
   gap: var(--ds-space-sm);
   min-width: 0;
@@ -1443,6 +1431,8 @@ Torsdag
   line-height: 1.3;
   letter-spacing: -0.01em;
   color: var(--ds-color-text-primary);
+  /* Ett langt ord («Ferdighetssirkel») skal brytes, ikke klippes uten ellipse. */
+  overflow-wrap: anywhere;
 }
 
 .rad__meta {
@@ -1459,10 +1449,6 @@ Torsdag
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-sm);
-  overflow: hidden;
-  background: var(--ds-color-bg-elevated);
 }
 
 .pil {
@@ -1470,16 +1456,15 @@ Torsdag
   align-items: center;
   justify-content: center;
   width: 44px;
-  height: 30px;
+  height: 32px;
   padding: 0;
   border: none;
   background: transparent;
-  color: var(--ds-color-text-primary);
+  color: var(--ds-color-text-secondary);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
 
-.pil + .pil { border-top: 1px solid var(--ds-color-border-light); }
 .pil svg { width: 18px; height: 18px; }
 .pil:disabled { color: var(--ds-color-border-strong); cursor: default; }
 .pil:not(:disabled):active { background: var(--ds-color-bg-hover); }
@@ -1494,32 +1479,12 @@ Torsdag
 
 .plan__sum--over { color: var(--ds-color-text-primary); }
 
-/* ---- Knappen ----
-   «Planlegg treninga» var en tekstlenke med blyant, 14 px. Det er handlingen
-   du gjør hver gang du åpner dagen for å gjøre noe med den — den skal se ut
-   som en knapp og treffes med tommelen. */
-.knapp {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  gap: 8px;
-  width: 100%;
-  min-height: 48px;
-  padding: 0 var(--ds-space-md);
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-color-bg-elevated);
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-base);
-  font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-primary);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
 
-.knapp svg { width: 16px; height: 16px; }
-.knapp:active { transform: scale(0.99); background: var(--ds-color-bg-subtle); }
-.knapp--legg { margin-top: var(--ds-space-md); }
+.knapp--legg { width: 100%; margin-top: var(--ds-space-md); }
+.knapp--legg svg { width: 16px; height: 16px; }
+
+/* Ghost-knappen har egen innmarg; trekk den ut så teksten står på linje med innholdet. */
+.dag__action { margin-left: calc(var(--ds-space-sm) * -1); }
 
 /* ---- Arket for én øvelse i planen ---- */
 .rad-ark__hvor {
@@ -1634,50 +1599,23 @@ Torsdag
 /* ---- Foten i en åpen dag ---- */
 .dag__foot {
   display: flex;
-  justify-content: center;
+  justify-content: flex-start;
   margin-top: var(--ds-space-lg);
 }
 
-.dag__action {
-  min-height: 44px;
-  padding: 0;
-  border: none;
-  background: none;
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
 
-.dag__action:hover { color: var(--ds-color-text-primary); }
 
 /* ---- Bunn ---- */
 .uke__foot {
   display: flex;
-  gap: var(--ds-space-lg);
-  justify-content: center;
+  align-items: center;
+  gap: var(--ds-space-sm);
   margin: var(--ds-space-lg) 0 var(--ds-space-xl);
 }
 
-.uke__foot-btn {
-  border: none;
-  background: none;
-  padding: 0;
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
 
-.uke__foot-btn:hover { color: var(--ds-color-text-primary); }
+
+.uke__foot-hoved { flex: 1; }
 
 .uke__links {
   display: grid;
