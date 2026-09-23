@@ -4,6 +4,7 @@
 // Ruta er trener-only og ligger ikke i navigasjonen. Slettes når fase 4b er ute.
 import { ref, computed } from 'vue'
 import PinInput from '../components/PinInput.vue'
+import Spot from '../components/Spot.vue'
 
 const GROUPS = [
   {
@@ -173,11 +174,7 @@ const PARENTS = [
       </div>
       <div class="px-lg">
         <div class="ds-empty">
-          <img
-            src="/illustrations/bench-boss-feature-icons/512/admin-settings-transparent.webp"
-            alt=""
-            class="ds-empty__illo"
-          />
+          <Spot name="settings" class="ds-empty__illo" />
           <h3 class="ds-empty__title">Ingen kull ennå</h3>
           <p class="ds-empty__description">Opprett det første, så kan du fylle det før noen inviteres.</p>
           <button class="ds-btn ds-btn--primary ds-btn--lg sk-empty-cta">Nytt kull</button>
@@ -307,11 +304,7 @@ const PARENTS = [
       </div>
       <div class="px-lg">
         <div class="ds-empty">
-          <img
-            src="/illustrations/bench-boss-feature-icons/512/squad-players-transparent.webp"
-            alt=""
-            class="ds-empty__illo"
-          />
+          <Spot name="squad" class="ds-empty__illo" />
           <h3 class="ds-empty__title">Ingen medlemmer ennå</h3>
           <p class="ds-empty__description">Du er alene her. Inviter den første treneren når kullet er klart.</p>
           <button class="ds-btn ds-btn--primary ds-btn--lg sk-empty-cta">Inviter</button>

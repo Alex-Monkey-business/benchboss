@@ -2,7 +2,7 @@
 import { computed } from 'vue'
 import Spot from '../Spot.vue'
 import { relativeDateLabel } from '../../lib/dateLabels'
-import { sessionIllustration, illoWebp, illoPng as illoPngPath } from '../../lib/sessionVisuals'
+import { sessionMotif } from '../../lib/sessionVisuals'
 import { dagLink } from '../../lib/trainingLinks'
 
 const props = defineProps({
@@ -11,9 +11,7 @@ const props = defineProps({
 })
 
 // Ukedagen velger bildet (lib/sessionVisuals).
-const illo = computed(() => sessionIllustration(props.session))
-const illoSrc = computed(() => illoWebp(illo.value))
-const illoPng = computed(() => illoPngPath(illo.value))
+const motif = computed(() => sessionMotif(props.session))
 
 const when = computed(() => relativeDateLabel(props.date))
 const drillLine = computed(() => (props.session.drills || []).map(d => d.text).filter(Boolean).join(' · '))
@@ -33,10 +31,8 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
     <div class="next-training__main">
       <p v-if="session.focus" class="next-training__focus">{{ session.focus }}</p>
       <p v-else class="next-training__focus">{{ session.title }}</p>
-      <picture v-if="illo" class="next-training__illo">
-        <source :srcset="illoSrc" type="image/webp" />
-        <img :src="illoPng" alt="" loading="lazy" />
-      </picture>
+      <!-- Pasningsøkta spiller ballen gjennom portene én gang når kortet vises. -->
+      <Spot v-if="motif" :name="motif" class="next-training__illo" :size="64" :play="motif === 'passing' ? 'auto' : false" />
       <!-- Har ikke dagen egen illustrasjon, faller vi tilbake på state-ikonet,
            så kortet aldri står bildeløst ved siden av neste kamp. -->
       <Spot v-else name="training" class="next-training__illo next-training__illo--fallback" :size="64" />
@@ -114,12 +110,6 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
   width: 64px;
   --spot-size: 64px;
   flex-shrink: 0;
-}
-
-.next-training__illo img {
-  width: 100%;
-  height: auto;
-  display: block;
 }
 
 /* Krymp, ikke skjul. Kampkortet krymper til 56 under 380px — at

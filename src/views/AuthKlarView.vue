@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import Spot from '../components/Spot.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { useAuth } from '../stores/auth'
@@ -70,14 +71,15 @@ async function loggInn() {
 
 <template>
   <div class="klar">
-    <img class="klar__merke" src="/icons/icon-192.png" alt="" width="64" height="64" />
-
     <template v-if="feil">
+      <!-- Feilen er nesten alltid en lenke som er brukt eller utløpt. -->
+      <Spot name="connection" class="klar__illo" />
       <p class="klar__feil">{{ feil }}</p>
       <router-link to="/login" class="klar__lenke">Til innlogging</router-link>
     </template>
 
     <template v-else>
+      <img class="klar__merke" src="/icons/icon-192.png" alt="" width="64" height="64" />
       <h1 class="klar__tittel">Logg inn i BenchBoss</h1>
       <p class="klar__lead">Trykk for å fortsette.</p>
       <button type="button" class="ds-btn ds-btn--primary klar__knapp" :disabled="jobber || !token" @click="loggInn">
@@ -101,6 +103,8 @@ async function loggInn() {
 }
 
 .klar__merke { border-radius: var(--ds-radius-lg); }
+
+.klar__illo { --spot-size: 96px; }
 
 .klar__tittel {
   margin: var(--ds-space-sm) 0 0;

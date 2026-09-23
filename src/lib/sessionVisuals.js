@@ -5,13 +5,24 @@
 // Ukedagen bærer allerede meningen — tirsdag er ferdighetsøkta, torsdag
 // sirkelen, lørdag spill — så den bestemmer bildet.
 
-const ILLO_BASE = '/illustrations/bench-boss-exercise-illustrations/'
+// weekday (1 = mandag) → motiv i illustrasjonssettet (components/Spot.vue).
+const WEEKDAY_MOTIF = {
+  2: 'skills',   // tirsdag: ferdigheter
+  4: 'passing',  // torsdag: sirkelen, pasninger
+  6: 'game'      // lørdag: spill
+}
 
-// weekday (1 = mandag) → fast illustrasjon for treningsrytmen tir/tor/lør.
-const WEEKDAY_ILLUSTRATION = {
-  2: 'tuesday_june_tranparent.png',   // NB: skrivefeil i filnavnet, ikke her
-  4: 'thursday_june_transparent.png',
-  6: 'saturday_june_transparent.png'
+// Lagrede økter peker fortsatt på filnavn fra leiresettet. De oversettes her,
+// så ingen rad i basen må skrives om.
+const LEGACY_MOTIF = {
+  'tuesday_june_tranparent.png': 'skills',   // NB: skrivefeil i filnavnet, ikke her
+  'tuesday_june.png': 'skills',
+  'thursday_june_transparent.png': 'passing',
+  'saturday_june_transparent.png': 'game',
+  'dribbling-slalom-3d.png': 'skills',
+  'pass-and-move-3d.png': 'passing',
+  'rondo-possession-3d.png': 'passing',
+  'small-sided-game-3v3-3d.png': 'game'
 }
 
 // Økt-farger roterer med posisjon, så en periode aldri blir ensfarget.
@@ -26,18 +37,13 @@ export function accentForPosition(i) {
 }
 
 // En tom dag skal ikke love noe: bildet kommer når økta har innhold.
-// Et lagret valg vinner alltid — gamle økter beholder bildet sitt.
-export function sessionIllustration(session) {
+// Et lagret valg vinner alltid — gamle økter beholder motivet sitt.
+export function sessionMotif(session) {
   if (!session) return null
-  if (session.illustration) return session.illustration
+  if (session.illustration) {
+    const file = session.illustration.replace(/\.webp$/, '.png')
+    return LEGACY_MOTIF[file] || WEEKDAY_MOTIF[session.weekday] || 'training'
+  }
   if (!(session.drills || []).length) return null
-  return WEEKDAY_ILLUSTRATION[session.weekday] || null
-}
-
-export function illoWebp(file) {
-  return file ? ILLO_BASE + file.replace(/\.png$/, '.webp') : null
-}
-
-export function illoPng(file) {
-  return file ? ILLO_BASE + file : null
+  return WEEKDAY_MOTIF[session.weekday] || null
 }

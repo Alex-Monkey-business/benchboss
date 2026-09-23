@@ -1,5 +1,6 @@
 <script setup>
 import { ref, onMounted } from 'vue'
+import Spot from '../components/Spot.vue'
 import { useRouter } from 'vue-router'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { useAuth } from '../stores/auth'
@@ -107,6 +108,7 @@ onMounted(async () => {
 <template>
   <div class="callback-screen">
     <template v-if="noAccess">
+      <Spot name="access" class="callback-illo" />
       <p v-if="noAccessEmail" class="callback-status">
         <strong>{{ noAccessEmail }}</strong> har ingen tilgang til et kull.
       </p>
@@ -122,6 +124,7 @@ onMounted(async () => {
       </button>
     </template>
     <template v-else-if="error">
+      <Spot name="connection" class="callback-illo" />
       <p class="callback-error">{{ error }}</p>
       <router-link to="/login" class="callback-link">Tilbake til innlogging</router-link>
     </template>
@@ -141,6 +144,8 @@ onMounted(async () => {
   padding: var(--ds-space-xl) var(--ds-space-lg);
   text-align: center;
 }
+
+.callback-illo { --spot-size: 96px; }
 
 .callback-status {
   font-size: var(--ds-text-base);

@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import Spot from '../components/Spot.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useContent } from '../composables/useContent'
 
@@ -44,13 +45,7 @@ function goTo(slug) {
         {{ principle.quote }}
       </blockquote>
 
-      <img
-        v-if="principle.illustration"
-        class="principle__illo"
-        :src="`/illustrations/bench-boss-transparent-library/${principle.illustration}`"
-        alt=""
-        loading="lazy"
-      />
+      <Spot v-if="principle.illustration" :name="principle.illustration" class="principle__illo" :size="168" />
     </article>
 
     <nav class="principle__pager">
@@ -224,9 +219,7 @@ function goTo(slug) {
 }
 
 .principle__illo {
-  display: block;
-  width: 168px;
-  height: auto;
+  --spot-size: 168px;
   margin: var(--ds-space-xl) auto 0;
 }
 

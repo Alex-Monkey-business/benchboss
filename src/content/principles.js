@@ -7,7 +7,8 @@ export const principles = [
     slug: 'glede-og-kreativitet',
     number: 1,
     accent: 'sky',
-    illustration: 'ronaldinho-clay-transparent.png',
+    // Motiv i illustrasjonssettet (components/Spot.vue). Finter og triks, ikke portrett.
+    illustration: 'skills',
     title: 'Det skal være gøy',
     lead: 'En unge som har det gøy, kommer tilbake — og tør å prøve mer.',
     sections: [

@@ -55,6 +55,15 @@ const cta = computed(() => {
   })
 })
 
+// Ett av våre lag i kampen → lagets drakt, og ballen tar et kort avspark
+// når kortet vises. Flere lag eller cup uten lagfarge → det nøytrale motivet.
+// Teksten over bærer fortsatt identiteten; drakten er ikke eneste signal.
+const DRAKT = { rod: 'match-red', gronn: 'match-green', hvit: 'match-white' }
+const motif = computed(() => {
+  const teams = props.event.teams || []
+  return teams.length === 1 && DRAKT[teams[0]] ? DRAKT[teams[0]] : 'match'
+})
+
 const ctaTo = computed(() => (cta.value ? `/kamp/${props.event.id}/live` : null))
 
 
@@ -101,7 +110,7 @@ const detailLine = computed(() => {
     <span class="next-match__detail">{{ detailLine }}</span>
     </div>
 
-    <Spot name="match" class="next-match__illo" :size="64" />
+    <Spot :name="motif" class="next-match__illo" :size="64" play="auto" />
     </div>
 
     <!-- Utenfor tekstkolonnen: mangelen gjelder hele kampen, ikke bare

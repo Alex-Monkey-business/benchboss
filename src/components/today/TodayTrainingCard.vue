@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
-import { sessionIllustration, illoWebp, illoPng as illoPngPath } from '../../lib/sessionVisuals'
+import Spot from '../Spot.vue'
+import { sessionMotif } from '../../lib/sessionVisuals'
 import { dagLink } from '../../lib/trainingLinks'
 import { splitFocus } from '../../lib/focusText'
 
@@ -9,9 +10,7 @@ const props = defineProps({
 })
 
 // Samme bilde som økta selv viser — ukedagen velger det (lib/sessionVisuals).
-const illo = computed(() => sessionIllustration(props.session))
-const illoSrc = computed(() => illoWebp(illo.value))
-const illoPng = computed(() => illoPngPath(illo.value))
+const motif = computed(() => sessionMotif(props.session))
 
 const drillCount = computed(() => (props.session.drills || []).length)
 const drillLabel = computed(() => drillCount.value === 1 ? '1 øvelse' : `${drillCount.value} øvelser`)
@@ -32,10 +31,8 @@ const focusParts = computed(() => splitFocus(props.session.focus, props.session.
       <p v-if="focusParts.detail" class="today-training__focus">{{ focusParts.detail }}</p>
       <span v-if="drillCount" class="today-training__meta">{{ drillLabel }}</span>
     </div>
-    <picture v-if="illo" class="today-training__illo">
-      <source :srcset="illoSrc" type="image/webp" />
-      <img :src="illoPng" alt="" loading="lazy" />
-    </picture>
+    <!-- Pasningsøkta spiller ballen gjennom portene én gang når kortet vises. -->
+    <Spot v-if="motif" :name="motif" class="today-training__illo" :size="64" :play="motif === 'passing' ? 'auto' : false" />
   </router-link>
 </template>
 
@@ -103,6 +100,7 @@ const focusParts = computed(() => splitFocus(props.session.focus, props.session.
 }
 
 .today-training__illo {
+  --spot-size: 64px;
   /* 64 som de andre kortene. I 88 ble treningskortet fysisk STØRRE enn
      kampkortet, som er skjermens viktigste — vekten sa det motsatte av
      rekkefølgen. */
@@ -110,17 +108,11 @@ const focusParts = computed(() => splitFocus(props.session.focus, props.session.
   flex-shrink: 0;
 }
 
-.today-training__illo img {
-  width: 100%;
-  height: auto;
-  display: block;
-}
-
 /* Krymp, ikke skjul. Kampkortet krymper til 56 under 380px — at
    treningskortene i stedet fjernet bildet gjorde at kortene så ut som to
    ulike komponenter så snart skjermen ble smal. */
 @media (max-width: 379px) {
-  .today-training__illo { width: 56px; }
+  .today-training__illo { width: 56px; --spot-size: 56px; }
 }
 
 /* Smal skjerm: kortene med bildekolonne har bare ~200px til teksten når
