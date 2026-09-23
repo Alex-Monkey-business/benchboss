@@ -7,7 +7,6 @@ import { useFiks } from '../composables/useFiks'
 import { useSeasons } from '../composables/useSeasons'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
 import { useToast } from '../composables/useToast'
-import { useTheme } from '../composables/useTheme'
 import { useCupFirst } from '../composables/useCupFirst'
 import { clubLogo, teamAge, genderFromCohortName } from '../lib/fiks'
 
@@ -24,16 +23,18 @@ const { activeSeason, createSeason, fetchSeasons } = useSeasons()
 const { seasonTeams } = useSeasonTeams()
 const { show: showToast } = useToast()
 
-// Temavelgeren bor ellers i Admin — og dit kommer man ikke før oppsettet er
-// gjort, fordi guarden sender deg hit. Første skjerm er derfor eneste stedet
-// en ny trener kan velge lys eller mørk.
-const { theme, setTheme, systemDark } = useTheme()
+// Velkomsten har ingen temavelger. Appen følger telefonen til noen velger
+// noe annet i Admin; lys eller mørk er ikke et spørsmål på første skjerm.
 
-// Defaulten er 'system', ikke 'light'/'dark'. Uten dette sto ingen av de to
-// valgene markert, og pilla leste som to grå ord uten tilstand.
-const aktivtTema = computed(() =>
-  theme.value === 'system' ? (systemDark.value ? 'dark' : 'light') : theme.value
-)
+// Treneren står, ballen ruller inn mot foten én gang når bildene er dekodet.
+// Før svevde maskoten i en evig løkke; bevegelse her skal skje én gang.
+const trenerHero = ref(null)
+const trenerSpiller = ref(false)
+onMounted(async () => {
+  const imgs = [...(trenerHero.value?.querySelectorAll('img') || [])]
+  await Promise.all(imgs.map(i => i.decode?.().catch(() => {})))
+  trenerSpiller.value = true
+})
 const {
   searching, searchClubs, fetchClubTeams, linkClub, setBirthYear,
   createTeams, linkSelfToTeams, importMatches, ageClass, teamsForAge, shortTeamName
@@ -319,31 +320,30 @@ function hoppOver() {
 
       <!-- ---------------------------------------------- Velkommen -->
       <template v-if="steg === 'velkommen'">
-        <div class="kig-tema" role="radiogroup" aria-label="Lyst eller mørkt">
-          <button
-            v-for="t in [{ v: 'light', l: 'Lys' }, { v: 'dark', l: 'Mørk' }]"
-            :key="t.v"
-            type="button"
-            role="radio"
-            :aria-checked="aktivtTema === t.v"
-            class="kig-tema__valg"
-            :class="{ 'kig-tema__valg--aktiv': aktivtTema === t.v }"
-            @click="setTheme(t.v)"
-          >{{ t.l }}</button>
-        </div>
 
-        <!-- Animasjonen ER løftet: tomme kamprader som fyller seg selv mens
-             han ser på. Treneren peker på dem. Pynt hadde vært billigere,
-             men dette viser det setningen påstår. -->
+        <!-- Treneren peker inn i appen. Ballen er et eget lag som ruller inn
+             mot foten én gang; filen med ballen bakt inn brukes ikke. -->
         <div class="kig-hero" aria-hidden="true">
-          <img
-            class="kig-hero__trener"
-            src="/illustrations/bench-boss-transparent-library/coach-mascot-520.webp"
-            alt=""
-            width="520"
-            height="520"
-            fetchpriority="high"
-          />
+          <div ref="trenerHero" class="kig-trener" :class="{ 'kig-trener--spiller': trenerSpiller }">
+            <picture>
+              <source type="image/avif" srcset="/illustrations/coach/coach-384.avif 384w, /illustrations/coach/coach-768.avif 768w" sizes="17rem" />
+              <img
+                class="kig-trener__figur"
+                src="/illustrations/coach/coach-384.webp"
+                srcset="/illustrations/coach/coach-384.webp 384w, /illustrations/coach/coach-768.webp 768w"
+                sizes="17rem"
+                alt=""
+                width="384"
+                height="384"
+                fetchpriority="high"
+                decoding="async"
+              />
+            </picture>
+            <picture class="kig-trener__ball">
+              <source type="image/avif" srcset="/illustrations/spot/ball-128.avif 128w, /illustrations/spot/ball-192.avif 192w" sizes="3rem" />
+              <img src="/illustrations/spot/ball-128.webp" srcset="/illustrations/spot/ball-128.webp 128w, /illustrations/spot/ball-192.webp 192w" sizes="3rem" alt="" decoding="async" />
+            </picture>
+          </div>
         </div>
 
         <h1 class="kig__tittel kig__tittel--velkomst">
@@ -420,8 +420,15 @@ function hoppOver() {
           height="72"
           @error="merkeSvikter = true"
         />
-        <h1 class="kig__tittel">Hvilket årskull?</h1>
+        <h1 class="kig__tittel">Hvilket kull trener du?</h1>
         <p class="kig__lead">{{ klubb?.name }}</p>
+
+        <!-- Kjønn først, som bryter: skjermen spurte om årskull, men krevde
+             også dette, og valget lå gjemt under femten årstall. -->
+        <div class="kig__kjonn" role="radiogroup" aria-label="Gutter eller jenter">
+          <button type="button" role="radio" :aria-checked="kjonn === 'G'" class="kig__kjonnknapp" :class="{ 'kig__kjonnknapp--valgt': kjonn === 'G' }" @click="kjonn = 'G'">Gutter</button>
+          <button type="button" role="radio" :aria-checked="kjonn === 'J'" class="kig__kjonnknapp" :class="{ 'kig__kjonnknapp--valgt': kjonn === 'J' }" @click="kjonn = 'J'">Jenter</button>
+        </div>
 
         <div class="kig__ar">
           <button
@@ -434,17 +441,13 @@ function hoppOver() {
           >{{ y }}</button>
         </div>
 
-        <div class="kig__kjonn">
-          <button type="button" class="kig__kjonnknapp" :class="{ 'kig__kjonnknapp--valgt': kjonn === 'G' }" @click="kjonn = 'G'">Gutter</button>
-          <button type="button" class="kig__kjonnknapp" :class="{ 'kig__kjonnknapp--valgt': kjonn === 'J' }" @click="kjonn = 'J'">Jenter</button>
-        </div>
-
         <p v-if="alder" class="kig__status">
           {{ alder }} år i {{ NAA }} — {{ lagForKjonn.length }}
           {{ lagForKjonn.length === 1 ? 'lag' : 'lag' }} hos {{ klubb?.name }}
         </p>
 
-        <div class="kig__handling">
+        <!-- Festet nederst: med femten årstall havnet «Videre» under kanten. -->
+        <div class="kig__handling kig__handling--fast">
           <button type="button" class="ds-btn ds-btn--primary kig__hovedknapp" :disabled="!argang" @click="bekreftArgang">
             Videre
           </button>
@@ -677,7 +680,7 @@ function hoppOver() {
 }
 
 .kig__arknapp {
-  padding: var(--ds-space-md) var(--ds-space-sm);
+  padding: 12px var(--ds-space-sm);
   font-family: var(--ds-font-display-sans);
   font-size: var(--ds-text-lg);
   font-weight: var(--ds-weight-bold);
@@ -690,9 +693,9 @@ function hoppOver() {
 }
 
 .kig__arknapp--valgt {
+  background: var(--ds-color-accent);
   border-color: var(--ds-color-accent);
-  border-width: var(--ds-border-width-heavy);
-  color: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
 }
 
 .kig__lenke {
@@ -751,29 +754,42 @@ function hoppOver() {
   .kig__inner { padding-top: 16vh; }
 }
 
+/* Segmentert bryter i pilleform, som resten av appens brytere. */
 .kig__kjonn {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: var(--ds-space-sm);
-  margin-top: var(--ds-space-lg);
+  gap: 4px;
+  padding: 4px;
+  margin: 0 0 var(--ds-space-md);
+  background: var(--ds-color-bg-subtle);
+  border-radius: var(--ds-radius-full);
 }
 
 .kig__kjonnknapp {
-  padding: var(--ds-space-md);
-  font-family: var(--ds-font-display-sans);
-  font-size: var(--ds-text-lg);
-  font-weight: var(--ds-weight-bold);
-  color: var(--ds-color-text-primary);
-  background: var(--ds-color-bg-elevated);
-  border: var(--ds-border-width) solid var(--ds-color-border);
-  border-radius: var(--ds-radius-md);
+  min-height: 44px;
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-base);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-secondary);
+  background: transparent;
+  border: 0;
+  border-radius: var(--ds-radius-full);
   cursor: pointer;
+  transition: background-color var(--ds-duration-fast) var(--ds-ease-out), color var(--ds-duration-fast) var(--ds-ease-out);
 }
 
 .kig__kjonnknapp--valgt {
-  border-color: var(--ds-color-accent);
-  border-width: var(--ds-border-width-heavy);
-  color: var(--ds-color-accent);
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-primary);
+  box-shadow: var(--ds-shadow-sm);
+}
+
+.kig__handling--fast {
+  position: sticky;
+  bottom: 0;
+  margin-top: var(--ds-space-lg);
+  padding: var(--ds-space-md) 0 calc(var(--ds-space-md) + env(safe-area-inset-bottom, 0px));
+  background: var(--ds-color-bg);
 }
 
 .kig__tittel--velkomst {
@@ -843,26 +859,39 @@ function hoppOver() {
   min-height: 0;
 }
 
-.kig-hero__trener {
-  width: auto;
+.kig-trener {
+  position: relative;
   height: clamp(9rem, 30dvh, 17rem);
+  aspect-ratio: 1;
   max-width: 100%;
-  object-fit: contain;
-  animation: kigFloat 5s ease-in-out infinite;
 }
 
-@keyframes kigFloat {
-  0%, 100% { transform: translateY(0); }
-  50%      { transform: translateY(-8px); }
+.kig-trener picture,
+.kig-trener img { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+/* Ballen ved venstre fot, der Codex' komposisjon har den. */
+.kig-trener > picture.kig-trener__ball {
+  position: absolute;
+  left: 16%;
+  bottom: 3%;
+  width: 18%;
+  height: 18%;
 }
 
-/* Bevegelsen er poenget, men ikke på bekostning av noen. */
-@media (prefers-reduced-motion: reduce) {
-  .kig-hero__trener { animation: none; }
+@media (prefers-reduced-motion: no-preference) {
+  .kig-trener--spiller > picture.kig-trener__ball {
+    animation: kigBallInn 1100ms cubic-bezier(0.16, 0.55, 0.25, 1) both;
+  }
+}
+
+@keyframes kigBallInn {
+  from { transform: translateX(-65%) rotate(-95deg); opacity: 0; }
+  25% { opacity: 1; }
+  to { transform: none; opacity: 1; }
 }
 
 @media (min-width: 480px) {
-  .kig-hero__trener { height: clamp(11rem, 32dvh, 19rem); }
+  .kig-trener { height: clamp(11rem, 32dvh, 19rem); }
 }
 
 /* Under ~600 px synlig høyde er maskoten det første som må vike — teksten
@@ -871,42 +900,9 @@ function hoppOver() {
   /* Luften rundt er det billigste å gi fra seg. Så maskoten — teksten og
      knappen er jobben, illustrasjonen er innpakningen. */
   .kig { padding-top: var(--ds-space-md); padding-bottom: var(--ds-space-md); }
-  .kig-hero__trener { height: clamp(5.5rem, 23dvh, 10rem); }
+  .kig-trener { height: clamp(5.5rem, 23dvh, 10rem); }
   .kig__velkomst--dempet { display: none; }
   .kig__signatur { display: none; }
-}
-
-.kig-tema {
-  display: flex;
-  gap: 2px;
-  padding: 2px;
-  /* Til VENSTRE: maskoten står til høyre og strekker seg oppover, og
-     pilla la seg rett ved hodet hans på lave skjermer. */
-  margin: 0 auto clamp(var(--ds-space-sm), 2dvh, var(--ds-space-lg)) 0;
-  flex-shrink: 0;
-  width: fit-content;
-  background: var(--ds-color-bg-elevated);
-  border: var(--ds-border-width) solid var(--ds-color-border-light, var(--ds-color-border));
-  border-radius: var(--ds-radius-full);
-  box-shadow: var(--ds-shadow-sm);
-}
-
-.kig-tema__valg {
-  min-height: 34px;
-  padding: 0 var(--ds-space-md);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-wide);
-  color: var(--ds-color-text-tertiary);
-  background: none;
-  border: 0;
-  border-radius: var(--ds-radius-full);
-  cursor: pointer;
-}
-
-.kig-tema__valg--aktiv {
-  color: var(--ds-color-bg);
-  background: var(--ds-color-text-primary);
 }
 
 /* Kvitteringen på at terminlista faktisk landet. Samme leire-stil som

@@ -406,12 +406,12 @@ function nårTekst(iso) {
 
         <p class="plattform-hint plattform-note">
           <template v-if="form.fiks_id">
-            Klubben er koblet til fotball.no. Treneren velger årskull første gang han logger inn, og
+            Klubben er koblet til fotball.no. Treneren velger årskull ved første innlogging, og
             får lagene og terminlista derfra.
           </template>
           <template v-else>
-            Årskull, lag, spillform og terminliste settes av treneren første gang han logger inn.
-            Uten kobling til fotball.no må han finne klubben selv.
+            Årskull, lag, spillform og terminliste settes av treneren ved første innlogging.
+            Uten kobling til fotball.no må treneren finne klubben selv.
           </template>
         </p>
 

@@ -1,6 +1,7 @@
 <script setup>
 import Spot from '../components/Spot.vue'
 import { ref, computed, onMounted } from 'vue'
+import { useRouter } from 'vue-router'
 import { useToday } from '../composables/useToday'
 import { useMatches } from '../composables/useMatches'
 import { useCoaches } from '../composables/useCoaches'
@@ -55,6 +56,16 @@ const { identityIncomplete } = useAuth()
 // Et tomt kull skal fylles her, ikke lete etter Admin. Kortene forsvinner
 // ett og ett; er alt på plass, finnes de ikke.
 const { active: onboardingActive } = useOnboarding()
+
+const router = useRouter()
+
+// Kampdagkortet ber om spillerne når laget ikke har noen. Da åpnes samme ark
+// som oppstartskortet; uten oppstartskort (sjeldent) er Tropp veien.
+const onboardingRef = ref(null)
+function leggInnSpillere() {
+  if (onboardingRef.value?.apneSpillere) onboardingRef.value.apneSpillere()
+  else router.push('/serie/tropp')
+}
 
 // Uten serie, og uten en turnering lagt inn: da har Hjem ingen kamper å vise,
 // og kortet er veien ut. Under onboardingen viker det — der er det spillerne
@@ -151,7 +162,7 @@ function coachNamesForMatch(matchId) {
     </div>
 
     <div v-else class="px-lg hjem-stack">
-      <OnboardingCards v-if="onboardingActive" class="ds-anim-fade-up ds-anim-delay-1" />
+      <OnboardingCards v-if="onboardingActive" ref="onboardingRef" class="ds-anim-fade-up ds-anim-delay-1" />
 
       <!-- Kretsen har flyttet noe. Står øverst: det endrer når man møter opp. -->
       <TerminlisteCard
@@ -168,6 +179,7 @@ function coachNamesForMatch(matchId) {
         :prep="prepFor(match.id)"
         :coach-names="coachNamesForMatch(match.id)"
         class="ds-anim-fade-up ds-anim-delay-1"
+        @legg-inn-spillere="leggInnSpillere"
       />
 
       <TodayTrainingCard

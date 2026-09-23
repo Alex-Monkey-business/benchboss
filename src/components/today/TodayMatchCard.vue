@@ -2,6 +2,8 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { teamColorsForMatch, teamLabel, isHomeMatch } from '../../lib/matchMeta'
+import { usePlayers } from '../../composables/usePlayers'
+import { STATUS } from '../../lib/query'
 
 const props = defineProps({
   match: { type: Object, required: true },
@@ -10,6 +12,8 @@ const props = defineProps({
 })
 
 const router = useRouter()
+const emit = defineEmits(['legg-inn-spillere'])
+const { players, status: spillerStatus } = usePlayers()
 
 const teamColors = computed(() => teamColorsForMatch(props.match))
 
@@ -46,7 +50,18 @@ const outcome = computed(() => {
 })
 
 const kicker = computed(() => done.value ? 'Spilt' : 'Kampdag')
+// Kampmodus med tom tropp er en blindvei. Et nytt kull med kamp i dag får
+// «Legg inn spillerne» i stedet — først når spillerlista er lest, så et kull
+// med spillere aldri blinker med feil knapp mens den hentes.
+const tomTropp = computed(() =>
+  !done.value && !inProgress.value &&
+  spillerStatus.value === STATUS.OK &&
+  teamColors.value.length > 0 &&
+  !players.value.some(p => teamColors.value.includes(p.primary_team))
+)
+
 const ctaLabel = computed(() => {
+  if (tomTropp.value) return 'Legg inn spillerne'
   if (done.value) return hasSummary.value ? 'Se sammendrag' : 'Se kampen'
   return inProgress.value ? 'Fortsett kampen' : 'Åpne kampmodus'
 })
@@ -72,6 +87,7 @@ function openLive() {
 
 // Uten kampmodus finnes ikke noe live-sammendrag — send da til kampdetaljene.
 function onCta() {
+  if (tomTropp.value) { emit('legg-inn-spillere'); return }
   if (done.value && !hasSummary.value) openDetail()
   else openLive()
 }

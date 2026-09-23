@@ -152,6 +152,9 @@ export function shortTeamName(name, clubShortName = '') {
     const etter = s.slice(m.index + m[0].length).trim()
     // «Halsen G13-1» gir «-1» — en bindestrek er ikke et lagnavn. Da er
     // klassen selv navnet: «G13-1».
+    // «Stavanger G11 1» gir «1». Et tall alene leses som et tall ved siden av
+    // «Borte», ikke som et lag, så det blir «Lag 1».
+    if (etter && /^\d+$/.test(etter)) return `Lag ${etter}`
     if (etter && /^[\p{L}\d]/u.test(etter)) return etter
     return s.slice(m.index).trim()
   }

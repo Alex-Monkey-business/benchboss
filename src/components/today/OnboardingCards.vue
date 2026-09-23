@@ -159,6 +159,9 @@ const fileInput = ref(null)
 const stegIdx = ref(0)
 const steg = computed(() => seasonTeams.value[stegIdx.value] || null)
 
+// Kampdagkortet åpner samme ark når laget ikke har spillere ennå.
+defineExpose({ apneSpillere })
+
 function apneSpillere() {
   hoppet.value = new Set()
   const forste = seasonTeams.value.findIndex(t => !antallPerLag.value.get(t.slug))
@@ -427,7 +430,7 @@ async function sendInvite() {
         <div class="onb-actions">
           <button type="button" class="ds-btn ds-btn--secondary" @click="nesteSteg({ hopper: true })">Hopp over</button>
           <button type="button" class="ds-btn ds-btn--primary" :disabled="importing || !parsed.length" @click="importPlayers">
-            {{ importing ? 'Legger inn…' : `Legg inn ${parsed.length} på ${steg.name}` }}
+            {{ importing ? 'Legger inn…' : parsed.length ? `Legg inn ${parsed.length} på ${steg.name}` : 'Legg inn spillerne' }}
           </button>
         </div>
 

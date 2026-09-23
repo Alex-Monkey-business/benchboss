@@ -299,8 +299,10 @@ onMounted(load)
           <option v-if="canManage" value="admin">Administrator</option>
         </select>
 
-        <label v-if="form.role !== 'parent'" class="tilgang-label" for="inv-team">Lag</label>
-        <select v-if="form.role !== 'parent'" id="inv-team" v-model="form.preferred_team" class="tilgang-input">
+        <!-- Første trener inviteres før veiviseren har laget lag; da er «Ingen»
+             eneste valg, og feltet er et spørsmål uten svar. -->
+        <label v-if="form.role !== 'parent' && seasonTeams.length" class="tilgang-label" for="inv-team">Lag</label>
+        <select v-if="form.role !== 'parent' && seasonTeams.length" id="inv-team" v-model="form.preferred_team" class="tilgang-input">
           <option value="">Ingen</option>
           <option v-for="t in seasonTeams" :key="t.slug" :value="t.slug">{{ t.name }}</option>
         </select>
