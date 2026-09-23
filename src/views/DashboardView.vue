@@ -1,4 +1,5 @@
 <script setup>
+import Spot from '../components/Spot.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAuth } from '../stores/auth'
 import { useSeasons } from '../composables/useSeasons'
@@ -225,7 +226,7 @@ function getCoachesForMatchList(matchId) {
 
     <div v-else-if="filteredMatches.length === 0" class="px-lg ds-anim-fade-up ds-anim-delay-3">
       <div class="ds-empty">
-        <img src="/illustrations/bench-boss-feature-icons/512/matches-transparent.webp" alt="" class="ds-empty__illo" />
+        <Spot name="match" class="ds-empty__illo" />
         <h3 class="ds-empty__title">Ingen kamper enda</h3>
         <p class="ds-empty__description">Last opp terminlista, så fyller resten av appen seg selv.</p>
         <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="$router.push('/admin/sesong-kamper')">Last opp kampprogram</button>
@@ -235,7 +236,7 @@ function getCoachesForMatchList(matchId) {
     <div v-else class="px-lg">
       <div v-if="displayedCount === 0">
         <div class="ds-empty">
-          <img src="/illustrations/bench-boss-feature-icons/512/matches-transparent.webp" alt="" class="ds-empty__illo" />
+          <Spot name="match" class="ds-empty__illo" />
           <h3 class="ds-empty__title">
             {{ timeFilter === 'past' ? 'Ingen tidligere kamper' : 'Ingen kommende kamper' }}
           </h3>

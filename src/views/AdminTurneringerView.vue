@@ -1,4 +1,5 @@
 <script setup>
+import Spot from '../components/Spot.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useCups } from '../composables/useCups'
 import { useCupMatches } from '../composables/useCupMatches'
@@ -259,7 +260,7 @@ const sorterteKamper = computed(() =>
       <p v-if="!ready" class="turn-muted">Henter turneringer …</p>
 
       <div v-else-if="!cups.length" class="ds-empty">
-        <img src="/illustrations/bench-boss-feature-icons/512/cup-tournament-transparent.webp" alt="" class="ds-empty__illo" />
+        <Spot name="cup" class="ds-empty__illo" />
         <h3 class="ds-empty__title">Ingen turneringer ennå</h3>
         <p class="ds-empty__description">
           Legg inn cupen med lagene dere stiller med, så kan du fordele troppen og

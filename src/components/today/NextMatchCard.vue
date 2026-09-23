@@ -1,4 +1,5 @@
 <script setup>
+import Spot from '../Spot.vue'
 import { computed } from 'vue'
 import { weekdayDateLabel } from '../../lib/dateLabels'
 import { teamLabel } from '../../lib/matchMeta'
@@ -100,14 +101,7 @@ const detailLine = computed(() => {
     <span class="next-match__detail">{{ detailLine }}</span>
     </div>
 
-    <img
-      class="next-match__illo"
-      src="/illustrations/bench-boss-state-icons/512/upcoming-match-transparent.webp"
-      alt=""
-      width="88"
-      height="88"
-      decoding="async"
-    />
+    <Spot name="match" class="next-match__illo" :size="64" />
     </div>
 
     <!-- Utenfor tekstkolonnen: mangelen gjelder hele kampen, ikke bare
@@ -210,15 +204,12 @@ const detailLine = computed(() => {
 }
 
 .next-match__illo {
-  flex-shrink: 0;
-  width: 64px;
-  height: 64px;
-  object-fit: contain;
+  --spot-size: 64px;
 }
 
 /* Under 380px stjeler bildet for mye fra motstandernavnet. */
 @media (max-width: 379px) {
-  .next-match__illo { width: 56px; height: 56px; }
+  .next-match__illo { --spot-size: 56px; }
 }
 
 .next-match__top {

@@ -1,4 +1,5 @@
 <script setup>
+import Spot from '../components/Spot.vue'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
@@ -25,7 +26,7 @@ function open(slug) {
     </div>
 
     <header class="handbook__hero">
-      <img class="handbook__icon" src="/illustrations/bench-boss-feature-icons/512/training-handbook-transparent.webp" alt="" />
+      <Spot name="book" class="handbook__icon" :size="104" />
       <span class="handbook__eyebrow">Trener-håndbok</span>
       <h1 class="handbook__title">{{ handbokOpphav ? `Slik trener vi i ${klubbNavn}` : `Slik trener vi ${cohortName}` }}</h1>
       <p v-if="hasHandbook" class="handbook__lead">
@@ -121,8 +122,7 @@ function open(slug) {
 }
 
 .handbook__icon {
-  width: 104px;
-  height: auto;
+  --spot-size: 104px;
   display: block;
   margin-bottom: var(--ds-space-md);
 }

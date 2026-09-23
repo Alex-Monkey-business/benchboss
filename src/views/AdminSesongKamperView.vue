@@ -12,6 +12,7 @@ import { useTerminlisteVarsel } from '../composables/useTerminlisteVarsel'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
 import DisclosureSection from '../components/DisclosureSection.vue'
+import Spot from '../components/Spot.vue'
 
 const { seasons, activeSeason, viewingSeason, fetchSeasons, createSeason, setViewingSeason } = useSeasons()
 const { matches, fetchMatches, bulkAddMatches, addMatch, updateMatch, deleteAllMatches, backfillDefaultCoaches } = useMatches()
@@ -475,7 +476,7 @@ function formatMatchDate(dateStr) {
             @click="fileInput?.click()"
           >
             <div class="file-drop__icon">
-              <img src="/illustrations/file.png" alt="" style="width: 80px; height: 80px; object-fit: contain; display: block; margin: 0 auto;" />
+              <Spot name="import" class="file-drop__spot" :size="80" />
             </div>
             <p class="file-drop__text">Dra fil hit eller tap for å velge</p>
             <p class="file-drop__hint">Støtter .xlsx, .xls og .csv</p>
@@ -490,6 +491,8 @@ function formatMatchDate(dateStr) {
         </div>
 
         <div v-else>
+          <!-- Pila går ned i kalenderen én gang: fila ER lest. Ikke en suksessmelding, en kvittering på handlingen. -->
+          <Spot name="import" class="file-drop__spot mb-md" :size="80" :play="true" />
           <div class="ds-alert ds-alert--info mb-md">
             {{ parsedMatches.length }} Halsen-kamper funnet i filen.
             <template v-if="skippedForeign">
@@ -791,6 +794,8 @@ function formatMatchDate(dateStr) {
 .fiks-treff__meta { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 
 .fiks-knapp { width: 100%; }
+
+.file-drop__spot { --spot-size: 80px; margin: 0 auto; }
 
 .fiks-gruppe {
   margin: var(--ds-space-md) 0 var(--ds-space-xs);

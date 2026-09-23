@@ -1,4 +1,5 @@
 <script setup>
+import Spot from '../components/Spot.vue'
 import { useContent } from '../composables/useContent'
 // TRENINGSUKA — uka på én side, én dag åpen.
 //
@@ -597,7 +598,7 @@ onMounted(async () => {
          uka har ingen sluttdato å gå ut på. Står det ingenting her, har ingen
          lagt inn en dag. -->
     <div v-else-if="!dager.length" class="ds-empty">
-      <img src="/illustrations/bench-boss-feature-icons/512/training-plan-transparent.webp" alt="" class="ds-empty__illo" />
+      <Spot name="training" class="ds-empty__illo" />
       <div class="ds-empty__title">Ingen treningsuke ennå</div>
       <div class="ds-empty__description">
         Legg inn dagene dere trener. De blir stående — uka gjentar seg til dere endrer den.

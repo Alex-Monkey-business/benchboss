@@ -22,10 +22,11 @@
   color: var(--ds-color-text-tertiary);
 }
 
-/* Clay-illustrasjon — varmt anker på fullsides tomme skjermer. Full farge,
-   beskjeden størrelse: vennlig, ikke utvasket som det gamle __image. */
+/* 3D-motivet fra illustrasjonssettet: 96 px er 192-fila på 2×, og
+   silhuettene er laget for å lese på den størrelsen. */
 .ds-empty__illo {
-  width: 112px;
+  --spot-size: 96px;
+  width: 96px;
   height: auto;
   margin-bottom: var(--ds-space-lg);
 }

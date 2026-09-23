@@ -1,5 +1,6 @@
 <script setup>
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import Spot from '../components/Spot.vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import { useFiks } from '../composables/useFiks'
@@ -480,13 +481,7 @@ function hoppOver() {
 
       <!-- ------------------------------------------------ Ferdig -->
       <template v-else-if="steg === 'ferdig'">
-        <img
-          class="kig__kvittering"
-          src="/illustrations/bench-boss-feature-icons/season-import-420.webp"
-          alt=""
-          width="420"
-          height="420"
-        />
+        <Spot name="calendar" class="kig__kvittering" :size="208" />
         <h1 class="kig__tittel">Klart.</h1>
         <!-- Sto før: «de ligger som kort på Hjem». Det beskrev hvordan VI har
              bygget det, ikke hva han skal gjøre. Og det var feil: trenerkortet
@@ -900,9 +895,7 @@ function hoppOver() {
      `align-items: stretch` strakk bildet ut i full bredde og overkjørte
      `width: auto`. Ballen ble en ellipse. */
   align-self: flex-start;
-  object-fit: contain;
-  width: auto;
-  height: clamp(7rem, 26dvh, 13rem);
+  --spot-size: clamp(7rem, 26dvh, 13rem);
   margin: 0 0 clamp(var(--ds-space-md), 3dvh, var(--ds-space-xl));
   animation: kigKvitteringInn 0.5s var(--ds-ease-pop) both;
 }

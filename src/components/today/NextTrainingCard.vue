@@ -1,5 +1,6 @@
 <script setup>
 import { computed } from 'vue'
+import Spot from '../Spot.vue'
 import { relativeDateLabel } from '../../lib/dateLabels'
 import { sessionIllustration, illoWebp, illoPng as illoPngPath } from '../../lib/sessionVisuals'
 import { dagLink } from '../../lib/trainingLinks'
@@ -38,13 +39,7 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
       </picture>
       <!-- Har ikke dagen egen illustrasjon, faller vi tilbake på state-ikonet,
            så kortet aldri står bildeløst ved siden av neste kamp. -->
-      <img
-        v-else
-        class="next-training__illo next-training__illo--fallback"
-        src="/illustrations/bench-boss-state-icons/512/upcoming-training-transparent.webp"
-        alt=""
-        decoding="async"
-      />
+      <Spot v-else name="training" class="next-training__illo next-training__illo--fallback" :size="64" />
     </div>
 
     <p v-if="drillLine" class="next-training__drills">{{ drillLine }}</p>
@@ -117,6 +112,7 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
 
 .next-training__illo {
   width: 64px;
+  --spot-size: 64px;
   flex-shrink: 0;
 }
 
@@ -130,7 +126,7 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
    treningskortene i stedet fjernet bildet gjorde at kortene så ut som to
    ulike komponenter så snart skjermen ble smal. */
 @media (max-width: 379px) {
-  .next-training__illo { width: 56px; }
+  .next-training__illo { width: 56px; --spot-size: 56px; }
 }
 
 /* Øvelsene som én kompakt linje — maks to ved mange øvelser. */

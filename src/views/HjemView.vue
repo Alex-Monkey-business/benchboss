@@ -1,4 +1,5 @@
 <script setup>
+import Spot from '../components/Spot.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useToday } from '../composables/useToday'
 import { useMatches } from '../composables/useMatches'
@@ -191,13 +192,7 @@ function coachNamesForMatch(matchId) {
         to="/admin/turneringer"
         class="ds-card ds-card--interactive hjem-cupkort ds-anim-fade-up ds-anim-delay-2"
       >
-        <img
-          src="/illustrations/bench-boss-feature-icons/512/cup-tournament-transparent.webp"
-          alt=""
-          class="hjem-cupkort__illo"
-          width="64"
-          height="64"
-        />
+        <Spot name="cup" class="hjem-cupkort__illo" :size="64" />
         <span class="hjem-cupkort__tekst">
           <span class="hjem-cupkort__tittel">Legg inn turneringen</span>
           <span class="hjem-cupkort__lead">Laget har ingen seriekamper. Legg inn cupen, så kan du fordele troppen og føre kampene.</span>
@@ -247,7 +242,7 @@ function coachNamesForMatch(matchId) {
       </section>
 
       <div v-if="showEmpty" class="ds-empty ds-anim-fade-up ds-anim-delay-1">
-        <img src="/illustrations/bench-boss-feature-icons/512/dashboard-home-transparent.webp" alt="" class="ds-empty__illo" />
+        <Spot name="empty" class="ds-empty__illo" />
         <h3 class="ds-empty__title">Ingenting på planen</h3>
         <p class="ds-empty__description">Ingen kamper eller treninger fremover — nyt friheten.</p>
       </div>
@@ -267,8 +262,7 @@ function coachNamesForMatch(matchId) {
 
 .hjem-cupkort__illo {
   flex: none;
-  width: 64px;
-  height: 64px;
+  --spot-size: 64px;
 }
 
 .hjem-cupkort__tekst {
