@@ -44,5 +44,12 @@ export function useCupFirst() {
   // halvsekund etter innlasting er verre enn å vente på svaret.
   const cupFirst = computed(() => serieKamper.value === 0)
 
-  return { cupFirst, fetchSerieStatus: dedupe(fetchSerieStatus, 'fetchSerieStatus') }
+  // Veiviseren importerer kamper i et kull som ble målt til null et øyeblikk
+  // før. Uten ny måling sto det «Cup» i menyen helt til appen ble lastet på nytt.
+  async function refreshSerieStatus() {
+    maaltKull.value = null
+    await fetchSerieStatus()
+  }
+
+  return { cupFirst, fetchSerieStatus: dedupe(fetchSerieStatus, 'fetchSerieStatus'), refreshSerieStatus }
 }

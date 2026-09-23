@@ -244,6 +244,10 @@ const detailLine = computed(() => {
   border-radius: var(--ds-radius-full);
   letter-spacing: 0.02em;
   white-space: nowrap;
+  /* Nøytral grunnform. Bare Halsens tre lag har egne lagfarger; «Blå» i et
+     annet kull sto ellers som naken tekst uten pille. */
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-secondary);
 }
 
 .next-match__team-tag--gronn { background: var(--ds-team-gronn-bg); color: var(--ds-team-gronn); }

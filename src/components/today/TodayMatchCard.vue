@@ -176,6 +176,9 @@ function onCta() {
   padding: 1px 6px;
   border-radius: var(--ds-radius-full);
   letter-spacing: 0.02em;
+  /* Nøytral grunnform for lag uten egen lagfarge (andre kull enn Halsen). */
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-secondary);
 }
 
 .today-match__team-tag--gronn { background: var(--ds-team-gronn-bg); color: var(--ds-team-gronn); }

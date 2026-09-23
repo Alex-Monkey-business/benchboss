@@ -8,6 +8,7 @@ import { useSeasons } from '../composables/useSeasons'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
 import { useToast } from '../composables/useToast'
 import { useTheme } from '../composables/useTheme'
+import { useCupFirst } from '../composables/useCupFirst'
 import { clubLogo, teamAge, genderFromCohortName } from '../lib/fiks'
 
 // Første møte med et tomt kull. Fullskjerm, ett spørsmål av gangen, og
@@ -222,6 +223,8 @@ const kortNavn = t => shortTeamName(t.name, activeCohort.value?.club_name?.split
 const henter = ref(false)
 const resultat = ref(null)
 
+const { refreshSerieStatus } = useCupFirst()
+
 async function hent() {
   if (!valgteLag.value.length) return
   henter.value = true
@@ -246,6 +249,7 @@ async function hent() {
     const fra = `${NAA}-01-01`
     const r = sesong ? await importMatches(sesong.id, { from: fra, teams: opprettede }) : { lagt: 0 }
     resultat.value = { lag: valgteLag.value.length, kamper: r.lagt, spillform: r.spillform }
+    await refreshSerieStatus()
     steg.value = 'ferdig'
   } catch (e) {
     feil.value = e?.message || 'Noe gikk galt under hentingen'

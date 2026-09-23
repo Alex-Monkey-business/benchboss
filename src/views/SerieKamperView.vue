@@ -245,6 +245,9 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
   border-radius: var(--ds-radius-full);
   letter-spacing: 0.02em;
   margin-right: 4px;
+  /* Nøytral grunnform for lag uten egen lagfarge (andre kull enn Halsen). */
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-secondary);
 }
 .match-card__team-tag--gronn { background: var(--ds-team-gronn-bg); color: var(--ds-team-gronn); }
 .match-card__team-tag--rod { background: var(--ds-team-rod-bg); color: var(--ds-team-rod); }
