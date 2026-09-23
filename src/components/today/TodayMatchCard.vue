@@ -12,6 +12,12 @@ const props = defineProps({
 const router = useRouter()
 
 const teamColors = computed(() => teamColorsForMatch(props.match))
+
+// Samme regel som Neste kamp: ett lag med egen lagfarge → lagets flate.
+const lagFlate = computed(() => {
+  const c = teamColors.value
+  return c.length === 1 && (c[0] === 'gronn' || c[0] === 'rod') ? c[0] : null
+})
 const home = computed(() => isHomeMatch(props.match))
 const opponent = computed(() => home.value ? props.match.away_team : props.match.home_team)
 
@@ -72,7 +78,7 @@ function onCta() {
 </script>
 
 <template>
-  <div class="ds-card today-match" role="link" tabindex="0" @click="openDetail" @keydown.enter="openDetail">
+  <div class="ds-card today-match" :data-lag="lagFlate" role="link" tabindex="0" @click="openDetail" @keydown.enter="openDetail">
     <div class="today-match__top">
       <span class="today-match__tags">
         <span
@@ -126,6 +132,13 @@ function onCta() {
 </template>
 
 <style scoped>
+/* Lagflaten, som Neste kamp. Hvit står hvit med ramme. */
+.today-match[data-lag] { border-color: transparent; }
+.today-match[data-lag="gronn"] { background: var(--ds-team-gronn-bg); }
+.today-match[data-lag="rod"]   { background: var(--ds-team-rod-bg); }
+.today-match[data-lag] .today-match__team-tag,
+.today-match[data-lag] .today-match__venue { background: var(--ds-color-bg-elevated); }
+
 .today-match {
   display: flex;
   flex-direction: column;

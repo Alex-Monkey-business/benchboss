@@ -95,11 +95,9 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
   font-size: var(--ds-text-lg);
   line-height: 1.3;
   letter-spacing: -0.01em;
-  /* Kortet beholder sin LYSE aksentbakgrunn i mørk modus — derfor kan ikke
-     blekket følge temaet. --ds-color-text-primary flipper til nesten hvitt,
-     og tittelen ble usynlig på lyseblått. Fast mørkt blekk: lik i lyst og
-     mørkt tema. */
-  color: #0A0A0A;
+  /* Aksentflatene har egne mørke varianter nå, så blekket følger temaet.
+     Fast #0A0A0A ble svart på mørk flate i mørk modus. */
+  color: var(--ds-color-text-primary);
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;

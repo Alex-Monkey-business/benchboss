@@ -9,7 +9,7 @@ import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 // er motivets egen handling, spilt én gang:
 //  - stats: søylene bygger seg opp når motivet blir synlig (play="auto")
 //  - import: pila går ned i kalenderen når forelderen sier at en fil er lest (play=true)
-//  - match-red/-green/-white: ballen ruller inn til drakta på neste kamp (play="auto")
+//  - match: ballen ruller inn til drakta på neste kamp (play="auto")
 //  - passing: ballen spilles gjennom portene på pasningsøkta (play="auto")
 // Alt annet står stille. Redusert bevegelse viser ferdig motiv uten animasjon,
 // og en skjult fane stopper bevegelsen.
@@ -25,14 +25,14 @@ const props = defineProps({
 const BASE = '/illustrations/spot/'
 const STEP = [128, 192, 320]
 // Motiver der ballen er et eget lag, så den kan stå nederst til høyre uansett motiv.
-const MED_BALL = new Set(['match', 'training', 'skills', 'passing', 'match-red', 'match-green', 'match-white'])
+const MED_BALL = new Set(['match', 'training', 'skills', 'passing'])
 const MOTION = {
   stats: 'bars',
   import: 'import',
   passing: 'pass',
-  'match-red': 'roll',
-  'match-green': 'roll',
-  'match-white': 'roll'
+  // Rullingen spilles bare der stedet ber om det (play); tomme tilstander
+  // med kampmotivet står stille.
+  match: 'roll'
 }
 const LAG = { stats: ['stats-lavender', 'stats-rose', 'stats-teal'] }
 const UNDERLAG = { import: 'import-blank' }

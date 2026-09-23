@@ -55,13 +55,13 @@ const cta = computed(() => {
   })
 })
 
-// Ett av våre lag i kampen → lagets drakt, og ballen ruller inn til den
-// når kortet vises. Flere lag eller cup uten lagfarge → det nøytrale motivet.
-// Teksten over bærer fortsatt identiteten; drakten er ikke eneste signal.
-const DRAKT = { rod: 'match-red', gronn: 'match-green', hvit: 'match-white' }
-const motif = computed(() => {
+// Kortet får lagets lyse flate når kampen er ETT av lagene med egen lagfarge.
+// Fargen er identitet her, ikke dekor: kortet handler om det laget. Flere lag
+// eller et lag uten lagfarge → nøytralt kort som før.
+const LAGFLATE = new Set(['gronn', 'rod', 'hvit'])
+const lagFlate = computed(() => {
   const teams = props.event.teams || []
-  return teams.length === 1 && DRAKT[teams[0]] ? DRAKT[teams[0]] : 'match'
+  return teams.length === 1 && LAGFLATE.has(teams[0]) ? teams[0] : null
 })
 
 const ctaTo = computed(() => (cta.value ? `/kamp/${props.event.id}/live` : null))
@@ -85,7 +85,7 @@ const detailLine = computed(() => {
 </script>
 
 <template>
-  <div class="ds-card next-match">
+  <div class="ds-card next-match" :data-lag="lagFlate">
     <!-- Kortet var én stor <router-link>. En handling inni en lenke er ugyldig
          HTML og gir uforutsigbare trykk, så lenka dekker nå lesedelen og
          handlingen står for seg. -->
@@ -110,7 +110,9 @@ const detailLine = computed(() => {
     <span class="next-match__detail">{{ detailLine }}</span>
     </div>
 
-    <Spot :name="motif" class="next-match__illo" :size="64" play="auto" />
+    <!-- Samme drakt for alle lag: alle Halsen-lagene spiller i klubbens drakt,
+         uansett lagnavn. Flaten viser laget, bildet viser kamp. -->
+    <Spot name="match" class="next-match__illo" :size="64" play="auto" />
     </div>
 
     <!-- Utenfor tekstkolonnen: mangelen gjelder hele kampen, ikke bare
@@ -140,6 +142,19 @@ const detailLine = computed(() => {
   padding: var(--ds-space-lg);
   text-decoration: none;
 }
+
+/* Lagflaten. Rammen går bort når flaten bærer kortet, som treningskortene.
+   Hvit ER hvit: kortet står hvitt med ramme, som før. En nøytral flate ble
+   prøvd og fikk et grønnstikk som kunne forveksles med Grønn. */
+.next-match[data-lag="gronn"],
+.next-match[data-lag="rod"] { border-color: transparent; }
+.next-match[data-lag="gronn"] { background: var(--ds-team-gronn-bg); }
+.next-match[data-lag="rod"]   { background: var(--ds-team-rod-bg); }
+
+/* Merkelappene står på kortets egen flate: de løftes til hvitt, ellers
+   forsvinner «Grønn»-lappen i den grønne flaten. */
+.next-match:is([data-lag="gronn"], [data-lag="rod"]) .next-match__team-tag,
+.next-match:is([data-lag="gronn"], [data-lag="rod"]) .next-match__venue { background: var(--ds-color-bg-elevated); }
 
 /* Lesedelen er lenka. Trykkeffekten flyttet hit fra kortet, som nå er en ren
    beholder — ellers ville hele kortet krympet når man trykket knappen. */
