@@ -757,9 +757,9 @@ onMounted(async () => {
 
     <!-- Banken og håndboka står utenfor uka, ikke inni den: er uka tom, er det
          nettopp da du trenger et sted å hente øvelser fra. Rader med motiv,
-         ikke kort, så de leses som steder å gå og ikke som flere dager. -->
+         ikke kort, så de leses som steder å gå og ikke som flere dager. Ingen
+         overskrift: radene sier selv hva de er, og luft skiller dem fra uka. -->
     <section v-if="!loading" class="uke__steder">
-      <h2 class="uke__kicker">Til treninga</h2>
       <router-link to="/trening/ovelser" class="uke__sted">
         <Spot name="skills" class="uke__sted-illo" :size="44" />
         <span class="uke__sted-tekst">
@@ -1648,16 +1648,6 @@ Torsdag
 }
 
 .uke__legg-til:active { transform: scale(0.97); }
-
-.uke__kicker {
-  margin: 0 0 var(--ds-space-xs);
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ds-color-text-tertiary);
-}
 
 .uke__sted {
   display: flex;
