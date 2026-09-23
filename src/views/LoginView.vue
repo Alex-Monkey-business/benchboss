@@ -30,7 +30,9 @@ const isIosStandalone = (() => {
 })()
 
 const step = ref('email')
-const showEmail = ref(false)
+// ?epost=1 kommer fra en utløpt lenke: da vil personen ha en ny e-post, og
+// feltet står åpent med en gang.
+const showEmail = ref(route.query.epost === '1')
 const googleBusy = ref(false)
 async function onGoogle() {
   if (googleBusy.value) return

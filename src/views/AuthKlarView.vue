@@ -32,6 +32,7 @@ const token = String(route.query.t || '')
 const type = String(route.query.type || 'magiclink')
 const jobber = ref(false)
 const feil = ref('')
+const utlopt = ref(false)
 
 onMounted(() => {
   if (!token) feil.value = 'Lenken mangler innloggingskoden. Be om en ny fra innloggingssiden.'
@@ -49,8 +50,9 @@ async function loggInn() {
     jobber.value = false
     // Utløpt eller alt brukt. Koden i e-posten er da også oppbrukt, så veien
     // videre er en ny e-post — ikke å prøve denne igjen.
-    feil.value = /expired|invalid/i.test(error.message || '')
-      ? 'Lenken er utløpt eller allerede brukt. Be om en ny fra innloggingssiden.'
+    utlopt.value = /expired|invalid/i.test(error.message || '')
+    feil.value = utlopt.value
+      ? 'Lenka er gått ut eller allerede brukt.'
       : (error.message || 'Innloggingen feilet.')
     return
   }
@@ -76,7 +78,16 @@ async function loggInn() {
       <!-- Feilen er nesten alltid en lenke som er brukt eller utløpt. -->
       <Spot name="connection" class="klar__illo" />
       <p class="klar__feil">{{ feil }}</p>
-      <router-link to="/login" class="klar__lenke">Til innlogging</router-link>
+      <!-- En utløpt lenke skal gi en vei videre, ikke en beskjed om å gå et
+           annet sted. Knappen åpner e-postfeltet direkte; Google er like
+           nær på samme side. -->
+      <router-link
+        v-if="utlopt"
+        :to="{ path: '/login', query: { epost: '1' } }"
+        class="ds-btn ds-btn--primary klar__knapp"
+      >Send meg en ny lenke</router-link>
+      <router-link v-if="utlopt" to="/login" class="klar__lenke">Logg inn med Google</router-link>
+      <router-link v-else to="/login" class="klar__lenke">Til innlogging</router-link>
     </template>
 
     <template v-else>
@@ -130,7 +141,7 @@ async function loggInn() {
 
 .klar__feil {
   font-size: var(--ds-text-base);
-  color: var(--ds-color-error);
+  color: var(--ds-color-text-primary);
   margin: 0;
   max-width: 420px;
 }
