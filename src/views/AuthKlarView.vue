@@ -1,6 +1,7 @@
 <script setup>
 import { ref, onMounted } from 'vue'
 import Spot from '../components/Spot.vue'
+import BenchBossBrand from '../components/BenchBossBrand.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { useAuth } from '../stores/auth'
@@ -79,9 +80,13 @@ async function loggInn() {
     </template>
 
     <template v-else>
-      <img class="klar__merke" src="/icons/icon-192.png" alt="" width="64" height="64" />
-      <h1 class="klar__tittel">Logg inn i BenchBoss</h1>
-      <p class="klar__lead">Trykk for å fortsette.</p>
+      <!-- Samme merke som innloggingssida. Appikonet med kremfarget bunn var
+           det eneste stedet det gamle ikonet fortsatt sto. -->
+      <BenchBossBrand />
+      <!-- Merket sier alt en overskrift ville sagt. Teksten sier hvor du kom
+           fra, så trykket ikke føles som et steg for mye. -->
+      <h1 class="klar__skjult">Logg inn i BenchBoss</h1>
+      <p class="klar__lead">Lenka fra e-posten er klar.</p>
       <button type="button" class="ds-btn ds-btn--primary klar__knapp" :disabled="jobber || !token" @click="loggInn">
         {{ jobber ? 'Logger inn …' : 'Logg inn' }}
       </button>
@@ -102,14 +107,15 @@ async function loggInn() {
   text-align: center;
 }
 
-.klar__merke { border-radius: var(--ds-radius-lg); }
-
 .klar__illo { --spot-size: 96px; }
 
-.klar__tittel {
-  margin: var(--ds-space-sm) 0 0;
-  font-size: var(--ds-text-xl);
-  letter-spacing: -0.01em;
+.klar__skjult {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
 }
 
 .klar__lead {
@@ -118,7 +124,7 @@ async function loggInn() {
 }
 
 .klar__knapp {
-  margin-top: var(--ds-space-sm);
+  margin-top: var(--ds-space-md);
   min-width: 220px;
 }
 
