@@ -5,7 +5,8 @@
 
 .ds-toast-container {
   position: fixed;
-  bottom: calc(var(--ds-space-xl) + env(safe-area-inset-bottom, 0px));
+  /* Over bunnmenyen (72 px) med luft. Sto som inline 88px i komponenten. */
+  bottom: calc(88px + env(safe-area-inset-bottom, 0px));
   /* left: 50% + translate ga beholderen bare halve skjermen å bre seg på, så en
      lang melding brakk på 195 px med knappen klemt inn. Kant til kant, med
      innholdet sentrert, gir hele bredden. */
@@ -17,6 +18,14 @@
   align-items: center;
   gap: var(--ds-space-sm);
   pointer-events: none;
+}
+
+/* Et åpent ark har hovedknappen sin nederst, akkurat der toasten ligger.
+   «Kullet er opprettet» ble liggende over «Send invitasjon». Mens et ark
+   er åpent, kommer bekreftelsen ovenfra i stedet. */
+body:has(.ds-sheet-overlay) .ds-toast-container {
+  top: calc(env(safe-area-inset-top, 0px) + var(--ds-space-md));
+  bottom: auto;
 }
 
 .ds-toast {

@@ -5,7 +5,7 @@ defineProps({
 </script>
 
 <template>
-  <div class="ds-toast-container" style="bottom: 88px;">
+  <div class="ds-toast-container">
     <TransitionGroup name="ds-toast">
       <div
         v-for="toast in toasts"
