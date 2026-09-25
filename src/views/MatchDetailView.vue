@@ -25,19 +25,23 @@ import { matchCta } from '../lib/matchCta'
 import { teamSlugFromName, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, isPlayed, teamLabel, isOurs } from '../lib/matchMeta'
 import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 import { meldEvent } from '../lib/sporing'
+import { lanegrense } from '../lib/lanegrense'
+import { ageClass, spillformFraKamper } from '../lib/fiks'
+import { useSeasonTeams } from '../composables/useSeasonTeams'
 
 const route = useRoute()
 const router = useRouter()
-const { matches, matchPlayers, getMatch, fetchMatches, updateMatch, setMatchCoaches, fetchMatchCoaches, setMatchPlayers, fetchMatchPlayers, fetchAllMatchPlayers, fetchMatchAbsences, toggleAbsence, deleteMatch } = useMatches()
+const { matches, matchPlayers, getMatch, fetchMatches, updateMatch, setMatchCoaches, fetchMatchCoaches, setMatchPlayers, fetchMatchPlayers, fetchAllMatchPlayers, fetchMatchAbsences, fetchAllMatchAbsences, getAbsencesForMatch, toggleAbsence, deleteMatch } = useMatches()
 const { expenses, fetchExpenses, registerExpense, getExpenseForMatch, removeExpense } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
 const { players, fetchPlayers, addPlayer, getPlayerById } = usePlayers()
-const { fetchPlayerSeasonTeams, isLoanEligible } = usePlayerSeasonTeams()
+const { fetchPlayerSeasonTeams, isLoanEligible, teamForSeason } = usePlayerSeasonTeams()
+const { seasonTeams } = useSeasonTeams()
 const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals()
 const { session: mmSession, fetchSession: fetchMmSession, fetchStints: fetchMmStints } = useMatchMode()
 const { seasons, fetchSeasons } = useSeasons()
-const { coach: currentCoach } = useAuth()
+const { coach: currentCoach, activeCohort } = useAuth()
 const { usesReferees } = useFeatures()
 const { show: showToast } = useToast()
 const { merkeFor } = useKlubbmerke()
@@ -99,7 +103,7 @@ const showResultSection = computed(() =>
 )
 
 onMounted(async () => {
-  await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllMatchPlayers()])
+  await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllMatchPlayers(), fetchAllMatchAbsences()])
   match.value = await getMatch(route.params.id)
   if (match.value) {
     // Hent sesongens kamper — grunnlag for ekstra-kamp-tall og konflikt-/uke-sjekk.
@@ -428,6 +432,64 @@ const loanedElsewhereThisWeek = computed(() => {
   return out
 })
 
+// ─── Lånegrensa (BR § 2-12, 13–19 år) ──────────────────────────────────────
+// Et lavere rangert lag kan bruke et begrenset antall spillere som var med i
+// siste obligatoriske kamp til laget over. Regelen og rangen bor i
+// lib/lanegrense; her kobles den til troppene slik de står i basen.
+function troppFor(m, slug) {
+  const ut = new Set(getAbsencesForMatch(m.id))
+  const ids = new Set()
+  for (const p of players.value) {
+    if (teamForSeason(p, m.season_id) === slug && !ut.has(p.id)) ids.add(p.id)
+  }
+  for (const mp of matchPlayers.value) if (mp.match_id === m.id) ids.add(mp.player_id)
+  return ids
+}
+function spillformFor(slug) {
+  const egne = matches.value.filter(m => teamColorsForMatch(m).includes(slug))
+  return spillformFraKamper(egne) || activeCohort.value?.players_on_pitch || null
+}
+const grense = computed(() => {
+  const m = match.value
+  if (!m || teamColors.value.length !== 1) return null
+  return lanegrense(m, teamColors.value[0], {
+    teams: seasonTeams.value,
+    matches: matches.value,
+    alder: ageClass(activeCohort.value?.birth_year, Number(m.match_date.slice(0, 4))),
+    lagForKamp: teamColorsForMatch,
+    troppFor,
+    spillformFor,
+  })
+})
+const giverNavn = computed(() => (grense.value?.fra || []).map(f => teamLabel(f.slug)).join(' og '))
+// Hvem i dagens tropp som var med i giverlagets forrige kamp.
+function medSist(playerId) {
+  return !!grense.value?.spillere.has(playerId)
+}
+// Blant lånespillerne fra laget over er det unntaket som er verdt å se:
+// de som ikke var med sist, og derfor ikke teller mot grensa.
+function tellerIkke(p) {
+  if (!grense.value || medSist(p.id)) return false
+  return grense.value.fra.some(f => f.slug === p.primary_team)
+}
+const brukteFraGiver = computed(() => {
+  if (!grense.value) return 0
+  const ut = new Set(matchAbsenceIds.value)
+  const tropp = new Set([...teamSquad.value.filter(p => !ut.has(p.id)).map(p => p.id), ...matchPlayerIds.value])
+  let n = 0
+  for (const id of tropp) if (grense.value.spillere.has(id)) n++
+  return n
+})
+const overGrensa = computed(() => !!grense.value && brukteFraGiver.value > grense.value.grense)
+const grenseKamp = computed(() => {
+  const f = grense.value?.fra?.[0]
+  if (!f) return ''
+  const d = new Date(f.kamp.match_date + 'T12:00:00')
+  const dato = trimAbbrevDots(d.toLocaleDateString('nb-NO', { day: 'numeric', month: 'short' }))
+  const mot = isOurs(f.kamp.home_team) ? f.kamp.away_team : f.kamp.home_team
+  return mot ? `mot ${mot} ${dato}` : dato
+})
+
 // Lånespillere i tre grupper: Valgt (allerede på kampen), Anbefalt (egnet,
 // uten konflikt, ikke allerede lånt denne uka — færrest ekstra først), Andre.
 const selectedLoans = computed(() =>
@@ -440,7 +502,9 @@ const recommendedLoans = computed(() =>
       // Kampens egen sesong, ikke aktiv sesong — gamle kamper er fortsatt nåbare.
       isLoanEligible(p, match.value?.season_id) &&
       !playerConflicts.value[p.id] &&
-      !loanedElsewhereThisWeek.value.has(p.id)
+      !loanedElsewhereThisWeek.value.has(p.id) &&
+      // Er grensa nådd, anbefales ingen som ville gått over den.
+      !(grense.value && brukteFraGiver.value >= grense.value.grense && medSist(p.id))
     )
     .sort((a, b) => extraCount(a.id) - extraCount(b.id) || a.name.localeCompare(b.name, 'no'))
 )
@@ -1136,6 +1200,7 @@ function focusSummaryGroup() {
         <template #summary>
           <span v-if="teamSquad.length" class="sum-chip sum-chip--squad">{{ availableCount }} på laget</span>
           <span v-if="selectedLanespillere.length" class="sum-chip sum-chip--more">{{ selectedLanespillere.length }} lån</span>
+          <span v-if="overGrensa" class="sum-chip sum-chip--over">{{ brukteFraGiver }} av {{ grense.grense }} fra {{ giverNavn }}</span>
           <span v-if="selectedCoaches.length" class="coach-avatar-pile">
             <span
               v-for="c in selectedCoaches"
@@ -1149,6 +1214,17 @@ function focusSummaryGroup() {
             </span>
           </span>
         </template>
+
+        <!-- Lånegrensa: bare der regelen gjelder (13 år og eldre, seriekamp) -->
+        <div v-if="grense" class="lanegrense" :class="{ 'lanegrense--over': overGrensa }">
+          <div class="lanegrense__tall">
+            <strong>{{ brukteFraGiver }} av {{ grense.grense }}</strong> fra {{ giverNavn }}s siste kamp
+          </div>
+          <p class="lanegrense__tekst">
+            <template v-if="overGrensa">{{ brukteFraGiver - grense.grense }} for mange. {{ teamLabel(teamColors[0]) }} kan bruke maks {{ grense.grense }} spillere som var med i {{ giverNavn }}s siste seriekamp ({{ grenseKamp }}).</template>
+            <template v-else>Spillere som var med {{ grenseKamp }} er merket «Med {{ giverNavn }}».</template>
+          </p>
+        </div>
 
         <!-- Laget — basistropp med frafall -->
         <div v-if="teamSquad.length" class="sub-section">
@@ -1167,6 +1243,7 @@ function focusSummaryGroup() {
             >
               {{ p.name }}
               <span v-if="matchAbsenceIds.includes(p.id)" class="squad-pill__out-tag">ute</span>
+              <span v-else-if="medSist(p.id)" class="med-sist">Med {{ giverNavn }}</span>
             </button>
           </div>
         </div>
@@ -1189,6 +1266,7 @@ function focusSummaryGroup() {
                   @click="togglePlayer(p.id)"
                 >
                   {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabel(p.primary_team) }}</span>
+                  <span v-if="tellerIkke(p)" class="med-sist">Teller ikke</span>
                   <span class="extra-badge" :class="{ 'extra-badge--zero': !extraCount(p.id) }" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
                 </button>
               </div>
@@ -1205,6 +1283,7 @@ function focusSummaryGroup() {
                   @click="togglePlayer(p.id)"
                 >
                   {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabel(p.primary_team) }}</span>
+                  <span v-if="tellerIkke(p)" class="med-sist">Teller ikke</span>
                   <span class="extra-badge" :class="{ 'extra-badge--zero': !extraCount(p.id) }" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
                 </button>
               </div>
@@ -1227,6 +1306,7 @@ function focusSummaryGroup() {
                   @click="togglePlayer(p.id)"
                 >
                   {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabel(p.primary_team) }}</span>
+                  <span v-if="tellerIkke(p)" class="med-sist">Teller ikke</span>
                   <span v-if="!playerConflicts[p.id]" class="extra-badge" :class="{ 'extra-badge--zero': !extraCount(p.id) }" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
                   <span v-if="playerConflicts[p.id]" class="hospitant-pill__conflict" :title="`Også kamp ${playerConflicts[p.id].time || 'samme dag'} mot ${playerConflicts[p.id].opponent}`">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
@@ -2412,6 +2492,41 @@ function focusSummaryGroup() {
 }
 
 .sum-chip--squad { color: var(--ds-color-text-secondary); }
+.sum-chip--over { color: var(--ds-color-warm-text); font-weight: 600; }
+
+/* Lånegrensa: nøytral når den holder, varm når den er passert. Ingen rød —
+   det er et varsel, ikke en feil, og treneren kan ha grunn. */
+.lanegrense {
+  margin-bottom: var(--ds-space-md);
+  padding: var(--ds-space-sm) var(--ds-space-md);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-bg-subtle);
+}
+.lanegrense--over { background: var(--ds-color-warm-bg); }
+.lanegrense__tall {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+}
+.lanegrense__tall strong {
+  color: var(--ds-color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.lanegrense--over .lanegrense__tall strong { color: var(--ds-color-warm-text); }
+.lanegrense__tekst {
+  margin: 2px 0 0;
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+  text-wrap: pretty;
+}
+.lanegrense--over .lanegrense__tekst { color: var(--ds-color-text-secondary); }
+.med-sist {
+  margin-left: 4px;
+  font-size: 0.625rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--ds-color-text-tertiary);
+}
 
 /* ─── Match-meny (⋯-sheet) ──────────────────────────────────────────── */
 .match-menu {
