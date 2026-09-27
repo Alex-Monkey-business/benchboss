@@ -140,7 +140,7 @@ ok('sheeten lukker', await tell('.ds-sheet') === 0)
 await apne('lørdag')
 
 // ── 4. Planmodus ────────────────────────────────────────────────────────────
-await p.$eval('.dag--open .dag__planlegg', e => e.click()); await p.waitForTimeout(500)
+await p.locator('.dag--open .dag__foot button', { hasText: /Planlegg treninga|Legg til øvelser/ }).click(); await p.waitForTimeout(500)
 ok('planmodus viser hele økta som rader', await tell('.dag--open .rad') === 4)
 ok('hver rad har et bilde-felt og to piler',
   await tell('.dag--open .rad__bilde') === 4 && await tell('.dag--open .pil') === 8)
