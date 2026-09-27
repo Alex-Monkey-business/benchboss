@@ -347,15 +347,9 @@ function hoppOver() {
         </div>
 
         <h1 class="kig__tittel kig__tittel--velkomst">
-          Velkommen til <span class="kig__merke">BenchBoss</span>{{ fornavn ? ', ' + fornavn : '' }}!
+          Velkommen til <span class="kig__merke">BenchBoss</span>{{ fornavn ? ', ' + fornavn : '' }}
         </h1>
-        <p class="kig__velkomst">
-          Kamper, spilletid, treninger og hvem som stiller —
-          <strong>på ett sted.</strong> Ikke i seks meldingstråder og et regneark.
-        </p>
-        <p class="kig__velkomst kig__velkomst--dempet">
-          Vi setter opp laget ditt nå. Det tar et minutt.
-        </p>
+        <p class="kig__velkomst kig__velkomst--dempet">Lagene og kampene hentes fra fotball.no.</p>
 
         <div class="kig__handling">
           <button type="button" class="ds-btn ds-btn--primary kig__hovedknapp" @click="start">
@@ -375,9 +369,6 @@ function hoppOver() {
       <template v-else-if="steg === 'klubb'">
         <p v-if="!klubbFraAdmin" class="kig__steg">Steg 1 av {{ stegTotalt }}</p>
         <h1 class="kig__tittel">Hvilken klubb?</h1>
-        <!-- Løftet om fotball.no bor HER, ikke på velkomsten: det er dette
-             steget det faktisk skjer i. Velkomsten sier hva appen er. -->
-        <p class="kig__lead">Vi henter lagene og hele terminlista fra fotball.no, så du slipper å skrive dem inn.</p>
 
         <input
           v-model="sok"
@@ -388,7 +379,7 @@ function hoppOver() {
           aria-label="Søk etter klubben"
         />
 
-        <p v-if="searching" class="kig__status">Søker på fotball.no … korte søk kan ta noen sekunder.</p>
+        <p v-if="searching" class="kig__status">Søker …</p>
         <p v-else-if="feil" class="kig__status kig__status--feil">{{ feil }}</p>
         <p v-else-if="sok.trim().length >= 2 && !treff.length" class="kig__status">Ingen klubber med det navnet.</p>
 
@@ -442,8 +433,7 @@ function hoppOver() {
         </div>
 
         <p v-if="alder" class="kig__status">
-          {{ alder }} år i {{ NAA }} — {{ lagForKjonn.length }}
-          {{ lagForKjonn.length === 1 ? 'lag' : 'lag' }} hos {{ klubb?.name }}
+          {{ klasseNavn }} · {{ lagForKjonn.length }} lag
         </p>
 
         <!-- Festet nederst: med femten årstall havnet «Videre» under kanten. -->
@@ -458,10 +448,9 @@ function hoppOver() {
       <template v-else-if="steg === 'lag'">
         <p class="kig__steg">Steg {{ stegNr(3) }} av {{ stegTotalt }}</p>
         <h1 class="kig__tittel">{{ viserAlle ? 'Hvilke lag hører til kullet?' : 'Hvilke lag er du ansvarlig for?' }}</h1>
-        <p class="kig__lead">
-          <template v-if="lagVises.length && !viserAlle">{{ hentesTekst }} i {{ klasseNavn }} hentes med kampene sine. Velg dem du er lagleder for.</template>
-          <template v-else-if="viserAlle">Alle lagene i klubben. Velg kullets lag. Du blir lagleder for dem.</template>
-          <template v-else>{{ klubb?.name }} har ingen lag registrert på {{ alder }}-åringer i FIKS.</template>
+        <p v-if="!viserAlle" class="kig__lead">
+          <template v-if="lagVises.length">{{ hentesTekst }} i {{ klasseNavn }} hentes.</template>
+          <template v-else>Ingen {{ klasseNavn }}-lag i FIKS.</template>
         </p>
 
         <ul v-if="lagVises.length" class="kig__liste">
@@ -487,7 +476,7 @@ function hoppOver() {
         </ul>
 
         <button v-if="!viserAlle && klubb?.teams?.length" type="button" class="kig__lenke" @click="viserAlle = true">
-          Finner du ikke laget ditt? Vis alle {{ klubb.teams.length }}
+          Vis alle {{ klubb.teams.length }} lag
         </button>
 
         <p v-if="feil" class="kig__status kig__status--feil">{{ feil }}</p>
@@ -501,8 +490,7 @@ function hoppOver() {
 
       <!-- ----------------------------------------------- Henting -->
       <template v-else-if="steg === 'henter'">
-        <h1 class="kig__tittel">Henter fra fotball.no …</h1>
-        <p class="kig__lead">{{ valgteLag.length }} lag. Dette tar noen sekunder.</p>
+        <h1 class="kig__tittel">Henter kampene …</h1>
       </template>
 
       <!-- ------------------------------------------------ Ferdig -->
@@ -517,17 +505,9 @@ function hoppOver() {
              FIKS i det hele tatt — de spiller cuper. Å si «0 kamper er inne» og
              gå videre ville latt ham lete etter et kampprogram som aldri kommer. -->
         <p v-if="resultat && !resultat.kamper" class="kig__lead">
-          {{ resultat.lag }} lag er inne. Årgangen har ingen terminliste i FIKS — det er
-          normalt for de yngste, som spiller turneringer i stedet for serie.
-          Legg inn spillerne på Hjem, og turneringene under Admin når de er klare.
+          {{ resultat.lag }} lag. Ingen serie i FIKS for dette kullet, så cupene legges inn under Admin.
         </p>
-        <p v-else class="kig__lead">
-          {{ resultat?.lag }} lag og {{ resultat?.kamper }} kamper er inne.
-          <!-- Spillformen leses av banene kampene spilles på. Sier vi det
-               ikke her, ser det ut som et tall vi fant på. -->
-          <template v-if="resultat?.spillform">Banene sier {{ resultat.spillform }}er, så det er satt.</template>
-          Nå mangler bare spillerne — det ordner du på Hjem.
-        </p>
+        <p v-else class="kig__lead">{{ resultat?.lag }} lag og {{ resultat?.kamper }} kamper.</p>
         <div class="kig__handling">
           <button type="button" class="ds-btn ds-btn--primary kig__hovedknapp" @click="ferdig">Til Hjem</button>
         </div>
@@ -535,7 +515,7 @@ function hoppOver() {
     </div>
 
     <button v-if="steg !== 'velkommen' && steg !== 'henter' && steg !== 'ferdig'" type="button" class="kig__hopp" @click="hoppOver">
-      Sett opp for hånd i stedet
+      Sett opp for hånd
     </button>
 
     <p v-if="steg === 'velkommen'" class="kig__signatur">Alex Monkey Business</p>
