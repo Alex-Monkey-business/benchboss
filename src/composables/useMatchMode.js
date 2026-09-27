@@ -12,6 +12,12 @@ import { planTransfer, transferableSeconds } from '../lib/timeTransfer'
 const session = ref(null)     // { match_id, status, clock_base_seconds, running_since, period }
 const stints = ref([])        // kan spenne flere kamper når statistikk er lastet
 const now = ref(Date.now())   // display-tikk
+// Serverens klokke minus telefonens. Klokka regnes med serverens tid, så to
+// trenere på hver sin telefon ser samme minutt selv om telefonene går ulikt.
+const serverOffset = ref(0)
+// Siste tilstand fra serveren utover sesjon og perioder: resultat og scorere.
+// Flata leser den, så en annen treners mål også vises her.
+const remote = ref(null)
 
 // Kun data. Tikk-timeren eies av komponentene som monterer den (ref-tellet),
 // og skal ikke røres her.
@@ -60,12 +66,64 @@ const DEMO_STINTS = [
 
 // Aktuell kampklokke i sekunder (avledet — aldri lagret direkte).
 function computeClock(sess, nowMs) {
+  nowMs += serverOffset.value
   if (!sess) return 0
   if (sess.status === 'running' && sess.running_since) {
     const elapsed = (nowMs - Date.parse(sess.running_since)) / 1000
     return Math.max(0, Math.floor(sess.clock_base_seconds + elapsed))
   }
   return sess.clock_base_seconds || 0
+}
+
+// ── Flere trenere på samme kamp ─────────────────────────────────────────────
+// Hver handling er en databasefunksjon (mm_*) som låser kampen, sjekker at den
+// står slik denne telefonen tror, og svarer med hele den ferske tilstanden.
+// Svarer den ok=false, har noen andre kommet først; tilstanden er da allerede
+// tegnet på nytt, og feilen bærer `konflikt` så flata kan si fra. Mellom
+// handlingene henter skjermen tilstanden jevnlig (sync).
+let pending = 0
+let gen = 0
+
+function applyState(matchId, st) {
+  if (!st) return
+  if (st.now) serverOffset.value = Date.parse(st.now) - Date.now()
+  session.value = st.session || null
+  stints.value = stints.value.filter(s => s.match_id !== matchId).concat(st.stints || [])
+  remote.value = { matchId, score: st.score || null, goals: st.goals || [] }
+}
+
+class Konflikt extends Error {
+  constructor() { super('Kampen ble endret på en annen telefon'); this.konflikt = true }
+}
+
+async function rpc(fn, args, matchId) {
+  pending++
+  gen++
+  try {
+    const { data, error } = await supabase.rpc(fn, args)
+    if (error) throw error
+    applyState(matchId, data)
+    if (data?.ok === false) throw new Konflikt()
+    return data
+  } finally {
+    pending--
+  }
+}
+
+// Optimistisk: flata flytter seg i samme trykk, svaret fra serveren erstatter
+// gjetningen. Feiler det, legges forrige tilstand tilbake før serveren spørres
+// på nytt. På sidelinja er 300 ms venting det som gjør at du trykker én gang
+// til og bytter to.
+async function optimistisk(matchId, gjett, fn, args) {
+  const forSesjon = session.value ? { ...session.value } : null
+  const forPerioder = stints.value.map(x => ({ ...x }))
+  try { gjett() } catch { /* gjetningen er bare pynt */ }
+  try {
+    return await rpc(fn, args, matchId)
+  } catch (e) {
+    if (!e?.konflikt) { session.value = forSesjon; stints.value = forPerioder }
+    throw e
+  }
 }
 
 export function useMatchMode() {
@@ -204,7 +262,8 @@ export function useMatchMode() {
   // overlever refresh og deles mellom trenere. Rører aldri en kamp i gang.
   async function saveSetup(matchId, patch) {
     if (session.value && session.value.status !== 'setup') return
-    await writeSession(matchId, { status: 'setup', ...patch })
+    if (!isSupabaseConfigured) return writeSession(matchId, { status: 'setup', ...patch })
+    await rpc('mm_lagre_oppsett', { p_match: matchId, p_lineup: patch.lineup }, matchId)
   }
 
   // ── Kamphandlinger ───────────────────────────────────────────────────────────
@@ -213,6 +272,13 @@ export function useMatchMode() {
   // config = { period_count, period_minutes } — skrives atomisk med starten
   // så en ventende debounced setup-lagring aldri kan rase med avsparket.
   async function startMatch(matchId, lineup, config = {}) {
+    if (isSupabaseConfigured) {
+      return rpc('mm_start', {
+        p_match: matchId,
+        p_lineup: lineup.map(p => ({ player_id: p.playerId, role: p.role || 'field', position: p.position || null })),
+        p_config: config
+      }, matchId)
+    }
     await writeSession(matchId, {
       status: 'running',
       clock_base_seconds: 0,
@@ -234,6 +300,11 @@ export function useMatchMode() {
   async function pauseClock(matchId) {
     if (session.value?.status !== 'running') return
     const frozen = computeClock(session.value, Date.now())
+    if (isSupabaseConfigured) {
+      return optimistisk(matchId,
+        () => { session.value = { ...session.value, status: 'paused', clock_base_seconds: frozen, running_since: null } },
+        'mm_klokkehandling', { p_match: matchId, p_handling: 'pause', p_forventet: 'running' })
+    }
     await writeSession(matchId, {
       status: 'paused',
       clock_base_seconds: frozen,
@@ -244,17 +315,32 @@ export function useMatchMode() {
   // Fortsett: klokka teller videre fra der den frøs (samme totale spilletid).
   async function resumeClock(matchId) {
     if (session.value?.status !== 'paused') return
+    if (isSupabaseConfigured) {
+      return optimistisk(matchId,
+        () => { session.value = { ...session.value, status: 'running', running_since: new Date(Date.now() + serverOffset.value).toISOString() } },
+        'mm_klokkehandling', { p_match: matchId, p_handling: 'fortsett', p_forventet: 'paused' })
+    }
     await writeSession(matchId, { status: 'running', running_since: nowIso() })
   }
 
   // Auto-pause ved omgangsslutt — frys klokka eksakt på grensen.
   async function endHalfAt(matchId, seconds) {
     if (session.value?.status !== 'running') return
+    if (isSupabaseConfigured) {
+      return optimistisk(matchId,
+        () => { session.value = { ...session.value, status: 'paused', clock_base_seconds: seconds, running_since: null } },
+        'mm_klokkehandling', { p_match: matchId, p_handling: 'omgang_slutt', p_forventet: 'running', p_sekunder: seconds })
+    }
     await writeSession(matchId, { status: 'paused', clock_base_seconds: seconds, running_since: null })
   }
 
   // Start neste omgang — fortsett klokka og tell opp periode.
   async function startNextHalf(matchId) {
+    if (isSupabaseConfigured) {
+      return optimistisk(matchId,
+        () => { session.value = { ...session.value, status: 'running', running_since: new Date(Date.now() + serverOffset.value).toISOString(), period: (session.value?.period || 1) + 1 } },
+        'mm_klokkehandling', { p_match: matchId, p_handling: 'neste_omgang', p_forventet: 'paused' })
+    }
     await writeSession(matchId, {
       status: 'running',
       running_since: nowIso(),
@@ -269,6 +355,15 @@ export function useMatchMode() {
   // bekreftelse på sidelinja; angre er det som gjør det trygt.
   async function substitute(matchId, { outPlayerId, inPlayerId }) {
     const clk = currentClock.value
+    if (isSupabaseConfigured) {
+      const data = await optimistisk(matchId, () => {
+        const out = openStintFor(matchId, outPlayerId)
+        if (!out) return
+        stints.value = stints.value.map(x => x.id === out.id ? { ...x, off_clock: clk } : x)
+          .concat([{ id: 'tmp-' + Date.now(), match_id: matchId, player_id: inPlayerId, role: out.role, position: out.position, on_clock: clk, off_clock: null }])
+      }, 'mm_bytte', { p_match: matchId, p_ut: outPlayerId, p_inn: inPlayerId })
+      return { outStintId: data?.out_stint || null, inStintId: data?.in_stint || null }
+    }
     const out = openStintFor(matchId, outPlayerId)
     const role = out?.role || 'field'
     const position = out?.position || null
@@ -297,6 +392,13 @@ export function useMatchMode() {
   // `position` på de to åpne stintene — klokke og spilletid røres ikke.
   async function swapFieldPositions(matchId, aPlayerId, bPlayerId) {
     if (aPlayerId === bPlayerId) return
+    if (isSupabaseConfigured) {
+      return optimistisk(matchId, () => {
+        const a = openStintFor(matchId, aPlayerId), b = openStintFor(matchId, bPlayerId)
+        if (!a || !b) return
+        stints.value = stints.value.map(x => x.id === a.id ? { ...x, position: b.position } : x.id === b.id ? { ...x, position: a.position } : x)
+      }, 'mm_bytt_plass', { p_match: matchId, p_a: aPlayerId, p_b: bPlayerId })
+    }
     const a = openStintFor(matchId, aPlayerId)
     const b = openStintFor(matchId, bPlayerId)
     if (!a || !b) return
@@ -310,6 +412,9 @@ export function useMatchMode() {
   // Modelleres som lukk + åpne for begge ved gjeldende klokke.
   async function swapKeeper(matchId, playerId) {
     const clk = currentClock.value
+    if (isSupabaseConfigured) {
+      return rpc('mm_keeper', { p_match: matchId, p_spiller: playerId }, matchId)
+    }
     const keeper = stints.value.find(
       s => s.match_id === matchId && s.role === 'keeper' && s.off_clock == null
     )
@@ -341,6 +446,9 @@ export function useMatchMode() {
   // Avslutt: lukk alle åpne stints på gjeldende klokke, frys session.
   async function finishMatch(matchId) {
     const clk = currentClock.value
+    if (isSupabaseConfigured) {
+      return rpc('mm_klokkehandling', { p_match: matchId, p_handling: 'avslutt', p_forventet: session.value?.status || 'running' }, matchId)
+    }
     const open = stints.value.filter(s => s.match_id === matchId && s.off_clock == null)
     for (const s of open) await patchStint(s.id, { off_clock: clk })
     await writeSession(matchId, {
@@ -460,7 +568,27 @@ export function useMatchMode() {
     return out
   })
 
+  // Hele tilstanden i ett kall. Hopper over svaret hvis en handling ble sendt
+  // mens hentingen var underveis: da er handlingens svar ferskere.
+  async function syncState(matchId) {
+    if (!isSupabaseConfigured) return null
+    if (pending) return null
+    const start = gen
+    const { data, error } = await supabase.rpc('mm_tilstand', { p_match: matchId })
+    if (error) throw error
+    if (pending || gen !== start) return null
+    applyState(matchId, data)
+    return data
+  }
+
+  // Resultatet som endring (+1/−1), ikke som tall: to trenere som trykker
+  // samtidig skal gi to mål.
+  async function changeScore(matchId, dHome, dAway) {
+    return rpc('mm_maal', { p_match: matchId, p_hjemme: dHome, p_borte: dAway }, matchId)
+  }
+
   return {
+    remote, syncState, changeScore,
     session, stints, currentClock, isRunning,
     startClockTick, stopClockTick,
     fetchSession, fetchStints, fetchAllStints,

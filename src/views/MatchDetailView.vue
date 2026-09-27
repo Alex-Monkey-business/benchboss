@@ -1267,7 +1267,7 @@ function focusSummaryGroup() {
                 >
                   {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabel(p.primary_team) }}</span>
                   <span v-if="tellerIkke(p)" class="med-sist">Teller ikke</span>
-                  <span class="extra-badge" :class="{ 'extra-badge--zero': !extraCount(p.id) }" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
+                  <span v-if="extraCount(p.id)" class="extra-badge" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
                 </button>
               </div>
             </div>
@@ -1284,7 +1284,7 @@ function focusSummaryGroup() {
                 >
                   {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabel(p.primary_team) }}</span>
                   <span v-if="tellerIkke(p)" class="med-sist">Teller ikke</span>
-                  <span class="extra-badge" :class="{ 'extra-badge--zero': !extraCount(p.id) }" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
+                  <span v-if="extraCount(p.id)" class="extra-badge" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
                 </button>
               </div>
             </div>
@@ -1307,7 +1307,7 @@ function focusSummaryGroup() {
                 >
                   {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabel(p.primary_team) }}</span>
                   <span v-if="tellerIkke(p)" class="med-sist">Teller ikke</span>
-                  <span v-if="!playerConflicts[p.id]" class="extra-badge" :class="{ 'extra-badge--zero': !extraCount(p.id) }" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
+                  <span v-if="!playerConflicts[p.id] && extraCount(p.id)" class="extra-badge" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
                   <span v-if="playerConflicts[p.id]" class="hospitant-pill__conflict" :title="`Også kamp ${playerConflicts[p.id].time || 'samme dag'} mot ${playerConflicts[p.id].opponent}`">
                     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                       <circle cx="12" cy="12" r="9"/>
@@ -2483,7 +2483,6 @@ function focusSummaryGroup() {
   background: var(--ds-color-bg-subtle); color: var(--ds-color-text-secondary);
   font-size: 0.6875rem; font-weight: var(--ds-weight-bold); font-variant-numeric: tabular-nums;
 }
-.extra-badge--zero { opacity: 0.5; }
 .referee-pill--selected .extra-badge { background: rgba(255,255,255,0.22); color: #fff; }
 
 .loan-hint {

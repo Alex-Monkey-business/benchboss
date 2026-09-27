@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { navHidden } from '../lib/shell'
 import { useRoute, useRouter } from 'vue-router'
 import { useMatches } from '../composables/useMatches'
@@ -25,7 +25,8 @@ const {
   startClockTick, stopClockTick,
   fetchSession, fetchStints,
   saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
-  isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer
+  isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer,
+  remote, syncState, changeScore
 } = useMatchMode()
 const { show: showToast } = useToast()
 const { setSessionHold, sessionLost, activeCohort } = useAuth()
@@ -65,7 +66,10 @@ onMounted(async () => {
   if (match.value) {
     matchPlayerIds.value = await fetchMatchPlayers(matchId)
     matchAbsenceIds.value = await fetchMatchAbsences(matchId)
-    await Promise.all([fetchSession(matchId), fetchStints(matchId), fetchMatchGoals(matchId)])
+    // Ett kall gir sesjon, perioder, scorere, resultat og serverens klokke.
+    // Uten Supabase (demo) går det som før.
+    const st = await syncState(matchId).catch(() => null)
+    if (!st) await Promise.all([fetchSession(matchId), fetchStints(matchId), fetchMatchGoals(matchId)])
     // Kampen var allerede ferdig da du kom hit: send til kampsida. Match mode
     // er klokka og byttene — når kampen er historie er det feil modus, og
     // «Start på nytt» ligger ett feiltrykk unna en spilletid som er fasit.
@@ -82,6 +86,7 @@ onMounted(async () => {
   setSessionHold(true)
   requestWakeLock()
   document.addEventListener('visibilitychange', onVisibility)
+  startSync()
   // Ikke-passiv så vi kan stoppe scroll KUN mens et dra er i gang (se drag-blokk).
   window.addEventListener('touchmove', preventScrollWhileDragging, { passive: false })
 })
@@ -89,6 +94,7 @@ onUnmounted(() => {
   navHidden.value = false
   flushLineupSave()
   clearTimeout(pressTimer)
+  clearInterval(syncTimer)
   stopClockTick()
   // Slippes holdet mens sesjonen er tapt, rydder storen opp nå — etter kampen.
   setSessionHold(false)
@@ -103,7 +109,10 @@ onUnmounted(() => {
 // filtreres bort ved innlasting.
 let lineupTimer = null
 let lineupDirty = false
-let skipLineupSave = false
+// Sant mens oppstillingen fylles fra serveren. Da er ingenting endret, og
+// ingenting skal lagres: før skrev det å bare ÅPNE oppsettet raden på nytt,
+// og en telefon med gammel kopi overskrev en kamp som var i gang.
+let hydrating = false
 
 // Stille kvittering etter autolagring — vises kort, ellers usynlig.
 const lineupSaved = ref(false)
@@ -123,6 +132,12 @@ function markSaved() {
 // forslagsknappen bruker den først. Bare første runde: resten styres av klokka.
 const plan = ref([])          // [{ inn, ut }] — spiller-id-er
 const planArm = ref(null)     // benkespiller som venter på en på banen
+// Planen er et eget valg. Før tok den over benken så snart laget var fullt,
+// og samme trykk betydde plutselig noe annet.
+const planModus = ref(false)
+// Benkespiller som venter på en plass (tapp spiller, så plass) — samme grep
+// som et bytte i kampen.
+const plasserArm = ref(null)
 
 function setupPatch() {
   return { lineup: { ...assignments.value, plan: plan.value.map(p => [p.inn, p.ut]) } }
@@ -131,12 +146,14 @@ function setupPatch() {
 function hydrateLineup() {
   if (session.value?.status !== 'setup' || !session.value.lineup) return
   const valid = new Set(squad.value.map(p => p.id))
-  skipLineupSave = true
+  hydrating = true
   const { plan: lagret, ...slots } = session.value.lineup
   assignments.value = Object.fromEntries(
     Object.entries(slots).filter(([, pid]) => valid.has(pid))
   )
   plan.value = lesPlan(lagret).filter(p => valid.has(p.inn) && valid.has(p.ut))
+  // Etter at Vue har kjørt watcherne for endringene over, ikke før.
+  nextTick(() => { hydrating = false })
 }
 
 function lesPlan(raw) {
@@ -147,6 +164,7 @@ function lesPlan(raw) {
 // i oppstillinga, faller paret stille bort — det er ikke en feil, planen bare
 // stemmer ikke lenger.
 watch(assignments, () => {
+  if (hydrating) return
   const inne = new Set(Object.values(assignments.value))
   const before = plan.value.length
   plan.value = plan.value.filter(p => !inne.has(p.inn) && inne.has(p.ut))
@@ -155,6 +173,7 @@ watch(assignments, () => {
 }, { deep: true })
 
 watch(plan, () => {
+  if (hydrating) return
   if (phase.value === 'setup' && session.value) scheduleSetupSave()
 }, { deep: true })
 
@@ -193,7 +212,7 @@ function scheduleSetupSave() {
 }
 
 watch(assignments, () => {
-  if (skipLineupSave) { skipLineupSave = false; return }
+  if (hydrating) return
   if (phase.value !== 'setup') return
   // Nullstilt og tom — ikke gjenopprett sesjonsraden bare for å lagre {}.
   if (!session.value && !Object.keys(assignments.value).length) return
@@ -212,10 +231,56 @@ function onVisibility() {
   if (document.visibilityState === 'visible' && !wakeLock) requestWakeLock()
   // Appen går i bakgrunnen — få ut en evt. ventende oppstillings-lagring nå.
   if (document.visibilityState === 'hidden') flushLineupSave()
+  else synk()
 }
+
+// ── Flere trenere ───────────────────────────────────────────────────────────
+// Skjermen henter kampen hvert tredje sekund mens den er synlig, og med én
+// gang den kommer tilbake fra bakgrunnen. Ikke midt i et dra, og ikke mens en
+// endring i oppstillingen venter på å bli lagret: da er det denne telefonen
+// som vet best.
+const SYNC_MS = 3000
+let syncTimer = null
+function startSync() {
+  clearInterval(syncTimer)
+  syncTimer = setInterval(synk, SYNC_MS)
+}
+async function synk() {
+  if (document.visibilityState !== 'visible' || dragId.value || lineupDirty) return
+  if (phase.value === 'done') return
+  try { await syncState(matchId) } catch { /* neste runde prøver igjen */ }
+}
+
+// Resultat og scorere fra serveren — også de en annen trener førte.
+watch(remote, r => {
+  if (!r || r.matchId !== matchId || !match.value) return
+  if (r.score) Object.assign(match.value, r.score)
+  allGoals.value = allGoals.value.filter(g => g.match_id !== matchId).concat(r.goals)
+})
+
+// En annen trener endret oppstillingen: vis den, så lenge ingen endring her
+// venter og velgeren ikke står åpen.
+watch(() => JSON.stringify(session.value?.lineup || null), (ny, gammel) => {
+  if (ny === gammel || phase.value !== 'setup' || lineupDirty || pickerSlot.value) return
+  const her = JSON.stringify(setupPatch().lineup)
+  if (ny !== her) hydrateLineup()
+})
+
+// Kampen ble startet, avsluttet eller nullstilt på en annen telefon mens
+// denne sto i oppsett: gi slipp på lokale endringer.
+watch(() => session.value?.status, (ny, gammel) => {
+  if (gammel === 'setup' && ny && ny !== 'setup') {
+    clearTimeout(lineupTimer)
+    lineupDirty = false
+  }
+})
 
 // Feil mot databasen (typisk: migrasjon ikke kjørt) — én tydelig melding.
 function reportError(e) {
+  if (e?.konflikt) {
+    showToast('Kampen ble endret på en annen telefon. Du ser den nå.', 'success')
+    return
+  }
   const msg = (e?.message || '').toLowerCase()
   if (msg.includes('match_sessions') || msg.includes('match_stints') || msg.includes('does not exist') || msg.includes('schema cache')) {
     showToast('Databasen mangler match mode-tabellene — kjør SQL-migrasjonen først', 'error')
@@ -261,6 +326,7 @@ const assignedIds = computed(() => new Set(Object.values(assignments.value)))
 const unassigned = computed(() => squad.value.filter(p => !assignedIds.value.has(p.id)))
 function playerInSlot(slotId) { return playerById(assignments.value[slotId]) }
 const lineupComplete = computed(() => FORMATION.every(s => assignments.value[s.id]))
+watch(lineupComplete, v => { if (!v) { planModus.value = false; planArm.value = null } })
 
 function openPicker(slot) { pickerSlot.value = slot }
 const pickerTitle = computed(() =>
@@ -296,6 +362,38 @@ const placedElsewhere = computed(() => {
 const pickerPosition = computed(() => positionForSlot(pickerSlot.value?.id))
 const pickerGroups = computed(() => splitByFit(unassigned.value, pickerPosition.value))
 
+function armPlasser(id) {
+  plasserArm.value = plasserArm.value === id ? null : id
+}
+
+// Benkespilleren tar plassen. Står det noen der, går den til benken.
+function plasser(slotId) {
+  const id = plasserArm.value
+  plasserArm.value = null
+  if (!id) return
+  assignments.value[slotId] = id
+}
+
+// Fyll de tomme plassene: keeper først, så dem som bare passer ett sted, så
+// resten. Treneren flytter etterpå; det er raskere enn ti ark.
+function fyllResten() {
+  plasserArm.value = null
+  const ledige = FORMATION.filter(sl => !assignments.value[sl.id])
+    .sort((a, b) => (a.role === 'keeper' ? -1 : 0) - (b.role === 'keeper' ? -1 : 0))
+  const igjen = unassigned.value.slice()
+  const neste = {}
+  for (const sl of ledige) {
+    const pos = positionForSlot(sl.id)
+    const passer = igjen.filter(pl => fitsPosition(pl, pos))
+      .sort((a, b) => (a.positions?.length || 9) - (b.positions?.length || 9))
+    const valgt = passer[0] || igjen.find(pl => sl.role === 'keeper' || !fitsPosition(pl, 'keeper')) || igjen[0]
+    if (!valgt) break
+    neste[sl.id] = valgt.id
+    igjen.splice(igjen.indexOf(valgt), 1)
+  }
+  assignments.value = { ...assignments.value, ...neste }
+}
+
 function clearSlot(slotId) {
   delete assignments.value[slotId]
   pickerSlot.value = null
@@ -316,7 +414,6 @@ async function handleStart() {
       period_minutes: activeCohort.value?.period_minutes || 30,
       ...setupPatch()
     })
-    showToast('Kampen er i gang', 'success')
   } catch (e) { reportError(e) }
 }
 
@@ -461,7 +558,6 @@ async function makeKeeperFromSheet() {
   actionPlayer.value = null
   try {
     await swapKeeper(matchId, p.id)
-    showToast(`${firstName(p.name)} er keeper`, 'success')
   } catch (e) { reportError(e) }
 }
 
@@ -531,7 +627,7 @@ function onMarkerDown(e, slot) {
   pressInfo = { playerId, slot, slotId: slot.id, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, el: e.currentTarget }
   // Innbytte i gang (benk «armed») eller tom slot → ingen dra. Tappet (click)
   // håndterer resten: åpne velger (oppsett) / innbytte (live).
-  if (armedBenchId.value || !playerId) return
+  if (armedBenchId.value || plasserArm.value || planModus.value || !playerId) return
   pressTimer = setTimeout(startDrag, LONG_PRESS_MS)
 }
 function startDrag() {
@@ -572,8 +668,9 @@ function onMarkerUp() {
 function onMarkerClick(slot) {
   if (suppressClick) { suppressClick = false; return }
   if (phase.value === 'setup') {
-    // Med en benkespiller armert for planen, parer trykket — ellers velger det.
-    if (planArm.value && assignments.value[slot.id]) planlegg(assignments.value[slot.id])
+    // Planmodus parer, en valgt benkespiller plasseres, ellers åpner velgeren.
+    if (planModus.value) { if (planArm.value && assignments.value[slot.id]) planlegg(assignments.value[slot.id]) }
+    else if (plasserArm.value) plasser(slot.id)
     else openPicker(slot)
   } else tapPitchPlayer(slotPlayerId(slot.id))
 }
@@ -625,7 +722,6 @@ async function finishDrag() {
     } else {
       await swapFieldPositions(matchId, aId, bId)
     }
-    showToast(`${firstName(playerById(aId)?.name)} ↔ ${firstName(playerById(bId)?.name)}`, 'success')
   } catch (e) { reportError(e) }
 }
 
@@ -666,8 +762,10 @@ watch(currentClock, async (c) => {
   if (halfEnding || !isRunning.value) return
   if (c >= period.value * halfSeconds.value) {
     halfEnding = true
+    // Begge telefonene når grensen samtidig. Den som kommer sist, taper
+    // kappløpet om en pause som alt er tatt — det er ikke verdt en beskjed.
     try { await endHalfAt(matchId, period.value * halfSeconds.value) }
-    catch (e) { reportError(e) }
+    catch (e) { if (!e?.konflikt) reportError(e) }
     finally { halfEnding = false }
   }
 })
@@ -719,20 +817,29 @@ const canReset = computed(() =>
   phase.value !== 'setup' || halsenScore.value > 0 || oppScore.value > 0 || matchGoals.value.length > 0
 )
 
-async function setScore(halsen, opp) {
-  const updates = isHome.value
-    ? { home_score: halsen, away_score: opp }
-    : { away_score: halsen, home_score: opp }
-  await updateMatch(matchId, updates)
-  if (match.value) Object.assign(match.value, updates)
+// Endring, ikke tall: to trenere som trykker + samtidig gir to mål. Tallet
+// flyttes med én gang; svaret fra serveren er fasit.
+async function endreResultat(vaare, deres) {
+  const dHome = isHome.value ? vaare : deres
+  const dAway = isHome.value ? deres : vaare
+  if (match.value) {
+    match.value.home_score = Math.max(0, (match.value.home_score || 0) + dHome)
+    match.value.away_score = Math.max(0, (match.value.away_score || 0) + dAway)
+  }
+  try { await changeScore(matchId, dHome, dAway) }
+  catch (e) {
+    if (e?.konflikt) return reportError(e)
+    // Uten Supabase (demo) finnes ikke funksjonen; skriv tallet direkte.
+    await updateMatch(matchId, { home_score: match.value.home_score, away_score: match.value.away_score })
+  }
 }
 async function halsenGoalPlus() {
-  await setScore(halsenScore.value + 1, oppScore.value)
   showScorer.value = true
+  await endreResultat(1, 0)
 }
 async function halsenGoalMinus() {
   if (halsenScore.value <= 0) return
-  await setScore(halsenScore.value - 1, oppScore.value)
+  await endreResultat(-1, 0)
   // Fjern sist LAGT TIL scorer (høyest position), kun hvis vi nå har flere
   // scorere enn mål — så et hoppet-over mål ikke feilaktig sletter en scorer.
   const mine = matchGoals.value
@@ -741,14 +848,13 @@ async function halsenGoalMinus() {
     await removeGoal(lastAdded.id)
   }
 }
-async function oppGoalPlus() { await setScore(halsenScore.value, oppScore.value + 1) }
-async function oppGoalMinus() { if (oppScore.value > 0) await setScore(halsenScore.value, oppScore.value - 1) }
+async function oppGoalPlus() { await endreResultat(0, 1) }
+async function oppGoalMinus() { if (oppScore.value > 0) await endreResultat(0, -1) }
 
 async function pickScorer(playerId) {
-  const min = Math.floor(currentClock.value / 60)
-  await addGoal(matchId, { player_id: playerId, clock_seconds: currentClock.value })
   showScorer.value = false
-  showToast(`Mål: ${firstName(playerById(playerId)?.name)} ${min}′`, 'success')
+  try { await addGoal(matchId, { player_id: playerId, clock_seconds: currentClock.value }) }
+  catch (e) { reportError(e) }
 }
 
 // Done — sammendrag
@@ -810,7 +916,7 @@ const summary = computed(() =>
           :class="{
             'marker--gk': slot.role === 'keeper',
             'marker--empty': !playerInSlot(slot.id),
-            'marker--target': planArm && playerInSlot(slot.id) && slot.role !== 'keeper',
+            'marker--target': (planModus && planArm && playerInSlot(slot.id) && slot.role !== 'keeper') || !!plasserArm,
             'marker--lifted': dragId && dragFromSlot === slot.id,
             'marker--droppable': dragId && dragFromSlot !== slot.id && hoverSlot !== slot.id,
             'marker--drop': dragId && hoverSlot === slot.id && dragFromSlot !== slot.id
@@ -847,27 +953,30 @@ const summary = computed(() =>
       </div>
 
       <div class="mm__setup-bottom">
+        <!-- Én fast linje til beskjeden, så banen ikke hopper når den kommer og går. -->
+        <div class="mm__hintslot">
         <div v-if="dragId && !dragLearned" class="mm__draghint">Slipp på en spiller for å bytte plass</div>
-        <div v-else-if="!dragLearned && assignedIds.size" class="mm__draghint mm__draghint--tip">Hold inne og dra for å bytte plass</div>
-
-        <div v-if="unassigned.length && !lineupComplete" class="mm__poolnote">
-          Ikke plassert: <span class="mm__poolnames">{{ unassigned.map(p => firstName(p.name)).join(', ') }}</span>
+        <div v-else-if="plasserArm" class="mm__draghint">Tapp plassen til {{ firstName(playerById(plasserArm)?.name) }}</div>
+        <div v-else-if="planModus" class="mm__draghint">{{ planArm ? `Tapp den ${firstName(playerById(planArm)?.name)} skal inn for` : 'Tapp en på benken, så den som skal ut' }}</div>
+        <div v-else-if="!dragLearned && lineupComplete" class="mm__draghint mm__draghint--tip">Hold inne og dra for å bytte plass</div>
         </div>
 
-        <!-- Første bytterunde: tapp en på benken, så den på banen som skal ut. -->
-        <div v-if="lineupComplete && unassigned.length" class="mm__plan">
+        <!-- Benken: de som ikke står på banen. Tapp en, så plassen. -->
+        <div v-if="unassigned.length" class="mm__plan">
           <div class="mm__plan-hode">
-            <span class="mm__plan-tittel">Første bytterunde</span>
-            <span class="mm__plan-hint">{{ planArm ? `Tapp den ${firstName(playerById(planArm)?.name)} skal inn for` : 'Tapp en på benken, så den som skal ut' }}</span>
+            <span class="mm__plan-tittel">{{ planModus ? 'Første bytterunde' : 'Benk' }}</span>
+            <button v-if="!lineupComplete && FORMATION.length - Object.keys(assignments).length >= 2" type="button" class="mm__lenke" @click="fyllResten">Fyll resten</button>
+            <button v-else-if="lineupComplete && !planModus" type="button" class="mm__lenke" @click="planModus = true; plasserArm = null">Planlegg første bytte</button>
+            <button v-else-if="planModus" type="button" class="mm__lenke" @click="planModus = false; planArm = null">Ferdig</button>
           </div>
-          <div v-if="planKandidater.length" class="mm__bench">
+          <div class="mm__bench mm__bench--bar">
             <button
-              v-for="p in planKandidater"
+              v-for="p in (planModus ? planKandidater : unassigned)"
               :key="p.id"
               type="button"
               class="mm__bchip"
-              :class="{ 'mm__bchip--armed': planArm === p.id }"
-              @click="armPlan(p.id)"
+              :class="{ 'mm__bchip--armed': planModus ? planArm === p.id : plasserArm === p.id }"
+              @click="planModus ? armPlan(p.id) : armPlasser(p.id)"
             ><span class="mm__bname">{{ firstName(p.name) }}</span></button>
           </div>
           <ul v-if="plan.length" class="mm__plan-liste">
@@ -1072,7 +1181,7 @@ const summary = computed(() =>
           <div class="mm__bench">
             <button v-for="p in pickerGroups.fit" :key="p.id" type="button" class="mm__bchip" @click="pickForSlot(p.id)">
               <span class="mm__bname">{{ firstName(p.name) }}</span>
-              <span v-if="p.primary_team" class="mm__btag">{{ teamLabel(p.primary_team) }}</span>
+              <span v-if="p.primary_team && !matchColors.includes(p.primary_team)" class="mm__btag">{{ teamLabel(p.primary_team) }}</span>
             </button>
           </div>
         </div>
@@ -1082,7 +1191,7 @@ const summary = computed(() =>
           <div class="mm__bench">
             <button v-for="p in pickerGroups.rest" :key="p.id" type="button" class="mm__bchip" @click="pickForSlot(p.id)">
               <span class="mm__bname">{{ firstName(p.name) }}</span>
-              <span v-if="p.primary_team" class="mm__btag">{{ teamLabel(p.primary_team) }}</span>
+              <span v-if="p.primary_team && !matchColors.includes(p.primary_team)" class="mm__btag">{{ teamLabel(p.primary_team) }}</span>
             </button>
           </div>
         </div>
@@ -1338,7 +1447,7 @@ const summary = computed(() =>
 .mm__live .mm__scorer { white-space: nowrap; }
 
 /* Benk som bunn-bar */
-.mm__bench--bar {
+.mm__bench.mm__bench--bar {
   flex-wrap: nowrap;
   overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -1561,6 +1670,8 @@ const summary = computed(() =>
   font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium);
   color: var(--ds-color-accent);
 }
+.mm__hintslot { min-height: calc(var(--ds-text-sm) * 1.5 + var(--ds-space-sm)); }
+.mm__hintslot .mm__draghint { margin-top: 0; padding-top: var(--ds-space-sm); }
 .mm__draghint--tip { color: var(--ds-color-text-tertiary); font-weight: var(--ds-weight-medium); }
 .marker--target .marker__circle { border-color: var(--ds-color-accent); border-style: dashed; }
 
@@ -1576,7 +1687,20 @@ const summary = computed(() =>
 
 /* Første bytterunde */
 .mm__plan { display: flex; flex-direction: column; gap: var(--ds-space-sm); margin-top: var(--ds-space-sm); }
-.mm__plan-hode { display: flex; flex-direction: column; gap: 2px; }
+.mm__plan-hode { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-sm); }
+.mm__lenke {
+  border: 0;
+  background: none;
+  padding: 10px 0;
+  margin: -10px 0;
+  font: inherit;
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+  color: var(--ds-color-accent);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+}
 .mm__plan-tittel { font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold); letter-spacing: var(--ds-tracking-wider); text-transform: uppercase; color: var(--ds-color-text-tertiary); }
 .mm__plan-hint { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 .mm__plan-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
