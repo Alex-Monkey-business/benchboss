@@ -36,7 +36,7 @@ import ExerciseVideo from '../components/ExerciseVideo.vue'
 import Skeleton from '../components/Skeleton.vue'
 import { meldEvent } from '../lib/sporing'
 
-const { hasHandbook } = useContent()
+const { hasHandbook, principles } = useContent()
 
 const route = useRoute()
 const { days: dager, supportsDuration, fetchWeek, createDay, updateDay, removeDay } = useTrainingWeek()
@@ -249,7 +249,7 @@ function byggTidslinje(s) {
       merke: gaar ? klokke(sum) : formatDuration(sum),
       tekst: !total ? 'til sammen'
         : diff === 0 ? 'går akkurat opp'
-        : diff > 0 ? `${formatDuration(diff)} ledig av ${formatDuration(total)}`
+        : diff > 0 ? `${formatDuration(diff)} ledig`
         : `${formatDuration(-diff)} over ${formatDuration(total)}`,
       over: diff < 0
     }
@@ -601,7 +601,7 @@ onMounted(async () => {
       <Spot name="training" class="ds-empty__illo" />
       <div class="ds-empty__title">Ingen treningsuke ennå</div>
       <div class="ds-empty__description">
-        Legg inn dagene dere trener. De blir stående — uka gjentar seg til dere endrer den.
+        Uka gjentar seg til du endrer den.
       </div>
       <div class="plan-actions">
         <button type="button" class="ds-btn ds-btn--primary" @click="openNewDay">Legg til dag</button>
@@ -772,7 +772,7 @@ onMounted(async () => {
         <Spot name="book" class="uke__sted-illo" :size="44" />
         <span class="uke__sted-tekst">
           <span class="uke__sted-tittel">Håndbok</span>
-          <span class="uke__sted-under">Slik trener vi</span>
+          <span class="uke__sted-under">{{ principles.length }} prinsipper</span>
         </span>
         <svg class="uke__sted-pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
       </router-link>
@@ -824,7 +824,7 @@ onMounted(async () => {
 
         <div class="ds-form-group">
           <label class="ds-label" for="dag-focus">Fokus</label>
-          <textarea id="dag-focus" v-model="dayForm.focus" class="ds-input" rows="3" placeholder="Hva dagen bygger — og hva de skal sitte igjen med."></textarea>
+          <textarea id="dag-focus" v-model="dayForm.focus" class="ds-input" rows="3" placeholder="F.eks. Ferdigheter under press"></textarea>
         </div>
 
         <div class="sheet-actions">
@@ -834,7 +834,7 @@ onMounted(async () => {
           </button>
         </div>
         <button v-if="!dayForm.id" type="button" class="ds-btn ds-btn--ghost dag-lim" @click="dayForm = null; showPaste = true">
-          Har du hele planen som tekst? Lim den inn
+          Lim inn hele planen
         </button>
       </form>
     </Sheet>
@@ -853,7 +853,7 @@ Torsdag
 - Ferdighetssirkel
 - Vinneren står (mix)"
       ></textarea>
-      <p class="paste-hint">Ukedag starter en ny dag, kulepunkter blir øvelser. «(diff)» og «(mix)» merker type.</p>
+      <p class="paste-hint">Ukedag gir ny dag, kulepunkt gir øvelse.</p>
 
       <div v-if="parsedPlan.sessions.length" class="paste-preview">
         <div v-for="(s, i) in parsedPlan.sessions" :key="i" class="paste-preview__row">

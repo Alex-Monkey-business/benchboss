@@ -202,9 +202,6 @@ const links = computed(() => [
         </div>
         <span class="design-beta">Beta</span>
       </div>
-      <p v-if="design === 'whspr'" class="design-note">
-        Whspr er under utprøving. Si fra om noe ser rart ut — det er poenget.
-      </p>
     </div>
 
     <div class="px-lg mb-lg" style="margin-top: var(--ds-space-xl);">

@@ -335,7 +335,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
       <div class="ds-empty">
         <Spot name="stats" class="ds-empty__illo" play="auto" />
         <h3 class="ds-empty__title">Ingen kamper spilt i {{ viewingSeason?.name || 'sesongen' }}</h3>
-        <p class="ds-empty__description">Tabell, mål og spilletid kommer så snart første kamp er ferdigspilt.</p>
+        <p class="ds-empty__description">Kommer etter første kamp.</p>
         <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="$router.push('/kamper')">Se kampprogrammet</button>
       </div>
     </div>
@@ -444,7 +444,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
     <div v-if="hasPlayedMatches" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-3">
       <div class="stat-section-label">Toppscorere</div>
       <div v-if="topScorers.length === 0" class="leaderboard-empty">
-        Ingen mål registrert ennå. Legg til scorere på en kamp under «Resultat & referat».
+        Ingen mål registrert ennå.
       </div>
       <div v-else class="leaderboard ds-anim-stagger-list">
         <div v-for="(item, i) in visibleScorers" :key="item.id" class="leaderboard__row">

@@ -545,8 +545,7 @@ function formatMatchDate(dateStr) {
         <!-- Klubben er ikke koblet: da finnes ingen terminliste å se på. -->
         <template v-if="!activeCohort?.club_fiks_id">
           <p class="fiks-lead">
-            Koble klubben til fotball.no, så kan kampene holde seg selv oppdatert når kretsen
-            flytter dem.
+            Koble til fotball.no, så oppdateres kampene når kretsen flytter dem.
           </p>
           <input
             v-model="klubbSok"
@@ -556,7 +555,7 @@ function formatMatchDate(dateStr) {
             placeholder="Søk etter klubben"
             aria-label="Søk etter klubben"
           />
-          <p v-if="fiksSearching" class="fiks-lead">Søker … korte søkeord kan ta noen sekunder.</p>
+          <p v-if="fiksSearching" class="fiks-lead">Søker …</p>
           <p v-else-if="klubbFeil" class="fiks-lead">{{ klubbFeil }}</p>
           <p v-else-if="klubbSok.trim().length >= 2 && !klubbTreff.length" class="fiks-lead">Ingen klubber med det navnet.</p>
           <ul v-if="klubbTreff.length" class="fiks-treff">
@@ -572,8 +571,7 @@ function formatMatchDate(dateStr) {
         <!-- Koblet, men ingen sjekk kjørt ennå -->
         <template v-else-if="!synk">
           <p class="fiks-lead">
-            Sammenligner kampene som ligger foran oss med terminlista og viser hva som er endret.
-            Spilte kamper røres ikke, og ingenting flyttes før du sier fra.
+            Viser hva som er endret. Ingenting flyttes før du godkjenner.
           </p>
           <button class="ds-btn ds-btn--primary fiks-knapp" :disabled="synker" @click="sjekkTerminliste">
             {{ synker ? 'Henter fra fotball.no…' : 'Sjekk terminlista' }}
@@ -583,11 +581,10 @@ function formatMatchDate(dateStr) {
         <!-- Resultatet -->
         <template v-else>
           <p v-if="synk.spillform" class="fiks-lead">
-            Banene sier {{ synk.spillform }}er. Spillformen er rettet, og kamplengden med den.
+            Spillformen er endret til {{ synk.spillform }}er.
           </p>
           <p v-if="synk.parret" class="fiks-lead">
-            {{ synk.parret }} {{ synk.parret === 1 ? 'kamp' : 'kamper' }} er koblet til fotball.no.
-            Neste sjekk går rett på endringene.
+            {{ synk.parret }} {{ synk.parret === 1 ? 'kamp' : 'kamper' }} koblet til fotball.no.
           </p>
 
           <template v-if="synk.endret?.length">

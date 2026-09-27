@@ -204,10 +204,10 @@ async function save() {
       <section class="tr__section">
         <h2 class="ds-section-label tr__h2">Lag {{ activeSeason ? `· ${activeSeason.name}` : '' }}</h2>
         <p v-if="teamNow" class="tr__body">
-          Trener {{ teamNow.name }} denne sesongen. Det styrer hvilke kamper som havner på Hjem.
+          Trener {{ teamNow.name }} denne sesongen.
         </p>
         <template v-else>
-          <p class="tr__muted">Ikke satt på et lag. Da faller Hjem tilbake på alle Halsen-kamper.</p>
+          <p class="tr__muted">Ikke satt på et lag. Hjem viser alle kampene.</p>
           <button type="button" class="tr__inline-action" @click="openEdit">Sett lag</button>
         </template>
       </section>
@@ -255,7 +255,7 @@ async function save() {
           </div>
         </div>
         <p v-if="!spilte.length && !kommende.length" class="tr__note">
-          Ingen kamper denne sesongen. Trenere settes på kamper ut fra laget de trener.
+          Ingen kamper denne sesongen.
         </p>
       </section>
 

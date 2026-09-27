@@ -228,7 +228,7 @@ function getCoachesForMatchList(matchId) {
       <div class="ds-empty">
         <Spot name="match" class="ds-empty__illo" />
         <h3 class="ds-empty__title">Ingen kamper enda</h3>
-        <p class="ds-empty__description">Last opp terminlista, så fyller resten av appen seg selv.</p>
+        <p class="ds-empty__description">Last opp terminlista for å komme i gang.</p>
         <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="$router.push('/admin/sesong-kamper')">Last opp kampprogram</button>
       </div>
     </div>

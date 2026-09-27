@@ -340,7 +340,7 @@ async function sendInvite() {
       <span class="onb-card__step">{{ stepNo.coaches }}</span>
       <span class="onb-card__body">
         <span class="onb-card__title">Inviter trenerne</span>
-        <span class="onb-card__lead">De får en e-post og logger inn med koden i den.</span>
+        <span class="onb-card__lead">De får en e-post med innlogging.</span>
       </span>
       <svg class="onb-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
@@ -395,7 +395,7 @@ async function sendInvite() {
           <button type="button" class="ds-btn ds-btn--primary" :disabled="busy || !newTeam.trim()" @click="submitTeam">Legg til</button>
         </div>
 
-        <p class="onb-hint">Navnet bør stå slik det står i kampoppsettet fra kretsen, så kampene finner laget sitt.</p>
+        <p class="onb-hint">Samme navn som i kampoppsettet fra kretsen.</p>
 
         <div class="onb-actions">
           <button type="button" class="ds-btn ds-btn--primary" :disabled="!seasonTeams.length" @click="teamsOpen = false">Ferdig</button>
@@ -411,8 +411,7 @@ async function sendInvite() {
         <label class="ds-label" for="onb-paste">Spillerne på {{ steg.name }}</label>
         <textarea id="onb-paste" v-model="pasted" class="ds-input onb-paste" :rows="parsed.length ? 3 : 6" placeholder="Ola Nordmann&#10;Kari Nordmann&#10;…"></textarea>
         <p class="onb-hint">
-          Én per linje, eller skilt med komma. «Nordmann, Ola» leses som ett navn.
-          Draktnummer, punkter og overskrifter fjernes.
+          Én per linje eller skilt med komma.
         </p>
 
         <template v-if="parsed.length">
@@ -506,7 +505,6 @@ async function sendInvite() {
             {{ sending ? 'Sender…' : 'Send invitasjon' }}
           </button>
         </div>
-        <p class="onb-hint">Flere trenere? Send én, så står skjemaet klart til neste.</p>
       </div>
     </Sheet>
   </section>

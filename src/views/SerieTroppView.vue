@@ -115,7 +115,7 @@ async function handleAdd() {
       <div v-else-if="canEdit && players.length === 0" class="ds-empty">
         <Spot name="squad" class="ds-empty__illo" />
         <h3 class="ds-empty__title">Ingen spillere ennå</h3>
-        <p class="ds-empty__description">Legg inn spillerne i kullet, så kan du fordele dem på lag og sette posisjoner.</p>
+        <p class="ds-empty__description">Legg inn spillerne, så fordeler du dem på lag.</p>
         <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="openAdd">Ny spiller</button>
       </div>
 

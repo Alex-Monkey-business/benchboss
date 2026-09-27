@@ -1123,7 +1123,7 @@ function focusSummaryGroup() {
             </template>
             <template v-else-if="!isLocked">
               <div class="referee-contact__empty-title">Ingen telefon registrert</div>
-              <div class="referee-contact__empty-subtitle">Legg til nummer for å aktivere Ring, SMS og Vipps</div>
+              <div class="referee-contact__empty-subtitle">Legg til nummer for Ring, SMS og Vipps</div>
               <div class="referee-add-phone__row">
                 <input
                   v-model="newPhone"
@@ -1620,11 +1620,11 @@ function focusSummaryGroup() {
         </div>
 
         <div v-else-if="!eligiblePlayers.length && !showNewPlayerForm" class="hospitant-empty" style="margin: 0;">
-          Ingen aktuelle spillere for dette laget — opprett en ny spiller eller legg til en lånespiller først.
+          Ingen spillere på laget ennå.
         </div>
 
         <template v-else>
-          <p class="scorer-form__hint">Trykk på spiller for å registrere mål. Trykk flere ganger for flere mål.</p>
+          <p class="scorer-form__hint">Ett trykk per mål.</p>
           <div class="scorer-picker">
             <template v-for="team in ['gronn', 'rod', 'hvit', 'other']" :key="team">
               <div

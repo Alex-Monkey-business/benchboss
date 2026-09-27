@@ -398,7 +398,7 @@ const sorterteKamper = computed(() =>
         <button v-if="nyCup.teams.length < 4" type="button" class="turn-legg-til" @click="leggTilLagFelt">
           Legg til lag
         </button>
-        <p class="turn-hint">Lagene er det du fordeler troppen på. Ett lag er nok.</p>
+        <p class="turn-hint">Ett lag er nok.</p>
       </div>
 
       <div class="sheet-actions">

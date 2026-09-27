@@ -92,7 +92,7 @@ const groups = computed(() => {
         <p class="ds-empty__description">
           {{ activeCup
             ? 'Kampprogrammet for turneringen er ikke lagt inn.'
-            : 'Legg inn turneringen, så kan du fordele troppen og føre kampene.' }}
+            : 'Legg inn turneringen for å fordele troppen.' }}
         </p>
         <router-link v-if="!isParent" to="/admin/turneringer" class="ds-btn ds-btn--primary">
           {{ activeCup ? 'Legg til kamper' : 'Legg inn turnering' }}

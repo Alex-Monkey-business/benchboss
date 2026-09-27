@@ -207,7 +207,7 @@ function coachNamesForMatch(matchId) {
         <Spot name="cup" class="hjem-cupkort__illo" :size="64" />
         <span class="hjem-cupkort__tekst">
           <span class="hjem-cupkort__tittel">Legg inn turneringen</span>
-          <span class="hjem-cupkort__lead">Laget har ingen seriekamper. Legg inn cupen, så kan du fordele troppen og føre kampene.</span>
+          <span class="hjem-cupkort__lead">Laget har ingen seriekamper.</span>
         </span>
       </RouterLink>
 

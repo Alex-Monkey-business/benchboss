@@ -68,7 +68,7 @@ ok('klokka løper fra 0:00', merker[0] === '0:00', merker.join(' '))
 ok('klokka summerer riktig', merker.slice(0, 4).join(' ') === '0:00 0:15 0:35 1:00', merker.join(' '))
 ok('endestasjonen står nederst', merker[4] === '1:10', merker.join(' '))
 ok('fordelingen står som setning, ikke etikett',
-  /20 min ledig av 1 t 30 min/.test(await p.$eval('.steg__sum', e => e.textContent)),
+  /20 min ledig/.test(await p.$eval('.steg__sum', e => e.textContent)),
   await p.$eval('.steg__sum', e => e.textContent.trim()))
 
 // Mangler én tid, er summen en løgn — da skal rekkefølgen stå der i stedet.

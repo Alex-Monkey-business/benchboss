@@ -200,9 +200,9 @@ async function confirmDelete() {
           </div>
         </div>
         <p v-else class="sp__muted">
-          Ingen kamper kjørt i kampmodus ennå. Spilletid registreres bare når klokka går.
+          Spilletid måles bare i kampmodus.
         </p>
-        <p v-if="hasTimed" class="sp__note">Fra {{ stats.timedGames }} av {{ stats.games }} kamper — kun de som ble kjørt i kampmodus.</p>
+        <p v-if="hasTimed" class="sp__note">{{ stats.timedGames }} av {{ stats.games }} kamper målt i kampmodus.</p>
       </section>
 
       <section v-if="recentMatches.length" class="sp__section">

@@ -258,7 +258,7 @@ async function saveReport() {
     <!-- Scorer-sheet (kun trener) -->
     <Sheet :show="showScorerSheet" title="Mål" @close="showScorerSheet = false">
       <div class="scorer-form">
-        <p class="cmd-readmuted" style="margin:0 0 12px;">Trykk på spiller for å registrere mål. Flere trykk = flere mål.</p>
+        <p class="cmd-readmuted" style="margin:0 0 12px;">Ett trykk per mål.</p>
         <div v-if="squadIsEmpty" class="cmd-readmuted" style="margin:0 0 12px;">
           Troppen for {{ teamName }} er ikke satt opp ennå (viser hele spillerlista). Sett opp under «Tropp».
         </div>

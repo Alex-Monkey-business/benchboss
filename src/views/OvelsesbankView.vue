@@ -232,8 +232,7 @@ onMounted(async () => {
       <Spot name="skills" class="ds-empty__illo" />
       <div class="ds-empty__title">Ingen øvelser ennå</div>
       <div class="ds-empty__description">
-        Øvelser du lager mens du planlegger uka havner her automatisk — og deles med
-        de andre kullene<template v-if="klubbNavn"> i {{ klubbNavn }}</template>.
+        Øvelser du lager i uka havner her<template v-if="klubbNavn">, delt med hele {{ klubbNavn }}</template>.
       </div>
       <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="openNew">Ny øvelse</button>
     </div>

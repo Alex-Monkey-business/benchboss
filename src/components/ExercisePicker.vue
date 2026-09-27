@@ -170,7 +170,7 @@ function varighet(ex) {
         v-model="search"
         class="ds-input picker-search"
         type="search"
-        placeholder="Søk — eller skriv navnet på en ny"
+        placeholder="Søk eller lag ny"
       />
 
       <button v-if="canCreate" type="button" class="picker-create" @click="startNew">
@@ -211,7 +211,7 @@ function varighet(ex) {
       </button>
 
       <p v-if="!exercises.length && !canCreate" class="picker-no-hits">
-        Ingen øvelser i banken ennå — skriv et navn over for å lage den første.
+        Ingen øvelser ennå. Skriv et navn for å lage en.
       </p>
 
       <template v-if="exercises.length">
