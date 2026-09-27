@@ -235,7 +235,7 @@ await p.waitForTimeout(1800)
 ok('lander på Hjem også andre gang', p.url().replace(/\/$/,'')===APP, p.url())
 
 // ---------- 6. Spillere, ett lag om gangen ----------
-await p.getByRole('button',{name:/Legg inn spillerne/}).click()
+await p.locator('.onb-card',{hasText:/Legg inn spillerne/}).first().click()
 await p.locator('#onb-paste').waitFor()
 const antallLag=Number(sql(`select count(*) from teams where cohort_id='${kullId}'`))
 for (let i=0;i<antallLag;i++){
