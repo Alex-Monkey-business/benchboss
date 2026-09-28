@@ -1065,36 +1065,12 @@
   margin-bottom: var(--ds-space-xl);
 }
 
-/* ---- Page transition (subtle, fast) ---- */
-
-.page-enter-active {
-  transition:
-    opacity 200ms var(--ds-ease-out),
-    transform 200ms var(--ds-ease-out);
-}
-
-.page-leave-active {
-  transition:
-    opacity 120ms var(--ds-ease-out),
-    transform 120ms var(--ds-ease-out);
-}
-
-.page-enter-from {
-  opacity: 0;
-  transform: translateY(4px);
-}
-
-.page-leave-to {
-  opacity: 0;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .page-enter-active, .page-leave-active {
-    transition: none;
-  }
-  .page-enter-from, .page-leave-to {
-    transform: none;
-  }
+/* ---- Innfasing bare første gang ----
+   Router setter data-sett når skjermen er vist før i økta. Da står kortene
+   der med en gang i stedet for å gli inn på nytt ved hvert fanebytte. */
+[data-sett] .ds-anim-fade-up,
+[data-sett] .ds-anim-stagger-list > * {
+  animation: none;
 }
 
 /* ---- Utility ---- */
@@ -1331,19 +1307,18 @@
 
 /* ---- Staggered list entrance ---- */
 
+/* Kort og tett: lista skal lande, ikke rulle inn. Taket på 0,12 s gjør at
+   en lang toppliste ikke bruker et sekund på å bli ferdig. */
 .ds-anim-stagger-list > * {
-  animation: slideInUp 0.3s var(--ds-ease-smooth) both;
+  animation: slideInUp 0.22s var(--ds-ease-smooth) both;
 }
 
-.ds-anim-stagger-list > *:nth-child(1) { animation-delay: 0s; }
-.ds-anim-stagger-list > *:nth-child(2) { animation-delay: 0.04s; }
-.ds-anim-stagger-list > *:nth-child(3) { animation-delay: 0.08s; }
-.ds-anim-stagger-list > *:nth-child(4) { animation-delay: 0.12s; }
-.ds-anim-stagger-list > *:nth-child(5) { animation-delay: 0.16s; }
-.ds-anim-stagger-list > *:nth-child(6) { animation-delay: 0.20s; }
-.ds-anim-stagger-list > *:nth-child(7) { animation-delay: 0.24s; }
-.ds-anim-stagger-list > *:nth-child(8) { animation-delay: 0.28s; }
-.ds-anim-stagger-list > *:nth-child(n+9) { animation-delay: 0.32s; }
+.ds-anim-stagger-list > *:nth-child(2) { animation-delay: 0.02s; }
+.ds-anim-stagger-list > *:nth-child(3) { animation-delay: 0.04s; }
+.ds-anim-stagger-list > *:nth-child(4) { animation-delay: 0.06s; }
+.ds-anim-stagger-list > *:nth-child(5) { animation-delay: 0.08s; }
+.ds-anim-stagger-list > *:nth-child(6) { animation-delay: 0.10s; }
+.ds-anim-stagger-list > *:nth-child(n+7) { animation-delay: 0.12s; }
 
 /* ---- Selection pop feedback ---- */
 

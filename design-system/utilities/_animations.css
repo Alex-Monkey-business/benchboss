@@ -6,7 +6,7 @@
    ============================================ */
 
 :root {
-  --ds-duration-reveal: 0.42s;
+  --ds-duration-reveal: 0.26s;
 
   /* Easing variants (primary --ds-ease-out lives in _spacing.css) */
   --ds-ease-default:  var(--ds-ease-out);
@@ -149,11 +149,11 @@
   animation: ds-fadeUp var(--ds-duration-reveal) var(--ds-ease-smooth) both;
 }
 
-.ds-anim-delay-1 { animation-delay: 0.06s; }
-.ds-anim-delay-2 { animation-delay: 0.12s; }
-.ds-anim-delay-3 { animation-delay: 0.18s; }
-.ds-anim-delay-4 { animation-delay: 0.24s; }
-.ds-anim-delay-5 { animation-delay: 0.30s; }
+.ds-anim-delay-1 { animation-delay: 0.03s; }
+.ds-anim-delay-2 { animation-delay: 0.06s; }
+.ds-anim-delay-3 { animation-delay: 0.09s; }
+.ds-anim-delay-4 { animation-delay: 0.12s; }
+.ds-anim-delay-5 { animation-delay: 0.15s; }
 
 @keyframes ds-fadeUp {
   from {

@@ -58,11 +58,10 @@ const showDemo = computed(() => !isSupabaseConfigured)
     </div>
     <BottomNav v-if="showNav" />
     <main class="app-main">
-      <router-view v-slot="{ Component }">
-        <Transition name="page" mode="out-in">
-          <component :is="Component" />
-        </Transition>
-      </router-view>
+      <!-- Ingen overgang mellom skjermer: med «out-in» ventet hvert trykk
+           på at den gamle siden tonet ut før den nye i det hele tatt ble
+           laget. En fane skal bytte i samme bilde, som i en app. -->
+      <router-view />
     </main>
     <ToastNotification :toasts="toasts" />
     <IosInstallBanner :above-nav="showNav" />

@@ -279,6 +279,18 @@ function allows(meta, role) {
   return allowed.includes(role)
 }
 
+// Innfasingen er en velkomst, ikke en pris du betaler ved hvert trykk. Første
+// gang en skjerm vises i økta glir kortene inn; kommer du tilbake, står de der.
+// Settes før den nye skjermen tegnes, så CSS-en rekker å slå av animasjonen
+// (se «data-sett» i app.css). Nøkkelen er ruta, ikke adressen: alle kamper
+// deler én.
+const sett = new Set()
+router.beforeResolve((to) => {
+  const noekkel = to.matched.at(-1)?.path || to.path
+  document.documentElement.toggleAttribute('data-sett', sett.has(noekkel))
+  sett.add(noekkel)
+})
+
 router.beforeEach(async (to) => {
   // Uten denne rekker guarden å kjøre før sesjonen er lest, og sender en
   // innlogget bruker til /login på hver kalde start.
