@@ -1,7 +1,6 @@
 <script setup>
 import { computed } from 'vue'
 import Spot from '../Spot.vue'
-import OktListe from '../OktListe.vue'
 import { sessionMotif } from '../../lib/sessionVisuals'
 import { dagLink } from '../../lib/trainingLinks'
 
@@ -12,7 +11,15 @@ const props = defineProps({
 // Samme bilde som økta selv viser — ukedagen velger det (lib/sessionVisuals).
 const motif = computed(() => sessionMotif(props.session))
 
-const harOvelser = computed(() => (props.session.drills || []).some(d => d?.text))
+// Hjem er et blikk, ikke planen: lengden og antallet. Øvelsene står på Trening.
+function varighet(min) {
+  if (!min) return ''
+  const t = Math.floor(min / 60), m = min % 60
+  return !t ? `${m} min` : m ? `${t} t ${m} min` : `${t} t`
+}
+const antall = computed(() => (props.session.drills || []).filter(d => d?.text).length)
+const tittel = computed(() => varighet(props.session.duration_min) || 'Trening')
+const linje = computed(() => antall.value ? `${antall.value} ${antall.value === 1 ? 'øvelse' : 'øvelser'}` : 'Ingen øvelser ennå')
 
 </script>
 
@@ -24,8 +31,10 @@ const harOvelser = computed(() => (props.session.drills || []).some(d => d?.text
   >
     <div class="today-training__content">
       <span class="today-training__kicker">Trening i dag</span>
-      <OktListe v-if="harOvelser" class="today-training__okt" :drills="session.drills" :maks="3" />
-      <p v-else class="today-training__tom">Ingen øvelser ennå</p>
+      <span class="today-training__tekst">
+        <span class="today-training__tittel">{{ tittel }}</span>
+        <span class="today-training__linje">{{ linje }}</span>
+      </span>
     </div>
     <!-- Pasningsøkta spiller ballen gjennom portene én gang når kortet vises. -->
     <Spot v-if="motif" :name="motif" class="today-training__illo" :size="64" :play="motif === 'passing' ? 'auto' : false" />
@@ -62,15 +71,6 @@ const harOvelser = computed(() => (props.session.drills || []).some(d => d?.text
 }
 
 
-/* Detalj: dempet støttetekst under temaet. Hel — en setning som slutter i
-   «…» sier mindre enn ingen setning. */
-.today-training__tom {
-  margin: 0;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-regular);
-  color: var(--accent-text, var(--ds-color-text-secondary));
-}
-
 .today-training__illo {
   --spot-size: 64px;
   /* 64 som de andre kortene. I 88 ble treningskortet fysisk STØRRE enn
@@ -95,9 +95,22 @@ const harOvelser = computed(() => (props.session.drills || []).some(d => d?.text
   .today-training { padding: var(--ds-space-md); }
 }
 
-/* Nummer og minutter i kortets egen farge, så de hører til flaten. */
-.today-training__okt {
-  --okt-nr-bg: color-mix(in srgb, var(--accent-text, var(--ds-color-accent)) 12%, transparent);
-  --okt-dempet: var(--accent-text, var(--ds-color-text-tertiary));
+/* Samme grep som kampkortet: én overskrift, én linje. */
+.today-training__tekst {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.today-training__tittel {
+  font-family: var(--ds-font-heading);
+  font-size: var(--ds-text-xl);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--ds-color-text-primary);
+}
+.today-training__linje {
+  font-size: var(--ds-text-sm);
+  color: var(--accent-text, var(--ds-color-text-secondary));
 }
 </style>

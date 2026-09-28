@@ -1,7 +1,6 @@
 <script setup>
 import { computed } from 'vue'
 import Spot from '../Spot.vue'
-import OktListe from '../OktListe.vue'
 import { relativeDateLabel } from '../../lib/dateLabels'
 import { sessionMotif } from '../../lib/sessionVisuals'
 import { dagLink } from '../../lib/trainingLinks'
@@ -15,7 +14,15 @@ const props = defineProps({
 const motif = computed(() => sessionMotif(props.session))
 
 const when = computed(() => relativeDateLabel(props.date))
-const harOvelser = computed(() => (props.session.drills || []).some(d => d?.text))
+// Hjem er et blikk, ikke planen: lengden og antallet. Øvelsene står på Trening.
+function varighet(min) {
+  if (!min) return ''
+  const t = Math.floor(min / 60), m = min % 60
+  return !t ? `${m} min` : m ? `${t} t ${m} min` : `${t} t`
+}
+const antall = computed(() => (props.session.drills || []).filter(d => d?.text).length)
+const tittel = computed(() => varighet(props.session.duration_min) || 'Trening')
+const linje = computed(() => antall.value ? `${antall.value} ${antall.value === 1 ? 'øvelse' : 'øvelser'}` : 'Ingen øvelser ennå')
 </script>
 
 <template>
@@ -30,8 +37,10 @@ const harOvelser = computed(() => (props.session.drills || []).some(d => d?.text
     </div>
 
     <div class="next-training__main">
-      <OktListe v-if="harOvelser" class="next-training__okt" :drills="session.drills" :maks="3" />
-      <p v-else class="next-training__tom">Ingen øvelser ennå</p>
+      <span class="next-training__tekst">
+        <span class="next-training__tittel">{{ tittel }}</span>
+        <span class="next-training__linje">{{ linje }}</span>
+      </span>
       <!-- Pasningsøkta spiller ballen gjennom portene én gang når kortet vises. -->
       <Spot v-if="motif" :name="motif" class="next-training__illo" :size="64" :play="motif === 'passing' ? 'auto' : false" />
       <!-- Har ikke dagen egen illustrasjon, faller vi tilbake på state-ikonet,
@@ -86,13 +95,6 @@ const harOvelser = computed(() => (props.session.drills || []).some(d => d?.text
   gap: var(--ds-space-md);
 }
 
-.next-training__tom {
-  margin: 0;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-regular);
-  color: var(--accent-text, var(--ds-color-text-secondary));
-}
-
 .next-training__illo {
   width: 64px;
   --spot-size: 64px;
@@ -114,9 +116,22 @@ const harOvelser = computed(() => (props.session.drills || []).some(d => d?.text
   .next-training { padding: var(--ds-space-md); }
 }
 
-/* Nummer og minutter i kortets egen farge, så de hører til flaten. */
-.next-training__okt {
-  --okt-nr-bg: color-mix(in srgb, var(--accent-text, var(--ds-color-accent)) 12%, transparent);
-  --okt-dempet: var(--accent-text, var(--ds-color-text-tertiary));
+/* Samme grep som kampkortet: én overskrift, én linje. */
+.next-training__tekst {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+.next-training__tittel {
+  font-family: var(--ds-font-heading);
+  font-size: var(--ds-text-xl);
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--ds-color-text-primary);
+}
+.next-training__linje {
+  font-size: var(--ds-text-sm);
+  color: var(--accent-text, var(--ds-color-text-secondary));
 }
 </style>

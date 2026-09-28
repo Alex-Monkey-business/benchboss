@@ -6,7 +6,6 @@ defineProps({
 })
 
 import { isToday, trimAbbrevDots } from '../../lib/dateLabels'
-import OktListe from '../OktListe.vue'
 
 function weekDayLabel(iso) {
   if (isToday(iso)) return 'I dag'
@@ -33,8 +32,11 @@ function title(item) {
 
 function sub(item) {
   if (item.kind === 'training-week') return item.dates.map(shortDay).join(' · ')
-  // Treninga viser økta selv (OktListe), ikke en tekstlinje.
-  if (item.kind === 'training') return ''
+  // Et blikk, ikke planen: antallet. Øvelsene står på Trening.
+  if (item.kind === 'training') {
+    const n = (item.drills || []).filter(d => d?.text).length
+    return n ? `${n} ${n === 1 ? 'øvelse' : 'øvelser'}` : ''
+  }
   const parts = []
   if (item.kind === 'match') parts.push(item.isHome ? 'Hjemme' : 'Borte')
   if (item.time) parts.push(item.time)
@@ -50,7 +52,7 @@ function sub(item) {
       :key="i"
       :to="interactive ? item.to : undefined"
       class="week-row"
-      :class="{ 'week-row--static': !interactive, 'week-row--okt': item.kind === 'training' && item.drills?.length }"
+      :class="{ 'week-row--static': !interactive}"
     >
       <span class="week-row__day">{{ dayColumn(item) }}</span>
       <div class="week-row__body">
@@ -60,7 +62,6 @@ function sub(item) {
       <svg v-if="interactive" class="week-row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       <!-- Økta får hele bredden under dagen; ved siden av datokolonnen ble
            navnene klippet til «Eggs (transi…» på en Samsung. -->
-      <OktListe v-if="item.kind === 'training' && item.drills?.length" class="week-row__okt" :drills="item.drills" :maks="3" />
     </component>
   </div>
 </template>
@@ -128,6 +129,4 @@ function sub(item) {
   flex-shrink: 0;
   color: var(--ds-color-text-tertiary);
 }
-.week-row--okt { flex-wrap: wrap; row-gap: 12px; }
-.week-row__okt { flex: 1 0 100%; }
 </style>

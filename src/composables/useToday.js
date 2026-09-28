@@ -11,7 +11,6 @@ import { useExpenses } from './useExpenses'
 import { useCups } from './useCups'
 import { useCupMatches } from './useCupMatches'
 import { useTrainingWeek } from './useTrainingWeek'
-import { useExercises, resolveDrills } from './useExercises'
 import { useSeasonTeams } from './useSeasonTeams'
 import { useMatchMode } from './useMatchMode'
 import { localISODate, isoWeekday, daysUntil } from '../lib/dateLabels'
@@ -42,13 +41,7 @@ export function useToday() {
   const { cupMatches, fetchCupMatches } = useCupMatches()
   const { cupTeams } = useCupTeams()
   const { cupFirst, fetchSerieStatus } = useCupFirst()
-  const { days: ukedager, fetchWeek } = useTrainingWeek()
-  // Øvelsen har én fasit, og den bor i banken: gir du den nytt navn der, skal
-  // Hjem vise det nye navnet også, ikke kopien som ble lagret med dagen.
-  // Banken ligger i hurtiglageret, så dette koster ingen venting.
-  const { exercises: bank, fetchExercises } = useExercises()
-  const treningsdager = computed(() =>
-    ukedager.value.map(d => ({ ...d, drills: resolveDrills(d.drills, bank.value) })))
+  const { days: treningsdager, fetchWeek } = useTrainingWeek()
   const { seasonTeams, teamsFromDb, fetchSeasonTeams } = useSeasonTeams()
   const matchMode = useMatchMode()
 
@@ -395,7 +388,6 @@ export function useToday() {
     // hentes de på nytt. Fra seks serielle bølger til to på en varm start.
     const kjentSesong = activeSeason.value?.id || null
     const kjentCup = cupInProgress.value ? activeCup.value?.id : null
-    fetchExercises().catch(() => {})
     const forste = [fetchSeasons(), fetchCoaches(), fetchCups(), fetchWeek(), fetchSerieStatus()]
     if (kjentSesong) {
       forste.push(fetchMatches(kjentSesong))
