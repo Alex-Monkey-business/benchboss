@@ -378,6 +378,21 @@ export function useMatchMode() {
   // innbytteren er byttet ut igjen, eller den gamle perioden er rørt.
   async function undoSubstitute(matchId, receipt) {
     if (!receipt) return false
+    // Låst på serveren: sjekken mot telefonens kopi holder ikke når en annen
+    // trener kan ha byttet innbytteren ut igjen de siste sekundene.
+    if (isSupabaseConfigured) {
+      try {
+        await optimistisk(matchId, () => {
+          stints.value = stints.value.filter(x => x.id !== receipt.inStintId)
+            .map(x => x.id === receipt.outStintId ? { ...x, off_clock: null } : x)
+        }, 'mm_angre_bytte', { p_match: matchId, p_ut_stint: receipt.outStintId, p_inn_stint: receipt.inStintId })
+        return true
+      } catch (e) {
+        if (e?.konflikt) return false
+        // Funksjonen er ikke i basen ennå (migrasjonen kommer etter koden).
+        if (e?.code !== 'PGRST202') throw e
+      }
+    }
     const inn = stints.value.find(s => s.id === receipt.inStintId)
     if (!inn || inn.off_clock != null) return false
     const out = receipt.outStintId ? stints.value.find(s => s.id === receipt.outStintId) : null

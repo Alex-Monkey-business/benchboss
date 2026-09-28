@@ -14,6 +14,7 @@ import { positionForSlot, positionLabel, slotLabel, splitByFit, fitsPosition } f
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { meldEvent } from '../lib/sporing'
+import { isSupabaseConfigured } from '../supabase'
 
 const route = useRoute()
 const router = useRouter()
@@ -279,6 +280,10 @@ watch(() => session.value?.status, (ny, gammel) => {
   if (gammel === 'setup' && ny && ny !== 'setup') {
     clearTimeout(lineupTimer)
     lineupDirty = false
+    // Valg fra oppsettet skal ikke følge med inn i kampen: et halvt planlagt
+    // bytte eller en valgt plass slår ellers av dra-for-å-bytte hele kampen.
+    planModus.value = false; planArm.value = null
+    valgtPlass.value = null; plasserArm.value = null
   }
 })
 
@@ -563,17 +568,21 @@ const forslag = computed(() => {
 // i tett, og Angre i den toasten dekket et bytte til før den rakk å bli lest.
 // Skal et bytte bort, byttes det tilbake, like raskt som det ble gjort.
 
+// Ett bytte om gangen. Forslaget regnes ut på nytt i samme trykk, så et
+// dobbelttrykk på «Bytt» ville ellers gjort neste forslag også.
+let bytterNa = false
 async function gjorBytte(outId, inId) {
   const inn = playerById(inId)
   const ut = playerById(outId)
-  if (!inn || !ut) return
+  if (!inn || !ut || bytterNa) return
+  bytterNa = true
   const minstPaBenken = bench.value[0]?.id === inId
   if (navigator.vibrate) { try { navigator.vibrate(12) } catch { /* ok */ } }
   try {
     const kvittering = await substitute(matchId, { outPlayerId: outId, inPlayerId: inId })
     meldEvent('kampmodus_bytte', { minst_pa_benken: minstPaBenken })
     visAngre(`${kort(ut.name)} ut, ${kort(inn.name)} inn`, kvittering)
-  } catch (e) { reportError(e) }
+  } catch (e) { reportError(e) } finally { bytterNa = false }
 }
 
 let angreTimer = null
@@ -900,11 +909,17 @@ async function endreResultat(vaare, deres) {
     match.value.home_score = Math.max(0, (match.value.home_score || 0) + dHome)
     match.value.away_score = Math.max(0, (match.value.away_score || 0) + dAway)
   }
+  // Uten Supabase (demo) finnes ikke funksjonen; skriv tallet direkte.
+  if (!isSupabaseConfigured) {
+    await updateMatch(matchId, { home_score: match.value.home_score, away_score: match.value.away_score })
+    return
+  }
+  // Ellers aldri et absolutt tall som reserve: det ville skrevet over målet
+  // den andre treneren nettopp la inn. Feiler det, er serveren fasit.
   try { await changeScore(matchId, dHome, dAway) }
   catch (e) {
-    if (e?.konflikt) return reportError(e)
-    // Uten Supabase (demo) finnes ikke funksjonen; skriv tallet direkte.
-    await updateMatch(matchId, { home_score: match.value.home_score, away_score: match.value.away_score })
+    reportError(e)
+    if (!e?.konflikt) await syncState(matchId).catch(() => {})
   }
 }
 async function halsenGoalPlus() {

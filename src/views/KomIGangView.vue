@@ -881,7 +881,6 @@ function hoppOver() {
      knappen er jobben, illustrasjonen er innpakningen. */
   .kig { padding-top: var(--ds-space-md); padding-bottom: var(--ds-space-md); }
   .kig-trener { height: clamp(5.5rem, 23dvh, 10rem); }
-  .kig__velkomst--dempet { display: none; }
   .kig__signatur { display: none; }
 }
 

@@ -13,13 +13,13 @@ for (const [slug,id] of Object.entries(LAG)) {
 }
 ok('terminlistene hentes', hentet.length>50, hentet.length+' kamper')
 
-const lokale=sql(`select id||'§'||match_date||'§'||coalesce(match_time::text,'')||'§'||home_team||'§'||away_team||'§'||coalesce(division,'')||'§'||coalesce(round::text,'') from matches where cohort_id=(select id from cohorts where name='Halsen G2015') order by match_date`)
+const lokale=sql(`select id||'§'||match_date||'§'||coalesce(match_time::text,'')||'§'||home_team||'§'||away_team||'§'||coalesce(division,'')||'§'||coalesce(round::text,'') from matches where cohort_id='af104bf3-02f4-4067-a0db-bf285f5d8f39' order by match_date`)
   .split('\n').map(r=>{ const [id,match_date,t,home_team,away_team,division,round]=r.split('§')
     return { id, match_date, match_time:t.slice(0,5), home_team, away_team, division, round } })
 // Nullstiller koblingen først: testen skal måle parringen, ikke om en
 // tidligere kjøring alt har gjort jobben.
-sql(`update matches set fiks_match_id=null where cohort_id=(select id from cohorts where name='Halsen G2015')`)
-ok('kampene i basen har ingen FIKS-id', sql(`select count(fiks_match_id) from matches where cohort_id=(select id from cohorts where name='Halsen G2015')`)==='0')
+sql(`update matches set fiks_match_id=null where cohort_id='af104bf3-02f4-4067-a0db-bf285f5d8f39'`)
+ok('kampene i basen har ingen FIKS-id', sql(`select count(fiks_match_id) from matches where cohort_id='af104bf3-02f4-4067-a0db-bf285f5d8f39'`)==='0')
 
 const n=s=>String(s||'').toLowerCase().replace(/ø/g,'o').replace(/å/g,'a').replace(/æ/g,'ae')
 // VÅR side først. «Store Bergan grønn – Halsen Rød» ville ellers blitt Grønn

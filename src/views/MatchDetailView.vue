@@ -729,9 +729,11 @@ const aggregatedScorers = computed(() => {
 function scorerTiming(entry) {
   const mins = entry.minutes.slice().sort((a, b) => a - b)
   if (mins.length === 0) return entry.count > 1 ? `${entry.count} mål` : ''
-  const shown = mins.map(m => `${m}′`).join(' · ')
+  // Hardt mellomrom foran prikken og rundt plusset: linja brekker bare etter
+  // en prikk, aldri midt i «49′ + 1» eller med prikken alene på neste linje.
+  const shown = mins.map(m => `${m}′`).join('\u00a0· ')
   const rest = entry.count - mins.length
-  return rest > 0 ? `${shown} + ${rest}` : shown
+  return rest > 0 ? `${shown}\u00a0+\u00a0${rest}` : shown
 }
 
 function goalCountForPlayer(playerId) {
@@ -886,13 +888,16 @@ const reportSavedLabel = computed(() => {
 // ─── Summary-chips for collapsed disclosure-headere (lese-modus) ──────────────
 const refereeSummary = computed(() => match.value?.referee || '')
 
-const payerSummary = computed(() => {
+const payerFull = computed(() => {
   if (!expense.value) return ''
   const c = coaches.value.find(c => c.id === expense.value.paid_by)
   if (!c) return ''
   const amt = expense.value.amount || match.value?.fee_amount || 200
   return `${c.name} · ${amt} kr`
 })
+// Bare beløpet i den lukkede raden: dommer + hvem + beløp får ikke plass
+// på en Samsung. Hvem som la ut står når raden åpnes.
+const payerSummary = computed(() => payerFull.value.split(' · ').pop() || '')
 
 // Chips i collapsed summary (lese-modus)
 const selectedLanespillere = computed(() => {
@@ -1163,7 +1168,7 @@ function focusSummaryGroup() {
             class="picker-result"
             @click="!isLocked && (showPayerPicker = true)"
           >
-            <span class="picker-result__name">{{ payerSummary }}</span>
+            <span class="picker-result__name">{{ payerFull }}</span>
             <span v-if="!isLocked" class="picker-result__change">Bytt</span>
           </button>
 
@@ -2581,13 +2586,20 @@ function focusSummaryGroup() {
 /* ─── Summary-chips i collapsed disclosure-headere (lese-modus) ───────── */
 /* Sammendraget er tekst, ikke brikker. */
 .sum-chip {
-  display: inline-flex;
-  align-items: center;
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: var(--ds-text-xs);
   font-weight: 500;
   color: var(--ds-color-text-secondary);
   white-space: nowrap;
 }
+
+/* Raden er høyrejustert. Uten krymping renner den over mot venstre og kutter
+   starten av navnet («edrik V»). Nå er det dommernavnet som krymper; beløpet
+   står helt. */
+.sum-chip--squad, .sum-chip--more, .sum-chip--score, .sum-chip--payer { flex: none; }
 
 .sum-chip--score {
   font-weight: 700;

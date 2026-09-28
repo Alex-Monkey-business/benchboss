@@ -41,6 +41,13 @@ const likt=[k('l1','2026-09-01','gronn','G11 høst 3.div'),k('l2','2026-09-05','
 const lc={...ctx,teams:[{slug:'gronn',name:'Grønn'},{slug:'rod',name:'Rød'}],matches:likt,troppFor:()=>new Set(['q'])}
 ok('likestilte lag: grense begge veier', lanegrense(likt[1],'rod',lc)?.fra[0]?.slug==='gronn')
 
+// Rykket ned til høsten: vårens 1. div gjør ikke laget til det høyere om høsten.
+const ned=[k('n1','2026-05-01','g15-1','G15 vår 1.div'),k('n2','2026-05-02','g15-2','G15 vår 2.div'),
+  k('n3','2026-09-01','g15-1','G15 høst 3.div'),k('n4','2026-09-02','g15-2','G15 høst 2.div'),k('n5','2026-09-09','g15-2','G15 høst 2.div')]
+const nc={...ctx,matches:ned,troppFor:()=>new Set(['q'])}
+ok('nedrykk: G15-2 henter fritt fra G15-1 om høsten', lanegrense(ned[4],'g15-2',nc)===null)
+ok('nedrykk: G15-1 teller mot G15-2 om høsten', lanegrense(k('n6','2026-09-10','g15-1','G15 høst 3.div'),'g15-1',nc)?.fra[0]?.slug==='g15-2')
+
 // Ekte data: Halsen G15-1 og G15-2 høsten 2026.
 const hent=async id=>parseTerminliste(await(await fetch(`https://www.fotball.no/footballapi/Calendar/GetCalendar?teamId=${id}`)).text())
 const [en,to]=await Promise.all([hent(13731),hent(41317)])

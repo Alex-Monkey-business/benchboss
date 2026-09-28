@@ -77,6 +77,27 @@ const res=sql(`select coalesce(home_score,0)+coalesce(away_score,0) from matches
 ok('to samtidige mål blir to', res==='2', res)
 ok('B viser begge målene', (await B.locator('.mm__score-num').allInnerTexts()).map(Number).reduce((a,b)=>a+b,0)===2)
 
+// Angre mens den andre har byttet videre: A bytter P ut og Q inn, B bytter
+// Q ut igjen før A rekker å angre. Angringa skal nektes, ikke gi to på én plass.
+{
+  const p=A.locator('.marker--live:not(.marker--empty):not(.marker--gk)').nth(1)
+  const pNavn=(await p.locator('.marker__label').innerText()).split('\n')[0].trim()
+  // Benken sorteres etter plassen som er valgt, så les navnet etter første trykk.
+  await A.locator('.marker--live',{hasText:pNavn}).first().click(); await vent(150)
+  const qNavn=(await A.locator('.mm__bench--bar .mm__bchip').first().innerText()).split(/\s/)[0].trim()
+  await A.locator('.mm__bench--bar .mm__bchip').first().click()
+  await A.getByRole('button',{name:'Angre'}).waitFor({timeout:3000})
+  await vent(3300)
+  await B.locator('.marker--live',{hasText:qNavn}).first().click()
+  await B.locator('.mm__bench--bar .mm__bchip',{hasNotText:pNavn}).first().click()
+  await vent(400)
+  if(await A.getByRole('button',{name:'Angre'}).count()) await A.getByRole('button',{name:'Angre'}).click()
+  await vent(4000)
+  const pos2=sql(`select string_agg(position, ',' order by position) from match_stints where match_id='${M}' and off_clock is null`)
+  ok('angre etter et nytt bytte på den andre telefonen gir én spiller per plass', apne()===plasser && new Set(pos2.split(',')).size===plasser, pos2)
+  ok('Qs spilletid fra byttet står', Number(sql(`select count(*) from match_stints t join players pl on pl.id=t.player_id where t.match_id='${M}' and pl.name ilike '${qNavn}%' and t.off_clock is not null`))>=1)
+}
+
 // Pause på A, B ser den; samme klokke på begge.
 await A.getByRole('button',{name:'Pause'}).click()
 await vent(4000)

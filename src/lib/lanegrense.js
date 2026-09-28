@@ -98,7 +98,12 @@ export function lanegrense(match, slug, ctx) {
 
   const form = ctx.spillformFor(slug)
   const grense = GRENSE[form] ?? GRENSE[11]
-  const rang = rangPerLag(ctx.teams, ctx.matches, ctx.lagForKamp)
+  // Nivået gjelder halvåret kampen spilles i: et lag som rykket ned til
+  // høsten er ikke lenger det høyere laget. Har halvåret ingen divisjoner
+  // ennå, brukes hele sesongen.
+  const iHalvaret = (ctx.matches || []).filter(m => halvar(m.match_date) === halvar(match.match_date))
+  const harNiva = iHalvaret.some(m => erObligatorisk(m) && nivaFraDivisjon(m.division) !== null)
+  const rang = rangPerLag(ctx.teams, harNiva ? iHalvaret : ctx.matches, ctx.lagForKamp)
   const min = rang[slug]
 
   const sammeForm = ctx.teams.filter(t => t.slug !== slug && ctx.spillformFor(t.slug) === form)
