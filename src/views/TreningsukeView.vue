@@ -24,6 +24,7 @@ import { ref, computed, watch, nextTick, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
 import { useExercises, exerciseToDrill, resolveDrills, ovelsensVideo } from '../composables/useExercises'
+import OktListe from '../components/OktListe.vue'
 import { useToast } from '../composables/useToast'
 import { parseTreningsplan } from '../lib/treningParser'
 import { accentForPosition } from '../lib/sessionVisuals'
@@ -637,12 +638,15 @@ onMounted(async () => {
             </span>
             <svg class="dag__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </span>
-          <!-- Lukket: øvelsene, for det er dem du ser etter. Fokuset er
-               grunnen til at de ligger der, og står når dagen er åpen. -->
-          <ol v-if="openDayId !== s.id && drillsFor(s).length" class="dag__ovelser">
-            <li v-for="(d, i) in drillsFor(s).slice(0, MAKS_LUKKET)" :key="i"><span>{{ d.text }}</span></li>
-            <li v-if="drillsFor(s).length > MAKS_LUKKET" class="dag__flere">{{ drillsFor(s).length - MAKS_LUKKET }} til</li>
-          </ol>
+          <!-- Lukket: øvelsene og formen på økta. Fokuset er grunnen til at de
+               ligger der, og står når dagen er åpen. -->
+          <OktListe
+            v-if="openDayId !== s.id && drillsFor(s).length"
+            class="dag__okt"
+            :drills="drillsFor(s)"
+            :total="s.duration_min || 0"
+            :maks="MAKS_LUKKET"
+          />
           <span v-else-if="openDayId !== s.id" class="dag__focus dag__focus--empty">Ingen øvelser ennå</span>
           <span v-else-if="s.focus" class="dag__focus">
             <span :class="fokus[s.id].delt ? 'dag__ledd' : 'dag__resten dag__resten--alene'">{{ fokus[s.id].ledd }}</span>
@@ -1131,26 +1135,7 @@ Torsdag
   overflow: hidden;
 }
 
-.dag__ovelser {
-  list-style: none;
-  margin: 6px 0 0;
-  padding: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.dag__ovelser li {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--ds-text-sm);
-  line-height: 1.45;
-  color: var(--ds-color-text-primary);
-}
-.dag__ovelser .dag__flere {
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-tertiary);
-}
+.dag__okt { margin-top: 14px; }
 
 .dag__focus--empty {
   color: var(--ds-color-text-tertiary);
@@ -1835,24 +1820,5 @@ Torsdag
 
 .paste-save { width: 100%; margin-top: var(--ds-space-md); }
 
-/* Nummerert: rekkefølgen er treninga. Tallet står i egen kolonne, dempet,
-   så navnene står på linje og ikke flyter i hverandre. */
-.dag__ovelser { counter-reset: ovelse; gap: 5px; }
-.dag__ovelser li:not(.dag__flere) {
-  counter-increment: ovelse;
-  display: grid;
-  grid-template-columns: 1.1em minmax(0, 1fr);
-  column-gap: 8px;
-}
-.dag__ovelser li:not(.dag__flere)::before {
-  content: counter(ovelse);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  font-variant-numeric: tabular-nums;
-  line-height: inherit;
-  color: var(--ds-color-text-tertiary);
-  text-align: right;
-}
-.dag__ovelser li:not(.dag__flere) > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dag__ovelser .dag__flere { padding-left: calc(1.1em + 8px); }
+
 </style>

@@ -46,7 +46,8 @@ export function buildWeekAhead({ today = localISODate(), days = [], matches = []
         date,
         focus: dag.focus || '',
         drillCount: (dag.drills || []).length,
-        ovelser: (dag.drills || []).map(d => d.text).filter(Boolean),
+        drills: dag.drills || [],
+        total: dag.duration_min || 0,
         to: dagLink(dag.id)
       }))
   }

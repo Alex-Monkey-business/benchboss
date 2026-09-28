@@ -6,6 +6,7 @@ defineProps({
 })
 
 import { isToday, trimAbbrevDots } from '../../lib/dateLabels'
+import OktListe from '../OktListe.vue'
 
 function weekDayLabel(iso) {
   if (isToday(iso)) return 'I dag'
@@ -32,8 +33,8 @@ function title(item) {
 
 function sub(item) {
   if (item.kind === 'training-week') return item.dates.map(shortDay).join(' · ')
-  // Øvelsene, ikke fokuset. Ei rad har én linje; resten klippes.
-  if (item.kind === 'training') return (item.ovelser || []).join(' · ')
+  // Treninga viser økta selv (OktListe), ikke en tekstlinje.
+  if (item.kind === 'training') return ''
   const parts = []
   if (item.kind === 'match') parts.push(item.isHome ? 'Hjemme' : 'Borte')
   if (item.time) parts.push(item.time)
@@ -49,14 +50,17 @@ function sub(item) {
       :key="i"
       :to="interactive ? item.to : undefined"
       class="week-row"
-      :class="{ 'week-row--static': !interactive }"
+      :class="{ 'week-row--static': !interactive, 'week-row--okt': item.kind === 'training' && item.drills?.length }"
     >
       <span class="week-row__day">{{ dayColumn(item) }}</span>
-      <span class="week-row__body">
+      <div class="week-row__body">
         <span class="week-row__title">{{ title(item) }}</span>
         <span v-if="sub(item)" class="week-row__sub">{{ sub(item) }}</span>
-      </span>
+      </div>
       <svg v-if="interactive" class="week-row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      <!-- Økta får hele bredden under dagen; ved siden av datokolonnen ble
+           navnene klippet til «Eggs (transi…» på en Samsung. -->
+      <OktListe v-if="item.kind === 'training' && item.drills?.length" class="week-row__okt" :drills="item.drills" :total="item.total" :maks="3" />
     </component>
   </div>
 </template>
@@ -124,4 +128,6 @@ function sub(item) {
   flex-shrink: 0;
   color: var(--ds-color-text-tertiary);
 }
+.week-row--okt { flex-wrap: wrap; row-gap: 12px; }
+.week-row__okt { flex: 1 0 100%; }
 </style>

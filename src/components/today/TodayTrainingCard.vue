@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import Spot from '../Spot.vue'
+import OktListe from '../OktListe.vue'
 import { sessionMotif } from '../../lib/sessionVisuals'
 import { dagLink } from '../../lib/trainingLinks'
 
@@ -11,9 +12,7 @@ const props = defineProps({
 // Samme bilde som økta selv viser — ukedagen velger det (lib/sessionVisuals).
 const motif = computed(() => sessionMotif(props.session))
 
-// Øvelsene, ikke fokuset: det er dem du ser etter før treninga.
-const ovelser = computed(() => (props.session.drills || []).map(d => d.text).filter(Boolean))
-const MAKS = 3
+const harOvelser = computed(() => (props.session.drills || []).some(d => d?.text))
 
 </script>
 
@@ -25,10 +24,7 @@ const MAKS = 3
   >
     <div class="today-training__content">
       <span class="today-training__kicker">Trening i dag</span>
-      <ol v-if="ovelser.length" class="today-training__ovelser">
-        <li v-for="(n, i) in ovelser.slice(0, MAKS)" :key="i"><span>{{ n }}</span></li>
-        <li v-if="ovelser.length > MAKS" class="today-training__flere">{{ ovelser.length - MAKS }} til</li>
-      </ol>
+      <OktListe v-if="harOvelser" class="today-training__okt" :drills="session.drills" :total="session.duration_min || 0" :maks="3" />
       <p v-else class="today-training__tom">Ingen øvelser ennå</p>
     </div>
     <!-- Pasningsøkta spiller ballen gjennom portene én gang når kortet vises. -->
@@ -65,29 +61,9 @@ const MAKS = 3
   color: var(--accent-text, var(--ds-color-text-secondary));
 }
 
-/* Hero: det korte temaet — punchy, skannbart, maks to linjer. */
-.today-training__ovelser {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.today-training__ovelser li {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  line-height: 1.4;
-  color: var(--ds-color-text-primary);
-}
 
 /* Detalj: dempet støttetekst under temaet. Hel — en setning som slutter i
    «…» sier mindre enn ingen setning. */
-.today-training__ovelser .today-training__flere,
 .today-training__tom {
   margin: 0;
   font-size: var(--ds-text-sm);
@@ -119,24 +95,10 @@ const MAKS = 3
   .today-training { padding: var(--ds-space-md); }
 }
 
-/* Nummerert: rekkefølgen er treninga. Tallet står i egen kolonne, dempet,
-   så navnene står på linje og ikke flyter i hverandre. */
-.today-training__ovelser { counter-reset: ovelse; gap: 5px; }
-.today-training__ovelser li:not(.today-training__flere) {
-  counter-increment: ovelse;
-  display: grid;
-  grid-template-columns: 1.1em minmax(0, 1fr);
-  column-gap: 8px;
+/* Stripa og minuttene i kortets egen farge, så de hører til flaten. */
+.today-training__okt {
+  --okt-farge: var(--accent-text, var(--ds-color-accent));
+  --okt-spor: color-mix(in srgb, var(--accent-text, var(--ds-color-accent)) 16%, transparent);
+  --okt-dempet: var(--accent-text, var(--ds-color-text-tertiary));
 }
-.today-training__ovelser li:not(.today-training__flere)::before {
-  content: counter(ovelse);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  font-variant-numeric: tabular-nums;
-  line-height: inherit;
-  color: var(--ds-color-text-tertiary);
-  text-align: right;
-}
-.today-training__ovelser li:not(.today-training__flere) > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.today-training__ovelser .today-training__flere { padding-left: calc(1.1em + 8px); }
 </style>

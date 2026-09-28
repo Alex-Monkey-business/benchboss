@@ -1,6 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import Spot from '../Spot.vue'
+import OktListe from '../OktListe.vue'
 import { relativeDateLabel } from '../../lib/dateLabels'
 import { sessionMotif } from '../../lib/sessionVisuals'
 import { dagLink } from '../../lib/trainingLinks'
@@ -14,9 +15,7 @@ const props = defineProps({
 const motif = computed(() => sessionMotif(props.session))
 
 const when = computed(() => relativeDateLabel(props.date))
-const ovelser = computed(() => (props.session.drills || []).map(d => d.text).filter(Boolean))
-// Tre linjer holder kortet like høyt som kampkortet ved siden av.
-const MAKS = 3
+const harOvelser = computed(() => (props.session.drills || []).some(d => d?.text))
 </script>
 
 <template>
@@ -31,11 +30,7 @@ const MAKS = 3
     </div>
 
     <div class="next-training__main">
-      <!-- Øvelsene, ikke fokuset: det er dem du ser etter før treninga. -->
-      <ol v-if="ovelser.length" class="next-training__ovelser">
-        <li v-for="(n, i) in ovelser.slice(0, MAKS)" :key="i"><span>{{ n }}</span></li>
-        <li v-if="ovelser.length > MAKS" class="next-training__flere">{{ ovelser.length - MAKS }} til</li>
-      </ol>
+      <OktListe v-if="harOvelser" class="next-training__okt" :drills="session.drills" :total="session.duration_min || 0" :maks="3" />
       <p v-else class="next-training__tom">Ingen øvelser ennå</p>
       <!-- Pasningsøkta spiller ballen gjennom portene én gang når kortet vises. -->
       <Spot v-if="motif" :name="motif" class="next-training__illo" :size="64" :play="motif === 'passing' ? 'auto' : false" />
@@ -91,26 +86,6 @@ const MAKS = 3
   gap: var(--ds-space-md);
 }
 
-/* Øvelsesnavnene: én per linje, klippet heller enn brukket. */
-.next-training__ovelser {
-  list-style: none;
-  margin: 0;
-  padding: 0;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-.next-training__ovelser li {
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  line-height: 1.4;
-  color: var(--ds-color-text-primary);
-}
-.next-training__ovelser .next-training__flere,
 .next-training__tom {
   margin: 0;
   font-size: var(--ds-text-sm);
@@ -139,24 +114,10 @@ const MAKS = 3
   .next-training { padding: var(--ds-space-md); }
 }
 
-/* Nummerert: rekkefølgen er treninga. Tallet står i egen kolonne, dempet,
-   så navnene står på linje og ikke flyter i hverandre. */
-.next-training__ovelser { counter-reset: ovelse; gap: 5px; }
-.next-training__ovelser li:not(.next-training__flere) {
-  counter-increment: ovelse;
-  display: grid;
-  grid-template-columns: 1.1em minmax(0, 1fr);
-  column-gap: 8px;
+/* Stripa og minuttene i kortets egen farge, så de hører til flaten. */
+.next-training__okt {
+  --okt-farge: var(--accent-text, var(--ds-color-accent));
+  --okt-spor: color-mix(in srgb, var(--accent-text, var(--ds-color-accent)) 16%, transparent);
+  --okt-dempet: var(--accent-text, var(--ds-color-text-tertiary));
 }
-.next-training__ovelser li:not(.next-training__flere)::before {
-  content: counter(ovelse);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  font-variant-numeric: tabular-nums;
-  line-height: inherit;
-  color: var(--ds-color-text-tertiary);
-  text-align: right;
-}
-.next-training__ovelser li:not(.next-training__flere) > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.next-training__ovelser .next-training__flere { padding-left: calc(1.1em + 8px); }
 </style>
