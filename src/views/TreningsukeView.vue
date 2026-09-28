@@ -179,11 +179,8 @@ function drillCount(s) {
 
 // «3 øvelser» på det lukkede kortet: du skal se om dagen er planlagt eller tom
 // uten å åpne den.
-function drillCountLabel(s) {
-  const n = drillCount(s)
-  if (!n) return 'Ingen øvelser'
-  return n === 1 ? '1 øvelse' : `${n} øvelser`
-}
+// Et lukket kort viser øvelsene, men ikke flere enn at uka fortsatt får plass.
+const MAKS_LUKKET = 4
 
 // ── Tid per øvelse ──────────────────────────────────────────────────────────
 //
@@ -637,15 +634,20 @@ onMounted(async () => {
             <span class="dag__name">{{ s.title }}</span>
             <span class="dag__meta">
               <span v-if="s.duration_min" class="dag__len">{{ formatDuration(s.duration_min) }}</span>
-              <span v-if="openDayId !== s.id" class="dag__count">{{ drillCountLabel(s) }}</span>
             </span>
             <svg class="dag__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </span>
-          <span v-if="s.focus" class="dag__focus" :class="{ 'dag__focus--clamp': openDayId !== s.id }">
+          <!-- Lukket: øvelsene, for det er dem du ser etter. Fokuset er
+               grunnen til at de ligger der, og står når dagen er åpen. -->
+          <ol v-if="openDayId !== s.id && drillsFor(s).length" class="dag__ovelser">
+            <li v-for="(d, i) in drillsFor(s).slice(0, MAKS_LUKKET)" :key="i">{{ d.text }}</li>
+            <li v-if="drillsFor(s).length > MAKS_LUKKET" class="dag__flere">{{ drillsFor(s).length - MAKS_LUKKET }} til</li>
+          </ol>
+          <span v-else-if="openDayId !== s.id" class="dag__focus dag__focus--empty">Ingen øvelser ennå</span>
+          <span v-else-if="s.focus" class="dag__focus">
             <span :class="fokus[s.id].delt ? 'dag__ledd' : 'dag__resten dag__resten--alene'">{{ fokus[s.id].ledd }}</span>
-            <span v-if="fokus[s.id].resten && openDayId === s.id" class="dag__resten">{{ fokus[s.id].resten }}</span>
+            <span v-if="fokus[s.id].resten" class="dag__resten">{{ fokus[s.id].resten }}</span>
           </span>
-          <span v-else class="dag__focus dag__focus--empty">Ingen fokus satt</span>
         </button>
 
         <div v-if="openDayId === s.id" class="dag__body">
@@ -1064,20 +1066,10 @@ Torsdag
   white-space: nowrap;
 }
 
-.dag__count::before {
-  content: '·';
-  margin-right: 6px;
-  opacity: 0.5;
-}
-
 /* På et lukket kort under 400 px konkurrerer «1 t 30 min · 3 øvelser» ut
    dagsnavnet — på 360 ble det «TORS…». Lengden viker: den står i dagen når du
    åpner den. Antallet svarer på om dagen i det hele tatt er planlagt, og blir
    stående. */
-@media (max-width: 399px) {
-  .dag:not(.dag--open) .dag__len { display: none; }
-  .dag:not(.dag--open) .dag__count::before { content: none; }
-}
 
 .dag__chevron {
   flex-shrink: 0;
@@ -1137,6 +1129,27 @@ Torsdag
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
   overflow: hidden;
+}
+
+.dag__ovelser {
+  list-style: none;
+  margin: 6px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.dag__ovelser li {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ds-text-sm);
+  line-height: 1.45;
+  color: var(--ds-color-text-primary);
+}
+.dag__ovelser .dag__flere {
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-tertiary);
 }
 
 .dag__focus--empty {

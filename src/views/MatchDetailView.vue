@@ -149,7 +149,7 @@ function applySmartOpen() {
   // vises, og laget aldri fått fokus.
   const logisticsDone = !usesReferees.value || (!!match.value.referee && !!expense.value)
 
-  if (isPast || hasResult) {
+  if (isPast || hasResult || mmSession.value?.status === 'finished') {
     // Spilt (resultat ført) eller skulle vært spilt — coach kom sannsynligvis
     // for å se eller logge resultat. Gjelder også dagens kamp som alt er spilt.
     open.value.summary = true
@@ -236,8 +236,13 @@ const teamColors = computed(() => teamColorsForMatch(match.value))
 // Rekkefølge på de tre seksjonene styres av kampens livssyklus:
 // spilt kamp leder med resultat, kommende leder med prep. Flex-order på
 // .detail-disclosures gjør omrokeringen uten å endre DOM-en.
+// «Halsen G15-2» skal brekke ved mellomrommet, ikke ved bindestreken.
+const hel = navn => String(navn || '').replace(/-/g, '\u2011')
+
 const sectionOrder = computed(() => {
-  if (isPast(match.value?.match_date)) {
+  // Avsluttet i kampmodus teller som spilt, også samme kveld: da er det
+  // spilletida du kom for, ikke dommer og tropp.
+  if (isPast(match.value?.match_date) || played.value || mmSession.value?.status === 'finished') {
     // Spilt kamp leses før den endres: spilletid er det match mode faktisk
     // målte, mens Resultat-seksjonen er tallfeltene og referatet. Resultatet
     // og scorerne står uansett i toppkortet.
@@ -972,7 +977,7 @@ function focusSummaryGroup() {
       <div class="hero__grid">
         <div class="hero__side">
           <TeamCrest :name="match.home_team" :src="merkeFor(match.home_team)" :size="56" />
-          <span class="hero__team">{{ match.home_team }}</span>
+          <span class="hero__team">{{ hel(match.home_team) }}</span>
         </div>
         <component
           :is="hasResult && !isLocked ? 'button' : 'div'"
@@ -989,7 +994,7 @@ function focusSummaryGroup() {
         </component>
         <div class="hero__side">
           <TeamCrest :name="match.away_team" :src="merkeFor(match.away_team)" :size="56" />
-          <span class="hero__team">{{ match.away_team }}</span>
+          <span class="hero__team">{{ hel(match.away_team) }}</span>
         </div>
       </div>
 
