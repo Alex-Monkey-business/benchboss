@@ -76,6 +76,7 @@ QA_APP="$QA_APP" node scripts/klientfeil-test.mjs || status=1
 QA_APP="$QA_APP" node scripts/klubbdeling-test.mjs || status=1
 QA_APP="$QA_APP" node scripts/qa-full-flyt.mjs || status=1
 QA_APP="$QA_APP" node scripts/kampmodus-to-trenere-test.mjs || status=1
+QA_APP="$QA_APP" node scripts/kampmodus-trykk-test.mjs || status=1
 
 if [ "$status" != 0 ]; then
   si "${RED}QA feiler. Push avbrutt.${OFF}"

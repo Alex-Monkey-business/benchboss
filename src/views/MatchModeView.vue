@@ -24,7 +24,7 @@ const {
   session, stints, currentClock, isRunning,
   startClockTick, stopClockTick,
   fetchSession, fetchStints,
-  saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
+  saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, undoSubstitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
   isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer,
   remote, syncState, changeScore
 } = useMatchMode()
@@ -53,7 +53,12 @@ const pickerSlot = ref(null)  // slot som redigeres
 
 // Live
 const armedBenchId = ref(null)
-const actionPlayer = ref(null)
+// Spilleren på banen som er trykket på. Neste trykk avgjør: en på benken er
+// et bytte, en annen på banen er et plassbytte, samme spiller avbryter.
+const valgtPaBanen = ref(null)
+// Siste bytte, med kvitteringen som trengs for å angre det. Står i linja over
+// benken i fem sekunder, ikke som et varsel over banen.
+const angre = ref(null)
 const showFinish = ref(false)
 const showReset = ref(false)
 const showScorer = ref(false)
@@ -467,9 +472,20 @@ const onField = computed(() =>
 // Innbytte: benken delt på om spilleren passer i plassen som blir ledig.
 // Rekkefølgen inne i gruppene er fortsatt minst spilletid først — posisjon
 // bestemmer hvem som er relevant, spilletid hvem som fortjener det.
-const subPosition = computed(() =>
-  actionPlayer.value ? positionForSlot(positionOf(actionPlayer.value.id)) : null)
-const subGroups = computed(() => splitByFit(bench.value, subPosition.value))
+// Med en spiller valgt på banen sorteres benken om: de som passer i plassen,
+// minst spilletid først. Da står de aktuelle til venstre, også med en lang benk.
+const valgtPosisjon = computed(() =>
+  valgtPaBanen.value ? positionForSlot(positionOf(valgtPaBanen.value)) : null)
+const benkVist = computed(() => {
+  if (!valgtPaBanen.value) return bench.value
+  const { fit, rest } = splitByFit(bench.value, valgtPosisjon.value)
+  return [...fit, ...rest]
+})
+const anbefaltInn = computed(() => (valgtPaBanen.value ? benkVist.value[0]?.id : null) || null)
+// Er den valgte ikke lenger på banen (byttet på en annen telefon), slippes valget.
+watch(() => valgtPaBanen.value && isOnField(valgtPaBanen.value), paBanen => {
+  if (valgtPaBanen.value && !paBanen) valgtPaBanen.value = null
+})
 
 function armBench(id) { armedBenchId.value = armedBenchId.value === id ? null : id }
 
@@ -548,8 +564,27 @@ async function gjorBytte(outId, inId) {
   const minstPaBenken = bench.value[0]?.id === inId
   if (navigator.vibrate) { try { navigator.vibrate(12) } catch { /* ok */ } }
   try {
-    await substitute(matchId, { outPlayerId: outId, inPlayerId: inId })
+    const kvittering = await substitute(matchId, { outPlayerId: outId, inPlayerId: inId })
     meldEvent('kampmodus_bytte', { minst_pa_benken: minstPaBenken })
+    visAngre(`${kort(ut.name)} ut, ${kort(inn.name)} inn`, kvittering)
+  } catch (e) { reportError(e) }
+}
+
+let angreTimer = null
+function visAngre(tekst, kvittering) {
+  clearTimeout(angreTimer)
+  angre.value = { tekst, kvittering }
+  angreTimer = setTimeout(() => { angre.value = null }, 5000)
+}
+async function angreBytte() {
+  const a = angre.value
+  clearTimeout(angreTimer)
+  angre.value = null
+  if (!a) return
+  try {
+    const ok = await undoSubstitute(matchId, a.kvittering)
+    if (!ok) showToast('Byttet kan ikke angres lenger', 'error')
+    await syncState(matchId).catch(() => {})
   } catch (e) { reportError(e) }
 }
 
@@ -560,29 +595,46 @@ function utforForslag() {
   gjorBytte(f.ut.id, f.inn.id)
 }
 
+// To trykk gjør alt: banen + benken er et bytte, banen + banen er et
+// plassbytte (hanskene følger med om keeperen er en av dem).
 async function tapPitchPlayer(playerId) {
   if (!playerId) return
   if (armedBenchId.value) {
     const inId = armedBenchId.value
     armedBenchId.value = null
     await gjorBytte(playerId, inId)
-  } else {
-    actionPlayer.value = playerById(playerId)
+    return
   }
+  const valgt = valgtPaBanen.value
+  if (!valgt) {
+    angre.value = null
+    valgtPaBanen.value = playerId
+    if (navigator.vibrate) { try { navigator.vibrate(8) } catch { /* ok */ } }
+    return
+  }
+  valgtPaBanen.value = null
+  if (valgt !== playerId) await byttPlass(valgt, playerId)
 }
 
-async function subFromSheet(inId) {
-  const out = actionPlayer.value
-  if (!out) return
-  actionPlayer.value = null
-  await gjorBytte(out.id, inId)
+function trykkBenk(id) {
+  if (valgtPaBanen.value) {
+    const ut = valgtPaBanen.value
+    valgtPaBanen.value = null
+    gjorBytte(ut, id)
+    return
+  }
+  angre.value = null
+  armBench(id)
 }
-async function makeKeeperFromSheet() {
-  const p = actionPlayer.value
-  if (!p) return
-  actionPlayer.value = null
+
+async function byttPlass(aId, bId) {
   try {
-    await swapKeeper(matchId, p.id)
+    if (roleOf(aId) === 'keeper' || roleOf(bId) === 'keeper') {
+      // Keeperen er involvert → bytt hansker også. swapKeeper tar utespilleren.
+      await swapKeeper(matchId, roleOf(aId) === 'keeper' ? bId : aId)
+    } else {
+      await swapFieldPositions(matchId, aId, bId)
+    }
   } catch (e) { reportError(e) }
 }
 
@@ -739,15 +791,7 @@ async function finishDrag() {
   const aId = playerAtPosition(from)
   const bId = playerAtPosition(to)
   if (!aId || !bId) return
-  try {
-    if (roleOf(aId) === 'keeper' || roleOf(bId) === 'keeper') {
-      // Keeperen er involvert → bytt hansker også. swapKeeper tar utespilleren.
-      const fieldPlayer = roleOf(aId) === 'keeper' ? bId : aId
-      await swapKeeper(matchId, fieldPlayer)
-    } else {
-      await swapFieldPositions(matchId, aId, bId)
-    }
-  } catch (e) { reportError(e) }
+  await byttPlass(aId, bId)
 }
 
 // ── Omganger ───────────────────────────────────────────────────────────────
@@ -813,7 +857,7 @@ async function handleReset() {
     for (const g of matchGoals.value.slice()) await removeGoal(g.id)
     assignments.value = {}
     armedBenchId.value = null
-    actionPlayer.value = null
+    valgtPaBanen.value = null
     showToast('Nullstilt — klar for ny oppstilling', 'success')
   } catch (e) { reportError(e) }
 }
@@ -1075,7 +1119,8 @@ const summary = computed(() =>
           class="marker marker--live"
           :class="{
             'marker--gk': playerAtPosition(slot.id) && roleOf(playerAtPosition(slot.id)) === 'keeper',
-            'marker--target': armedBenchId && playerAtPosition(slot.id),
+            'marker--target': (armedBenchId || (valgtPaBanen && valgtPaBanen !== playerAtPosition(slot.id))) && playerAtPosition(slot.id),
+            'marker--valgt': valgtPaBanen && valgtPaBanen === playerAtPosition(slot.id),
             'marker--empty': !playerAtPosition(slot.id),
             'marker--lifted': dragId && dragFromSlot === slot.id,
             'marker--droppable': dragId && playerAtPosition(slot.id) && dragFromSlot !== slot.id && hoverSlot !== slot.id,
@@ -1115,8 +1160,18 @@ const summary = computed(() =>
       </div>
 
       <div class="mm__cockpit-bottom">
+        <!-- Fast høyde: banen skal ikke flytte seg mellom første og andre trykk. -->
+        <div class="mm__topslot">
         <div v-if="dragId && !dragLearned" class="mm__sub-hint">Slipp på en spiller for å bytte plass</div>
         <div v-else-if="armedBenchId" class="mm__sub-hint">Tapp spilleren som skal ut</div>
+        <div v-else-if="valgtPaBanen" class="mm__sub-rad">
+          <span class="mm__sub-hint">Hvem går inn for {{ kort(playerById(valgtPaBanen)?.name) }}?</span>
+          <button type="button" class="ds-btn ds-btn--ghost ds-btn--sm" @click="valgtPaBanen = null">Avbryt</button>
+        </div>
+        <div v-else-if="angre" class="mm__sub-rad">
+          <span class="mm__sub-hint mm__sub-hint--dempet">{{ angre.tekst }}</span>
+          <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" @click="angreBytte">Angre</button>
+        </div>
         <!-- Forslaget: ett trykk gjør byttet appen ville gjort. Skjules mens et
              manuelt bytte er i gang, så det ikke konkurrerer om oppmerksomheten. -->
         <button
@@ -1129,15 +1184,16 @@ const summary = computed(() =>
           <span v-if="!forslag.planlagt" class="mm__forslag-tid">{{ fmt(forslag.inn.sec) }} mot {{ fmt(forslag.ut.sec) }}</span>
           <span class="mm__forslag-tekst">{{ kort(forslag.inn.name) }} inn for {{ kort(forslag.ut.name) }}</span>
         </button>
+        </div>
         <div class="mm__bench mm__bench--bar">
         <button
-          v-for="p in bench"
+          v-for="p in benkVist"
           :key="p.id"
           type="button"
           class="mm__bchip"
-          :class="{ 'mm__bchip--armed': armedBenchId === p.id, 'mm__bchip--klar': armedBenchId !== p.id && kulde(p.id) > .05 }"
+          :class="{ 'mm__bchip--armed': armedBenchId === p.id, 'mm__bchip--forslag': anbefaltInn === p.id, 'mm__bchip--klar': armedBenchId !== p.id && anbefaltInn !== p.id && kulde(p.id) > .05 }"
           :style="{ '--k': kulde(p.id) }"
-          @click="armBench(p.id)"
+          @click="trykkBenk(p.id)"
         >
           <span class="mm__bname">{{ kort(p.name) }}</span>
           <span class="mm__btime">{{ fmt(p.sec) }}</span>
@@ -1250,50 +1306,6 @@ const summary = computed(() =>
             </button>
           </div>
         </div>
-      </div>
-    </Sheet>
-
-    <!-- Live: banespiller-handling -->
-    <Sheet :show="!!actionPlayer" :title="actionPlayer ? `Bytt ${kort(actionPlayer.name)}` : ''" @close="actionPlayer = null">
-      <div class="mm__sheet">
-        <template v-if="subGroups.fit.length">
-          <div class="mm__scorer-group">
-            <div class="mm__sheet-label">
-              Inn for {{ kort(actionPlayer?.name) }} · {{ positionLabel(subPosition).toLowerCase() }}
-            </div>
-            <div class="mm__bench">
-              <button v-for="p in subGroups.fit" :key="p.id" type="button" class="mm__bchip" @click="subFromSheet(p.id)">
-                <span class="mm__bname">{{ kort(p.name) }}</span>
-                <span class="mm__btime">{{ fmt(p.sec) }}</span>
-              </button>
-            </div>
-          </div>
-          <div v-if="subGroups.rest.length" class="mm__scorer-group">
-            <div class="mm__sheet-label">Andre</div>
-            <div class="mm__bench">
-              <button v-for="p in subGroups.rest" :key="p.id" type="button" class="mm__bchip" @click="subFromSheet(p.id)">
-                <span class="mm__bname">{{ kort(p.name) }}</span>
-                <span class="mm__btime">{{ fmt(p.sec) }}</span>
-              </button>
-            </div>
-          </div>
-        </template>
-        <template v-else>
-          <div class="mm__sheet-label">Inn for {{ kort(actionPlayer?.name) }}</div>
-          <div class="mm__bench">
-            <button v-for="p in bench" :key="p.id" type="button" class="mm__bchip" @click="subFromSheet(p.id)">
-              <span class="mm__bname">{{ kort(p.name) }}</span>
-              <span class="mm__btime">{{ fmt(p.sec) }}</span>
-            </button>
-            <div v-if="!bench.length" class="mm__empty mm__empty--inline">Ingen på benken</div>
-          </div>
-        </template>
-        <button
-          v-if="actionPlayer && roleOf(actionPlayer.id) !== 'keeper'"
-          type="button"
-          class="mm__keeper-link"
-          @click="makeKeeperFromSheet"
-        >Sett som keeper</button>
       </div>
     </Sheet>
 
@@ -1495,7 +1507,9 @@ const summary = computed(() =>
   column-gap: 10px;
   row-gap: 2px;
   width: 100%;
-  min-height: 56px;
+  box-sizing: border-box;
+  height: 58px;
+  overflow: hidden;
   margin-bottom: var(--ds-space-sm);
   padding: 10px 14px 11px;
   border: none;
@@ -1686,6 +1700,11 @@ const summary = computed(() =>
 
 /* Hint om dra-gesten i oppsett */
 .marker--target .marker__circle { border-color: var(--ds-color-accent); border-style: dashed; }
+/* Valgt på banen: løftet og ringet inn, så det er ingen tvil om hvem som går ut. */
+.marker--valgt .marker__circle {
+  box-shadow: 0 0 0 2px var(--ds-color-bg-elevated), 0 0 0 4px var(--ds-color-accent);
+}
+.marker--valgt .marker__label { position: relative; z-index: 1; }
 
 /* Lagfarge på draktene */
 .marker[data-team="gronn"] { --jersey-bg: var(--ds-team-gronn); --jersey-fg: #fff; }
@@ -1790,6 +1809,13 @@ const summary = computed(() =>
 .mm__bench { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }
 .mm__bchip { display: inline-flex; align-items: center; gap: 8px; padding: 10px 14px; border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-elevated); cursor: pointer; transition: all .15s ease; -webkit-tap-highlight-color: transparent; }
 .mm__bchip--armed { border-color: var(--ds-color-accent); background: var(--ds-color-accent); color: var(--ds-color-accent-text); }
+/* Den appen ville satt inn: fylt ring, ikke fylt flate — valget er fortsatt ditt. */
+.mm__bchip--forslag { border-color: var(--ds-color-accent); box-shadow: inset 0 0 0 1px var(--ds-color-accent); background: var(--ds-color-bg-elevated); }
+.mm__topslot { min-height: calc(58px + var(--ds-space-sm)); display: flex; flex-direction: column; justify-content: flex-end; }
+.mm__topslot > * { margin-bottom: var(--ds-space-sm); }
+.mm__sub-rad { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-sm); margin-bottom: var(--ds-space-sm); min-height: 36px; }
+.mm__sub-rad .mm__sub-hint { margin-bottom: 0; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mm__sub-hint--dempet { color: var(--ds-color-text-secondary); }
 /* Klar: chipen blir grønnere med --k (0–1, avstand under rettferdig andel).
    Benken ligger på lys flate, så grønt fungerer her — ikke på gresset.
    Armert vinner. */
@@ -1856,13 +1882,6 @@ const summary = computed(() =>
 
 /* ── Sheet ── */
 .mm__sheet { padding-top: var(--ds-space-sm); }
-.mm__keeper-link {
-  display: block; margin: var(--ds-space-md) auto 0; padding: 6px;
-  border: none; background: transparent; color: var(--ds-color-text-tertiary);
-  font-family: var(--ds-font-body); font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium);
-  text-decoration: underline; cursor: pointer; -webkit-tap-highlight-color: transparent;
-}
-.mm__keeper-link:hover { color: var(--ds-color-text-secondary); }
 .mm__sheet-label { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); margin-bottom: var(--ds-space-sm); }
 .mm__remove-btn {
   display: flex; align-items: center; justify-content: center; gap: 6px;
