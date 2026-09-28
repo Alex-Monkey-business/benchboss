@@ -377,6 +377,16 @@ const placedElsewhere = computed(() => {
 const pickerPosition = computed(() => positionForSlot(pickerSlot.value?.id))
 const pickerGroups = computed(() => splitByFit(unassigned.value, pickerPosition.value))
 
+// Det neste trykket gjør, i klartekst — står der overskriften «Benk» ellers står.
+const benkBeskjed = computed(() => {
+  if (dragId.value) return 'Slipp på en spiller for å bytte plass'
+  if (plasserArm.value) return `Tapp plassen til ${kort(playerById(plasserArm.value)?.name)}`
+  if (planModus.value) return planArm.value
+    ? `Hvem går ut for ${kort(playerById(planArm.value)?.name)}?`
+    : 'Første bytte: hvem går inn?'
+  return ''
+})
+
 function armPlasser(id) {
   plasserArm.value = plasserArm.value === id ? null : id
 }
@@ -967,21 +977,15 @@ const summary = computed(() =>
       </div>
 
       <div class="mm__setup-bottom">
-        <!-- Én fast linje til beskjeden, så banen ikke hopper når den kommer og går. -->
-        <div class="mm__hintslot">
-        <div v-if="dragId && !dragLearned" class="mm__draghint">Slipp på en spiller for å bytte plass</div>
-        <div v-else-if="plasserArm" class="mm__draghint">Tapp plassen til {{ kort(playerById(plasserArm)?.name) }}</div>
-        <div v-else-if="planModus" class="mm__draghint">{{ planArm ? `Tapp den ${kort(playerById(planArm)?.name)} skal inn for` : 'Tapp en på benken, så den som skal ut' }}</div>
-        <div v-else-if="!dragLearned && lineupComplete" class="mm__draghint mm__draghint--tip">Hold inne og dra for å bytte plass</div>
-        </div>
-
-        <!-- Benken: de som ikke står på banen. Tapp en, så plassen. -->
+        <!-- Benken: de som ikke står på banen. Tapp en, så plassen. Overskriften
+             er også beskjeden: den sier hva neste trykk gjør, på én fast linje,
+             så banen ikke hopper. -->
         <div v-if="unassigned.length" class="mm__plan">
           <div class="mm__plan-hode">
-            <span class="mm__plan-tittel">{{ planModus ? 'Første bytterunde' : 'Benk' }}</span>
-            <button v-if="!lineupComplete && FORMATION.length - Object.keys(assignments).length >= 2" type="button" class="mm__lenke" @click="fyllResten">Fyll resten</button>
-            <button v-else-if="lineupComplete && !planModus" type="button" class="mm__lenke" @click="planModus = true; plasserArm = null">Planlegg første bytte</button>
-            <button v-else-if="planModus" type="button" class="mm__lenke" @click="planModus = false; planArm = null">Ferdig</button>
+            <span v-if="benkBeskjed" class="mm__benk-beskjed">{{ benkBeskjed }}</span>
+            <span v-else class="mm__plan-tittel">Benk</span>
+            <button v-if="lineupComplete && !planModus && !plasserArm" type="button" class="ds-btn ds-btn--ghost ds-btn--sm mm__benk-valg" @click="planModus = true; plasserArm = null">Planlegg første bytte</button>
+            <button v-else-if="planModus" type="button" class="ds-btn ds-btn--secondary ds-btn--sm mm__benk-valg" @click="planModus = false; planArm = null">Ferdig</button>
           </div>
           <div class="mm__bench mm__bench--bar">
             <button
@@ -1005,8 +1009,11 @@ const summary = computed(() =>
         </div>
         <div v-if="!squad.length" class="mm__empty mm__empty--inline">Ingen spillere i troppen for dette laget.</div>
 
-        <button type="button" class="mm__start" :disabled="!lineupComplete" @click="handleStart">
-          {{ lineupComplete ? 'Start kamp' : `Plasser ${FORMATION.length - Object.keys(assignments).length} til` }}
+        <!-- Hovedknappen gjør alltid noe: fyller laget til det er fullt, så
+             starter den kampen. Er troppen for liten, sier den hvor mange. -->
+        <button v-if="lineupComplete" type="button" class="mm__start" @click="handleStart">Start kamp</button>
+        <button v-else type="button" class="mm__start" :disabled="!unassigned.length" @click="fyllResten">
+          {{ unassigned.length ? 'Fyll resten' : `Mangler ${FORMATION.length - Object.keys(assignments).length} spillere` }}
         </button>
       </div>
     </div>
@@ -1357,7 +1364,6 @@ const summary = computed(() =>
   flex: none;
   padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
 }
-.mm__setup-bottom .mm__draghint:first-child { margin-top: 0; }
 .mm__setup-bottom .mm__start { margin-top: var(--ds-space-md); }
 
 /* ── Live cockpit: låst til viewport, null scroll for treneren på sidelinja.
@@ -1679,14 +1685,6 @@ const summary = computed(() =>
 }
 
 /* Hint om dra-gesten i oppsett */
-.mm__draghint {
-  margin-top: var(--ds-space-sm); text-align: center;
-  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-accent);
-}
-.mm__hintslot { min-height: calc(var(--ds-text-sm) * 1.5 + var(--ds-space-sm)); }
-.mm__hintslot .mm__draghint { margin-top: 0; padding-top: var(--ds-space-sm); }
-.mm__draghint--tip { color: var(--ds-color-text-tertiary); font-weight: var(--ds-weight-medium); }
 .marker--target .marker__circle { border-color: var(--ds-color-accent); border-style: dashed; }
 
 /* Lagfarge på draktene */
@@ -1701,20 +1699,17 @@ const summary = computed(() =>
 
 /* Første bytterunde */
 .mm__plan { display: flex; flex-direction: column; gap: var(--ds-space-sm); margin-top: var(--ds-space-sm); }
-.mm__plan-hode { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-sm); }
-.mm__lenke {
-  border: 0;
-  background: none;
-  padding: 10px 0;
-  margin: -10px 0;
-  font: inherit;
+.mm__plan-hode { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-sm); min-height: 36px; }
+.mm__benk-beskjed {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   font-size: var(--ds-text-sm);
-  font-weight: 600;
+  font-weight: var(--ds-weight-semibold);
   color: var(--ds-color-accent);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-  cursor: pointer;
 }
+.mm__benk-valg { flex: none; }
 .mm__plan-tittel { font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold); letter-spacing: var(--ds-tracking-wider); text-transform: uppercase; color: var(--ds-color-text-tertiary); }
 .mm__plan-hint { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 .mm__plan-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }

@@ -640,7 +640,7 @@ onMounted(async () => {
           <!-- Lukket: øvelsene, for det er dem du ser etter. Fokuset er
                grunnen til at de ligger der, og står når dagen er åpen. -->
           <ol v-if="openDayId !== s.id && drillsFor(s).length" class="dag__ovelser">
-            <li v-for="(d, i) in drillsFor(s).slice(0, MAKS_LUKKET)" :key="i">{{ d.text }}</li>
+            <li v-for="(d, i) in drillsFor(s).slice(0, MAKS_LUKKET)" :key="i"><span>{{ d.text }}</span></li>
             <li v-if="drillsFor(s).length > MAKS_LUKKET" class="dag__flere">{{ drillsFor(s).length - MAKS_LUKKET }} til</li>
           </ol>
           <span v-else-if="openDayId !== s.id" class="dag__focus dag__focus--empty">Ingen øvelser ennå</span>
@@ -1834,4 +1834,25 @@ Torsdag
 .paste-preview__meta { font-size: var(--ds-text-xs); margin-left: auto; color: var(--ds-color-text-tertiary); }
 
 .paste-save { width: 100%; margin-top: var(--ds-space-md); }
+
+/* Nummerert: rekkefølgen er treninga. Tallet står i egen kolonne, dempet,
+   så navnene står på linje og ikke flyter i hverandre. */
+.dag__ovelser { counter-reset: ovelse; gap: 5px; }
+.dag__ovelser li:not(.dag__flere) {
+  counter-increment: ovelse;
+  display: grid;
+  grid-template-columns: 1.1em minmax(0, 1fr);
+  column-gap: 8px;
+}
+.dag__ovelser li:not(.dag__flere)::before {
+  content: counter(ovelse);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: inherit;
+  color: var(--ds-color-text-tertiary);
+  text-align: right;
+}
+.dag__ovelser li:not(.dag__flere) > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dag__ovelser .dag__flere { padding-left: calc(1.1em + 8px); }
 </style>

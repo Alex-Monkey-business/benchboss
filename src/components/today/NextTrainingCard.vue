@@ -32,10 +32,10 @@ const MAKS = 3
 
     <div class="next-training__main">
       <!-- Øvelsene, ikke fokuset: det er dem du ser etter før treninga. -->
-      <ul v-if="ovelser.length" class="next-training__ovelser">
-        <li v-for="(n, i) in ovelser.slice(0, MAKS)" :key="i">{{ n }}</li>
+      <ol v-if="ovelser.length" class="next-training__ovelser">
+        <li v-for="(n, i) in ovelser.slice(0, MAKS)" :key="i"><span>{{ n }}</span></li>
         <li v-if="ovelser.length > MAKS" class="next-training__flere">{{ ovelser.length - MAKS }} til</li>
-      </ul>
+      </ol>
       <p v-else class="next-training__tom">Ingen øvelser ennå</p>
       <!-- Pasningsøkta spiller ballen gjennom portene én gang når kortet vises. -->
       <Spot v-if="motif" :name="motif" class="next-training__illo" :size="64" :play="motif === 'passing' ? 'auto' : false" />
@@ -105,7 +105,7 @@ const MAKS = 3
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: var(--ds-text-md);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);
   line-height: 1.4;
   color: var(--ds-color-text-primary);
@@ -138,4 +138,25 @@ const MAKS = 3
 @media (max-width: 360px) {
   .next-training { padding: var(--ds-space-md); }
 }
+
+/* Nummerert: rekkefølgen er treninga. Tallet står i egen kolonne, dempet,
+   så navnene står på linje og ikke flyter i hverandre. */
+.next-training__ovelser { counter-reset: ovelse; gap: 5px; }
+.next-training__ovelser li:not(.next-training__flere) {
+  counter-increment: ovelse;
+  display: grid;
+  grid-template-columns: 1.1em minmax(0, 1fr);
+  column-gap: 8px;
+}
+.next-training__ovelser li:not(.next-training__flere)::before {
+  content: counter(ovelse);
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  line-height: inherit;
+  color: var(--ds-color-text-tertiary);
+  text-align: right;
+}
+.next-training__ovelser li:not(.next-training__flere) > span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.next-training__ovelser .next-training__flere { padding-left: calc(1.1em + 8px); }
 </style>
