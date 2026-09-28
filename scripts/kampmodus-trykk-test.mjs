@@ -38,6 +38,23 @@ const status=()=>sql(`select status from match_sessions where match_id='${M}'`)
 const b=await chromium.launch()
 const p=await telefon(b)
 const plasser=Number(sql(`select players_on_pitch from cohorts where id='${KULL}'`))
+// Oppsettet: samme grep. Plass + benk = spilleren tar plassen.
+const oppsett=()=>p.evaluate(()=>[...document.querySelectorAll('.mm__setup .marker')].map(m=>m.querySelector('.marker__label')?.innerText.trim()))
+await p.locator('.mm__setup .marker').nth(1).click(); await vent(200)
+ok('oppsett: valgt plass markeres', await p.locator('.mm__setup .marker--valgt').count()===1)
+ok('oppsett: beskjeden spør hvem som skal spille der', /Hvem skal spille/.test(await p.locator('.mm__plan-hode').innerText()))
+const forstePaBenken=(await p.locator('.mm__plan .mm__bchip').first().innerText()).trim()
+await p.locator('.mm__plan .mm__bchip').first().click(); await vent(200)
+ok('oppsett: plass + benk setter spilleren der', (await oppsett())[1]===forstePaBenken, (await oppsett())[1]+' / '+forstePaBenken)
+// Plass + plass = de bytter.
+await p.locator('.mm__setup .marker').nth(2).click(); await p.locator('.mm__plan .mm__bchip').first().click(); await vent(200)
+const [x1,x2]=[(await oppsett())[1],(await oppsett())[2]]
+await p.locator('.mm__setup .marker').nth(1).click(); await p.locator('.mm__setup .marker').nth(2).click(); await vent(200)
+ok('oppsett: plass + plass bytter', (await oppsett())[1]===x2 && (await oppsett())[2]===x1)
+// Til benken.
+await p.locator('.mm__setup .marker').nth(2).click(); await p.getByRole('button',{name:'Til benken'}).click(); await vent(200)
+ok('oppsett: Til benken tømmer plassen', await p.locator('.mm__setup .marker').nth(2).evaluate(e=>e.classList.contains('marker--empty')))
+ok('oppsett: ingen ark', await p.locator('[role=dialog]').count()===0)
 await p.getByRole('button',{name:'Fyll resten'}).click()
 await p.getByRole('button',{name:'Start kamp'}).click(); await p.locator('.mm__live').waitFor(); await vent(1500)
 const plassFor=n=>sql(`select position from match_stints where match_id='${M}' and player_id='${n}' and off_clock is null`)

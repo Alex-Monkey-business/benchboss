@@ -49,7 +49,9 @@ const FORMATION = formationFor(activeCohort.value?.players_on_pitch)
 
 // Setup
 const assignments = ref({})   // slotId -> playerId
-const pickerSlot = ref(null)  // slot som redigeres
+// Plassen som er trykket på i oppsettet. Samme grep som i kampen: neste trykk
+// på benken setter spilleren der, på en annen plass bytter de, samme avbryter.
+const valgtPlass = ref(null)
 
 // Live
 const armedBenchId = ref(null)
@@ -266,7 +268,7 @@ watch(remote, r => {
 // En annen trener endret oppstillingen: vis den, så lenge ingen endring her
 // venter og velgeren ikke står åpen.
 watch(() => JSON.stringify(session.value?.lineup || null), (ny, gammel) => {
-  if (ny === gammel || phase.value !== 'setup' || lineupDirty || pickerSlot.value) return
+  if (ny === gammel || phase.value !== 'setup' || lineupDirty || valgtPlass.value) return
   const her = JSON.stringify(setupPatch().lineup)
   if (ny !== her) hydrateLineup()
 })
@@ -348,44 +350,52 @@ function playerInSlot(slotId) { return playerById(assignments.value[slotId]) }
 const lineupComplete = computed(() => FORMATION.every(s => assignments.value[s.id]))
 watch(lineupComplete, v => { if (!v) { planModus.value = false; planArm.value = null } })
 
-function openPicker(slot) { pickerSlot.value = slot }
-const pickerTitle = computed(() =>
-  pickerSlot.value && playerInSlot(pickerSlot.value.id) ? 'Bytt spiller' : 'Velg spiller'
-)
+// Benken slik den vises: med en plass valgt, de som passer der først.
+const benkOppsett = computed(() => {
+  if (planModus.value) return planKandidater.value
+  if (!valgtPlass.value) return unassigned.value
+  const { fit, rest } = splitByFit(unassigned.value, positionForSlot(valgtPlass.value))
+  return [...fit, ...rest]
+})
+const anbefaltPlass = computed(() => {
+  if (!valgtPlass.value) return null
+  const forste = benkOppsett.value[0]
+  return forste && fitsPosition(forste, positionForSlot(valgtPlass.value)) ? forste.id : null
+})
 
-// Velg spiller til slot. Står spilleren allerede et annet sted, bytter de
-// plass (ett trykk); ellers plasseres de (og en evt. spiller her går ut).
-function pickForSlot(playerId) {
-  const target = pickerSlot.value
-  if (!target) return
-  const current = assignments.value[target.id] || null
-  const fromSlot = Object.keys(assignments.value).find(k => assignments.value[k] === playerId)
-  if (fromSlot && fromSlot !== target.id) {
-    if (current) assignments.value[fromSlot] = current
-    else delete assignments.value[fromSlot]
-  }
-  assignments.value[target.id] = playerId
-  pickerSlot.value = null
+function trykkPlass(slotId) {
+  const valgt = valgtPlass.value
+  if (!valgt) { valgtPlass.value = slotId; return }
+  valgtPlass.value = null
+  if (valgt === slotId) return
+  // Den valgte plassen er tom: hent spilleren derfra. Ellers bytt/flytt.
+  if (assignments.value[valgt]) moveOrSwapSetup(valgt, slotId)
+  else if (assignments.value[slotId]) moveOrSwapSetup(slotId, valgt)
 }
 
-// Spillere som allerede står i en annen slot — for ett-trykks plassbytte.
-const placedElsewhere = computed(() => {
-  if (!pickerSlot.value) return []
-  return Object.entries(assignments.value)
-    .filter(([slotId]) => slotId !== pickerSlot.value.id)
-    .map(([slotId, pid]) => ({ player: playerById(pid), slotId }))
-    .filter(x => x.player)
-    .sort((a, b) => a.player.name.localeCompare(b.player.name, 'no'))
-})
-// Posisjonen slot-en gjelder, og troppen delt på om spilleren passer der.
-// Ingen filtrering: alle er alltid valgbare, de som passer står bare først.
-const pickerPosition = computed(() => positionForSlot(pickerSlot.value?.id))
-const pickerGroups = computed(() => splitByFit(unassigned.value, pickerPosition.value))
+function trykkBenkOppsett(id) {
+  if (planModus.value) return armPlan(id)
+  if (valgtPlass.value) {
+    assignments.value[valgtPlass.value] = id
+    valgtPlass.value = null
+    return
+  }
+  armPlasser(id)
+}
+
+function tilBenken() {
+  if (valgtPlass.value) delete assignments.value[valgtPlass.value]
+  valgtPlass.value = null
+}
 
 // Det neste trykket gjør, i klartekst — står der overskriften «Benk» ellers står.
 const benkBeskjed = computed(() => {
   if (dragId.value) return 'Slipp på en spiller for å bytte plass'
   if (plasserArm.value) return `Tapp plassen til ${kort(playerById(plasserArm.value)?.name)}`
+  if (valgtPlass.value) {
+    const her = playerInSlot(valgtPlass.value)
+    return her ? `Hvem tar plassen til ${kort(her.name)}?` : `Hvem skal spille ${slotLabel(valgtPlass.value).toLowerCase()}?`
+  }
   if (planModus.value) return planArm.value
     ? `Hvem går ut for ${kort(playerById(planArm.value)?.name)}?`
     : 'Første bytte: hvem går inn?'
@@ -424,10 +434,6 @@ function fyllResten() {
   assignments.value = { ...assignments.value, ...neste }
 }
 
-function clearSlot(slotId) {
-  delete assignments.value[slotId]
-  pickerSlot.value = null
-}
 
 async function handleStart() {
   if (!lineupComplete.value) return
@@ -704,7 +710,7 @@ function onMarkerDown(e, slot) {
   pressInfo = { playerId, slot, slotId: slot.id, pointerId: e.pointerId, startX: e.clientX, startY: e.clientY, el: e.currentTarget }
   // Innbytte i gang (benk «armed») eller tom slot → ingen dra. Tappet (click)
   // håndterer resten: åpne velger (oppsett) / innbytte (live).
-  if (armedBenchId.value || plasserArm.value || planModus.value || !playerId) return
+  if (armedBenchId.value || plasserArm.value || planModus.value || valgtPlass.value || !playerId) return
   pressTimer = setTimeout(startDrag, LONG_PRESS_MS)
 }
 function startDrag() {
@@ -745,10 +751,10 @@ function onMarkerUp() {
 function onMarkerClick(slot) {
   if (suppressClick) { suppressClick = false; return }
   if (phase.value === 'setup') {
-    // Planmodus parer, en valgt benkespiller plasseres, ellers åpner velgeren.
+    // Planmodus parer, en valgt benkespiller plasseres, ellers velges plassen.
     if (planModus.value) { if (planArm.value && assignments.value[slot.id]) planlegg(assignments.value[slot.id]) }
     else if (plasserArm.value) plasser(slot.id)
-    else openPicker(slot)
+    else trykkPlass(slot.id)
   } else tapPitchPlayer(slotPlayerId(slot.id))
 }
 function onMarkerCancel() {
@@ -984,7 +990,8 @@ const summary = computed(() =>
           :class="{
             'marker--gk': slot.role === 'keeper',
             'marker--empty': !playerInSlot(slot.id),
-            'marker--target': (planModus && planArm && playerInSlot(slot.id) && slot.role !== 'keeper') || !!plasserArm,
+            'marker--target': (planModus && planArm && playerInSlot(slot.id) && slot.role !== 'keeper') || !!plasserArm || (valgtPlass && valgtPlass !== slot.id),
+            'marker--valgt': valgtPlass === slot.id,
             'marker--lifted': dragId && dragFromSlot === slot.id,
             'marker--droppable': dragId && dragFromSlot !== slot.id && hoverSlot !== slot.id,
             'marker--drop': dragId && hoverSlot === slot.id && dragFromSlot !== slot.id
@@ -1024,22 +1031,25 @@ const summary = computed(() =>
         <!-- Benken: de som ikke står på banen. Tapp en, så plassen. Overskriften
              er også beskjeden: den sier hva neste trykk gjør, på én fast linje,
              så banen ikke hopper. -->
-        <div v-if="unassigned.length" class="mm__plan">
+        <div v-if="squad.length" class="mm__plan">
           <div class="mm__plan-hode">
             <span v-if="benkBeskjed" class="mm__benk-beskjed">{{ benkBeskjed }}</span>
             <span v-else class="mm__plan-tittel">Benk</span>
-            <button v-if="lineupComplete && !planModus && !plasserArm" type="button" class="ds-btn ds-btn--ghost ds-btn--sm mm__benk-valg" @click="planModus = true; plasserArm = null">Planlegg første bytte</button>
+            <button v-if="valgtPlass && playerInSlot(valgtPlass)" type="button" class="ds-btn ds-btn--ghost ds-btn--sm mm__benk-valg" @click="tilBenken">Til benken</button>
+            <button v-else-if="valgtPlass" type="button" class="ds-btn ds-btn--ghost ds-btn--sm mm__benk-valg" @click="valgtPlass = null">Avbryt</button>
+            <button v-else-if="lineupComplete && unassigned.length && !planModus && !plasserArm" type="button" class="ds-btn ds-btn--ghost ds-btn--sm mm__benk-valg" @click="planModus = true; plasserArm = null">Planlegg første bytte</button>
             <button v-else-if="planModus" type="button" class="ds-btn ds-btn--secondary ds-btn--sm mm__benk-valg" @click="planModus = false; planArm = null">Ferdig</button>
           </div>
           <div class="mm__bench mm__bench--bar">
             <button
-              v-for="p in (planModus ? planKandidater : unassigned)"
+              v-for="p in benkOppsett"
               :key="p.id"
               type="button"
               class="mm__bchip"
-              :class="{ 'mm__bchip--armed': planModus ? planArm === p.id : plasserArm === p.id }"
-              @click="planModus ? armPlan(p.id) : armPlasser(p.id)"
+              :class="{ 'mm__bchip--armed': planModus ? planArm === p.id : plasserArm === p.id, 'mm__bchip--forslag': anbefaltPlass === p.id }"
+              @click="trykkBenkOppsett(p.id)"
             ><span class="mm__bname">{{ kort(p.name) }}</span></button>
+            <span v-if="!benkOppsett.length" class="mm__benk-tom">Alle står på banen</span>
           </div>
           <ul v-if="plan.length" class="mm__plan-liste">
             <li v-for="(p, i) in plan" :key="p.inn" class="mm__plan-par">
@@ -1239,53 +1249,6 @@ const summary = computed(() =>
         <button type="button" class="mm__btn mm__btn--primary" @click="router.push(`/kamp/${matchId}`)">Til kampen</button>
       </div>
     </div>
-
-    <!-- Setup: velg spiller til slot -->
-    <Sheet :show="!!pickerSlot" :title="pickerTitle" @close="pickerSlot = null">
-      <div class="mm__sheet">
-        <button
-          v-if="pickerSlot && playerInSlot(pickerSlot.id)"
-          type="button"
-          class="mm__remove-btn"
-          @click="clearSlot(pickerSlot.id)"
-        >
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="18" y1="6" x2="6" y2="18"/></svg>
-          Fjern {{ kort(playerInSlot(pickerSlot.id).name) }}
-        </button>
-
-        <div v-if="pickerGroups.fit.length" class="mm__scorer-group">
-          <div class="mm__sheet-label">{{ positionLabel(pickerPosition) }}</div>
-          <div class="mm__bench">
-            <button v-for="p in pickerGroups.fit" :key="p.id" type="button" class="mm__bchip" @click="pickForSlot(p.id)">
-              <span class="mm__bname">{{ kort(p.name) }}</span>
-              <span v-if="p.primary_team && !matchColors.includes(p.primary_team)" class="mm__btag">{{ teamLabel(p.primary_team) }}</span>
-            </button>
-          </div>
-        </div>
-
-        <div v-if="pickerGroups.rest.length" class="mm__scorer-group">
-          <div class="mm__sheet-label">{{ pickerGroups.fit.length ? 'Andre' : 'Ikke plassert' }}</div>
-          <div class="mm__bench">
-            <button v-for="p in pickerGroups.rest" :key="p.id" type="button" class="mm__bchip" @click="pickForSlot(p.id)">
-              <span class="mm__bname">{{ kort(p.name) }}</span>
-              <span v-if="p.primary_team && !matchColors.includes(p.primary_team)" class="mm__btag">{{ teamLabel(p.primary_team) }}</span>
-            </button>
-          </div>
-        </div>
-
-        <div v-if="placedElsewhere.length" class="mm__scorer-group">
-          <div class="mm__sheet-label">Bytt plass</div>
-          <div class="mm__bench">
-            <button v-for="x in placedElsewhere" :key="x.player.id" type="button" class="mm__bchip" @click="pickForSlot(x.player.id)">
-              <span class="mm__bname">{{ kort(x.player.name) }}</span>
-              <span class="mm__btag">{{ slotLabel(x.slotId) }}</span>
-            </button>
-          </div>
-        </div>
-
-        <div v-if="!unassigned.length && !placedElsewhere.length" class="mm__empty mm__empty--inline">Ingen andre spillere</div>
-      </div>
-    </Sheet>
 
     <!-- Live: hvem scoret -->
     <Sheet :show="showScorer" title="Hvem scoret?" @close="showScorer = false">
@@ -1729,6 +1692,7 @@ const summary = computed(() =>
   color: var(--ds-color-accent);
 }
 .mm__benk-valg { flex: none; }
+.mm__benk-tom { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); padding: 12px 0; }
 .mm__plan-tittel { font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold); letter-spacing: var(--ds-tracking-wider); text-transform: uppercase; color: var(--ds-color-text-tertiary); }
 .mm__plan-hint { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 .mm__plan-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }

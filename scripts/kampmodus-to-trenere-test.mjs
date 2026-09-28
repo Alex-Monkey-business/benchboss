@@ -38,11 +38,7 @@ const status=()=>sql(`select status from match_sessions where match_id='${M}'`)
 
 const b=await chromium.launch()
 const A=await telefon(b)
-for(let i=0;i<20;i++){
-  const tom=A.locator('.mm__setup .marker--empty').first()
-  if(!(await tom.count())) break
-  await tom.click(); await A.locator('.sheet .mm__bchip, [role=dialog] .mm__bchip').first().click()
-}
+await A.getByRole('button',{name:'Fyll resten'}).click()
 await vent(1200)
 const plasser=await A.locator('.mm__setup .marker:not(.marker--empty)').count()
 ok('A har satt opp hele laget', plasser>=5, `${plasser} plasser`)
