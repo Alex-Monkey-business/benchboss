@@ -6,7 +6,6 @@ defineProps({
 })
 
 import { isToday, trimAbbrevDots } from '../../lib/dateLabels'
-import { splitFocus } from '../../lib/focusText'
 
 function weekDayLabel(iso) {
   if (isToday(iso)) return 'I dag'
@@ -33,8 +32,8 @@ function title(item) {
 
 function sub(item) {
   if (item.kind === 'training-week') return item.dates.map(shortDay).join(' · ')
-  // Bare temaet. Detaljen ble «Mye t…» på ei rad — hel linje eller bort.
-  if (item.kind === 'training') return splitFocus(item.focus).lead
+  // Øvelsene, ikke fokuset. Ei rad har én linje; resten klippes.
+  if (item.kind === 'training') return (item.ovelser || []).join(' · ')
   const parts = []
   if (item.kind === 'match') parts.push(item.isHome ? 'Hjemme' : 'Borte')
   if (item.time) parts.push(item.time)

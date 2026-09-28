@@ -14,7 +14,9 @@ const props = defineProps({
 const motif = computed(() => sessionMotif(props.session))
 
 const when = computed(() => relativeDateLabel(props.date))
-const drillLine = computed(() => (props.session.drills || []).map(d => d.text).filter(Boolean).join(' · '))
+const ovelser = computed(() => (props.session.drills || []).map(d => d.text).filter(Boolean))
+// Tre linjer holder kortet like høyt som kampkortet ved siden av.
+const MAKS = 3
 </script>
 
 <template>
@@ -29,8 +31,12 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
     </div>
 
     <div class="next-training__main">
-      <p v-if="session.focus" class="next-training__focus">{{ session.focus }}</p>
-      <p v-else class="next-training__focus">{{ session.title }}</p>
+      <!-- Øvelsene, ikke fokuset: det er dem du ser etter før treninga. -->
+      <ul v-if="ovelser.length" class="next-training__ovelser">
+        <li v-for="(n, i) in ovelser.slice(0, MAKS)" :key="i">{{ n }}</li>
+        <li v-if="ovelser.length > MAKS" class="next-training__flere">{{ ovelser.length - MAKS }} til</li>
+      </ul>
+      <p v-else class="next-training__tom">Ingen øvelser ennå</p>
       <!-- Pasningsøkta spiller ballen gjennom portene én gang når kortet vises. -->
       <Spot v-if="motif" :name="motif" class="next-training__illo" :size="64" :play="motif === 'passing' ? 'auto' : false" />
       <!-- Har ikke dagen egen illustrasjon, faller vi tilbake på state-ikonet,
@@ -38,7 +44,6 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
       <Spot v-else name="training" class="next-training__illo next-training__illo--fallback" :size="64" />
     </div>
 
-    <p v-if="drillLine" class="next-training__drills">{{ drillLine }}</p>
   </router-link>
 </template>
 
@@ -86,22 +91,31 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
   gap: var(--ds-space-md);
 }
 
-/* Skannbart glimt, ikke hele treninga: fokus klippes til to linjer. */
-.next-training__focus {
+/* Øvelsesnavnene: én per linje, klippet heller enn brukket. */
+.next-training__ovelser {
+  list-style: none;
   margin: 0;
-  font-family: var(--ds-font-heading);
-  /* lg, som treningskortet for i dag. Samme slags innhold — et fokus-utdrag
-     — sto i to ulike størrelser på samme skjerm. */
-  font-size: var(--ds-text-lg);
-  line-height: 1.3;
-  letter-spacing: -0.01em;
-  /* Aksentflatene har egne mørke varianter nå, så blekket følger temaet.
-     Fast #0A0A0A ble svart på mørk flate i mørk modus. */
-  color: var(--ds-color-text-primary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.next-training__ovelser li {
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-medium);
+  line-height: 1.4;
+  color: var(--ds-color-text-primary);
+}
+.next-training__ovelser .next-training__flere,
+.next-training__tom {
+  margin: 0;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-regular);
+  color: var(--accent-text, var(--ds-color-text-secondary));
 }
 
 .next-training__illo {
@@ -115,18 +129,6 @@ const drillLine = computed(() => (props.session.drills || []).map(d => d.text).f
    ulike komponenter så snart skjermen ble smal. */
 @media (max-width: 379px) {
   .next-training__illo { width: 56px; --spot-size: 56px; }
-}
-
-/* Øvelsene som én kompakt linje — maks to ved mange øvelser. */
-.next-training__drills {
-  margin: 0;
-  font-size: var(--ds-text-xs);
-  line-height: 1.5;
-  color: var(--accent-text);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
-  overflow: hidden;
 }
 
 /* Smal skjerm: kortene med bildekolonne har bare ~200px til teksten når

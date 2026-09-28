@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import Spot from '../Spot.vue'
 import { sessionMotif } from '../../lib/sessionVisuals'
 import { dagLink } from '../../lib/trainingLinks'
-import { splitFocus } from '../../lib/focusText'
 
 const props = defineProps({
   session: { type: Object, required: true }
@@ -12,11 +11,10 @@ const props = defineProps({
 // Samme bilde som økta selv viser — ukedagen velger det (lib/sessionVisuals).
 const motif = computed(() => sessionMotif(props.session))
 
-const drillCount = computed(() => (props.session.drills || []).length)
-const drillLabel = computed(() => drillCount.value === 1 ? '1 øvelse' : `${drillCount.value} øvelser`)
+// Øvelsene, ikke fokuset: det er dem du ser etter før treninga.
+const ovelser = computed(() => (props.session.drills || []).map(d => d.text).filter(Boolean))
+const MAKS = 3
 
-// Temaet blir hero, detaljen dempet støttetekst (lib/focusText).
-const focusParts = computed(() => splitFocus(props.session.focus, props.session.title || ''))
 </script>
 
 <template>
@@ -27,9 +25,11 @@ const focusParts = computed(() => splitFocus(props.session.focus, props.session.
   >
     <div class="today-training__content">
       <span class="today-training__kicker">Trening i dag</span>
-      <p class="today-training__title">{{ focusParts.lead }}</p>
-      <p v-if="focusParts.detail" class="today-training__focus">{{ focusParts.detail }}</p>
-      <span v-if="drillCount" class="today-training__meta">{{ drillLabel }}</span>
+      <ul v-if="ovelser.length" class="today-training__ovelser">
+        <li v-for="(n, i) in ovelser.slice(0, MAKS)" :key="i">{{ n }}</li>
+        <li v-if="ovelser.length > MAKS" class="today-training__flere">{{ ovelser.length - MAKS }} til</li>
+      </ul>
+      <p v-else class="today-training__tom">Ingen øvelser ennå</p>
     </div>
     <!-- Pasningsøkta spiller ballen gjennom portene én gang når kortet vises. -->
     <Spot v-if="motif" :name="motif" class="today-training__illo" :size="64" :play="motif === 'passing' ? 'auto' : false" />
@@ -66,35 +66,33 @@ const focusParts = computed(() => splitFocus(props.session.focus, props.session.
 }
 
 /* Hero: det korte temaet — punchy, skannbart, maks to linjer. */
-.today-training__title {
+.today-training__ovelser {
+  list-style: none;
   margin: 0;
-  font-family: var(--ds-font-heading);
-  font-size: var(--ds-text-lg);
-  line-height: 1.3;
-  letter-spacing: -0.01em;
-  /* Aksentflatene har egne mørke varianter nå, så blekket følger temaet.
-     Fast #0A0A0A ble svart på mørk flate i mørk modus. */
-  color: var(--ds-color-text-primary);
-  display: -webkit-box;
-  -webkit-line-clamp: 2;
-  -webkit-box-orient: vertical;
+  padding: 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.today-training__ovelser li {
   overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-medium);
+  line-height: 1.4;
+  color: var(--ds-color-text-primary);
 }
 
 /* Detalj: dempet støttetekst under temaet. Hel — en setning som slutter i
    «…» sier mindre enn ingen setning. */
-.today-training__focus {
+.today-training__ovelser .today-training__flere,
+.today-training__tom {
   margin: 0;
   font-size: var(--ds-text-sm);
-  line-height: 1.4;
+  font-weight: var(--ds-weight-regular);
   color: var(--accent-text, var(--ds-color-text-secondary));
-  opacity: 0.85;
-}
-
-.today-training__meta {
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-medium);
-  color: var(--accent-text, var(--ds-color-text-tertiary));
 }
 
 .today-training__illo {
