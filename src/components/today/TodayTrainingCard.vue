@@ -24,7 +24,7 @@ const harOvelser = computed(() => (props.session.drills || []).some(d => d?.text
   >
     <div class="today-training__content">
       <span class="today-training__kicker">Trening i dag</span>
-      <OktListe v-if="harOvelser" class="today-training__okt" :drills="session.drills" :total="session.duration_min || 0" :maks="3" />
+      <OktListe v-if="harOvelser" class="today-training__okt" :drills="session.drills" :maks="3" />
       <p v-else class="today-training__tom">Ingen øvelser ennå</p>
     </div>
     <!-- Pasningsøkta spiller ballen gjennom portene én gang når kortet vises. -->
@@ -95,10 +95,9 @@ const harOvelser = computed(() => (props.session.drills || []).some(d => d?.text
   .today-training { padding: var(--ds-space-md); }
 }
 
-/* Stripa og minuttene i kortets egen farge, så de hører til flaten. */
+/* Nummer og minutter i kortets egen farge, så de hører til flaten. */
 .today-training__okt {
-  --okt-farge: var(--accent-text, var(--ds-color-accent));
-  --okt-spor: color-mix(in srgb, var(--accent-text, var(--ds-color-accent)) 16%, transparent);
+  --okt-nr-bg: color-mix(in srgb, var(--accent-text, var(--ds-color-accent)) 12%, transparent);
   --okt-dempet: var(--accent-text, var(--ds-color-text-tertiary));
 }
 </style>

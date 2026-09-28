@@ -638,13 +638,12 @@ onMounted(async () => {
             </span>
             <svg class="dag__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
           </span>
-          <!-- Lukket: øvelsene og formen på økta. Fokuset er grunnen til at de
+          <!-- Lukket: øvelsene. Fokuset er grunnen til at de
                ligger der, og står når dagen er åpen. -->
           <OktListe
             v-if="openDayId !== s.id && drillsFor(s).length"
             class="dag__okt"
             :drills="drillsFor(s)"
-            :total="s.duration_min || 0"
             :maks="MAKS_LUKKET"
           />
           <span v-else-if="openDayId !== s.id" class="dag__focus dag__focus--empty">Ingen øvelser ennå</span>

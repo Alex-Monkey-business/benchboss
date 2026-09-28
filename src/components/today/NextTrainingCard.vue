@@ -30,7 +30,7 @@ const harOvelser = computed(() => (props.session.drills || []).some(d => d?.text
     </div>
 
     <div class="next-training__main">
-      <OktListe v-if="harOvelser" class="next-training__okt" :drills="session.drills" :total="session.duration_min || 0" :maks="3" />
+      <OktListe v-if="harOvelser" class="next-training__okt" :drills="session.drills" :maks="3" />
       <p v-else class="next-training__tom">Ingen øvelser ennå</p>
       <!-- Pasningsøkta spiller ballen gjennom portene én gang når kortet vises. -->
       <Spot v-if="motif" :name="motif" class="next-training__illo" :size="64" :play="motif === 'passing' ? 'auto' : false" />
@@ -114,10 +114,9 @@ const harOvelser = computed(() => (props.session.drills || []).some(d => d?.text
   .next-training { padding: var(--ds-space-md); }
 }
 
-/* Stripa og minuttene i kortets egen farge, så de hører til flaten. */
+/* Nummer og minutter i kortets egen farge, så de hører til flaten. */
 .next-training__okt {
-  --okt-farge: var(--accent-text, var(--ds-color-accent));
-  --okt-spor: color-mix(in srgb, var(--accent-text, var(--ds-color-accent)) 16%, transparent);
+  --okt-nr-bg: color-mix(in srgb, var(--accent-text, var(--ds-color-accent)) 12%, transparent);
   --okt-dempet: var(--accent-text, var(--ds-color-text-tertiary));
 }
 </style>
