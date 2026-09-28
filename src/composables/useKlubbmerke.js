@@ -13,6 +13,7 @@ import { CLUB_SEARCH_URL, clubSearchBody, parseClubSearch } from '../lib/fiks'
 const NOKKEL = 'bb-klubbmerke:'
 const merker = reactive({})      // klubbnavn → fiksId | null
 const underveis = new Map()
+const forvarmet = new Set()       // bilde-URL-er som alt er bedt om i denne økta
 let egenKrets = null              // «NFF Vestfold» — snevrer inn uskarpe treff
 
 function lesLagret(navn) {
@@ -86,14 +87,16 @@ export function useKlubbmerke() {
   // Bare noen få: hvert ukjent oppslag er 65–180 kB hos fotball.no.
   function forvarm(lagnavn, maks = 3) {
     const navn = [...new Set((lagnavn || []).filter(n => n && !isOurs(n)))].slice(0, maks)
-    if (!navn.length) return
     const kjor = async () => {
+      // Vårt eget merke står på hver kampside; det skal ligge klart.
+      const eget = clubLogo(activeCohort.value?.club_fiks_id)
+      if (eget && !forvarmet.has(eget)) { forvarmet.add(eget); const img = new Image(); img.src = eget }
       for (const n of navn) {
         merkeFor(n)
         const klubb = clubNameFromTeam(n)
         await underveis.get(klubb)
         const url = clubLogo(merker[klubb])
-        if (url) { const img = new Image(); img.decoding = 'async'; img.src = url }
+        if (url && !forvarmet.has(url)) { forvarmet.add(url); const img = new Image(); img.src = url }
       }
     }
     const idle = window.requestIdleCallback || (f => setTimeout(f, 300))

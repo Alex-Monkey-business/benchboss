@@ -33,7 +33,6 @@ const initials = computed(() => {
     :src="src"
     alt=""
     :style="{ '--crest-size': size + 'px' }"
-    loading="lazy"
     decoding="async"
     @error="feilet = true"
   />

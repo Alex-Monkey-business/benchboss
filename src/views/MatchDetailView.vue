@@ -958,32 +958,31 @@ function focusSummaryGroup() {
 </script>
 
 <template>
+  <!-- Skjelettet har sidas egen form: samme toppstripe, samme midtakse med
+       to merker og tida, og seksjonene som rader. Da tar innholdet over
+       plassen uten at noe hopper. -->
   <div v-if="loading" class="desktop-container md-skel" aria-hidden="true">
-    <div class="px-lg" style="padding-top: var(--ds-space-md);">
-      <Skeleton :width="80" :height="14" />
+    <div class="px-lg md-top">
+      <span class="md-icon-btn"><Skeleton :width="22" :height="22" radius="6px" /></span>
     </div>
-    <div class="px-lg" style="margin-top: var(--ds-space-lg);">
-      <div class="md-skel__card">
-        <div class="md-skel__top">
-          <Skeleton :width="80" :height="13" />
-          <Skeleton :width="40" :height="13" />
+    <header class="px-lg hero">
+      <div class="hero__grid">
+        <div class="hero__side">
+          <Skeleton :width="56" :height="56" circle />
+          <Skeleton :width="84" :height="16" />
         </div>
-        <div class="md-skel__teams">
-          <Skeleton :width="'70%'" :height="22" />
-          <Skeleton :width="36" :height="22" />
-          <Skeleton :width="'60%'" :height="22" />
+        <div class="hero__mid">
+          <Skeleton :width="96" :height="36" radius="8px" />
+          <Skeleton :width="64" :height="13" />
         </div>
-        <div class="md-skel__meta">
-          <Skeleton :width="80" :height="12" />
-          <Skeleton :width="100" :height="12" />
+        <div class="hero__side">
+          <Skeleton :width="56" :height="56" circle />
+          <Skeleton :width="84" :height="16" />
         </div>
       </div>
-    </div>
-    <div class="px-lg" style="margin-top: var(--ds-space-lg);">
-      <Skeleton :width="120" :height="14" />
-      <div class="md-skel__list" style="margin-top: var(--ds-space-md);">
-        <Skeleton v-for="i in 3" :key="i" :width="'100%'" :height="44" radius="10px" />
-      </div>
+    </header>
+    <div class="px-lg mt-lg md-skel__list">
+      <Skeleton v-for="i in 3" :key="i" :width="'100%'" :height="56" radius="var(--ds-radius-lg)" />
     </div>
   </div>
 
@@ -1818,33 +1817,6 @@ function focusSummaryGroup() {
 </template>
 
 <style scoped>
-.md-skel__card {
-  padding: var(--ds-space-xl);
-}
-
-.md-skel__top {
-  display: flex;
-  justify-content: space-between;
-  margin-bottom: var(--ds-space-md);
-}
-
-.md-skel__teams {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
-  align-items: center;
-  column-gap: var(--ds-space-md);
-  margin-bottom: var(--ds-space-md);
-}
-
-.md-skel__teams > :last-child { justify-self: end; }
-
-.md-skel__meta {
-  display: flex;
-  gap: var(--ds-space-md);
-  padding-top: var(--ds-space-md);
-  border-top: 1px solid var(--ds-color-border-light);
-}
-
 .md-skel__list {
   display: flex;
   flex-direction: column;

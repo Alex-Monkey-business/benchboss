@@ -96,6 +96,12 @@ const hasToday = computed(() =>
   todayMatches.value.length > 0 || todayCupMatches.value.length > 0 || !!todayTraining.value
 )
 
+// Har skjelettet stått, skal innholdet ta over plassen i samme bilde. Med
+// innfasing på toppen startet kortene usynlige, og skjermen sto tom et
+// øyeblikk mellom skjelettet og innholdet.
+const varSkjelett = ref(loading.value)
+watch(loading, v => { if (v) varSkjelett.value = true })
+
 const matchToday = computed(() => todayMatches.value.length > 0 || todayCupMatches.value.length > 0)
 const cupMatchesToday = computed(() => (showCupEntry.value ? todayCupMatches.value.length : 0))
 
@@ -167,7 +173,7 @@ function coachNamesForMatch(matchId) {
       <MatchCardSkeleton :count="2" />
     </div>
 
-    <div v-else class="px-lg hjem-stack">
+    <div v-else class="px-lg hjem-stack" :class="{ 'hjem-stack--rett-inn': varSkjelett }">
       <OnboardingCards v-if="onboardingActive" ref="onboardingRef" class="ds-anim-fade-up ds-anim-delay-1" />
 
       <!-- Kretsen har flyttet noe. Står øverst: det endrer når man møter opp. -->
@@ -347,5 +353,11 @@ function coachNamesForMatch(matchId) {
   background: var(--ds-color-surface);
   border: 1px solid var(--ds-color-border-strong);
   border-radius: var(--ds-radius-md);
+}
+
+.hjem-stack--rett-inn :deep(.ds-anim-fade-up),
+.hjem-stack--rett-inn.ds-anim-fade-up,
+.hjem-stack--rett-inn > .ds-anim-fade-up {
+  animation: none;
 }
 </style>
