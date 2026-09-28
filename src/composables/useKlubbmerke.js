@@ -81,5 +81,24 @@ export function useKlubbmerke() {
     return clubLogo(merker[navn])
   }
 
-  return { merkeFor }
+  // Forvarm merkene til de neste kampene mens telefonen ellers står stille,
+  // så kampsida ikke bytter initialer mot bilde etter at du har trykket.
+  // Bare noen få: hvert ukjent oppslag er 65–180 kB hos fotball.no.
+  function forvarm(lagnavn, maks = 3) {
+    const navn = [...new Set((lagnavn || []).filter(n => n && !isOurs(n)))].slice(0, maks)
+    if (!navn.length) return
+    const kjor = async () => {
+      for (const n of navn) {
+        merkeFor(n)
+        const klubb = clubNameFromTeam(n)
+        await underveis.get(klubb)
+        const url = clubLogo(merker[klubb])
+        if (url) { const img = new Image(); img.decoding = 'async'; img.src = url }
+      }
+    }
+    const idle = window.requestIdleCallback || (f => setTimeout(f, 300))
+    idle(() => { kjor() })
+  }
+
+  return { merkeFor, forvarm }
 }

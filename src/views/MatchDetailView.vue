@@ -31,7 +31,7 @@ import { useSeasonTeams } from '../composables/useSeasonTeams'
 
 const route = useRoute()
 const router = useRouter()
-const { matches, matchPlayers, getMatch, fetchMatches, updateMatch, setMatchCoaches, fetchMatchCoaches, setMatchPlayers, fetchMatchPlayers, fetchAllMatchPlayers, fetchMatchAbsences, fetchAllMatchAbsences, getAbsencesForMatch, toggleAbsence, deleteMatch } = useMatches()
+const { matches, matchPlayers, getMatch, fetchMatches, updateMatch, setMatchCoaches, fetchMatchCoaches, getCoachesForMatch, setMatchPlayers, fetchMatchPlayers, getPlayersForMatch, fetchAllMatchPlayers, fetchMatchAbsences, fetchAllMatchAbsences, getAbsencesForMatch, toggleAbsence, deleteMatch } = useMatches()
 const { expenses, fetchExpenses, registerExpense, getExpenseForMatch, removeExpense } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
@@ -102,35 +102,69 @@ const showResultSection = computed(() =>
   !isLocked.value && (played.value || hasResult.value) && (!hasResult.value || editingResult.value)
 )
 
+// Kampsida skal stå ferdig i samme trykk. Kommer du fra lista, ligger kampen,
+// troppen, frafallet og trenerne allerede i hurtiglageret: sida tegnes og
+// seksjonene åpnes fra det med en gang. Så hentes alt på nytt i ÉN runde.
+// Før var det sju runder etter hverandre (~1 s med vanlig mobilnett), og
+// seksjonene åpnet seg først til slutt, så sida hoppet.
+function fraKamp(m) {
+  refereeInput.value = m.referee || ''
+  homeScoreInput.value = m.home_score ?? ''
+  awayScoreInput.value = m.away_score ?? ''
+  reportInput.value = m.report || ''
+  // Feltet står ikke framme før noen vil skrive. Få skriver referat, og
+  // et tomt tekstfelt på hver spilte kamp var det mest plasskrevende på sida.
+  isEditingReport.value = false
+}
+
 onMounted(async () => {
-  await Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllMatchPlayers(), fetchAllMatchAbsences()])
-  match.value = await getMatch(route.params.id)
+  const id = route.params.id
+  let aapnet = false
   if (match.value) {
-    // Hent sesongens kamper — grunnlag for ekstra-kamp-tall og konflikt-/uke-sjekk.
-    if (match.value.season_id) await fetchMatches(match.value.season_id)
-    const [, , , mmStints] = await Promise.all([
-      fetchExpenses([match.value.id]),
-      fetchMatchGoals(match.value.id),
-      fetchMmSession(match.value.id),
-      fetchMmStints(match.value.id)
-    ])
+    matchCoachIds.value = getCoachesForMatch(id)
+    matchPlayerIds.value = getPlayersForMatch(id)
+    matchAbsenceIds.value = getAbsencesForMatch(id)
+    fraKamp(match.value)
+    applySmartOpen()
+    aapnet = true
+  }
+
+  // Uten kampen i hurtiglageret (direkte lenke) trengs raden før sesongen er kjent.
+  const kjentSesong = match.value?.season_id || null
+  const fraLageret = match.value
+  const [fersk, , , , , mmStints, coachIds] = await Promise.all([
+    kjentSesong ? null : getMatch(id),
+    Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllMatchPlayers(), fetchAllMatchAbsences()]),
+    // Sesongens kamper: grunnlag for ekstra-kamp-tall og konflikt-/uke-sjekk,
+    // og de gir også en fersk utgave av denne kampen.
+    kjentSesong ? fetchMatches(kjentSesong) : null,
+    fetchExpenses([id]),
+    fetchMatchGoals(id),
+    fetchMmSession(id),
+    fetchMmStints(id),
+    fetchMatchCoaches(id)
+  ])
+  if (!kjentSesong && fersk?.season_id) await fetchMatches(fersk.season_id)
+  match.value = matches.value.find(m => m.id === id) || fersk || match.value
+
+  if (match.value) {
     hasPlayingTime.value = (mmStints || []).length > 0
-    refereeInput.value = match.value.referee || ''
-    matchCoachIds.value = await fetchMatchCoaches(match.value.id)
-    matchPlayerIds.value = await fetchMatchPlayers(match.value.id)
-    matchAbsenceIds.value = await fetchMatchAbsences(match.value.id)
-    homeScoreInput.value = match.value.home_score ?? ''
-    awayScoreInput.value = match.value.away_score ?? ''
-    reportInput.value = match.value.report || ''
-    // Tomt referat → edit-modus direkte; lagret referat → lese-modus med "Rediger"
-    // Feltet står ikke framme før noen vil skrive. Få skriver referat, og
-    // et tomt tekstfelt på hver spilte kamp var det mest plasskrevende på sida.
-    isEditingReport.value = false
+    matchCoachIds.value = coachIds
+    // Troppen og frafallet for hele kullet er nettopp hentet; denne kampen er med.
+    matchPlayerIds.value = getPlayersForMatch(id)
+    matchAbsenceIds.value = getAbsencesForMatch(id)
+    // Feltene fylles på nytt bare hvis kampen faktisk er endret siden sist,
+    // så det du rakk å skrive de første millisekundene ikke blir borte.
+    const endret = !fraLageret || ['referee', 'home_score', 'away_score', 'report']
+      .some(k => fraLageret[k] !== match.value[k])
+    if (endret) fraKamp(match.value)
     // Show custom input if current referee is not in known list
     if (match.value.referee && !referees.value.some(r => r.name === match.value.referee) && !isLocked.value) {
       customReferee.value = true
     }
-    applySmartOpen()
+    // Åpnes bare én gang: har treneren allerede lukket eller åpnet noe, skal
+    // ikke ferske data flytte på sida under fingeren.
+    if (!aapnet) applySmartOpen()
   }
   loading.value = false
 })

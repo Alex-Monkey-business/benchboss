@@ -1,6 +1,7 @@
 <script setup>
+import { useKlubbmerke } from '../composables/useKlubbmerke'
 import Spot from '../components/Spot.vue'
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToday } from '../composables/useToday'
 import { useMatches } from '../composables/useMatches'
@@ -103,6 +104,11 @@ const cupMatchesToday = computed(() => (showCupEntry.value ? todayCupMatches.val
 // uka, altså nesten alltid, og da forsvant både illustrasjonen og
 // mangel-varselet ned i en liste.
 const heroMatch = computed(() => (!matchToday.value && nextMatch.value) ? nextMatch.value : null)
+
+// Dagens og neste kamp er de du trykker på herfra; merkene hentes i forkant.
+const { forvarm } = useKlubbmerke()
+watch([todayMatches, nextMatch], ([idag, neste]) =>
+  forvarm([...(idag || []).flatMap(m => [m.home_team, m.away_team]), neste?.opponent]), { immediate: true })
 
 // Står kampen som kort, skal den ikke stå som rad også.
 const weekItems = computed(() =>

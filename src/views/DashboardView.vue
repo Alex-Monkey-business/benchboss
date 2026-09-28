@@ -1,4 +1,5 @@
 <script setup>
+import { useKlubbmerke } from '../composables/useKlubbmerke'
 import Spot from '../components/Spot.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAuth } from '../stores/auth'
@@ -159,6 +160,10 @@ function groupByDate(matchList) {
 }
 
 const upcomingGroups = computed(() => groupByDate(upcomingMatches.value))
+
+// Kampsida skal åpne ferdig: merkene til de neste motstanderne hentes nå.
+const { forvarm } = useKlubbmerke()
+watch(upcomingMatches, l => forvarm(l.slice(0, 3).flatMap(m => [m.home_team, m.away_team])), { immediate: true })
 const pastGroups = computed(() => groupByDate(pastMatches.value))
 
 const displayedGroups = computed(() =>
