@@ -132,7 +132,9 @@ onMounted(async () => {
   // Uten kampen i hurtiglageret (direkte lenke) trengs raden før sesongen er kjent.
   const kjentSesong = match.value?.season_id || null
   const fraLageret = match.value
-  const [fersk, , , , , mmStints, coachIds] = await Promise.all([
+  // Plassene må telles: sesjonen står mellom målene og periodene. Én komma for
+  // lite ga trenerne periodene og spilletida sesjonen (dc549d3).
+  const [fersk, , , , , , mmStints, coachIds] = await Promise.all([
     kjentSesong ? null : getMatch(id),
     Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllMatchPlayers(), fetchAllMatchAbsences()]),
     // Sesongens kamper: grunnlag for ekstra-kamp-tall og konflikt-/uke-sjekk,
