@@ -39,7 +39,7 @@ const { players, fetchPlayers, addPlayer, getPlayerById } = usePlayers()
 const { fetchPlayerSeasonTeams, isLoanEligible, teamForSeason } = usePlayerSeasonTeams()
 const { seasonTeams } = useSeasonTeams()
 const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals()
-const { session: mmSession, fetchSession: fetchMmSession, fetchStints: fetchMmStints } = useMatchMode()
+const { session: mmSession, stints: mmStintsAll, statusByMatch, fetchSession: fetchMmSession, fetchStints: fetchMmStints } = useMatchMode()
 const { seasons, fetchSeasons } = useSeasons()
 const { coach: currentCoach, activeCohort } = useAuth()
 const { usesReferees } = useFeatures()
@@ -67,8 +67,10 @@ const showEditDateTime = ref(false)
 const editDateInput = ref('')
 const editTimeInput = ref('')
 
-// Disclosure open-state — 3 grouped sections.
-// Smart-open settes i onMounted basert på kamp-state.
+// Alle seksjoner starter lukket, hver gang. Sida gjettet før hva du kom for
+// og åpnet én av fire ting ut fra dommer, utlegg, dato og resultat — samme
+// trykk ga en ny side hver gang. Nå er det lukkede radene som forteller
+// hvordan det står, og du åpner det du vil.
 const open = ref({
   logistics: false,  // Dommer + Hvem la ut
   team: false,       // Lånespillere + Trenere
@@ -78,8 +80,13 @@ const open = ref({
 })
 
 // Har kampen vært i match mode? Uten stints er det ingen spilletid å vise,
-// og seksjonen skal ikke stå der som en tom lovnad.
-const hasPlayingTime = ref(false)
+// og seksjonen skal ikke stå der som en tom lovnad. Første gjetning kommer
+// fra hurtiglageret, så raden står der i første bilde og ikke skyver sida
+// ned når hentingen er ferdig.
+const hasPlayingTime = ref(
+  mmStintsAll.value.some(s => s.match_id === route.params.id) ||
+  ['running', 'paused', 'finished'].includes(statusByMatch.value[route.params.id])
+)
 
 // Scorer sheet state — tap-to-increment-flow
 const showScorerSheet = ref(false)
@@ -92,15 +99,15 @@ const newPlayerTeam = ref('')
 const reportInput = ref('')
 const reportSavedAt = ref(null)
 const isEditingReport = ref(false)
-// En spilt kamp åpnes for å leses. Tallfeltene ligger bak «Rediger» — eller
-// bak trykk på resultatet i toppkortet, som går rett i skrivemodus.
+// En spilt kamp åpnes for å leses. Tallfeltene ligger bak «Legg inn
+// resultat», menyen eller trykk på resultatet i toppen — aldri framme av seg
+// selv.
 const editingResult = ref(false)
-// Resultatet og scorerne står i toppen. Seksjonen under finnes bare når den
-// er jobben (spilt kamp uten resultat) eller du har valgt Rediger i menyen.
 const played = computed(() => isPlayed(match.value))
-const showResultSection = computed(() =>
-  !isLocked.value && (played.value || hasResult.value) && (!hasResult.value || editingResult.value)
-)
+const showResultSection = computed(() => !isLocked.value && editingResult.value)
+// Lukkes raden i headeren, er redigeringen ferdig. Ellers ble den stående som
+// en tom rad med «Mangler».
+watch(() => open.value.summary, v => { if (!v) editingResult.value = false })
 
 // Kampsida skal stå ferdig i samme trykk. Kommer du fra lista, ligger kampen,
 // troppen, frafallet og trenerne allerede i hurtiglageret: sida tegnes og
@@ -119,14 +126,11 @@ function fraKamp(m) {
 
 onMounted(async () => {
   const id = route.params.id
-  let aapnet = false
   if (match.value) {
     matchCoachIds.value = getCoachesForMatch(id)
     matchPlayerIds.value = getPlayersForMatch(id)
     matchAbsenceIds.value = getAbsencesForMatch(id)
     fraKamp(match.value)
-    applySmartOpen()
-    aapnet = true
   }
 
   // Uten kampen i hurtiglageret (direkte lenke) trengs raden før sesongen er kjent.
@@ -164,39 +168,9 @@ onMounted(async () => {
     if (match.value.referee && !referees.value.some(r => r.name === match.value.referee) && !isLocked.value) {
       customReferee.value = true
     }
-    // Åpnes bare én gang: har treneren allerede lukket eller åpnet noe, skal
-    // ikke ferske data flytte på sida under fingeren.
-    if (!aapnet) applySmartOpen()
   }
   loading.value = false
 })
-
-function applySmartOpen() {
-  if (!match.value) return
-  const today = new Date()
-  today.setHours(0, 0, 0, 0)
-  const matchDate = new Date((match.value.match_date || '') + 'T12:00:00')
-  const isPast = !Number.isNaN(matchDate.getTime()) && matchDate < today
-  const hasResult = match.value.home_score != null && match.value.away_score != null
-  // Dommer satt + utlegg registrert → logistikken er gjort, ikke relevant å åpne.
-  //
-  // Skaffer laget ikke dommer selv, finnes ikke logistikken. Da må denne være
-  // SANN — ellers ville hver kommende hjemmekamp åpnet en seksjon som ikke
-  // vises, og laget aldri fått fokus.
-  const logisticsDone = !usesReferees.value || (!!match.value.referee && !!expense.value)
-
-  if (isPast || hasResult || mmSession.value?.status === 'finished') {
-    // Spilt (resultat ført) eller skulle vært spilt — coach kom sannsynligvis
-    // for å se eller logge resultat. Gjelder også dagens kamp som alt er spilt.
-    open.value.summary = true
-  } else if (isHomeMatch.value && !logisticsDone) {
-    // Fremtidig hjemmekamp der dommer/utlegg gjenstår
-    open.value.logistics = true
-  } else {
-    // Bortekamp, eller hjemmekamp der dommer + utlegg alt er på plass — fokus på lag
-    open.value.team = true
-  }
-}
 
 const selectedReferee = computed(() => {
   if (!match.value?.referee) return null
@@ -269,27 +243,33 @@ const isLocked = computed(() => matchSeason.value?.status === 'settled')
 
 const teamColors = computed(() => teamColorsForMatch(match.value))
 
-// Rekkefølge på de tre seksjonene styres av kampens livssyklus:
-// spilt kamp leder med resultat, kommende leder med prep. Flex-order på
-// .detail-disclosures gjør omrokeringen uten å endre DOM-en.
 // «Halsen G15-2» skal brekke ved mellomrommet, ikke ved bindestreken.
 const hel = navn => String(navn || '').replace(/-/g, '\u2011')
 
-const sectionOrder = computed(() => {
-  // Avsluttet i kampmodus teller som spilt, også samme kveld: da er det
-  // spilletida du kom for, ikke dommer og tropp.
-  if (isPast(match.value?.match_date) || played.value || mmSession.value?.status === 'finished') {
-    // Spilt kamp leses før den endres: spilletid er det match mode faktisk
-    // målte, mens Resultat-seksjonen er tallfeltene og referatet. Resultatet
-    // og scorerne står uansett i toppkortet.
-    return { playtime: 1, summary: 2, report: 3, team: 4, logistics: 5 }
-  }
-  if (isHomeMatch.value) {
-    return { logistics: 1, team: 2, summary: 3, report: 4, playtime: 5 }
-  }
-  // Kommende bortekamp — ingen dommer-ansvar, lag øverst
-  return { team: 1, summary: 2, report: 3, playtime: 4, logistics: 5 }
+// Kampmodus-sesjonen er én for hele appen. Står den på en annen kamp, sier
+// den ingenting om denne — da er statusen fra kamplista det vi vet.
+const mmStatus = computed(() => {
+  const id = match.value?.id || route.params.id
+  if (mmSession.value?.match_id === id) return mmSession.value.status
+  return statusByMatch.value[id] || null
 })
+
+// Tre faser, og hver fase har ett fast oppsett:
+//   før   — kampmodus-knappen, Tropp, Dommer og utlegg
+//   live  — bare veien tilbake til klokka
+//   etter — resultatet i toppen, så Spilletid, Referat, Tropp
+// Hva som er fylt ut endrer aldri rekkefølgen eller hva som står åpent.
+const phase = computed(() => {
+  if (mmStatus.value === 'running' || mmStatus.value === 'paused') return 'live'
+  if (played.value || mmStatus.value === 'finished' || isPast(match.value?.match_date)) return 'etter'
+  return 'for'
+})
+
+const sectionOrder = computed(() => phase.value === 'etter'
+  // Resultatfeltene står øverst når du har valgt å redigere dem.
+  ? { summary: 0, playtime: 1, report: 2, team: 3, logistics: 4 }
+  : { team: 1, logistics: 2, summary: 3, report: 4, playtime: 5 }
+)
 
 const formattedDate = computed(() => relativeDateLabel(match.value?.match_date))
 
@@ -634,17 +614,35 @@ const hasResult = computed(() => {
 // Regelen bor i lib/matchCta.js fordi Hjem-kortet bruker den samme. En kopi
 // her ville blitt en andre sannhet om samme kamp.
 const hasLineup = computed(() => {
+  if (mmSession.value?.match_id !== match.value?.id) return false
   const l = mmSession.value?.lineup
   return !!l && Object.keys(l).length > 0
 })
 
 const matchModeCta = computed(() => matchCta({
-  status: mmSession.value?.status,
+  status: mmStatus.value,
   hasLineup: hasLineup.value,
   hasResult: hasResult.value,
   matchDate: match.value?.match_date,
   matchTime: match.value?.match_time
 }))
+
+// Knappen under toppen er alltid neste handling. Etter kampen er det
+// resultatet, hvis det mangler — på samme plass som «Start kamp» sto.
+const primaryCta = computed(() => {
+  if (isLocked.value) return null
+  if (phase.value === 'etter') {
+    return !hasResult.value && !editingResult.value
+      ? { label: 'Legg inn resultat', tone: 'prep', icon: 'result', action: 'result' }
+      : null
+  }
+  return matchModeCta.value ? { ...matchModeCta.value, action: 'live' } : null
+})
+
+function runPrimaryCta() {
+  if (primaryCta.value?.action === 'result') focusSummaryGroup()
+  else router.push(`/kamp/${match.value.id}/live`)
+}
 
 function isValidScore(v) {
   if (v === '' || v === null || v === undefined) return false
@@ -1059,34 +1057,39 @@ function focusSummaryGroup() {
       <p class="locked-note">Sesongen er avsluttet — kampen er låst.</p>
     </div>
 
-    <!-- Match mode — label + tyngde følger kampens livsløp. Er kampen ferdig,
-         finnes knappen ikke: da er dette en leseflate, ikke en klokke. -->
-    <div v-if="!isLocked && matchModeCta" class="px-lg mt-lg">
+    <!-- Neste handling. Før kampen: kampmodus, med label og tyngde etter hvor
+         nær avspark det er. Etter: resultatet, hvis det mangler. Ellers ingen
+         knapp — da er dette en leseflate, ikke en klokke. -->
+    <div v-if="primaryCta" class="px-lg mt-lg">
       <button
         type="button"
         class="match-mode-cta"
-        :class="`match-mode-cta--${matchModeCta.tone}`"
-        @click="router.push(`/kamp/${match.id}/live`)"
+        :class="`match-mode-cta--${primaryCta.tone}`"
+        @click="runPrimaryCta"
       >
-        <span v-if="matchModeCta.icon === 'live'" class="match-mode-cta__dot" aria-hidden="true"></span>
-        <svg v-else-if="matchModeCta.icon === 'play'" viewBox="0 0 24 24" fill="currentColor" stroke="none">
+        <span v-if="primaryCta.icon === 'live'" class="match-mode-cta__dot" aria-hidden="true"></span>
+        <svg v-else-if="primaryCta.icon === 'result'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="9"/><path d="M12 7l4.5 3.3-1.7 5.3H9.2L7.5 10.3z"/>
+        </svg>
+        <svg v-else-if="primaryCta.icon === 'play'" viewBox="0 0 24 24" fill="currentColor" stroke="none">
           <polygon points="6 4 20 12 6 20 6 4"/>
         </svg>
-        <svg v-else-if="matchModeCta.icon === 'clock'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg v-else-if="primaryCta.icon === 'clock'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>
         </svg>
-        <svg v-else-if="matchModeCta.icon === 'grid'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <svg v-else-if="primaryCta.icon === 'grid'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/>
         </svg>
         <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
           <line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="8"/><line x1="18" y1="20" x2="18" y2="11"/>
         </svg>
-        {{ matchModeCta.label }}
+        {{ primaryCta.label }}
       </button>
     </div>
 
-    <!-- Action sections — 3 grouped disclosures (collapsed = lese, expanded = edit) -->
-    <div class="px-lg mt-lg detail-disclosures">
+    <!-- Seksjonene, alltid lukket ved åpning. Mens kampen går hører troppen og
+         dommeren hjemme i kampmodus, så her står bare veien tilbake dit. -->
+    <div v-if="phase !== 'live'" class="px-lg mt-lg detail-disclosures">
 
       <!-- Gruppe 1: Dommer & utlegg (kun på hjemmekamper — vi har ikke dommer-ansvar borte) -->
       <DisclosureSection
@@ -1405,8 +1408,8 @@ function focusSummaryGroup() {
 
         <!-- Resultat: score + scorere som én enhet -->
         <div class="sub-section">
-          <div v-if="hasResult && !isLocked" class="sub-section__label sub-section__label--hoyre">
-            <button type="button" class="report-edit-link" @click="editingResult = false">Ferdig</button>
+          <div class="sub-section__label sub-section__label--hoyre">
+            <button type="button" class="report-edit-link" @click="open.summary = false">Ferdig</button>
           </div>
           <div class="score-edit">
             <div class="score-edit__side">
@@ -1568,7 +1571,7 @@ function focusSummaryGroup() {
     <Sheet :show="showMatchMenu" title="Mer" @close="showMatchMenu = false">
       <div class="match-menu">
         <button
-          v-if="played || hasResult"
+          v-if="phase === 'etter' || hasResult"
           type="button"
           class="match-menu__item"
           @click="showMatchMenu = false; focusSummaryGroup()"
@@ -1579,7 +1582,7 @@ function focusSummaryGroup() {
           {{ hasResult ? 'Rediger resultat og scorere' : 'Legg inn resultat' }}
         </button>
         <button
-          v-if="played || hasResult"
+          v-if="phase === 'etter' || hasResult"
           type="button"
           class="match-menu__item"
           @click="showMatchMenu = false; startEditingReport()"

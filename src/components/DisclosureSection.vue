@@ -1,5 +1,5 @@
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, watch, onMounted } from 'vue'
 
 const props = defineProps({
   label: { type: String, required: true },
@@ -23,6 +23,12 @@ onMounted(() => {
     })
   })
 })
+
+// Innholdet bygges først når seksjonen åpnes, og blir stående etterpå. Alle
+// seksjoner starter lukket, og en tropp med konfliktsjekk per spiller skal
+// ikke regnes ut for å tegne en rad ingen har trykket på.
+const harApnet = ref(props.modelValue)
+watch(() => props.modelValue, v => { if (v) harApnet.value = true })
 
 function toggle() {
   emit('update:modelValue', !props.modelValue)
@@ -57,7 +63,7 @@ function toggle() {
     </button>
     <div class="disclosure__body">
       <div class="disclosure__inner">
-        <slot />
+        <slot v-if="harApnet" />
       </div>
     </div>
   </div>

@@ -1,4 +1,4 @@
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { scoped } from '../lib/scope'
 import { registerReset } from '../stores/dataReset'
@@ -18,10 +18,25 @@ const serverOffset = ref(0)
 // Siste tilstand fra serveren utover sesjon og perioder: resultat og scorere.
 // Flata leser den, så en annen treners mål også vises her.
 const remote = ref(null)
+// match_id → kampmodus-status, for hele kullet i én spørring fra kamplista.
+// Kampsida vet da før den har hentet noe om kampen går, er ferdig eller har
+// spilletid, og tegner riktig fase og riktige rader i første bilde.
+const statusByMatch = ref({})
 
 // Kun data. Tikk-timeren eies av komponentene som monterer den (ref-tellet),
 // og skal ikke røres her.
-registerReset(() => { session.value = null; stints.value = [] })
+registerReset(() => { session.value = null; stints.value = []; statusByMatch.value = {} })
+
+function husk(matchId, status) {
+  if ((statusByMatch.value[matchId] ?? null) === (status ?? null)) return
+  const neste = { ...statusByMatch.value }
+  if (status) neste[matchId] = status
+  else delete neste[matchId]
+  statusByMatch.value = neste
+}
+// Kampmodus endrer sesjonen underveis (start, slutt). Kartet følger med, så
+// kampsida viser riktig fase når du går tilbake dit.
+watch(session, s => { if (s?.match_id) husk(s.match_id, s.status) })
 
 // Ref-tellet 1s-intervall — kun for å redrive currentClock i UI.
 let tickTimer = null
@@ -144,7 +159,20 @@ export function useMatchMode() {
       .eq('match_id', matchId)
       .maybeSingle()
     session.value = data || null
+    husk(matchId, data?.status)
     return session.value
+  }
+
+  // Bare to kolonner, for alle kullets kamper. Billig nok til å kjøres hver
+  // gang kamplista åpnes.
+  async function fetchSessionStatuses() {
+    if (!isSupabaseConfigured) {
+      statusByMatch.value = Object.fromEntries(Object.values(DEMO_SESSIONS).map(s => [s.match_id, s.status]))
+      return statusByMatch.value
+    }
+    const { data } = await scoped(supabase.from('match_sessions').select('match_id, status'))
+    if (data) statusByMatch.value = Object.fromEntries(data.map(r => [r.match_id, r.status]))
+    return statusByMatch.value
   }
 
   async function fetchStints(matchId) {
@@ -604,9 +632,9 @@ export function useMatchMode() {
 
   return {
     remote, syncState, changeScore,
-    session, stints, currentClock, isRunning,
+    session, stints, statusByMatch, currentClock, isRunning,
     startClockTick, stopClockTick,
-    fetchSession, fetchStints, fetchAllStints,
+    fetchSession, fetchSessionStatuses, fetchStints, fetchAllStints,
     saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, undoSubstitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
     matchStints, isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer,
     adjustPlayingTime, undoAdjustment, movableSeconds

@@ -7,6 +7,7 @@ import { useSeasons } from '../composables/useSeasons'
 import { useMatches } from '../composables/useMatches'
 import { useExpenses } from '../composables/useExpenses'
 import { useCoaches } from '../composables/useCoaches'
+import { useMatchMode } from '../composables/useMatchMode'
 import MatchCard from '../components/MatchCard.vue'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import TeamFilter from '../components/TeamFilter.vue'
@@ -23,6 +24,7 @@ const { viewingSeason, fetchSeasons } = useSeasons()
 const { matches, fetchMatches, getCoachesForMatch } = useMatches()
 const { expenses, fetchExpenses, getExpenseForMatch } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
+const { fetchSessionStatuses } = useMatchMode()
 
 const teamFilter = ref('alle')
 const venueFilter = ref('alle')
@@ -32,6 +34,9 @@ const timeFilter = ref('upcoming')
 const loading = ref(matches.value.length === 0)
 
 onMounted(async () => {
+  // Parallelt og uten å vente: lista trenger den ikke, men kampsida tegner
+  // riktig fase i første bilde når statusen ligger klar.
+  fetchSessionStatuses()
   await Promise.all([fetchSeasons(), fetchCoaches()])
   if (viewingSeason.value) {
     await fetchMatches(viewingSeason.value.id)
