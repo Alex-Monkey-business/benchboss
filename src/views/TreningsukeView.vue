@@ -36,6 +36,8 @@ import ExerciseView from '../components/ExerciseView.vue'
 import ExerciseVideo from '../components/ExerciseVideo.vue'
 import Skeleton from '../components/Skeleton.vue'
 import { meldEvent } from '../lib/sporing'
+import { usePlayers } from '../composables/usePlayers'
+import { usePlayerLevels, LEVELS } from '../composables/usePlayerLevels'
 
 const { hasHandbook, principles } = useContent()
 
@@ -297,6 +299,21 @@ const apenTidsrom = computed(() => {
   if (!r || !/:/.test(r.merke)) return ''
   const slutt = t.rader[apen.value.i + 1]?.merke || t.slutt?.merke
   return slutt ? `${r.merke}–${slutt}` : r.merke
+})
+
+// Differensierte øvelser får gruppene ferdig fordelt etter nivå, så treneren
+// slipper å regne ut det på banen. Hele kullet, ikke bare de som kommer — vi
+// vet ikke hvem som kommer.
+const { players, fetchPlayers } = usePlayers()
+const { fetchPlayerLevels, levelFor } = usePlayerLevels()
+const nivaGrupper = computed(() => {
+  if (apenDrill.value?.type !== 'diff') return []
+  const by = { A: [], B: [], C: [], none: [] }
+  for (const p of players.value) by[levelFor(p.id) || 'none'].push(p.name)
+  return [
+    ...LEVELS.map(l => ({ key: l, label: `Nivå ${l}`, navn: by[l] })),
+    { key: 'none', label: 'Uten nivå', navn: by.none }
+  ].filter(g => g.navn.length)
 })
 
 function visDrill(s, i) {
@@ -574,6 +591,8 @@ async function confirmPaste() {
 onMounted(async () => {
   await fetchWeek()
   fetchExercises()
+  fetchPlayers()
+  fetchPlayerLevels()
   loading.value = false
 
   // Kommer du fra Hjem, skal dagen stå der med én gang — ikke gli forbi to
@@ -934,6 +953,7 @@ Torsdag
           :exercise="apenDrill"
           :minutes="apenDrill.minutes || 0"
           :video-ute="!!apenVideo"
+          :niva-grupper="nivaGrupper"
           :hvor="`${apenDag.title} · ${apen.i + 1} av ${apenListe.length}${apenTidsrom ? ' · ' + apenTidsrom : ''}`"
         >
           <nav v-if="apenListe.length > 1" class="ovelse-sheet__bla" aria-label="Bla i treninga">

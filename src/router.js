@@ -170,6 +170,13 @@ const routes = [
     name: 'referat',
     component: () => import('./views/MoteReferatView.vue')
   },
+  // Nivå A/B/C per spiller. Ingen meta = trener-only, med vilje — det er en
+  // rangering av navngitte barn, og dataen ligger i en trener-only tabell.
+  {
+    path: '/admin/niva',
+    name: 'admin-niva',
+    component: () => import('./views/AdminNivaView.vue')
+  },
   // Kull-nivå: hvem har tilgang. Rolle-sjekken bor i viewet, ikke i metaen —
   // en trener kan slippe inn hit når kullets allow_coach_invites er på, og det
   // er en DB-verdi routeren ikke kan kjenne.

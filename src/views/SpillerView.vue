@@ -4,6 +4,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { usePlayers } from '../composables/usePlayers'
 import { usePlayerSeasonTeams } from '../composables/usePlayerSeasonTeams'
 import { usePlayerStats } from '../composables/usePlayerStats'
+import { usePlayerLevels, LEVELS } from '../composables/usePlayerLevels'
 import { useSeasons } from '../composables/useSeasons'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
 import { useToast } from '../composables/useToast'
@@ -20,6 +21,7 @@ const { fetchPlayerSeasonTeams, teamForSeason, isLoanEligible, setLoanEligible, 
 const { ensurePlayerStats, statsFor, matchesFor } = usePlayerStats()
 const { seasons, viewingSeason, fetchSeasons } = useSeasons()
 const { seasonTeams } = useSeasonTeams()
+const { fetchPlayerLevels, levelFor, setLevel } = usePlayerLevels()
 const { show: showToast } = useToast()
 
 const ready = ref(false)
@@ -27,7 +29,7 @@ const player = computed(() => players.value.find(p => p.id === route.params.id) 
 const seasonId = computed(() => viewingSeason.value?.id ?? null)
 
 onMounted(async () => {
-  await Promise.all([fetchPlayers(), fetchPlayerSeasonTeams(), fetchSeasons()])
+  await Promise.all([fetchPlayers(), fetchPlayerSeasonTeams(), fetchSeasons(), fetchPlayerLevels()])
   await ensurePlayerStats()
   ready.value = true
 })
@@ -40,6 +42,7 @@ watch(viewingSeason, async (s) => {
 
 const stats = computed(() => statsFor(route.params.id))
 const positions = computed(() => playerPositions(player.value))
+const level = computed(() => (player.value ? levelFor(player.value.id) : null))
 const teamNow = computed(() => {
   const slug = teamForSeason(player.value, seasonId.value)
   return seasonTeams.value.find(t => t.slug === slug) || null
@@ -76,6 +79,7 @@ const editName = ref('')
 const editTeam = ref('')
 const editPositions = ref([])
 const editLoan = ref(false)
+const editLevel = ref(null)
 const toDelete = ref(false)
 const saving = ref(false)
 
@@ -88,6 +92,7 @@ function openEdit() {
   editTeam.value = player.value.primary_team || ''
   editPositions.value = [...positions.value]
   editLoan.value = isLoanEligible(player.value, seasonId.value)
+  editLevel.value = level.value
   editing.value = true
 }
 function togglePosition(value) {
@@ -106,6 +111,10 @@ async function save() {
       name, primary_team: editTeam.value, loan_eligible: editLoan.value, positions: editPositions.value
     })
     await setLoanEligible(player.value.id, seasonId.value, editLoan.value, editTeam.value)
+    if (!(await setLevel(player.value.id, editLevel.value))) {
+      showToast('Fikk ikke lagret nivået', 'error')
+      return
+    }
     editing.value = false
     showToast('Spiller oppdatert', 'success')
   } finally {
@@ -156,6 +165,20 @@ async function confirmDelete() {
         <template v-else>
           <p class="sp__muted">Ingen posisjoner satt. Da foreslås ikke {{ player.name.split(' ')[0] }} noe sted i kampmodus.</p>
           <button type="button" class="sp__inline-action" @click="openEdit">Sett posisjoner</button>
+        </template>
+      </section>
+
+      <section class="sp__section">
+        <div class="sp__seasonrow">
+          <h2 class="ds-section-label sp__h2">Nivå</h2>
+          <router-link to="/admin/niva" class="sp__inline-action">Alle nivåer</router-link>
+        </div>
+        <div v-if="level" class="sp__tags">
+          <span class="sp__tag">Nivå {{ level }}</span>
+        </div>
+        <template v-else>
+          <p class="sp__muted">Ikke satt.</p>
+          <button type="button" class="sp__inline-action" @click="openEdit">Sett nivå</button>
         </template>
       </section>
 
@@ -252,6 +275,20 @@ async function confirmDelete() {
           >{{ o.label }}</button>
         </div>
         <p class="poschips__hint">Sorterer forslagene i kampmodus</p>
+      </div>
+      <div class="ds-form-group">
+        <label class="ds-label ds-label--optional">Nivå</label>
+        <div class="poschips poschips--tre">
+          <button
+            v-for="l in LEVELS"
+            :key="l"
+            type="button"
+            class="poschip"
+            :class="{ 'poschip--on': editLevel === l }"
+            @click="editLevel = editLevel === l ? null : l"
+          >{{ l }}</button>
+        </div>
+        <p class="poschips__hint">Fordeler grupper på differensierte øvelser. Bare trenere ser det.</p>
       </div>
       <button
         type="button"
@@ -382,6 +419,8 @@ async function confirmDelete() {
 /* Samme velger som i troppen — to kolonner, femte valg i full bredde. */
 .poschips { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ds-space-sm); }
 .poschips .poschip:last-child:nth-child(odd) { grid-column: 1 / -1; }
+.poschips--tre { grid-template-columns: repeat(3, 1fr); }
+.poschips--tre .poschip:last-child:nth-child(odd) { grid-column: auto; }
 .poschip {
   padding: 11px 14px; cursor: pointer;
   font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium);

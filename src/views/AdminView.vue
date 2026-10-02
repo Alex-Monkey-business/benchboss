@@ -77,6 +77,7 @@ const links = computed(() => [
   ...(usesReferees.value ? [{ to: '/admin/dommere', label: 'Dommere', icon: 'whistle' }] : []),
   { to: '/admin/referater', label: 'Møtereferater', icon: 'notes' },
   { to: '/serie/tropp', label: 'Spillere & tropp', icon: 'jersey' },
+  { to: '/admin/niva', label: 'Nivå', icon: 'levels' },
   { to: '/admin/turneringer', label: 'Turneringer', icon: 'trophy' }
 ])
 </script>
@@ -156,6 +157,11 @@ const links = computed(() => [
             <line x1="8" y1="8" x2="16" y2="8"/>
             <line x1="8" y1="12" x2="16" y2="12"/>
             <line x1="8" y1="16" x2="13" y2="16"/>
+          </svg>
+          <svg v-else-if="link.icon === 'levels'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="6" y1="20" x2="6" y2="14"/>
+            <line x1="12" y1="20" x2="12" y2="9"/>
+            <line x1="18" y1="20" x2="18" y2="4"/>
           </svg>
           <svg v-else-if="link.icon === 'trophy'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
             <path d="M8 21h8M12 17v4M7 4h10v5a5 5 0 0 1-10 0V4z"/>

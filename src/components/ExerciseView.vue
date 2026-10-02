@@ -32,7 +32,10 @@ const props = defineProps({
   hvor: { type: String, default: '' },
   // Arket viser filmen på toppen (Sheet sin media-slot). Da tegner vi den
   // ikke her igjen, men kilden og lengden går inn i hoderaden.
-  videoUte: { type: Boolean, default: false }
+  videoUte: { type: Boolean, default: false },
+  // Spillerne fordelt etter nivå, bare på differensierte øvelser i treninga.
+  // [{ key, label, navn: [] }]. Tom i banken.
+  nivaGrupper: { type: Array, default: () => [] }
 })
 
 const ex = computed(() => props.exercise || {})
@@ -163,6 +166,17 @@ const harInnhold = computed(() =>
     <section v-if="ex.gruppe" class="ex-sek">
       <h4 class="ex-sek__tittel">Gruppe</h4>
       <p class="ex-tekst">{{ ex.gruppe }}</p>
+    </section>
+
+    <section v-if="nivaGrupper.length" class="ex-sek">
+      <h4 class="ex-sek__tittel">Gruppene etter nivå</h4>
+      <dl class="ex-niva">
+        <template v-for="g in nivaGrupper" :key="g.key">
+          <dt>{{ g.label }} <span class="ex-niva__n">{{ g.navn.length }}</span></dt>
+          <dd>{{ g.navn.join(', ') }}</dd>
+        </template>
+      </dl>
+      <router-link v-if="nivaGrupper.some(g => g.key === 'none')" to="/admin/niva" class="ex-niva__lenke">Sett nivå</router-link>
     </section>
 
     <section v-if="gjennomforing.linjer.length" class="ex-sek">
@@ -354,6 +368,32 @@ a.ex-view__kilde { text-decoration: underline; text-underline-offset: 2px; }
 
 .ex-fakta dt:not(:first-of-type),
 .ex-fakta dd:not(:first-of-type) { border-top: 1px solid var(--ds-color-border); }
+
+/* Én blokk per nivå: merket over, navnene under. Navnene er det du leser
+   høyt når gruppene settes, så de får full bredde. */
+.ex-niva { margin: 0; }
+.ex-niva dt {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-secondary);
+  padding-top: var(--ds-space-sm);
+}
+.ex-niva dt:not(:first-of-type) { border-top: 1px solid var(--ds-color-border); margin-top: var(--ds-space-sm); }
+.ex-niva__n { font-weight: var(--ds-weight-medium); color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; }
+.ex-niva dd {
+  margin: 2px 0 0;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-primary);
+  line-height: 1.55;
+}
+.ex-niva__lenke {
+  display: inline-block;
+  margin-top: var(--ds-space-md);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-accent);
+  text-decoration: none;
+}
 
 /* Reset-en nuller list-style, så padding alene gir ingen markør: et moment
    over to linjer rant rett inn i det neste. Streken i margen er markøren. */
