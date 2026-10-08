@@ -20,7 +20,7 @@ import { useContent } from '../composables/useContent'
 // elleve andre igjen med gammel tekst.
 //
 // Uka gjentar seg. Da ligger den ett sted og gjelder til noen endrer den.
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute } from 'vue-router'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
 import { useExercises, exerciseToDrill, resolveDrills, ovelsensVideo } from '../composables/useExercises'
@@ -39,6 +39,9 @@ import { meldEvent } from '../lib/sporing'
 import { usePlayers } from '../composables/usePlayers'
 import { usePlayerLevels } from '../composables/usePlayerLevels'
 import TreningsGrupper from '../components/TreningsGrupper.vue'
+import TreningsAntall from '../components/TreningsAntall.vue'
+import { useTreningsAntall } from '../composables/useTreningsAntall'
+import { planFor } from '../lib/grupper'
 import { useAuth } from '../stores/auth'
 
 const { hasHandbook, principles } = useContent()
@@ -311,6 +314,23 @@ const { fetchPlayerLevels, levelFor } = usePlayerLevels()
 // Bare for trenere: på diff er Gruppe 1 de sterkeste, så gruppene ER nivået
 // for den som kan lese dem. Foreldre kan åpne treninga, ikke dette.
 const { isCoach } = useAuth()
+// «Vi er 21»: ett tall per trening, delt mellom trenerne. Planen for hver
+// øvelse (grupper og antall i hver) regnes ut fra det.
+const { antallFor, settAntall, start: startAntall } = useTreningsAntall()
+function planTekst(s, d) {
+  const p = planFor(d, antallFor(s))
+  if (!p) return null
+  return {
+    deling: p.grupper > 1 ? `${p.grupper} grupper · ${p.iHver}` : '',
+    advarsel: p.forFa ? `For få, trenger ${p.forFa}` : ''
+  }
+}
+let stoppAntall = null
+watch(isCoach, v => {
+  if (v && !stoppAntall) stoppAntall = startAntall()
+  if (!v && stoppAntall) { stoppAntall(); stoppAntall = null }
+}, { immediate: true })
+onUnmounted(() => stoppAntall?.())
 const harGrupper = computed(() => isCoach.value && ['diff', 'mix'].includes(apenDrill.value?.type))
 const grupperNokkel = computed(() =>
   apenDrill.value ? `${apen.value.i}:${apenDrill.value.exercise_id || apenDrill.value.text}` : ''
@@ -673,6 +693,12 @@ onMounted(async () => {
         </button>
 
         <div v-if="openDayId === s.id" class="dag__body">
+          <TreningsAntall
+            v-if="isCoach && drillsFor(s).length && editDayId !== s.id"
+            :model-value="antallFor(s)"
+            :kull="players.length"
+            @update:model-value="n => settAntall(s, n)"
+          />
           <!-- LESEMODUS — økta som en time, ikke en liste. Klokka i margen,
                null knapper mellom deg og innholdet. -->
           <ol v-if="drillsFor(s).length && editDayId !== s.id" class="okt">
@@ -691,11 +717,15 @@ onMounted(async () => {
                 <!-- Diff/mix og tid er to korte, faste opplysninger — de deler
                      linje og står i ro. Temaet er det eneste som varierer i
                      lengde, og får derfor sin egen linje å vokse på. -->
-                <span v-if="r.d.minutes || (r.d.type && r.d.type !== 'none')" class="steg__fakta">
+                <span v-if="r.d.minutes || (r.d.type && r.d.type !== 'none') || (isCoach && planTekst(s, r.d))" class="steg__fakta">
                   <span v-if="r.d.type && r.d.type !== 'none'" class="ovelse__badge" :class="`ovelse__badge--${r.d.type}`">
                     {{ r.d.type === 'diff' ? 'Diff' : 'Mix' }}
                   </span>
                   <span v-if="r.d.minutes" class="steg__len">{{ formatDuration(r.d.minutes) }}</span>
+                  <template v-if="isCoach && planTekst(s, r.d)">
+                    <span v-if="planTekst(s, r.d).deling" class="steg__plan">{{ planTekst(s, r.d).deling }}</span>
+                    <span v-if="planTekst(s, r.d).advarsel" class="steg__plan steg__plan--advarsel">{{ planTekst(s, r.d).advarsel }}</span>
+                  </template>
                 </span>
                 <span v-if="r.d.tema" class="steg__tema">{{ r.d.tema }}</span>
               </button>
@@ -959,8 +989,8 @@ Torsdag
             <TreningsGrupper
               :session-id="apenDag.id"
               :nokkel="grupperNokkel"
-              :type="apenDrill.type"
-              :per-gruppe="apenDrill.per_gruppe || null"
+              :drill="apenDrill"
+              :antall="antallFor(apenDag)"
               :spillere="players"
               :level-for="levelFor"
             />
@@ -1171,6 +1201,14 @@ Torsdag
   font-size: var(--ds-text-sm);
 }
 
+.steg__plan {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.steg__plan--advarsel { color: var(--ds-color-warning-text, var(--ds-color-text-secondary)); }
+
 .dag__body {
   padding: 0 var(--ds-space-lg) var(--ds-space-lg);
 }
@@ -1301,6 +1339,7 @@ Torsdag
    linja bare de to som har fast bredde, og den kan ikke brekke. */
 .steg__fakta {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   margin-top: 4px;

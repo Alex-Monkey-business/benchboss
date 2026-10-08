@@ -115,3 +115,27 @@ export function kortnavn(spillere) {
   }
   return ut
 }
+
+// Planen for én øvelse når antallet er kjent: hvor mange grupper og hvor
+// mange i hver. Null når øvelsen ikke sier noe om deling — da finner vi ikke
+// på et tall.
+//
+// per_gruppe er øvelsens egen størrelse. Uten den holder maks_spillere
+// («flest før øvelsen må deles»): 21 på en øvelse for maks 9 er tre grupper.
+// For få til øvelsen (min_spillere) er en advarsel, ikke en blokk.
+export function planFor(drill, n) {
+  if (!drill || !n) return null
+  const min = drill.min_spillere || null
+  let grupper = null
+  if (drill.per_gruppe) grupper = antallGrupper(n, drill.per_gruppe)
+  else if (drill.maks_spillere && n > drill.maks_spillere) grupper = Math.ceil(n / drill.maks_spillere)
+  const forFa = min && n < min ? min : null
+  if (!grupper && !forFa) return null
+  const g = grupper || 1
+  const minst = Math.floor(n / g), mest = Math.ceil(n / g)
+  return {
+    grupper: g,
+    iHver: minst === mest ? String(minst) : `${minst}–${mest}`,
+    forFa
+  }
+}

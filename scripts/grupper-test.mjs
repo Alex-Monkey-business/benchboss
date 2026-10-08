@@ -23,9 +23,12 @@ const DIFF = sql(`select id from training_exercises where type='diff' and club_i
 const DIFFNAVN = sql(`select name from training_exercises where id='${DIFF}'`)
 const MIX = sql(`select id from training_exercises where type='mix' and club_id=${KLUBB} order by name limit 1`)
 const MIXNAVN = sql(`select name from training_exercises where id='${MIX}'`)
+// I dag, så «Vi er N» lagres på dagens dato.
+const UKEDAG = new Date().getDay() || 7
+const IDAG = new Date().toLocaleDateString('sv-SE')
 const FOR = sql(`select coalesce(per_gruppe::text,'null') from training_exercises where id='${DIFF}'`)
 sql(`update training_exercises set per_gruppe=5 where id='${DIFF}'`)
-const DAG = sql(`insert into training_sessions (cohort_id, title, weekday, position, drills) values ('${KULL}', 'QA-grupper', 3, 99, jsonb_build_array(jsonb_build_object('type','diff','text','QA diff','exercise_id','${DIFF}'), jsonb_build_object('type','mix','text','QA mix','exercise_id','${MIX}'))) returning id`).split('\n')[0]
+const DAG = sql(`insert into training_sessions (cohort_id, title, weekday, position, drills) values ('${KULL}', 'QA-grupper', ${UKEDAG}, 99, jsonb_build_array(jsonb_build_object('type','diff','text','QA diff','exercise_id','${DIFF}'), jsonb_build_object('type','mix','text','QA mix','exercise_id','${MIX}'))) returning id`).split('\n')[0]
 
 const b = await chromium.launch()
 async function logginn(epost) {
@@ -115,6 +118,52 @@ try {
   await vent(1200)
   ok('lagret i basen', sql(`select per_gruppe from training_exercises where id='${DIFF}'`) === '4')
   await p.screenshot({ path: `${OUT}/grupper-bank.png`, fullPage: true })
+
+  // «Vi er N»: tastes inn, lagres, deles med de andre trenerne.
+  await p.goto(`${APP}/trening?dag=${DAG}`)
+  await p.locator('.antall').waitFor({ timeout: 15000 })
+  ok('dagen spør hvor mange dere er', /Hvor mange/.test(await p.locator('.antall').innerText()))
+  ok('kullstørrelsen står som plassholder', await p.locator('.antall__tall').getAttribute('placeholder') === String(antall))
+  await p.locator('.antall__tall').click()
+  await p.keyboard.type('21')
+  await vent(1500)
+  ok('21 lagret på dagens dato', sql(`select antall from training_counts where session_id='${DAG}' and dato='${IDAG}'`) === '21')
+  const plan = await p.locator('.steg').first().locator('.steg__plan').first().innerText().catch(() => '')
+  ok('øvelsen viser planen for 21', /5 grupper · 4–5/.test(plan), plan)
+  await p.screenshot({ path: `${OUT}/antall-dag.png` })
+  const boks = await p.locator('.antall').boundingBox(), tittel = await p.locator('.antall__tittel').boundingBox()
+  ok('«På trening» står på én linje', tittel.height < 30, String(tittel.height))
+  ok('boksen er ikke høyere enn knappene trenger', boks.height < 80, String(boks.height))
+
+  const iver = await logginn('iver.vestre@gmail.com')
+  await iver.goto(`${APP}/trening?dag=${DAG}`)
+  await iver.locator('.antall__tall').waitFor({ timeout: 15000 })
+  await vent(800)
+  ok('en annen trener ser 21', await iver.locator('.antall__tall').inputValue() === '21')
+  await iver.locator('.antall__steg[aria-label="Én til"]').click()
+  let fikk = ''
+  for (let k = 0; k < 40 && fikk !== '22'; k++) { await vent(300); fikk = await p.locator('.antall__tall').inputValue() }
+  ok('pila hos ham dukker opp hos meg innen 12 sek, uten omlasting', fikk === '22', fikk)
+
+  await p.getByText(DIFFNAVN).first().click()
+  await p.locator('.grp').waitFor()
+  ok('gruppene regnes fra 22', /^22 på trening/.test(await p.locator('.grp__meta').innerText()))
+  ok('og sier fra om navn som ikke er trykket bort', await p.locator('.grp__ukjente').isVisible())
+  await p.locator('.grp').scrollIntoViewIfNeeded()
+  await p.screenshot({ path: `${OUT}/antall-grupper.png` })
+
+  const forelder = await logginn('susannetenfjord@hotmail.com')
+  await forelder.goto(`${APP}/trening?dag=${DAG}`)
+  await forelder.waitForTimeout(4000)
+  // Foreldre kommer ikke alltid inn på Trening (cup-modus sender dem til
+  // kampprogrammet). Uansett: ikke tallet, ikke gruppene, ingen rader.
+  ok('forelder ser ikke antallet', await forelder.locator('.antall').count() === 0)
+  ok('forelder ser ikke gruppene', await forelder.locator('.grp').count() === 0)
+  ok('forelder får null rader fra basen', await forelder.evaluate(async () => {
+    const m = await import('/src/supabase.js')
+    const { data } = await m.supabase.from('training_counts').select('antall')
+    return (data || []).length
+  }) === 0)
 } finally {
   ok('ingen sidefeil', feil.length === 0, feil.join(' | '))
   sql(`delete from training_sessions where id='${DAG}'; delete from player_levels where cohort_id='${KULL}'; update training_exercises set per_gruppe=${FOR} where id='${DIFF}'`)

@@ -12,7 +12,7 @@
 // Gruppene heter «Gruppe 1, 2, 3», aldri A/B/C. Telefonen vises frem på
 // banen, og nivået er trenernes, ikke barnas.
 import { computed, ref, watch } from 'vue'
-import { lagGrupper, antallGrupper, medBytter, kortnavn } from '../lib/grupper'
+import { lagGrupper, planFor, medBytter, kortnavn } from '../lib/grupper'
 import { useTreningsGrupper } from '../composables/useTreningsGrupper'
 
 const props = defineProps({
@@ -20,8 +20,10 @@ const props = defineProps({
   // Hvilken øvelse i dagen — plassering + opphav, så to like øvelser på
   // samme dag får hvert sitt notat.
   nokkel: { type: String, required: true },
-  type: { type: String, default: 'diff' },
-  perGruppe: { type: Number, default: null },
+  // Øvelsen: type (diff/mix), per_gruppe, maks_spillere.
+  drill: { type: Object, required: true },
+  // «Vi er 21» fra dagen, delt mellom trenerne. Null når ingen har satt det.
+  antall: { type: Number, default: null },
   spillere: { type: Array, default: () => [] },
   levelFor: { type: Function, required: true }
 })
@@ -35,13 +37,25 @@ const navn = computed(() => kortnavn(props.spillere))
 const tilStede = computed(() => props.spillere.filter(s => !fravar.value.includes(s.id)))
 const borte = computed(() => props.spillere.filter(s => fravar.value.includes(s.id)))
 
-// Uten størrelse på øvelsen: tre på diff (det nivåene ga før), to på mix.
-const foreslatt = computed(() =>
-  props.perGruppe
-    ? antallGrupper(tilStede.value.length, props.perGruppe)
-    : Math.min(tilStede.value.length, props.type === 'mix' ? 2 : 3)
-)
-const antall = computed(() => Math.min(notat.value.antall || foreslatt.value, tilStede.value.length))
+const type = computed(() => props.drill.type === 'mix' ? 'mix' : 'diff')
+
+// Antallet planen regnes fra: tallet trenerne har satt, ellers navnene som
+// står igjen. Tallet vinner — det er det hele økta er planlagt etter, og
+// navnene er en valgfri detalj oppå.
+const regnetFra = computed(() => props.antall || tilStede.value.length)
+
+// Øvelsens egen størrelse, så maks-grensa. Uten noen av dem: tre på diff
+// (det nivåene ga før), to på mix.
+const foreslatt = computed(() => {
+  const plan = planFor(props.drill, regnetFra.value)
+  if (plan?.grupper) return plan.grupper
+  return Math.min(regnetFra.value, type.value === 'mix' ? 2 : 3)
+})
+const antall = computed(() => Math.max(1, Math.min(notat.value.antall || foreslatt.value, tilStede.value.length)))
+
+// Tallet sier 21, men 27 navn står fortsatt. Gruppene stemmer i antall, men
+// navnene blir riktige først når de som mangler er trykket bort.
+const ukjente = computed(() => (props.antall ? tilStede.value.length - props.antall : 0))
 
 // Frøet blandes med øvelsen, ellers får hver øvelse samme par.
 function hash(s) {
@@ -52,14 +66,16 @@ function hash(s) {
 
 const grupper = computed(() => {
   const liste = tilStede.value.map(s => ({ id: s.id, niva: props.levelFor(s.id) }))
-  const fordelt = lagGrupper(liste, antall.value, props.type, hash(props.nokkel) + notat.value.seed)
+  const fordelt = lagGrupper(liste, antall.value, type.value, hash(props.nokkel) + notat.value.seed)
   return medBytter(fordelt, notat.value.bytter)
 })
 
+// Størrelsen regnes fra tallet, ikke fra navnene: med 21 på trening og fire
+// grupper er det 5–6 i hver, selv om 27 navn fortsatt står på lista.
 const storrelse = computed(() => {
-  const s = grupper.value.map(x => x.length)
-  if (!s.length) return ''
-  const min = Math.min(...s), maks = Math.max(...s)
+  const n = regnetFra.value, g = antall.value
+  if (!n || !g) return ''
+  const min = Math.floor(n / g), maks = Math.ceil(n / g)
   return min === maks ? `${min} i hver` : `${min}–${maks} i hver`
 })
 
@@ -105,7 +121,10 @@ function bland() {
       </div>
     </div>
     <p class="grp__meta">
-      {{ tilStede.length }} på trening · {{ storrelse }} · {{ type === 'mix' ? 'nivåene blandet' : 'likt nivå' }}
+      {{ regnetFra }} på trening · {{ storrelse }} · {{ type === 'mix' ? 'nivåene blandet' : 'likt nivå' }}
+    </p>
+    <p v-if="ukjente > 0" class="grp__ukjente">
+      {{ ukjente === 1 ? 'Én av navnene under er' : `${ukjente} av navnene under er` }} ikke her. Trykk dem bort for riktige navn i gruppene.
     </p>
 
     <ol class="grp__liste">
@@ -187,6 +206,17 @@ function bland() {
   font-size: var(--ds-text-xs);
   color: var(--ds-color-text-secondary);
   font-variant-numeric: tabular-nums;
+}
+
+.grp__ukjente {
+  margin: var(--ds-space-sm) 0 0;
+  padding: var(--ds-space-sm) var(--ds-space-md);
+  border-radius: var(--ds-radius-sm, 8px);
+  background: var(--ds-color-warning-light);
+  border: 1px solid var(--ds-color-warning-border);
+  color: var(--ds-color-warning-text);
+  font-size: var(--ds-text-xs);
+  line-height: 1.45;
 }
 
 .grp__liste {
