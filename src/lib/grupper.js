@@ -184,8 +184,10 @@ function flertallsniva(ids, nivaAv) {
   return best ? best[0] : null
 }
 
-// Trenerne fordelt på gruppene, og de roterer: på neste delte øvelse flytter
-// alle seg én gruppe, så hver trener møter alle nivåene i løpet av økta.
+// Trenerne fordelt på gruppene. Innenfor en økt står hver trener på samme
+// plass hele tida — på diff er det samme nivå, gruppe 1 er de sterkeste. Fra
+// trening til trening flytter alle seg ett hakk (runde = antall tidligere
+// økter), så over tid møter hver trener alle nivåene.
 // Flere trenere enn grupper: noen grupper får to. Færre: noen får ingen.
 export function fordelTrenere(antallGrupper, trenere, runde) {
   const ut = Array.from({ length: antallGrupper }, () => [])
@@ -194,9 +196,16 @@ export function fordelTrenere(antallGrupper, trenere, runde) {
   return ut
 }
 
-// Alt utstyret økta trenger, i bankens rekkefølge.
+// Alt utstyret økta trenger.
 export function riggFor(drills) {
   const sett = new Set()
   for (const d of drills) for (const t of d.utstyr_tags || []) sett.add(t)
   return [...sett]
+}
+
+// Stasjonene som må rigges, regnet for hele kullet. Riggen gjøres før noen
+// vet hvor mange som kommer, og en stasjon for mye er bedre enn en for lite.
+export function stasjonerFor(drill, kull) {
+  if (!drill || !['diff', 'mix'].includes(drill.type) || !kull) return 0
+  return planFor(drill, kull)?.grupper || Math.min(kull, drill.type === 'mix' ? 2 : 3)
 }

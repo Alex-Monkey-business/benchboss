@@ -52,6 +52,9 @@ try {
   await p.goto(`${APP}/trening?dag=${DAG}`)
   await p.locator('.okt-start').waitFor({ timeout: 15000 })
   ok('dagen har «Start økta»', true)
+  const rigg = await p.locator('.rigg').innerText()
+  ok('riggen står på dagen, for hele kullet', new RegExp(`hele kullet \\(${antall}\\)`).test(rigg) && /stasjoner/.test(rigg), rigg.replace(/\n/g, ' | '))
+  ok('diff med 4 per gruppe gir 7 stasjoner for 27', /7 stasjoner/.test(rigg))
   await p.locator('.okt-start').click()
   await p.locator('.oppm__navn').first().waitFor({ timeout: 15000 })
   ok('«Hvem er her?» med hele kullet på', await p.locator('.oppm__grid').first().locator('.oppm__navn').count() === antall && await p.locator('.oppm__navn--borte').count() === 0)
@@ -75,12 +78,14 @@ try {
   ok('nivået står som bokstav', /^[ABC]$/.test((await gruppe(p, 0, 0).locator('.grp__niva').innerText().catch(() => '')).trim()))
   await p.screenshot({ path: `${OUT}/okt-okta.png`, fullPage: true })
 
-  // Rotasjon: trenerne flytter én gruppe på neste delte øvelse.
+  // Trenerne står fast hele økta: den som har gruppe 1 på første øvelse, har
+  // gruppe 1 på neste også. Rotasjonen er fra trening til trening.
   const t1 = (await gruppe(p, 0, 0).locator('.grp__trener').innerText()).trim()
   await p.locator('.kort__rad').nth(1).locator('.kort__hode').click()
   await gruppe(p, 1, 0).waitFor()
   const t2 = (await gruppe(p, 1, 0).locator('.grp__trener').innerText().catch(() => '')).trim()
-  ok('trenerne roterer mellom øvelsene', t1 && t1 !== t2, `${t1} → ${t2}`)
+  ok('samme trener på gruppe 1 hele økta', t1 && t2.split(' og ').includes(t1), `${t1} / ${t2}`)
+  ok('økta har rotasjonsrunden lagret', /^\d+$/.test(sql(`select state->>'_runde' from training_runs where id='${RUN}'`)))
   await p.locator('.kort__rad').nth(0).locator('.kort__hode').click()
 
   // En annen trener ser samme økt og samme grupper.

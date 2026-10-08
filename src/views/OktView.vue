@@ -2,8 +2,9 @@
 // ØKTA — treninga slik den kjøres på feltet, ikke slik den leses.
 //
 // To skjermer. Først «Hvem er her?»: hele kullet og alle trenerne er på,
-// trykk bort dem som mangler, «Start økta». Så økta: riggen øverst og
-// øvelsene langs klokka, hver med gruppene ferdig fordelt og trenerne satt på.
+// trykk bort dem som mangler, «Start økta». Så økta: øvelsene langs klokka,
+// hver med gruppene ferdig fordelt og trenerne satt på. Riggen står på
+// treningsdagen, ikke her — den er gjort før noen vet hvor mange som kommer.
 //
 // Hvordan en øvelse gjennomføres, hva du ser etter og hva du roper, ligger
 // bak «Om øvelsen». Det leser du i ro og mak. Her er det organiseringen som
@@ -15,13 +16,13 @@
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
-import { useExercises, resolveDrills, EQUIPMENT_TAGS, equipmentLabel } from '../composables/useExercises'
+import { useExercises, resolveDrills } from '../composables/useExercises'
 import { usePlayers } from '../composables/usePlayers'
 import { usePlayerLevels } from '../composables/usePlayerLevels'
 import { useCoaches } from '../composables/useCoaches'
 import { useTreningsOkt, datoFor } from '../composables/useTreningsOkt'
 import { useAuth } from '../stores/auth'
-import { grupperFor, ovelseNokkel, fordelTrenere, riggFor, kortnavn } from '../lib/grupper'
+import { grupperFor, ovelseNokkel, fordelTrenere, kortnavn } from '../lib/grupper'
 import { weekdayDateLabel } from '../lib/dateLabels'
 import { meldEvent } from '../lib/sporing'
 import TreningsGrupper from '../components/TreningsGrupper.vue'
@@ -119,14 +120,14 @@ function klokke(ms) {
 }
 const naIndeks = computed(() => tider.value.findIndex(x => x.til && na.value >= x.fra && na.value < x.til))
 
-// Kortene: gruppene per øvelse, og trenerne som roterer én gruppe for hver
-// delte øvelse.
+// Kortene: gruppene per øvelse, og trenerne på dem. Trenerne står på samme
+// plass hele økta; rotasjonen skjer fra trening til trening (_runde).
 const kort = computed(() => {
-  let runde = 0
+  const runde = run.value?.state?._runde || 0
   return drills.value.map((d, i) => {
     const nokkel = ovelseNokkel(i, d)
     const plan = grupperFor(d, i, tilStede.value, run.value?.state?.[nokkel] || {})
-    const trenere = plan ? fordelTrenere(plan.antall, trenereIOkta.value, runde++) : []
+    const trenere = plan ? fordelTrenere(plan.antall, trenereIOkta.value, runde) : []
     const tid = tider.value[i]
     return {
       d, i, nokkel, plan, trenere,
@@ -135,11 +136,6 @@ const kort = computed(() => {
       ferdig: tid?.til ? na.value >= tid.til : false
     }
   })
-})
-
-const rigg = computed(() => {
-  const tags = riggFor(drills.value)
-  return EQUIPMENT_TAGS.filter(t => tags.includes(t.value)).map(t => equipmentLabel(t.value))
 })
 
 // Ett kort åpent om gangen: det klokka står på, ellers det første som deles.
@@ -263,11 +259,6 @@ onUnmounted(() => {
       <p class="okt__sum">
         <strong>{{ tilStede.length }}</strong> spillere · <strong>{{ trenereIOkta.length }}</strong> {{ trenereIOkta.length === 1 ? 'trener' : 'trenere' }}
       </p>
-
-      <section v-if="rigg.length" class="rigg">
-        <span class="rigg__merke">Rigg</span>
-        <span class="rigg__ting">{{ rigg.join(' · ') }}</span>
-      </section>
 
       <ol class="kort">
         <li
@@ -444,22 +435,6 @@ onUnmounted(() => {
 .okt__wrap { max-width: 560px; margin: 0 auto; padding: var(--ds-space-md) var(--ds-space-lg); }
 .okt__sum { margin: 0 0 var(--ds-space-md); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 .okt__sum strong { color: var(--ds-color-text-primary); font-variant-numeric: tabular-nums; }
-
-.rigg {
-  display: flex; align-items: baseline; gap: var(--ds-space-md);
-  padding: var(--ds-space-md);
-  margin-bottom: var(--ds-space-lg);
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-color-bg-elevated);
-}
-.rigg__merke {
-  flex: none;
-  font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-wider, .04em); text-transform: uppercase;
-  color: var(--ds-color-text-tertiary);
-}
-.rigg__ting { font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium); color: var(--ds-color-text-primary); }
 
 .kort { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ds-space-sm); }
 .kort__rad {

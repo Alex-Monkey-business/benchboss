@@ -106,13 +106,16 @@ export function useTreningsOkt() {
     async start(session, spillere, trenere) {
       const dato = datoFor(session)
       if (!isSupabaseConfigured) {
-        run.value = { id: 'demo-run', session_id: session.id, dato, started_at: new Date().toISOString(), state: {}, spillere: [...spillere], trenere: [...trenere] }
+        run.value = { id: 'demo-run', session_id: session.id, dato, started_at: new Date().toISOString(), state: { _runde: 0 }, spillere: [...spillere], trenere: [...trenere] }
         return true
       }
       underveis++
       try {
+        // Trenerrotasjonen: hvor mange økter kullet har hatt før denne. Den
+        // står fast på økta, så alle telefonene fordeler likt hele økta.
+        const { count } = await scoped(supabase.from('training_runs').select('id', { count: 'exact', head: true })).lt('dato', dato)
         const { data: ny, error } = await supabase.from('training_runs')
-          .upsert({ session_id: session.id, dato, cohort_id: cohortId() }, { onConflict: 'session_id,dato', ignoreDuplicates: true })
+          .upsert({ session_id: session.id, dato, cohort_id: cohortId(), state: { _runde: count || 0 } }, { onConflict: 'session_id,dato', ignoreDuplicates: true })
           .select('id')
         if (error) return false
         if (ny?.length) {
