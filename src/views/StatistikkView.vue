@@ -12,6 +12,7 @@ import { usePlayerSeasonTeams } from '../composables/usePlayerSeasonTeams'
 import { useMatchGoals } from '../composables/useMatchGoals'
 import { useMatchMode } from '../composables/useMatchMode'
 import { usePlayerStats } from '../composables/usePlayerStats'
+import { hentOppmote } from '../composables/useTreningsOkt'
 import AnimatedNumber from '../components/AnimatedNumber.vue'
 import Skeleton from '../components/Skeleton.vue'
 import FormCurve from '../components/FormCurve.vue'
@@ -42,6 +43,7 @@ onMounted(async () => {
     await fetchMatches(viewingSeason.value.id)
   }
   loading.value = false
+  lastOppmote()
 })
 
 watch(viewingSeason, async (s) => {
@@ -49,7 +51,25 @@ watch(viewingSeason, async (s) => {
 })
 
 // Lagene er kullets egne (useSeasonTeams via matchMeta) — ingen fast liste.
-const { activeCohort } = useAuth()
+const { activeCohort, isCoach } = useAuth()
+
+// Oppmøte på trening, fra «Start økta». Trener-only i basen og her. Følger
+// sesongvelgeren som kampene: økta får sesongen som var aktiv da den startet.
+const oppmote = ref({ okter: 0, perSpiller: {} })
+const showOppmote = ref(false)
+async function lastOppmote() {
+  if (!isCoach.value) return
+  oppmote.value = await hentOppmote(viewingSeason.value?.id || null)
+}
+watch(() => viewingSeason.value?.id, lastOppmote)
+const oppmoteRader = computed(() => {
+  const n = oppmote.value.okter
+  if (!n) return []
+  return players.value
+    .map(p => ({ id: p.id, name: p.name, antall: oppmote.value.perSpiller[p.id] || 0 }))
+    .map(r => ({ ...r, andel: Math.round(r.antall / n * 100) }))
+    .sort((a, b) => b.antall - a.antall || a.name.localeCompare(b.name, 'no'))
+})
 const clubShort = computed(() => activeCohort.value?.club_name?.split(' ')[0] || 'Klubben')
 const TEAM_KEYS = computed(() => teamSlugs())
 const isOursTeam = isOurs
@@ -505,6 +525,36 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
       </div>
     </div>
 
+    <!-- Oppmøte på trening — hvem som var der, fra «Start økta». -->
+    <div v-if="isCoach && oppmote.okter > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-4">
+      <button
+        type="button"
+        class="stat-collapse-head"
+        :aria-expanded="showOppmote"
+        @click="showOppmote = !showOppmote"
+      >
+        <span class="stat-section-label stat-section-label--bare">Oppmøte trening</span>
+        <span class="stat-collapse-head__meta">{{ oppmote.okter }} {{ oppmote.okter === 1 ? 'økt' : 'økter' }}</span>
+        <svg class="stat-collapse-head__chevron" :class="{ 'stat-collapse-head__chevron--open': showOppmote }" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+      </button>
+      <div v-if="showOppmote" class="stat-collapse-body ds-anim-fade-up">
+        <div class="playtime-group">
+          <div v-for="item in oppmoteRader" :key="item.id" class="playtime-row oppmote-row">
+            <span class="playtime-row__name">
+              <router-link :to="`/spiller/${item.id}`" class="leaderboard__link">{{ item.name }}</router-link>
+            </span>
+            <span class="playtime-row__bar-track">
+              <span class="playtime-row__bar oppmote-row__bar" :style="{ width: Math.max(item.antall ? 4 : 0, item.andel) + '%' }"></span>
+            </span>
+            <span class="playtime-row__nums">
+              <span class="playtime-row__total">{{ item.antall }} av {{ oppmote.okter }}</span>
+              <span class="playtime-row__avg">{{ item.andel }} %</span>
+            </span>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- Trener-leaderboard -->
     <div v-if="coachStats.length > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-4">
       <div class="stat-section-label">Trenere</div>
@@ -533,6 +583,8 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 </template>
 
 <style scoped>
+.oppmote-row__bar { background: var(--ds-color-accent); }
+
 /* Spilletid per lag — barer er relative til lagets toppspiller */
 .playtime-group {
   background: var(--ds-color-bg-elevated);

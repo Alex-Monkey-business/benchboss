@@ -85,13 +85,9 @@ try {
   await p.goto(`${APP}/trening?dag=${DAG}`)
   await p.getByText(DIFFNAVN).first().waitFor({ timeout: 15000 })
   await p.getByText(DIFFNAVN).first().click()
-  await p.locator('.grp').waitFor({ timeout: 8000 })
-  const tekst = await p.locator('.grp').innerText()
-  // Gruppene heter Gruppe 1, 2 … — nivåbokstavene skal ikke stå på skjermen.
-  ok('øvelsen viser gruppene', /Gruppe 1/.test(tekst) && !/Nivå [ABC]/.test(tekst))
-  ok('navnet står i en gruppe', tekst.includes(navn[0].split(' ')[0]))
-  await p.locator('.grp').scrollIntoViewIfNeeded()
-  await p.screenshot({ path: `${OUT}/niva-trening.png` })
+  // Gruppene bor i økta nå (grupper-test.mjs). Arket er for å lese øvelsen.
+  await p.locator('.ex-view').waitFor({ timeout: 8000 })
+  ok('øvelsesarket åpner uten grupper', await p.locator('.grp').count() === 0)
 } finally {
   ok('ingen sidefeil', feil.length === 0, feil.join(' | '))
   sql(`delete from training_sessions where id='${DAG}'; delete from player_levels where cohort_id='${KULL}'`)

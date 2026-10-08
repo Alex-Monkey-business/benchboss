@@ -229,6 +229,13 @@ const routes = [
     name: 'trening',
     component: () => import('./views/TreningsukeView.vue')
   },
+  // Økta på feltet: hvem er her, og gruppene fordelt. Trener-only; skjermen
+  // sier selv fra til andre.
+  {
+    path: '/trening/okt/:id',
+    name: 'okt',
+    component: () => import('./views/OktView.vue')
+  },
   // Måneden var en id i URL-en: /trening/<periode>. Perioden finnes ikke lenger
   // (uka gjentar seg, den ligger ikke i en måned), så id-en peker på ingenting
   // og alle de gamle formene lander på uka. Dags-id-en er fortsatt gyldig og

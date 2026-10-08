@@ -166,10 +166,6 @@ const harInnhold = computed(() =>
       <p class="ex-tekst">{{ ex.gruppe }}</p>
     </section>
 
-    <!-- Gruppene ferdig fordelt. Bare i treninga — banken vet ikke hvem som
-         er med. Rett under «Gruppe», fordi det er der du leser hvordan du deler. -->
-    <slot name="grupper" />
-
     <section v-if="gjennomforing.linjer.length" class="ex-sek">
       <h4 class="ex-sek__tittel">Gjennomføring</h4>
       <ol v-if="gjennomforing.nummerert" class="ex-steg">

@@ -139,3 +139,64 @@ export function planFor(drill, n) {
     forFa
   }
 }
+
+// ── Hele økta ────────────────────────────────────────────────────────────────
+
+function hash(s) {
+  let h = 0
+  for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0
+  return h >>> 0
+}
+
+// Nøkkelen til én øvelse i økta: plassering + opphav, så to like øvelser på
+// samme dag får hvert sitt frø og hver sine bytter.
+export function ovelseNokkel(i, drill) {
+  return `${i}:${drill.exercise_id || drill.text}`
+}
+
+// Gruppene på én øvelse, ut fra hvem som er der.
+// tilStede: [{ id, niva }]. inngrep: { seed, antall, bytter } fra økta.
+// Null når øvelsen ikke deles (verken diff eller mix).
+export function grupperFor(drill, i, tilStede, inngrep = {}) {
+  if (!drill || !['diff', 'mix'].includes(drill.type) || !tilStede.length) return null
+  const n = tilStede.length
+  const plan = planFor(drill, n)
+  const foreslatt = plan?.grupper || Math.min(n, drill.type === 'mix' ? 2 : 3)
+  const antall = Math.max(1, Math.min(inngrep.antall || foreslatt, n))
+  const nokkel = ovelseNokkel(i, drill)
+  const fordelt = medBytter(lagGrupper(tilStede, antall, drill.type, hash(nokkel) + (inngrep.seed || 1)), inngrep.bytter)
+  const nivaAv = Object.fromEntries(tilStede.map(s => [s.id, s.niva]))
+  const minst = Math.floor(n / antall), mest = Math.ceil(n / antall)
+  return {
+    nokkel,
+    foreslatt,
+    antall,
+    iHver: minst === mest ? String(minst) : `${minst}–${mest}`,
+    grupper: fordelt.map(ids => ({ ids, niva: drill.type === 'diff' ? flertallsniva(ids, nivaAv) : null }))
+  }
+}
+
+// Nivået flest i gruppa har. Uten nivå på noen: ingen bokstav.
+function flertallsniva(ids, nivaAv) {
+  const t = {}
+  for (const id of ids) if (nivaAv[id]) t[nivaAv[id]] = (t[nivaAv[id]] || 0) + 1
+  const best = Object.entries(t).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]
+  return best ? best[0] : null
+}
+
+// Trenerne fordelt på gruppene, og de roterer: på neste delte øvelse flytter
+// alle seg én gruppe, så hver trener møter alle nivåene i løpet av økta.
+// Flere trenere enn grupper: noen grupper får to. Færre: noen får ingen.
+export function fordelTrenere(antallGrupper, trenere, runde) {
+  const ut = Array.from({ length: antallGrupper }, () => [])
+  if (!antallGrupper || !trenere.length) return ut
+  trenere.forEach((t, k) => { ut[(k + runde) % antallGrupper].push(t) })
+  return ut
+}
+
+// Alt utstyret økta trenger, i bankens rekkefølge.
+export function riggFor(drills) {
+  const sett = new Set()
+  for (const d of drills) for (const t of d.utstyr_tags || []) sett.add(t)
+  return [...sett]
+}

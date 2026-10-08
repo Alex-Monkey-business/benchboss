@@ -38,10 +38,6 @@ import Skeleton from '../components/Skeleton.vue'
 import { meldEvent } from '../lib/sporing'
 import { usePlayers } from '../composables/usePlayers'
 import { usePlayerLevels } from '../composables/usePlayerLevels'
-import TreningsGrupper from '../components/TreningsGrupper.vue'
-import TreningsAntall from '../components/TreningsAntall.vue'
-import { useTreningsAntall } from '../composables/useTreningsAntall'
-import { planFor } from '../lib/grupper'
 import { useAuth } from '../stores/auth'
 
 const { hasHandbook, principles } = useContent()
@@ -306,35 +302,11 @@ const apenTidsrom = computed(() => {
   return slutt ? `${r.merke}–${slutt}` : r.merke
 })
 
-// Diff- og mix-øvelser får gruppene ferdig fordelt (TreningsGrupper). Hele
-// kullet til å begynne med — vi vet ikke hvem som kommer, så treneren
-// trykker bort dem som mangler.
+// Gruppene bor i økta (/trening/okt/:id), ikke her. Denne sida er for å
+// lese og planlegge; økta er for å kjøre treninga.
 const { players, fetchPlayers } = usePlayers()
-const { fetchPlayerLevels, levelFor } = usePlayerLevels()
-// Bare for trenere: på diff er Gruppe 1 de sterkeste, så gruppene ER nivået
-// for den som kan lese dem. Foreldre kan åpne treninga, ikke dette.
+const { fetchPlayerLevels } = usePlayerLevels()
 const { isCoach } = useAuth()
-// «Vi er 21»: ett tall per trening, delt mellom trenerne. Planen for hver
-// øvelse (grupper og antall i hver) regnes ut fra det.
-const { antallFor, settAntall, start: startAntall } = useTreningsAntall()
-function planTekst(s, d) {
-  const p = planFor(d, antallFor(s))
-  if (!p) return null
-  return {
-    deling: p.grupper > 1 ? `${p.grupper} grupper · ${p.iHver}` : '',
-    advarsel: p.forFa ? `For få, trenger ${p.forFa}` : ''
-  }
-}
-let stoppAntall = null
-watch(isCoach, v => {
-  if (v && !stoppAntall) stoppAntall = startAntall()
-  if (!v && stoppAntall) { stoppAntall(); stoppAntall = null }
-}, { immediate: true })
-onUnmounted(() => stoppAntall?.())
-const harGrupper = computed(() => isCoach.value && ['diff', 'mix'].includes(apenDrill.value?.type))
-const grupperNokkel = computed(() =>
-  apenDrill.value ? `${apen.value.i}:${apenDrill.value.exercise_id || apenDrill.value.text}` : ''
-)
 
 function visDrill(s, i) {
   meldEvent('ovelse_apnet', { fra: 'treningsuke' })
@@ -693,12 +665,18 @@ onMounted(async () => {
         </button>
 
         <div v-if="openDayId === s.id" class="dag__body">
-          <TreningsAntall
+          <!-- Økta er hovedsaken på feltet: oppmøte, grupper, trenere. -->
+          <router-link
             v-if="isCoach && drillsFor(s).length && editDayId !== s.id"
-            :model-value="antallFor(s)"
-            :kull="players.length"
-            @update:model-value="n => settAntall(s, n)"
-          />
+            :to="`/trening/okt/${s.id}`"
+            class="okt-start"
+          >
+            <span class="okt-start__tekst">
+              <span class="okt-start__tittel">Start økta</span>
+              <span class="okt-start__hjelp">Hvem er her, grupper og trenere</span>
+            </span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </router-link>
           <!-- LESEMODUS — økta som en time, ikke en liste. Klokka i margen,
                null knapper mellom deg og innholdet. -->
           <ol v-if="drillsFor(s).length && editDayId !== s.id" class="okt">
@@ -717,15 +695,11 @@ onMounted(async () => {
                 <!-- Diff/mix og tid er to korte, faste opplysninger — de deler
                      linje og står i ro. Temaet er det eneste som varierer i
                      lengde, og får derfor sin egen linje å vokse på. -->
-                <span v-if="r.d.minutes || (r.d.type && r.d.type !== 'none') || (isCoach && planTekst(s, r.d))" class="steg__fakta">
+                <span v-if="r.d.minutes || (r.d.type && r.d.type !== 'none')" class="steg__fakta">
                   <span v-if="r.d.type && r.d.type !== 'none'" class="ovelse__badge" :class="`ovelse__badge--${r.d.type}`">
                     {{ r.d.type === 'diff' ? 'Diff' : 'Mix' }}
                   </span>
                   <span v-if="r.d.minutes" class="steg__len">{{ formatDuration(r.d.minutes) }}</span>
-                  <template v-if="isCoach && planTekst(s, r.d)">
-                    <span v-if="planTekst(s, r.d).deling" class="steg__plan">{{ planTekst(s, r.d).deling }}</span>
-                    <span v-if="planTekst(s, r.d).advarsel" class="steg__plan steg__plan--advarsel">{{ planTekst(s, r.d).advarsel }}</span>
-                  </template>
                 </span>
                 <span v-if="r.d.tema" class="steg__tema">{{ r.d.tema }}</span>
               </button>
@@ -985,16 +959,6 @@ Torsdag
           :video-ute="!!apenVideo"
           :hvor="`${apenDag.title} · ${apen.i + 1} av ${apenListe.length}${apenTidsrom ? ' · ' + apenTidsrom : ''}`"
         >
-          <template v-if="harGrupper" #grupper>
-            <TreningsGrupper
-              :session-id="apenDag.id"
-              :nokkel="grupperNokkel"
-              :drill="apenDrill"
-              :antall="antallFor(apenDag)"
-              :spillere="players"
-              :level-for="levelFor"
-            />
-          </template>
           <nav v-if="apenListe.length > 1" class="ovelse-sheet__bla" aria-label="Bla i treninga">
             <button type="button" class="bla" :disabled="!forrige" @click="blaDrill(-1)">
               <span class="bla__merke">Forrige</span>
@@ -1201,13 +1165,25 @@ Torsdag
   font-size: var(--ds-text-sm);
 }
 
-.steg__plan {
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-primary);
-  font-variant-numeric: tabular-nums;
+.okt-start {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--ds-space-md);
+  padding: var(--ds-space-md);
+  margin-bottom: var(--ds-space-lg);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform .1s ease;
 }
-.steg__plan--advarsel { color: var(--ds-color-warning-text, var(--ds-color-text-secondary)); }
+.okt-start:active { transform: scale(0.99); }
+.okt-start svg { width: 20px; height: 20px; flex: none; }
+.okt-start__tekst { display: flex; flex-direction: column; gap: 2px; }
+.okt-start__tittel { font-size: var(--ds-text-md); font-weight: var(--ds-weight-bold); }
+.okt-start__hjelp { font-size: var(--ds-text-xs); opacity: .85; }
 
 .dag__body {
   padding: 0 var(--ds-space-lg) var(--ds-space-lg);
