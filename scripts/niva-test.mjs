@@ -85,11 +85,12 @@ try {
   await p.goto(`${APP}/trening?dag=${DAG}`)
   await p.getByText(DIFFNAVN).first().waitFor({ timeout: 15000 })
   await p.getByText(DIFFNAVN).first().click()
-  await p.locator('.ex-niva').waitFor({ timeout: 8000 })
-  const tekst = await p.locator('.ex-niva').innerText()
-  ok('øvelsen viser gruppene', /Nivå A/.test(tekst) && /Nivå C/.test(tekst) && /Uten nivå/.test(tekst))
-  ok('navnet står i riktig gruppe', new RegExp(`Nivå C[\\s\\S]*${navn[0]}`).test(tekst))
-  await p.locator('.ex-niva').scrollIntoViewIfNeeded()
+  await p.locator('.grp').waitFor({ timeout: 8000 })
+  const tekst = await p.locator('.grp').innerText()
+  // Gruppene heter Gruppe 1, 2 … — nivåbokstavene skal ikke stå på skjermen.
+  ok('øvelsen viser gruppene', /Gruppe 1/.test(tekst) && !/Nivå [ABC]/.test(tekst))
+  ok('navnet står i en gruppe', tekst.includes(navn[0].split(' ')[0]))
+  await p.locator('.grp').scrollIntoViewIfNeeded()
   await p.screenshot({ path: `${OUT}/niva-trening.png` })
 } finally {
   ok('ingen sidefeil', feil.length === 0, feil.join(' | '))

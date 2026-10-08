@@ -28,7 +28,8 @@ const props = defineProps({
   showSeEtter: { type: Boolean, default: false },
   showSiTilBarna: { type: Boolean, default: false },
   showVanligeFeil: { type: Boolean, default: false },
-  showNokkeltall: { type: Boolean, default: false }
+  showNokkeltall: { type: Boolean, default: false },
+  showPerGruppe: { type: Boolean, default: false }
 })
 
 const DRILL_TYPES = [
@@ -91,6 +92,14 @@ function pickCategory(value) {
         <span class="antall-row__strek" aria-hidden="true">–</span>
         <input v-model.number="form.maks_spillere" class="ds-input" type="number" min="1" max="30" placeholder="Flest" aria-label="Flest spillere" />
       </div>
+    </div>
+
+    <!-- Bare på diff og mix: det er der appen deler gruppene. Antallet
+         grupper regnes ut fra hvor mange som kommer. -->
+    <div v-if="showPerGruppe && (form.type === 'diff' || form.type === 'mix')" class="ds-form-group">
+      <label class="ds-label" for="ex-per-gruppe">Spillere per gruppe</label>
+      <input id="ex-per-gruppe" v-model.number="form.per_gruppe" class="ds-input ex-per-gruppe" type="number" inputmode="numeric" min="1" max="30" placeholder="F.eks. 5" />
+      <p class="ex-hint">Appen deler i grupper ut fra hvor mange som er på trening. {{ form.type === 'mix' ? 'Mix sprer nivåene.' : 'Diff samler likt nivå.' }}</p>
     </div>
 
     <div class="ds-form-group">
@@ -166,6 +175,13 @@ function pickCategory(value) {
 <style scoped>
 /* Fra-til på én linje: to felt og en strek leses som ett spenn, mens to
    merkede felt under hverandre leses som to uavhengige tall. */
+.ex-per-gruppe { max-width: 8rem; }
+.ex-hint {
+  margin: 6px 0 0;
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+}
+
 .antall-row {
   display: grid;
   grid-template-columns: 1fr auto 1fr;

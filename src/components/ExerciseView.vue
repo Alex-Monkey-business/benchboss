@@ -32,10 +32,7 @@ const props = defineProps({
   hvor: { type: String, default: '' },
   // Arket viser filmen på toppen (Sheet sin media-slot). Da tegner vi den
   // ikke her igjen, men kilden og lengden går inn i hoderaden.
-  videoUte: { type: Boolean, default: false },
-  // Spillerne fordelt etter nivå, bare på differensierte øvelser i treninga.
-  // [{ key, label, navn: [] }]. Tom i banken.
-  nivaGrupper: { type: Array, default: () => [] }
+  videoUte: { type: Boolean, default: false }
 })
 
 const ex = computed(() => props.exercise || {})
@@ -89,6 +86,7 @@ const nokkeltall = computed(() => {
   if (props.minutes) rader.push({ merke: 'Tid i dag', verdi: formatMinutter(props.minutes) })
   const spillere = spillereLabel(a.min_spillere, a.maks_spillere)
   if (spillere) rader.push({ merke: 'Spillere', verdi: spillere })
+  if (a.per_gruppe) rader.push({ merke: 'Per gruppe', verdi: String(a.per_gruppe) })
   if (a.min_alder) rader.push({ merke: 'Alder', verdi: `${a.min_alder} år+` })
   if (a.plass) rader.push({ merke: 'Plass', verdi: plassLabel(a.plass) })
   if ((a.utstyr_tags || []).length) rader.push({ merke: 'Utstyr', verdi: a.utstyr_tags.map(equipmentLabel).join(', ') })
@@ -168,16 +166,9 @@ const harInnhold = computed(() =>
       <p class="ex-tekst">{{ ex.gruppe }}</p>
     </section>
 
-    <section v-if="nivaGrupper.length" class="ex-sek">
-      <h4 class="ex-sek__tittel">Gruppene etter nivå</h4>
-      <dl class="ex-niva">
-        <template v-for="g in nivaGrupper" :key="g.key">
-          <dt>{{ g.label }} <span class="ex-niva__n">{{ g.navn.length }}</span></dt>
-          <dd>{{ g.navn.join(', ') }}</dd>
-        </template>
-      </dl>
-      <router-link v-if="nivaGrupper.some(g => g.key === 'none')" to="/admin/niva" class="ex-niva__lenke">Sett nivå</router-link>
-    </section>
+    <!-- Gruppene ferdig fordelt. Bare i treninga — banken vet ikke hvem som
+         er med. Rett under «Gruppe», fordi det er der du leser hvordan du deler. -->
+    <slot name="grupper" />
 
     <section v-if="gjennomforing.linjer.length" class="ex-sek">
       <h4 class="ex-sek__tittel">Gjennomføring</h4>
@@ -368,32 +359,6 @@ a.ex-view__kilde { text-decoration: underline; text-underline-offset: 2px; }
 
 .ex-fakta dt:not(:first-of-type),
 .ex-fakta dd:not(:first-of-type) { border-top: 1px solid var(--ds-color-border); }
-
-/* Én blokk per nivå: merket over, navnene under. Navnene er det du leser
-   høyt når gruppene settes, så de får full bredde. */
-.ex-niva { margin: 0; }
-.ex-niva dt {
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-secondary);
-  padding-top: var(--ds-space-sm);
-}
-.ex-niva dt:not(:first-of-type) { border-top: 1px solid var(--ds-color-border); margin-top: var(--ds-space-sm); }
-.ex-niva__n { font-weight: var(--ds-weight-medium); color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; }
-.ex-niva dd {
-  margin: 2px 0 0;
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-primary);
-  line-height: 1.55;
-}
-.ex-niva__lenke {
-  display: inline-block;
-  margin-top: var(--ds-space-md);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-accent);
-  text-decoration: none;
-}
 
 /* Reset-en nuller list-style, så padding alene gir ingen markør: et moment
    over to linjer rant rett inn i det neste. Streken i margen er markøren. */

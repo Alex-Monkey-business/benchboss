@@ -15,7 +15,7 @@ const router = useRouter()
 const route = useRoute()
 const { activeCohort } = useAuth()
 const klubbNavn = computed(() => activeCohort.value?.club_short_name || activeCohort.value?.club_name || '')
-const { exercises, supportsCategory, supportsGruppe, supportsSeEtter, supportsSiTilBarna, supportsVanligeFeil, supportsNokkeltall, fetchExercises, createExercise, updateExercise, deleteExercise, opphavFor } = useExercises()
+const { exercises, supportsCategory, supportsGruppe, supportsSeEtter, supportsSiTilBarna, supportsVanligeFeil, supportsNokkeltall, supportsPerGruppe, fetchExercises, createExercise, updateExercise, deleteExercise, opphavFor } = useExercises()
 
 // Ekte tilbake: dit du kom fra (perioden, en økt …); /trening som fallback.
 function goBack() {
@@ -92,7 +92,7 @@ function linjer(tekst) {
 }
 
 function emptyForm() {
-  return { name: '', type: 'none', category: '', tema: '', gruppe: '', organisering: '', laeringsmomenter: '', se_etter: '', si_til_barna: '', vanlige_feil: '', min_spillere: null, maks_spillere: null, utstyr_tags: [], plass: null, min_alder: null, link: { label: '', url: '' } }
+  return { name: '', type: 'none', category: '', tema: '', gruppe: '', organisering: '', laeringsmomenter: '', se_etter: '', si_til_barna: '', vanlige_feil: '', min_spillere: null, maks_spillere: null, utstyr_tags: [], plass: null, min_alder: null, per_gruppe: null, link: { label: '', url: '' } }
 }
 
 function openView(ex) {
@@ -127,6 +127,7 @@ function startEdit() {
     utstyr_tags: [...(ex.utstyr_tags || [])],
     plass: ex.plass || null,
     min_alder: ex.min_alder ?? null,
+    per_gruppe: ex.per_gruppe ?? null,
     link: ex.link ? { label: ex.link.label || '', url: ex.link.url || '' } : { label: '', url: '' }
   }
   mode.value = 'edit'
@@ -150,6 +151,8 @@ async function save() {
     utstyr_tags: [...(form.value.utstyr_tags || [])],
     plass: form.value.plass || null,
     min_alder: form.value.min_alder || null,
+    // Bare diff og mix deler grupper; en størrelse på noe annet er en rest.
+    per_gruppe: ['diff', 'mix'].includes(form.value.type) ? (form.value.per_gruppe || null) : null,
     link: form.value.link.url.trim() ? { label: form.value.link.label.trim(), url: form.value.link.url.trim() } : null
   }
   if (supportsCategory.value) payload.category = form.value.category || null
@@ -309,7 +312,7 @@ onMounted(async () => {
 
       <!-- REDIGERING / NY -->
       <form v-else @submit.prevent="save">
-        <ExerciseFields :form="form" :show-category="supportsCategory" :show-gruppe="supportsGruppe" :show-se-etter="supportsSeEtter" :show-si-til-barna="supportsSiTilBarna" :show-vanlige-feil="supportsVanligeFeil" :show-nokkeltall="supportsNokkeltall" />
+        <ExerciseFields :form="form" :show-category="supportsCategory" :show-gruppe="supportsGruppe" :show-se-etter="supportsSeEtter" :show-si-til-barna="supportsSiTilBarna" :show-vanlige-feil="supportsVanligeFeil" :show-nokkeltall="supportsNokkeltall" :show-per-gruppe="supportsPerGruppe" />
         <div class="bank__form-actions">
           <button
             v-if="mode === 'edit'"

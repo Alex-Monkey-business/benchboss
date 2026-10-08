@@ -165,6 +165,7 @@ export function exerciseToDrill(ex) {
     utstyr_tags: [...(ex.utstyr_tags || [])],
     plass: ex.plass || null,
     min_alder: ex.min_alder ?? null,
+    per_gruppe: ex.per_gruppe ?? null,
     video: ex.video ? { ...ex.video } : null,
     link: ex.link ? { label: ex.link.label || '', url: ex.link.url || '' } : null,
     exercise_id: ex.id
@@ -211,6 +212,7 @@ export function drillToExercise(d) {
     utstyr_tags: [...(d.utstyr_tags || [])],
     plass: d.plass || null,
     min_alder: d.min_alder ?? null,
+    per_gruppe: d.per_gruppe ?? null,
     video: d.video ? { ...d.video } : null,
     link: d.link ? { label: d.link.label || '', url: d.link.url || '' } : null
   }
@@ -261,6 +263,11 @@ const supportsVideo = computed(() =>
   exercises.value.length === 0 || 'video' in (exercises.value[0] || {})
 )
 
+// Gruppestørrelsen kom i 20261008090000. Samme mønster.
+const supportsPerGruppe = computed(() =>
+  exercises.value.length === 0 || 'per_gruppe' in (exercises.value[0] || {})
+)
+
 const NOKKELTALL_FELT = ['min_spillere', 'maks_spillere', 'utstyr_tags', 'plass', 'min_alder']
 
 function utenUstottede(payload) {
@@ -273,6 +280,7 @@ function utenUstottede(payload) {
   if (!supportsVanligeFeil.value) delete p.vanlige_feil
   if (!supportsNokkeltall.value) for (const f of NOKKELTALL_FELT) delete p[f]
   if (!supportsVideo.value) delete p.video
+  if (!supportsPerGruppe.value) delete p.per_gruppe
   return p
 }
 
@@ -396,5 +404,5 @@ export function useExercises() {
     return kortKullnavn(navn, useAuth().activeCohort.value?.club_short_name || '')
   }
 
-  return { exercises, loading, loaded, supportsCategory, supportsGruppe, supportsUtstyr, supportsSeEtter, supportsSiTilBarna, supportsVanligeFeil, supportsNokkeltall, supportsVideo, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill, opphavFor }
+  return { exercises, loading, loaded, supportsCategory, supportsGruppe, supportsUtstyr, supportsSeEtter, supportsSiTilBarna, supportsVanligeFeil, supportsNokkeltall, supportsVideo, supportsPerGruppe, fetchExercises, createExercise, updateExercise, deleteExercise, findByName, upsertFromDrill, opphavFor }
 }

@@ -37,7 +37,9 @@ import ExerciseVideo from '../components/ExerciseVideo.vue'
 import Skeleton from '../components/Skeleton.vue'
 import { meldEvent } from '../lib/sporing'
 import { usePlayers } from '../composables/usePlayers'
-import { usePlayerLevels, LEVELS } from '../composables/usePlayerLevels'
+import { usePlayerLevels } from '../composables/usePlayerLevels'
+import TreningsGrupper from '../components/TreningsGrupper.vue'
+import { useAuth } from '../stores/auth'
 
 const { hasHandbook, principles } = useContent()
 
@@ -301,20 +303,18 @@ const apenTidsrom = computed(() => {
   return slutt ? `${r.merke}–${slutt}` : r.merke
 })
 
-// Differensierte øvelser får gruppene ferdig fordelt etter nivå, så treneren
-// slipper å regne ut det på banen. Hele kullet, ikke bare de som kommer — vi
-// vet ikke hvem som kommer.
+// Diff- og mix-øvelser får gruppene ferdig fordelt (TreningsGrupper). Hele
+// kullet til å begynne med — vi vet ikke hvem som kommer, så treneren
+// trykker bort dem som mangler.
 const { players, fetchPlayers } = usePlayers()
 const { fetchPlayerLevels, levelFor } = usePlayerLevels()
-const nivaGrupper = computed(() => {
-  if (apenDrill.value?.type !== 'diff') return []
-  const by = { A: [], B: [], C: [], none: [] }
-  for (const p of players.value) by[levelFor(p.id) || 'none'].push(p.name)
-  return [
-    ...LEVELS.map(l => ({ key: l, label: `Nivå ${l}`, navn: by[l] })),
-    { key: 'none', label: 'Uten nivå', navn: by.none }
-  ].filter(g => g.navn.length)
-})
+// Bare for trenere: på diff er Gruppe 1 de sterkeste, så gruppene ER nivået
+// for den som kan lese dem. Foreldre kan åpne treninga, ikke dette.
+const { isCoach } = useAuth()
+const harGrupper = computed(() => isCoach.value && ['diff', 'mix'].includes(apenDrill.value?.type))
+const grupperNokkel = computed(() =>
+  apenDrill.value ? `${apen.value.i}:${apenDrill.value.exercise_id || apenDrill.value.text}` : ''
+)
 
 function visDrill(s, i) {
   meldEvent('ovelse_apnet', { fra: 'treningsuke' })
@@ -953,9 +953,18 @@ Torsdag
           :exercise="apenDrill"
           :minutes="apenDrill.minutes || 0"
           :video-ute="!!apenVideo"
-          :niva-grupper="nivaGrupper"
           :hvor="`${apenDag.title} · ${apen.i + 1} av ${apenListe.length}${apenTidsrom ? ' · ' + apenTidsrom : ''}`"
         >
+          <template v-if="harGrupper" #grupper>
+            <TreningsGrupper
+              :session-id="apenDag.id"
+              :nokkel="grupperNokkel"
+              :type="apenDrill.type"
+              :per-gruppe="apenDrill.per_gruppe || null"
+              :spillere="players"
+              :level-for="levelFor"
+            />
+          </template>
           <nav v-if="apenListe.length > 1" class="ovelse-sheet__bla" aria-label="Bla i treninga">
             <button type="button" class="bla" :disabled="!forrige" @click="blaDrill(-1)">
               <span class="bla__merke">Forrige</span>
