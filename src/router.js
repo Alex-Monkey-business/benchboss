@@ -267,6 +267,9 @@ export const router = createRouter({
   // ruta byttes: åpner du en kamp fra langt nede i lista, åpner kampsida
   // like langt nede. Tilbake-knappen skal derimot lande der du var.
   scrollBehavior(to, from, savedPosition) {
+    // Samme adresse: tilbake som lukket et ark (se lib/tilbake.js). Siden
+    // skal stå der den står.
+    if (to.fullPath === from.fullPath) return false
     if (savedPosition) return savedPosition
     if (to.hash) return { el: to.hash }
     return { top: 0 }

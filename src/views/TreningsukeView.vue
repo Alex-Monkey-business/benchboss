@@ -23,6 +23,7 @@ import { useContent } from '../composables/useContent'
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { dagLink } from '../lib/trainingLinks'
+import { naarRolig } from '../lib/tilbake'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
 import { useExercises, exerciseToDrill, resolveDrills, ovelsensVideo, EQUIPMENT_TAGS } from '../composables/useExercises'
 import { riggFor as riggTags, stasjonerFor } from '../lib/grupper'
@@ -273,6 +274,15 @@ function riggFor(s) {
     utstyr: EQUIPMENT_TAGS.filter(t => tags.includes(t.value)).map(t => t.label),
     stasjoner: ds.map(d => ({ navn: d.text, n: stasjonerFor(d, players.value.length) })).filter(x => x.n > 1)
   }
+}
+
+// Lenken i arket: lukk arket først og vent til tilbake-oppføringen er borte,
+// så navigér. Ellers ligger et dødt steg under banken i historikken.
+async function tilBanken(id) {
+  apen.value = null
+  await nextTick()
+  await naarRolig()
+  router.push({ path: '/trening/ovelser', query: { ovelse: id } })
 }
 
 function visDrill(s, i) {
@@ -953,11 +963,12 @@ Torsdag
               <span class="bla__navn">{{ neste?.text || '—' }}</span>
             </button>
           </nav>
-          <router-link
+          <a
             v-if="apenDrill.exercise_id"
-            :to="{ path: '/trening/ovelser', query: { ovelse: apenDrill.exercise_id } }"
+            :href="`/trening/ovelser?ovelse=${apenDrill.exercise_id}`"
             class="ovelse-sheet__bank"
-          >Endre øvelsen i banken</router-link>
+            @click.prevent="tilBanken(apenDrill.exercise_id)"
+          >Endre øvelsen i banken</a>
         </ExerciseView>
       </template>
     </Sheet>

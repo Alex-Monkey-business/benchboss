@@ -177,6 +177,14 @@ function bla(d) {
   tilToppen()
 }
 
+// Tilbake inni arket: fra «Om øvelsen» eller Endre går du til gruppene, ikke
+// ut av arket. Fra gruppene lukkes arket.
+function tilbakeIArket() {
+  if (modus.value === 'grupper') return false
+  bytteModus('grupper')
+  return true
+}
+
 function inngrep(k) { return run.value?.state?.[k.nokkel] || {} }
 function bytt(a, b) {
   const k = aktiv.value
@@ -293,7 +301,7 @@ function tilbake() {
     </div>
 
     <!-- Én øvelse. Arket bytter innhold; bunnen står fast. -->
-    <Sheet :show="!!aktiv" :title="aktiv?.d.text || ''" tall @close="apen = null">
+    <Sheet :show="!!aktiv" :title="aktiv?.d.text || ''" tall :tilbake="tilbakeIArket" @close="apen = null">
       <template v-if="aktiv">
         <template v-if="modus !== 'om'">
           <div class="ark__meta">

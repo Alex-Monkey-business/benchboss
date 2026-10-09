@@ -1,6 +1,7 @@
 <script setup>
 import { watch, onUnmounted } from 'vue'
 import { laasScroll, slippScroll } from '../lib/scrollLock'
+import { registrerLag } from '../lib/tilbake'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -20,7 +21,18 @@ function settLaas(apen) {
   if (!apen && laast) { slippScroll(); laast = false }
 }
 watch(() => props.show, settLaas, { immediate: true })
-onUnmounted(() => settLaas(false))
+
+// Tilbake-knappen avbryter dialogen (se tilbake.js).
+let fjernLag = null
+watch(() => props.show, apen => {
+  if (apen && !fjernLag) fjernLag = registrerLag(() => emit('cancel'))
+  if (!apen && fjernLag) { fjernLag(); fjernLag = null }
+}, { immediate: true })
+
+onUnmounted(() => {
+  settLaas(false)
+  if (fjernLag) { fjernLag({ viaNavigasjon: true }); fjernLag = null }
+})
 </script>
 
 <template>

@@ -1,13 +1,17 @@
 <script setup>
 import { ref, watch, nextTick, onMounted, onUnmounted, computed } from 'vue'
 import { laasScroll, slippScroll } from '../lib/scrollLock'
+import { registrerLag } from '../lib/tilbake'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
   title: { type: String, default: '' },
   // Fast høyde. For ark som bytter innhold (grupper ↔ om øvelsen): uten den
   // krymper og vokser arket ved hvert bytte, og knappene i bunnen hopper.
-  tall: { type: Boolean, default: false }
+  tall: { type: Boolean, default: false },
+  // Tilbake-knappen inni arket: returner true hvis arket tok steget selv
+  // (f.eks. fra «Om øvelsen» tilbake til gruppene). Ellers lukkes arket.
+  tilbake: { type: Function, default: null }
 })
 
 const emit = defineEmits(['close'])
@@ -30,7 +34,7 @@ function onTouchStart(e) {
   const scroller = scrollRef.value || bodyRef.value
   const inScroller = scroller && scroller.contains(e.target)
   const atTop = !scroller || scroller.scrollTop <= 0
-  touch = { x: t.clientX, y: t.clientY, t: performance.now(), kan: !inScroller || atTop, aktiv: false }
+  touch = { x: t.clientX, y: t.clientY, t: performance.now(), kan: !inScroller || atTop, aktiv: false, h: e.currentTarget.offsetHeight || 600 }
 }
 
 function onTouchMove(e) {
@@ -47,18 +51,36 @@ function onTouchMove(e) {
   dragY.value = Math.max(0, dy)
 }
 
+// Slipper du forbi terskelen, glir arket videre ned fra der fingeren slapp
+// det — ikke tilbake til toppen først. Det var hoppet: arket sprang opp i et
+// bilde før det forsvant.
+let arkHoyde = 600
+
 function onTouchEnd() {
   if (!touch) return
   const dur = Math.max(1, performance.now() - touch.t)
   const fart = dragY.value / dur
   const lukk = touch.aktiv && (dragY.value > 120 || (dragY.value > 40 && fart > 0.6))
+  arkHoyde = touch.h
   touch = null
   dragging.value = false
-  if (lukk) emit('close')
+  if (lukk) {
+    dragY.value = arkHoyde
+    setTimeout(() => emit('close'), 200)
+    return
+  }
   dragY.value = 0
 }
 
 const sheetStyle = computed(() => (dragY.value ? { transform: `translateY(${dragY.value}px)` } : null))
+// Bakgrunnen blekner mens du drar, som et ark i en app.
+const overlayStyle = computed(() => {
+  if (!dragY.value) return null
+  const h = touch?.h || arkHoyde
+  // Bare fargen bak — arket ligger inni overlegget og skal ikke blekne selv.
+  const pst = Math.round(Math.max(0.15, 1 - dragY.value / h) * 100)
+  return { background: `color-mix(in srgb, var(--ds-color-overlay) ${pst}%, transparent)`, transition: dragging.value ? 'none' : 'background 0.2s ease' }
+})
 
 function checkMobile() {
   isMobile.value = window.matchMedia('(max-width: 768px)').matches
@@ -82,19 +104,30 @@ function settLaas(apen) {
 }
 watch(() => props.show, settLaas, { immediate: true })
 
+// Tilbake-knappen lukker arket (se tilbake.js).
+let fjernLag = null
+watch(() => props.show, apen => {
+  if (apen && !fjernLag) fjernLag = registrerLag(() => emit('close'), () => (props.tilbake ? props.tilbake() : false))
+  if (!apen && fjernLag) { fjernLag(); fjernLag = null }
+}, { immediate: true })
+
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
   document.removeEventListener('keydown', onKey)
   settLaas(false)
+  // Forsvinner arket fordi siden byttes, står ruterens oppføring øverst.
+  if (fjernLag) { fjernLag({ viaNavigasjon: true }); fjernLag = null }
 })
 
 const transitionName = computed(() => isMobile.value ? 'ds-sheet-mobile' : 'ds-sheet-desktop')
 
 watch(() => props.show, (val) => {
-  dragY.value = 0
   dragging.value = false
   touch = null
+  // Ved lukking står arket der dra-ned slapp det til det er ute av skjermen;
+  // nullstilles først når det åpnes igjen.
   if (val) {
+    dragY.value = 0
     nextTick(() => {
       const el = bodyRef.value?.querySelector('input, textarea, select')
       el?.focus()
@@ -108,7 +141,7 @@ watch(() => props.show, (val) => {
        så sheeten må alltid rendres rett på body. -->
   <Teleport to="body">
   <Transition :name="transitionName">
-    <div v-if="show" class="ds-overlay ds-sheet-overlay" @click.self="emit('close')">
+    <div v-if="show" class="ds-overlay ds-sheet-overlay" :style="overlayStyle" @click.self="emit('close')">
       <div
         class="ds-sheet"
         :class="{ 'ds-sheet--media': !!$slots.media, 'ds-sheet--dragging': dragging, 'ds-sheet--tall': tall, 'ds-sheet--footer': !!$slots.footer }"
