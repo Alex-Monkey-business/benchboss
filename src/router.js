@@ -223,10 +223,18 @@ const routes = [
   //
   // Dagen hadde en egen side en stund. Den døde da uka begynte å vise dagen
   // fullt ut: to renderinger av samme øvelse, og bare Hjem visste om den ene.
-  // Nå deeplinker Hjem inn i uka med ?dag=<id>.
+  // Uka er oversikten; hver dag har sin egen side (/trening/dag/<id>). Et
+  // trekkspill i uka dyttet resten ned og hoppet når det lukket seg.
+  // ?dag=<id> var den gamle lenken til en dag — den sendes videre.
   {
     path: '/trening',
     name: 'trening',
+    component: () => import('./views/TreningsukeView.vue'),
+    beforeEnter: to => (to.query.dag ? { path: `/trening/dag/${to.query.dag}`, replace: true } : true)
+  },
+  {
+    path: '/trening/dag/:dagId',
+    name: 'trening-dag',
     component: () => import('./views/TreningsukeView.vue')
   },
   // Økta på feltet: hvem er her, og gruppene fordelt. Trener-only; skjermen
@@ -239,13 +247,13 @@ const routes = [
   // Måneden var en id i URL-en: /trening/<periode>. Perioden finnes ikke lenger
   // (uka gjentar seg, den ligger ikke i en måned), så id-en peker på ingenting
   // og alle de gamle formene lander på uka. Dags-id-en er fortsatt gyldig og
-  // følger med som ?dag=.
+  // har sin egen side.
   { path: '/trening/:id', redirect: '/trening' },
-  { path: '/trening/:id/okt/:oktId', redirect: to => ({ path: '/trening', query: { dag: to.params.oktId } }) },
+  { path: '/trening/:id/okt/:oktId', redirect: to => `/trening/dag/${to.params.oktId}` },
   // Bakoverkompat: treningsplan + håndbok lå tidligere under /admin
   { path: '/admin/treningsplan', redirect: '/trening' },
   { path: '/admin/treningsplan/:id', redirect: '/trening' },
-  { path: '/admin/treningsplan/:id/okt/:oktId', redirect: to => ({ path: '/trening', query: { dag: to.params.oktId } }) },
+  { path: '/admin/treningsplan/:id/okt/:oktId', redirect: to => `/trening/dag/${to.params.oktId}` },
   { path: '/admin/handbok', redirect: '/trening/handbok' },
   { path: '/admin/handbok/:slug', redirect: to => `/trening/handbok/${to.params.slug}` },
   // Backwards-compat redirects for old paths

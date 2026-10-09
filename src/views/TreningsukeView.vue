@@ -21,7 +21,8 @@ import { useContent } from '../composables/useContent'
 //
 // Uka gjentar seg. Da ligger den ett sted og gjelder til noen endrer den.
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
+import { dagLink } from '../lib/trainingLinks'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
 import { useExercises, exerciseToDrill, resolveDrills, ovelsensVideo, EQUIPMENT_TAGS } from '../composables/useExercises'
 import { riggFor as riggTags, stasjonerFor } from '../lib/grupper'
@@ -105,85 +106,31 @@ const fokus = computed(() => {
 // gjettet på en struktur som nå finnes som egne felt — og flatet ut avsnittene
 // i 6 av 15 øvelser: Napoli, Rosenborg og Southampton er skrevet med tomme
 // linjer, og de skal stå. CSS-en gjør jobben (white-space: pre-line).
-// ── Én dag om gangen ────────────────────────────────────────────────────────
+// ── Uka og dagen ────────────────────────────────────────────────────────────
 //
-// Tre dager med fullt innhold på samme skjerm ble en vegg: du leste aldri én
-// trening, du skummet tre. Nå er dagen åpen eller lukket, og bare én er åpen.
-// Lukket sier hva dagen handler om og hvor mye som ligger i den; åpen er hele
-// treninga, ferdig lest, med luft nok til å faktisk brukes på banen.
-//
-// Øvelsene folder seg ikke lenger ut hver for seg — i en åpen dag står de fullt
-// ut. Det var et lag med trykk som bare fantes fordi plassen var for knapp.
-const openDayId = ref(null)
+// Uka er oversikten: én rolig kortrad per dag. Hver dag har sin egen side
+// (/trening/dag/<id>) — et trekkspill i uka dyttet resten ned når det åpnet
+// seg og hoppet når det lukket seg. Samme komponent viser begge; adressen
+// bestemmer hvilken.
+const router = useRouter()
+const dagId = computed(() => route.params.dagId || null)
+const openDayId = computed(() => dagId.value)
+const synligeDager = computed(() => (dagId.value ? dager.value.filter(s => s.id === dagId.value) : dager.value))
+const fantIkkeDagen = computed(() => !!dagId.value && !loading.value && !synligeDager.value.length)
 
-// Hjem lenker rett på en dag: /trening?dag=<id>. Ønsket brukes ÉN gang —
-// ellers ville en senere endring i uka kastet deg tilbake til dagen lenka pekte
-// på, lenge etter at du sluttet å tenke på den.
-const wantedDay = ref(route.query.dag || null)
-const skalRulleTilDag = ref(false)
-
-async function scrollToDay(id, behavior) {
-  await nextTick()
-  const el = document.getElementById(`dag-${id}`)
-  if (!el) return
-  const rolig = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-  const rull = () => el.scrollIntoView({ behavior: rolig ? 'auto' : behavior, block: 'start' })
-  rull()
-  // Kaldstart (bokmerke, hjemskjerm-appen, refresh): dataene er inne før siden
-  // er ferdig lastet, og nettleseren nullstiller scrollen etter oss. Da lander
-  // du på toppen selv om riktig dag står åpen. Én gang til når lastingen er ferdig.
-  if (document.readyState !== 'complete') window.addEventListener('load', rull, { once: true })
+function apneDag(s) {
+  router.push(dagLink(s.id))
 }
 
-function toggleDay(s) {
-  const opening = openDayId.value !== s.id
-  openDayId.value = opening ? s.id : null
-  // Lukkes en dag ovenfor samtidig, faller kortet oppover mens du ser på det —
-  // du trykker Lørdag og ender midt i Torsdag. Å hente kortet til toppen er
-  // forskjellen på å åpne en dag og å miste den.
-  if (opening) scrollToDay(s.id, 'smooth')
-}
+// Ny side starter på toppen. Komponenten gjenbrukes mellom uka og dagen, så
+// nettleseren gjør det ikke selv.
+watch(dagId, () => window.scrollTo({ top: 0 }))
 
 // Mandag = 1, søndag = 7 — samme skala som weekday-kolonnen.
 function todayWeekday() {
   const js = new Date().getDay()
   return js === 0 ? 7 : js
 }
-
-// Hvilken dag skal stå åpen når du kommer inn? Bare den en lenke ba om (fra
-// Hjem eller tilbake fra økta). Trykker du Trening i menyen, er det uka du
-// vil se — alle dagene lukket, ikke én dag valgt for deg.
-function defaultOpenDay(list) {
-  if (!list.length) return null
-  if (wantedDay.value) {
-    const ønsket = list.find(s => s.id === wantedDay.value)
-    wantedDay.value = null
-    // Rullingen skjer ikke her: dagen velges mens skjelettet fortsatt står i
-    // DOM-en, så elementet finnes ikke ennå. Flagget hentes i onMounted.
-    if (ønsket) {
-      skalRulleTilDag.value = true
-      return ønsket.id
-    }
-  }
-  return null
-}
-
-// Dagene kommer inn etter at siden er tegnet. En lenke til en dag venter til
-// dagen finnes; ellers står alt lukket. Forsvinner den åpne dagen (slettet),
-// lukkes den.
-watch(dager, list => {
-  if (openDayId.value && !list.some(s => s.id === openDayId.value)) openDayId.value = null
-  if (!openDayId.value && wantedDay.value) openDayId.value = defaultOpenDay(list)
-}, { immediate: true })
-
-// Samme side, ny lenke: Trening i menyen fra en åpen dag skal gi uka lukket;
-// en lenke til en annen dag skal åpne den.
-watch(() => route.query.dag, (ny, gammel) => {
-  if (ny === gammel) return
-  if (!ny) { openDayId.value = null; return }
-  wantedDay.value = ny
-  openDayId.value = defaultOpenDay(dager.value)
-})
 
 function drillCount(s) {
   return (s.drills || []).length
@@ -559,6 +506,8 @@ async function confirmDeleteDay() {
   await removeDay(deleteDayId.value)
   deleteDayId.value = null
   dayForm.value = null
+  // Dagen du sto på finnes ikke lenger: tilbake til uka.
+  if (dagId.value) router.replace('/trening')
 }
 
 // ── Lim inn plan (hurtiginnlegging fra mobil) ───────────────────────────────
@@ -606,14 +555,6 @@ onMounted(async () => {
   fetchPlayers()
   fetchPlayerLevels()
   loading.value = false
-
-  // Kommer du fra Hjem, skal dagen stå der med én gang — ikke gli forbi to
-  // andre dager på vei ned. Først her er skjelettet byttet ut med ekte dager.
-  await nextTick()
-  if (skalRulleTilDag.value) {
-    skalRulleTilDag.value = false
-    scrollToDay(openDayId.value, 'auto')
-  }
 })
 </script>
 
@@ -642,32 +583,39 @@ onMounted(async () => {
       <!-- «Hver uke» er ikke pynt. Uten den leses tre navngitte dager som tre
            enkelttreninger som skjer én gang — og da er det uklart hvorfor de
            ikke har datoer. Ett ord sier hele modellen. -->
-      <header class="uke__head">
+      <header v-if="!dagId" class="uke__head">
         <h1 class="uke__title">Trening</h1>
         <p class="uke__rytme">Hver uke</p>
       </header>
+      <nav v-else class="dagside__bar">
+        <router-link to="/trening" class="dagside__tilbake" aria-label="Tilbake til uka">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+          Trening
+        </router-link>
+      </nav>
+      <p v-if="fantIkkeDagen" class="dagside__tom">Fant ikke dagen. <router-link to="/trening">Til uka</router-link></p>
 
       <!-- Dagene: én åpen om gangen. Lukket er en løfte om innhold, åpen er
            hele treninga. Uka som helhet står fortsatt på siden. -->
       <section
-        v-for="s in dager"
+        v-for="s in synligeDager"
         :key="s.id"
         :id="'dag-' + s.id"
         class="dag"
-        :class="{ 'dag--open': openDayId === s.id }"
+        :class="{ 'dag--open': openDayId === s.id, 'dag--side': !!dagId }"
       >
-        <button
-          type="button"
+        <component
+          :is="dagId ? 'div' : 'button'"
+          :type="dagId ? null : 'button'"
           class="dag__toggle"
-          :aria-expanded="String(openDayId === s.id)"
-          @click="toggleDay(s)"
+          @click="!dagId && apneDag(s)"
         >
           <span class="dag__head">
             <span class="dag__name">{{ s.title }}</span>
             <span class="dag__meta">
               <span v-if="s.duration_min" class="dag__len">{{ formatDuration(s.duration_min) }}</span>
             </span>
-            <svg class="dag__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+            <svg v-if="!dagId" class="dag__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </span>
           <!-- Lukket: øvelsene. Fokuset er grunnen til at de
                ligger der, og står når dagen er åpen. -->
@@ -682,7 +630,7 @@ onMounted(async () => {
             <span :class="fokus[s.id].delt ? 'dag__ledd' : 'dag__resten dag__resten--alene'">{{ fokus[s.id].ledd }}</span>
             <span v-if="fokus[s.id].resten" class="dag__resten">{{ fokus[s.id].resten }}</span>
           </span>
-        </button>
+        </component>
 
         <!-- Dagens trening kan startes uten å åpne kortet. De andre dagene
              har ikke knappen: økta startes samme dag. -->
@@ -812,7 +760,7 @@ onMounted(async () => {
       <!-- Å legge til en dag er å forlenge lista, så handlinga står som siste
            linje i den, ikke som enda en boks. «Lim inn plan» bor i arket for
            ny dag: den brukes sjelden, og da er det nettopp en ny dag du vil ha. -->
-      <button type="button" class="uke__legg-til" @click="openNewDay">
+      <button v-if="!dagId" type="button" class="uke__legg-til" @click="openNewDay">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
         Legg til dag
       </button>
@@ -823,7 +771,7 @@ onMounted(async () => {
          nettopp da du trenger et sted å hente øvelser fra. Rader med motiv,
          ikke kort, så de leses som steder å gå og ikke som flere dager. Ingen
          overskrift: radene sier selv hva de er, og luft skiller dem fra uka. -->
-    <section v-if="!loading" class="uke__steder">
+    <section v-if="!loading && !dagId" class="uke__steder">
       <router-link to="/trening/ovelser" class="uke__sted">
         <Spot name="skills" class="uke__sted-illo" :size="44" />
         <span class="uke__sted-tekst">
@@ -1155,7 +1103,32 @@ Torsdag
   transition: transform var(--ds-duration-fast) var(--ds-ease-out);
 }
 
-.dag--open .dag__chevron { transform: rotate(180deg); }
+.dag--open .dag__chevron { transform: none; }
+
+/* Dagen som egen side: ikke et kort i en liste, men siden selv. */
+.dagside__bar { margin: 0 0 var(--ds-space-md) calc(-1 * var(--ds-space-xs)); }
+.dagside__tilbake {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  min-height: 40px;
+  padding-right: var(--ds-space-sm);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-secondary);
+  text-decoration: none;
+}
+.dagside__tilbake svg { width: 20px; height: 20px; }
+.dagside__tom { color: var(--ds-color-text-secondary); font-size: var(--ds-text-sm); }
+.dag--side {
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  overflow: visible;
+}
+.dag--side .dag__toggle { padding: 0 0 var(--ds-space-md); cursor: default; }
+.dag--side .dag__name { font-size: var(--ds-text-2xl); }
+.dag--side .dag__body { padding-left: 0; padding-right: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .dag__chevron { transition: none; }

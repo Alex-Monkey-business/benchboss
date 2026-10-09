@@ -225,7 +225,7 @@ onUnmounted(() => {
 })
 
 function tilbake() {
-  router.push({ path: '/trening', query: session.value ? { dag: session.value.id } : {} })
+  router.push(session.value ? `/trening/dag/${session.value.id}` : '/trening')
 }
 </script>
 
