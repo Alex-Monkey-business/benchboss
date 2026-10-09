@@ -3,7 +3,10 @@ import { ref, watch, nextTick, onMounted, onUnmounted, computed } from 'vue'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
-  title: { type: String, default: '' }
+  title: { type: String, default: '' },
+  // Fast høyde. For ark som bytter innhold (grupper ↔ om øvelsen): uten den
+  // krymper og vokser arket ved hvert bytte, og knappene i bunnen hopper.
+  tall: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['close'])
@@ -98,7 +101,7 @@ watch(() => props.show, (val) => {
     <div v-if="show" class="ds-overlay ds-sheet-overlay" @click.self="emit('close')">
       <div
         class="ds-sheet"
-        :class="{ 'ds-sheet--media': !!$slots.media, 'ds-sheet--dragging': dragging }"
+        :class="{ 'ds-sheet--media': !!$slots.media, 'ds-sheet--dragging': dragging, 'ds-sheet--tall': tall, 'ds-sheet--footer': !!$slots.footer }"
         :style="sheetStyle"
         role="dialog"
         aria-modal="true"
@@ -133,6 +136,11 @@ watch(() => props.show, (val) => {
           <div ref="bodyRef" class="ds-sheet__body">
             <slot />
           </div>
+        </div>
+        <!-- Bunnen står fast utenfor det som scroller: handlingene er alltid
+             på samme sted, og ingenting i innholdet kan skyve dem. -->
+        <div v-if="$slots.footer" class="ds-sheet__footer">
+          <slot name="footer" />
         </div>
       </div>
     </div>

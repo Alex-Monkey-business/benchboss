@@ -207,6 +207,18 @@
 
 .ds-sheet__close--float:hover { background: var(--ds-color-bg-elevated); }
 
+/* Fast høyde og fast bunn — for ark som bytter innhold. */
+.ds-sheet--tall { height: min(90vh, 760px); }
+.ds-sheet--tall .ds-sheet__stack,
+.ds-sheet--tall .ds-sheet__scroll { flex: 1 1 auto; }
+.ds-sheet__stack .ds-sheet__body { flex: 1 1 auto; min-height: 0; }
+.ds-sheet__footer {
+  flex: none;
+  padding: var(--ds-space-sm) var(--ds-space-lg) var(--ds-space-md);
+  border-top: 1px solid var(--ds-color-border-light, var(--ds-color-border));
+  background: var(--ds-color-bg-elevated, var(--ds-color-bg));
+}
+
 /* Mobile: bottom sheet */
 @media (max-width: 768px) {
   .ds-sheet-overlay {
@@ -249,6 +261,9 @@
   .ds-sheet__body {
     padding-bottom: calc(var(--ds-space-lg) + env(safe-area-inset-bottom, 0px));
   }
+  .ds-sheet--tall { height: 90dvh; }
+  .ds-sheet--footer .ds-sheet__body { padding-bottom: var(--ds-space-lg); }
+  .ds-sheet__footer { padding-bottom: calc(var(--ds-space-md) + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* Animations */

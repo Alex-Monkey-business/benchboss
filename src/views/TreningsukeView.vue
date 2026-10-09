@@ -311,6 +311,7 @@ const { isCoach } = useAuth()
 
 // Riggen: det som må stå klart før treninga, regnet for hele kullet. Den som
 // rigger vet ikke hvor mange som kommer, så stasjonene er for alle.
+const riggDag = ref(null)
 function riggFor(s) {
   const ds = drillsFor(s)
   const tags = riggTags(ds)
@@ -677,37 +678,27 @@ onMounted(async () => {
         </button>
 
         <div v-if="openDayId === s.id" class="dag__body">
-          <!-- Riggen står før økta: den gjøres før noen vet hvor mange som
-               kommer, og regnes derfor for hele kullet. -->
-          <section
-            v-if="isCoach && editDayId !== s.id && (riggFor(s).utstyr.length || riggFor(s).stasjoner.length)"
-            class="rigg"
-          >
-            <div class="rigg__hode">
-              <span class="rigg__tittel">Rigg</span>
-              <span class="rigg__for">for hele kullet ({{ players.length }})</span>
-            </div>
-            <p v-if="riggFor(s).utstyr.length" class="rigg__utstyr">{{ riggFor(s).utstyr.join(' · ') }}</p>
-            <ul v-if="riggFor(s).stasjoner.length" class="rigg__liste">
-              <li v-for="(x, i) in riggFor(s).stasjoner" :key="i">
-                <span class="rigg__navn">{{ x.navn }}</span>
-                <span class="rigg__n">{{ x.n }} stasjoner</span>
-              </li>
-            </ul>
-          </section>
-
           <!-- Økta er hovedsaken på feltet: oppmøte, grupper, trenere. -->
           <router-link
             v-if="isCoach && drillsFor(s).length && editDayId !== s.id"
             :to="`/trening/okt/${s.id}`"
             class="okt-start"
           >
-            <span class="okt-start__tekst">
-              <span class="okt-start__tittel">Start økta</span>
-              <span class="okt-start__hjelp">Hvem er her, grupper og trenere</span>
-            </span>
+            <span class="okt-start__tittel">Start økta</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </router-link>
+          <!-- Riggen: én rad, detaljene i et ark. Den gjøres før noen vet
+               hvor mange som kommer, og regnes derfor for hele kullet. -->
+          <button
+            v-if="isCoach && editDayId !== s.id && (riggFor(s).utstyr.length || riggFor(s).stasjoner.length)"
+            type="button"
+            class="rigg-rad"
+            @click="riggDag = s"
+          >
+            <span class="rigg-rad__merke">Rigg</span>
+            <span class="rigg-rad__ting">{{ riggFor(s).utstyr.join(', ') || `${riggFor(s).stasjoner.length} øvelser med stasjoner` }}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          </button>
           <!-- LESEMODUS — økta som en time, ikke en liste. Klokka i margen,
                null knapper mellom deg og innholdet. -->
           <ol v-if="drillsFor(s).length && editDayId !== s.id" class="okt">
@@ -732,7 +723,6 @@ onMounted(async () => {
                   </span>
                   <span v-if="r.d.minutes" class="steg__len">{{ formatDuration(r.d.minutes) }}</span>
                 </span>
-                <span v-if="r.d.tema" class="steg__tema">{{ r.d.tema }}</span>
               </button>
             </li>
 
@@ -1009,6 +999,20 @@ Torsdag
       </template>
     </Sheet>
 
+    <!-- Riggen for dagen, for den som gjør klart før treninga. -->
+    <Sheet :show="!!riggDag" title="Rigg" @close="riggDag = null">
+      <template v-if="riggDag">
+        <p class="rigg__for">For hele kullet ({{ players.length }}). Det er bedre med en stasjon for mye enn en for lite.</p>
+        <p v-if="riggFor(riggDag).utstyr.length" class="rigg__utstyr">{{ riggFor(riggDag).utstyr.join(' · ') }}</p>
+        <ul v-if="riggFor(riggDag).stasjoner.length" class="rigg__liste">
+          <li v-for="(x, i) in riggFor(riggDag).stasjoner" :key="i">
+            <span class="rigg__navn">{{ x.navn }}</span>
+            <span class="rigg__n">{{ x.n }} stasjoner</span>
+          </li>
+        </ul>
+      </template>
+    </Sheet>
+
     <ConfirmDialog
       :show="!!deleteDayId"
       title="Slett dagen?"
@@ -1196,25 +1200,36 @@ Torsdag
   font-size: var(--ds-text-sm);
 }
 
-.rigg {
-  padding: var(--ds-space-md);
-  margin-bottom: var(--ds-space-sm);
+.rigg-rad {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-md);
+  width: 100%;
+  min-height: 52px;
+  padding: 0 var(--ds-space-md);
+  margin-bottom: var(--ds-space-xl);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
-  background: var(--ds-color-bg-subtle);
+  background: var(--ds-color-bg-elevated);
+  color: inherit;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.rigg__hode { display: flex; align-items: baseline; gap: var(--ds-space-sm); }
-.rigg__tittel { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
-.rigg__for { font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary); }
-.rigg__utstyr { margin: 6px 0 0; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium); color: var(--ds-color-text-primary); }
-.rigg__liste { list-style: none; margin: var(--ds-space-sm) 0 0; padding: 0; }
+.rigg-rad svg { width: 18px; height: 18px; flex: none; color: var(--ds-color-text-tertiary); }
+.rigg-rad__merke { flex: none; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
+.rigg-rad__ting { flex: 1; min-width: 0; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.rigg__for { margin: 0 0 var(--ds-space-lg); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+.rigg__utstyr { margin: 0 0 var(--ds-space-lg); font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); line-height: 1.5; }
+.rigg__liste { list-style: none; margin: 0; padding: 0; }
 .rigg__liste li {
   display: flex; justify-content: space-between; gap: var(--ds-space-md);
-  padding: 6px 0;
+  padding: var(--ds-space-md) 0;
   border-top: 1px solid var(--ds-color-border);
   font-size: var(--ds-text-sm);
 }
-.rigg__navn { color: var(--ds-color-text-secondary); min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rigg__navn { color: var(--ds-color-text-primary); min-width: 0; }
 .rigg__n { flex: none; font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); font-variant-numeric: tabular-nums; }
 
 .okt-start {
@@ -1222,8 +1237,9 @@ Torsdag
   align-items: center;
   justify-content: space-between;
   gap: var(--ds-space-md);
-  padding: var(--ds-space-md);
-  margin-bottom: var(--ds-space-lg);
+  min-height: 56px;
+  padding: 0 var(--ds-space-lg);
+  margin-bottom: var(--ds-space-sm);
   border-radius: var(--ds-radius-lg);
   background: var(--ds-color-accent);
   color: var(--ds-color-accent-text);
@@ -1233,9 +1249,7 @@ Torsdag
 }
 .okt-start:active { transform: scale(0.99); }
 .okt-start svg { width: 20px; height: 20px; flex: none; }
-.okt-start__tekst { display: flex; flex-direction: column; gap: 2px; }
 .okt-start__tittel { font-size: var(--ds-text-md); font-weight: var(--ds-weight-bold); }
-.okt-start__hjelp { font-size: var(--ds-text-xs); opacity: .85; }
 
 .dag__body {
   padding: 0 var(--ds-space-lg) var(--ds-space-lg);
@@ -1376,15 +1390,6 @@ Torsdag
   letter-spacing: -0.005em;
 }
 
-.steg__tema {
-  display: block;
-  margin-top: 3px;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  line-height: 1.45;
-  letter-spacing: -0.005em;
-  color: var(--ds-color-text-secondary);
-}
 
 .steg__len {
   color: var(--ds-color-text-tertiary);

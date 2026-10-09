@@ -45,86 +45,119 @@ async function logginn(epost) {
   await p.evaluate(k => localStorage.setItem('bb_active_cohort', k), KULL)
   return p
 }
-const gruppe = (p, kort, g) => p.locator('.kort__rad').nth(kort).locator('.grp__gruppe').nth(g)
+const likt = (a, b) => Math.abs(a - b) <= 1
 
 try {
   const p = await logginn('alexander.samnoy@gmail.com')
   await p.goto(`${APP}/trening?dag=${DAG}`)
   await p.locator('.okt-start').waitFor({ timeout: 15000 })
   ok('dagen har «Start økta»', true)
-  const rigg = await p.locator('.rigg').innerText()
-  ok('riggen står på dagen, for hele kullet', new RegExp(`hele kullet \\(${antall}\\)`).test(rigg) && /stasjoner/.test(rigg), rigg.replace(/\n/g, ' | '))
+  await p.locator('.rigg-rad').click()
+  await p.locator('.rigg__liste').waitFor({ timeout: 5000 })
+  const rigg = await p.locator('.ds-sheet').innerText()
+  ok('riggen åpnes fra dagen, for hele kullet', new RegExp(`hele kullet \\(${antall}\\)`).test(rigg) && /stasjoner/.test(rigg), rigg.replace(/\n/g, ' | '))
   ok('diff med 4 per gruppe gir 7 stasjoner for 27', /7 stasjoner/.test(rigg))
+  await p.keyboard.press('Escape')
+  await vent(400)
   await p.locator('.okt-start').click()
-  await p.locator('.oppm__navn').first().waitFor({ timeout: 15000 })
-  ok('«Hvem er her?» med hele kullet på', await p.locator('.oppm__grid').first().locator('.oppm__navn').count() === antall && await p.locator('.oppm__navn--borte').count() === 0)
-  // Seks spillere og én trener borte.
-  for (let k = 0; k < 6; k++) await p.locator('.oppm__grid').first().locator('.oppm__navn').nth(k * 3).click()
-  await p.locator('.oppm__grid').nth(1).locator('.oppm__navn').last().click()
+  await p.locator('.oppg__navn').first().waitFor({ timeout: 15000 })
+  ok('«Hvem er her?» med hele kullet på', await p.locator('.oppg__grid').first().locator('.oppg__navn').count() === antall && await p.locator('.oppg__navn--borte').count() === 0)
+  await vent(600)
+  const startY = (await p.locator('.okt__start').boundingBox()).y
+  for (let k = 0; k < 6; k++) await p.locator('.oppg__grid').first().locator('.oppg__navn').nth(k * 3).click()
+  await p.locator('.oppg__grid').nth(1).locator('.oppg__navn').last().click()
   ok('telleren viser 21 av 27', /21\s*av\s*27/.test(await p.locator('.oppm__teller').first().innerText()))
+  const sluttY = (await p.locator('.okt__start').boundingBox()).y
+  ok('startknappen står stille mens du trykker', likt(sluttY, startY), `${startY} → ${sluttY}`)
   await p.screenshot({ path: `${OUT}/okt-oppmote.png` })
   await p.locator('.okt__start').click()
-  await p.locator('.kort__rad').first().waitFor({ timeout: 10000 })
+  await p.locator('.rad').first().waitFor({ timeout: 10000 })
   const RUN = sql(`select id from training_runs where session_id='${DAG}'`)
   ok('økta lagret med 21 spillere', sql(`select count(*) from training_run_players where run_id='${RUN}'`) === '21')
   ok(`og ${trenere - 1} trenere`, sql(`select count(*) from training_run_coaches where run_id='${RUN}'`) === String(trenere - 1))
   ok('sesongen satt på økta', sql(`select season_id is not null from training_runs where id='${RUN}'`) === 't')
+  ok('oversikten er én rad per øvelse', await p.locator('.rad').count() === 2)
+  const meta = await p.locator('.rad').first().locator('.rad__meta').innerText()
+  ok('diff med 4 per gruppe: 5 grupper · 4–5 i hver', /5 grupper · 4–5 i hver/.test(meta), meta)
+  ok('første øvelse er markert «Nå»', await p.locator('.rad').first().locator('.rad__na').count() === 1)
+  ok('oversikten får plass uten scroll', await p.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 140))
+  await p.screenshot({ path: `${OUT}/okt-okta.png` })
 
-  const deling = await p.locator('.kort__rad').first().locator('.kort__deling').innerText()
-  ok('diff med 4 per gruppe: 5 grupper · 4–5 i hver', /5 grupper · 4–5 i hver/.test(deling), deling)
-  ok('første øvelse er markert «Nå»', await p.locator('.kort__rad').first().locator('.kort__na').count() === 1)
-  ok('første kort er åpent med gruppene', await p.locator('.kort__rad').first().locator('.grp__gruppe').count() === 5)
-  ok('trenerne står på gruppene', await p.locator('.kort__rad').first().locator('.grp__trener').count() >= 1)
-  ok('nivået står som bokstav', /^[ABC]$/.test((await gruppe(p, 0, 0).locator('.grp__niva').innerText().catch(() => '')).trim()))
-  await p.screenshot({ path: `${OUT}/okt-okta.png`, fullPage: true })
-
-  // Trenerne står fast hele økta: den som har gruppe 1 på første øvelse, har
-  // gruppe 1 på neste også. Rotasjonen er fra trening til trening.
-  const t1 = (await gruppe(p, 0, 0).locator('.grp__trener').innerText()).trim()
-  await p.locator('.kort__rad').nth(1).locator('.kort__hode').click()
-  await gruppe(p, 1, 0).waitFor()
-  const t2 = (await gruppe(p, 1, 0).locator('.grp__trener').innerText().catch(() => '')).trim()
+  // Arket: grupper som tekst, trenere, nivå.
+  await p.locator('.rad').first().click()
+  await p.locator('.grp__gruppe').first().waitFor()
+  ok('arket viser 5 grupper', await p.locator('.grp__gruppe').count() === 5)
+  ok('lesemodus: navnene som tekst, ingen knapper', await p.locator('.grp__spiller').count() === 0 && await p.locator('.grp__navnetekst').count() === 5)
+  ok('trenerne står på gruppene', await p.locator('.grp__trener').count() >= 1)
+  ok('nivået står som bokstav', /^[ABC]$/.test((await p.locator('.grp__niva').first().innerText()).trim()))
+  const bunn = async () => (await p.locator('.ds-sheet__footer').boundingBox()).y
+  await vent(600)
+  const b0 = await bunn()
+  const t1 = (await p.locator('.grp__trener').first().innerText()).trim()
+  await p.locator('.fot__pil[aria-label="Neste øvelse"]').click()
+  await vent(300)
+  const t2 = (await p.locator('.grp__gruppe').first().locator('.grp__trener').innerText().catch(() => '')).trim()
   ok('samme trener på gruppe 1 hele økta', t1 && t2.split(' og ').includes(t1), `${t1} / ${t2}`)
+  const bn = await bunn()
+  ok('Neste blar uten at bunnen flytter seg', likt(bn, b0), `${b0} → ${bn}`)
   ok('økta har rotasjonsrunden lagret', /^\d+$/.test(sql(`select state->>'_runde' from training_runs where id='${RUN}'`)))
-  await p.locator('.kort__rad').nth(0).locator('.kort__hode').click()
+  await p.locator('.fot__pil[aria-label="Forrige øvelse"]').click()
+  await vent(300)
+  const gruppe = i => p.locator('.grp__gruppe').nth(i)
+  const navnI = async i => (await gruppe(i).locator('.grp__navnetekst').innerText()).replace(/^Gruppe \d+: /, '').split(', ').map(x => x.trim())
 
   // En annen trener ser samme økt og samme grupper.
   const iver = await logginn('iver.vestre@gmail.com')
   await iver.goto(`${APP}/trening/okt/${DAG}`)
-  await iver.locator('.kort__rad').first().waitFor({ timeout: 15000 })
-  ok('Iver lander rett i økta', /21/.test(await iver.locator('.okt__sum').innerText()))
-  const mine = await gruppe(p, 0, 0).locator('.grp__spiller').allInnerTexts()
-  const hans = await gruppe(iver, 0, 0).locator('.grp__spiller').allInnerTexts()
+  await iver.locator('.rad').first().waitFor({ timeout: 15000 })
+  ok('Iver lander rett i økta', /21/.test(await iver.locator('.okt__her').innerText()))
+  await iver.locator('.rad').first().click()
+  await iver.locator('.grp__gruppe').first().waitFor()
+  const mine = await navnI(0)
+  const hans = (await iver.locator('.grp__gruppe').first().locator('.grp__navnetekst').innerText()).replace(/^Gruppe \d+: /, '').split(', ').map(x => x.trim())
   ok('samme gruppe 1 på begge telefonene', JSON.stringify(mine) === JSON.stringify(hans), `${mine} / ${hans}`)
 
-  // Iver melder en borte; jeg ser 20.
-  await gruppe(iver, 0, 0).locator('.grp__spiller').first().click()
-  await iver.locator('.grp__knapp').click()
-  ok('Ivers «ikke her» når meg uten omlasting', await inntil(async () => /^20 spillere/.test((await p.locator('.okt__sum').innerText()).trim())), await p.locator('.okt__sum').innerText())
+  // Iver melder en borte i endremodus; jeg ser 20.
+  await iver.locator('.fot__knapp', { hasText: 'Endre' }).click()
+  await iver.locator('.grp__spiller').first().click()
+  await iver.locator('.fot__knapp', { hasText: 'Ikke her' }).click()
+  ok('Ivers «ikke her» når meg uten omlasting', await inntil(async () => /^20/.test((await p.locator('.okt__her').innerText()).trim())), await p.locator('.okt__her').innerText())
   ok('og står i basen', sql(`select count(*) from training_run_players where run_id='${RUN}'`) === '20')
 
-  // Jeg bytter to; Iver ser byttet.
-  const a = (await gruppe(p, 0, 0).locator('.grp__spiller').first().innerText()).trim()
-  const z = (await gruppe(p, 0, 4).locator('.grp__spiller').first().innerText()).trim()
-  await gruppe(p, 0, 0).locator('.grp__spiller').first().click()
-  await gruppe(p, 0, 4).locator('.grp__spiller').first().click()
-  ok('byttet hos meg', (await gruppe(p, 0, 4).locator('.grp__spiller').allInnerTexts()).includes(a))
-  ok('byttet når Iver', await inntil(async () => (await gruppe(iver, 0, 4).locator('.grp__spiller').allInnerTexts()).includes(a)), `${a}↔${z}`)
+  // Jeg bytter to i endremodus; bunnen står stille; Iver ser byttet.
+  await p.locator('.fot__knapp', { hasText: 'Endre' }).click()
+  const g2y = (await gruppe(1).boundingBox()).y
+  const b1 = await bunn()
+  const a = (await gruppe(0).locator('.grp__spiller').first().innerText()).trim()
+  await gruppe(0).locator('.grp__spiller').first().click()
+  ok('valg skyver ikke gruppene', likt((await gruppe(1).boundingBox()).y, g2y))
+  const bv = await bunn()
+  ok('og bunnen står stille', likt(bv, b1) && likt(b1, b0), `${b0} / ${b1} / ${bv}`)
+  await gruppe(4).locator('.grp__spiller').first().click()
+  ok('byttet hos meg', (await gruppe(4).locator('.grp__spiller').allInnerTexts()).includes(a))
+  await iver.locator('.fot__knapp', { hasText: 'Ferdig' }).click()
+  ok('byttet når Iver', await inntil(async () => (await iver.locator('.grp__gruppe').nth(4).locator('.grp__navnetekst').innerText()).includes(a)), a)
+  await p.locator('.fot__knapp', { hasText: 'Ferdig' }).click()
 
-  // Kom for sent: tilbake via Oppmøte.
-  await p.locator('.okt__lenke').click()
-  await p.locator('.oppm__navn--borte').first().click()
-  await vent(800)
-  await p.locator('.okt__start').click()
-  ok('kom for sent: 21 igjen', /^21 spillere/.test((await p.locator('.okt__sum').innerText()).trim()))
+  // Om øvelsen: arket bytter innhold, bunnen står.
+  await p.locator('.fot__knapp', { hasText: 'Om øvelsen' }).click()
+  await p.locator('.ex-view').waitFor({ timeout: 5000 })
+  const bo = await bunn()
+  ok('«Om øvelsen» bytter innhold i arket, bunnen står', likt(bo, b0), `${b0} → ${bo}`)
+  await p.locator('.fot__knapp', { hasText: 'Tilbake' }).click()
+  ok('og tilbake til gruppene', await p.locator('.grp__gruppe').count() > 0)
+  await p.keyboard.press('Escape')
+  await vent(400)
+
+  // Kom for sent: oppmøte-arket.
+  await p.locator('.okt__her').click()
+  await p.locator('.oppg__navn--borte').first().click()
+  await vent(600)
+  await p.locator('.fot__knapp', { hasText: 'Ferdig' }).click()
+  await vent(400)
+  ok('kom for sent: 21 igjen', /^21/.test((await p.locator('.okt__her').innerText()).trim()))
   await p.evaluate(() => window.scrollTo(9999, 0))
   ok('ingen sideveis scroll på 360', await p.evaluate(() => window.scrollX) === 0)
-
-  // Om øvelsen.
-  await p.locator('.kort__om').first().click()
-  await p.locator('.ex-view').waitFor({ timeout: 5000 })
-  ok('«Om øvelsen» åpner innholdet', true)
-  await p.keyboard.press('Escape')
 
   // Statistikken.
   await p.goto(`${APP}/statistikk`)
@@ -139,7 +172,7 @@ try {
   const forelder = await logginn('susannetenfjord@hotmail.com')
   await forelder.goto(`${APP}/trening/okt/${DAG}`)
   await vent(3000)
-  ok('forelder ser ikke økta', await forelder.locator('.kort__rad').count() === 0 && await forelder.locator('.oppm__navn').count() === 0)
+  ok('forelder ser ikke økta', await forelder.locator('.rad').count() === 0 && await forelder.locator('.oppg__navn').count() === 0)
   ok('forelder får null rader fra basen', await forelder.evaluate(async () => {
     const m = await import('/src/supabase.js')
     const [a, b] = await Promise.all([m.supabase.from('training_runs').select('id'), m.supabase.from('training_run_players').select('player_id')])
@@ -148,7 +181,7 @@ try {
 
   // Slett økta.
   await p.goto(`${APP}/trening/okt/${DAG}`)
-  await p.locator('.okt__lenke').click()
+  await p.locator('.okt__her').click()
   await p.locator('.okt__slett').click()
   await p.getByRole('button', { name: 'Slett' }).last().click()
   await vent(1200)
