@@ -61,6 +61,15 @@ const likt = (a, b) => Math.abs(a - b) <= 1
 
 try {
   const p = await logginn('alexander.samnoy@gmail.com')
+  // Trening fra menyen: uka lukket, og bare dagens kort har «Start økta».
+  await p.goto(`${APP}/trening`)
+  await p.locator('.dag').first().waitFor({ timeout: 15000 })
+  await vent(600)
+  ok('Trening fra menyen: alle dagene lukket', await p.locator('.dag--open').count() === 0)
+  const iDag = await p.locator('.dag', { hasText: 'QA-økt' }).locator('.dag__start').count()
+  const andre = await p.locator('.dag__start').count()
+  ok('dagens trening har «Start økta» på det lukkede kortet', iDag === 1)
+  ok('ingen andre dager har knappen', andre === 1, String(andre))
   await p.goto(`${APP}/trening?dag=${DAG}`)
   await p.locator('.okt-start').waitFor({ timeout: 15000 })
   ok('dagen har «Start økta»', true)
@@ -94,7 +103,8 @@ try {
   ok('oversikten er én rad per øvelse', await p.locator('.rad').count() === 2)
   const meta = await p.locator('.rad').first().locator('.rad__meta').innerText()
   ok('diff med 4 per gruppe: 5 grupper · 4–5 i hver', /5 grupper · 4–5 i hver/.test(meta), meta)
-  ok('første øvelse er markert «Nå»', await p.locator('.rad').first().locator('.rad__na').count() === 1)
+  ok('ingen klokkeslett i økta', !/\d{2}:\d{2}/.test(await p.locator('.rader').innerText()))
+  ok('planlagt lengde står som rettesnor', /20 min/.test(await p.locator('.rad').first().innerText()))
   ok('oversikten får plass uten scroll', await p.evaluate(() => document.documentElement.scrollHeight <= innerHeight + 140))
   await p.screenshot({ path: `${OUT}/okt-okta.png` })
 

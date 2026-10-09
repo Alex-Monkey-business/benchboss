@@ -2,7 +2,7 @@
 // ØKTA — treninga slik den kjøres på feltet, ikke slik den leses.
 //
 // Først «Hvem er her?»: hele kullet og alle trenerne er på, trykk bort dem som
-// mangler, «Start økta». Så økta: én kort rad per øvelse, langs klokka. Ingen
+// mangler, «Start økta». Så økta: én kort rad per øvelse, i rekkefølge. Ingen
 // trekkspill — en rad som folder seg ut, skyver alt under seg, og siden hopper.
 //
 // Trykk en øvelse, så åpnes arket. Arket bytter innhold, ikke side:
@@ -129,23 +129,9 @@ const trenereIOkta = computed(() =>
     : []
 )
 
-// Klokka: økta begynner når den startes, og hver øvelse har sin lengde.
-const na = ref(Date.now())
-let tikk = null
-const tider = computed(() => {
-  if (!run.value) return []
-  let t = new Date(run.value.started_at).getTime()
-  return drills.value.map(d => {
-    const fra = t
-    const til = d.minutes ? t + d.minutes * 60000 : null
-    if (til) t = til
-    return { fra, til }
-  })
-})
-function klokke(ms) {
-  return new Date(ms).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
-}
-const naIndeks = computed(() => tider.value.findIndex(x => x.til && na.value >= x.fra && na.value < x.til))
+// Ingen klokke. Økta følger ikke en timeplan: en øvelse som flyter får
+// fortsette, og gruppene går i ulikt tempo. Planlagt lengde står som
+// rettesnor, rekkefølgen er alt annet.
 
 // Trenerne står på samme plass hele økta; rotasjonen skjer fra trening til
 // trening (_runde).
@@ -155,14 +141,7 @@ const kort = computed(() => {
     const nokkel = ovelseNokkel(i, d)
     const plan = grupperFor(d, i, tilStede.value, run.value?.state?.[nokkel] || {})
     const trenere = plan ? fordelTrenere(plan.grupper, trenereIOkta.value, runde) : []
-    const tid = tider.value[i]
-    return {
-      d, i, nokkel, plan, trenere,
-      fra: tid ? klokke(tid.fra) : '',
-      tid: tid?.til ? `${klokke(tid.fra)}–${klokke(tid.til)}` : '',
-      na: i === naIndeks.value,
-      ferdig: tid?.til ? na.value >= tid.til : false
-    }
+    return { d, i, nokkel, plan, trenere }
   })
 })
 
@@ -232,8 +211,6 @@ let stopp = null
 watch(session, s => {
   if (s && !stopp) stopp = okt.folg(s)
 }, { immediate: true })
-// Klokka må vite at økta nettopp startet, ellers står «Nå» tomt i et halvt minutt.
-watch(() => run.value?.id, () => { na.value = Date.now() })
 
 onMounted(async () => {
   okt.sisteRigger().then(r => { standardRigger.value = r })
@@ -242,11 +219,9 @@ onMounted(async () => {
   fetchPlayers()
   fetchPlayerLevels()
   fetchCoaches()
-  tikk = setInterval(() => { na.value = Date.now() }, 30000)
 })
 onUnmounted(() => {
   stopp?.()
-  clearInterval(tikk)
 })
 
 function tilbake() {
@@ -301,16 +276,8 @@ function tilbake() {
       <p v-if="rigger" class="okt__rigger">Rigger <strong>{{ trenerNavn[rigger] }}</strong></p>
       <ol class="rader">
         <li v-for="k in kort" :key="k.nokkel">
-          <button
-            type="button"
-            class="rad"
-            :class="{ 'rad--na': k.na, 'rad--ferdig': k.ferdig }"
-            @click="apne(k.i)"
-          >
-            <span class="rad__tid">
-              <span class="rad__klokke">{{ k.fra }}</span>
-              <span v-if="k.na" class="rad__na">Nå</span>
-            </span>
+          <button type="button" class="rad" @click="apne(k.i)">
+            <span class="rad__nr">{{ k.i + 1 }}</span>
             <span class="rad__tekst">
               <span class="rad__navn">{{ k.d.text }}</span>
               <span class="rad__meta">
@@ -318,6 +285,7 @@ function tilbake() {
                 <template v-else>Alle sammen</template>
               </span>
             </span>
+            <span class="rad__min">{{ k.d.minutes ? `${k.d.minutes} min` : '' }}</span>
             <svg class="rad__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
         </li>
@@ -329,7 +297,7 @@ function tilbake() {
       <template v-if="aktiv">
         <template v-if="modus !== 'om'">
           <div class="ark__meta">
-            <span>{{ aktiv.tid }}</span>
+            <span>{{ aktiv.d.minutes ? `${aktiv.d.minutes} min` : '' }}</span>
             <button type="button" class="ark__om" @click="bytteModus('om')">Om øvelsen</button>
           </div>
           <TreningsGrupper
@@ -510,7 +478,7 @@ function tilbake() {
 .rader { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ds-space-sm); }
 .rad {
   display: grid;
-  grid-template-columns: 52px 1fr 20px;
+  grid-template-columns: 28px 1fr auto 18px;
   align-items: center;
   gap: var(--ds-space-md);
   width: 100%;
@@ -526,16 +494,9 @@ function tilbake() {
   transition: transform .1s ease;
 }
 .rad:active { transform: scale(0.99); }
-.rad--na { border-color: var(--ds-color-accent); box-shadow: 0 0 0 1px var(--ds-color-accent); }
-.rad--ferdig { opacity: .55; }
 
-.rad__tid { display: flex; flex-direction: column; align-items: flex-start; gap: 4px; }
-.rad__klokke { font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-secondary); font-variant-numeric: tabular-nums; }
-.rad__na {
-  font-size: 0.6875rem; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
-  color: var(--ds-color-accent-text); background: var(--ds-color-accent);
-  border-radius: var(--ds-radius-full); padding: 1px 7px;
-}
+.rad__nr { font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; }
+.rad__min { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rad__tekst { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .rad__navn {
   font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary);

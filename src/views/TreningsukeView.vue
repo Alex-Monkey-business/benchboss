@@ -150,8 +150,9 @@ function todayWeekday() {
   return js === 0 ? 7 : js
 }
 
-// Hvilken dag skal stå åpen når du kommer inn? Den lenka ba om — ellers den du
-// trenger nå: i dag hvis det er treningsdag, så neste treningsdag, så den første.
+// Hvilken dag skal stå åpen når du kommer inn? Bare den en lenke ba om (fra
+// Hjem eller tilbake fra økta). Trykker du Trening i menyen, er det uka du
+// vil se — alle dagene lukket, ikke én dag valgt for deg.
 function defaultOpenDay(list) {
   if (!list.length) return null
   if (wantedDay.value) {
@@ -164,19 +165,25 @@ function defaultOpenDay(list) {
       return ønsket.id
     }
   }
-  const wd = todayWeekday()
-  return (
-    list.find(s => s.weekday === wd) ||
-    list.filter(s => s.weekday && s.weekday > wd).sort((a, b) => a.weekday - b.weekday)[0] ||
-    list[0]
-  )?.id || null
+  return null
 }
 
-// Dagene kommer inn etter at siden er tegnet, og de byttes når du skifter måned.
-// Holder vi ikke valget i live her, står uka helt lukket etter et månedsbytte.
+// Dagene kommer inn etter at siden er tegnet. En lenke til en dag venter til
+// dagen finnes; ellers står alt lukket. Forsvinner den åpne dagen (slettet),
+// lukkes den.
 watch(dager, list => {
-  if (!list.some(s => s.id === openDayId.value)) openDayId.value = defaultOpenDay(list)
+  if (openDayId.value && !list.some(s => s.id === openDayId.value)) openDayId.value = null
+  if (!openDayId.value && wantedDay.value) openDayId.value = defaultOpenDay(list)
 }, { immediate: true })
+
+// Samme side, ny lenke: Trening i menyen fra en åpen dag skal gi uka lukket;
+// en lenke til en annen dag skal åpne den.
+watch(() => route.query.dag, (ny, gammel) => {
+  if (ny === gammel) return
+  if (!ny) { openDayId.value = null; return }
+  wantedDay.value = ny
+  openDayId.value = defaultOpenDay(dager.value)
+})
 
 function drillCount(s) {
   return (s.drills || []).length
@@ -676,6 +683,14 @@ onMounted(async () => {
             <span v-if="fokus[s.id].resten" class="dag__resten">{{ fokus[s.id].resten }}</span>
           </span>
         </button>
+
+        <!-- Dagens trening kan startes uten å åpne kortet. De andre dagene
+             har ikke knappen: økta startes samme dag. -->
+        <router-link
+          v-if="isCoach && openDayId !== s.id && s.weekday === todayWeekday() && drillsFor(s).length"
+          :to="`/trening/okt/${s.id}`"
+          class="dag__start"
+        >Start økta</router-link>
 
         <div v-if="openDayId === s.id" class="dag__body">
           <!-- Økta er hovedsaken på feltet: oppmøte, grupper, trenere. -->
@@ -1197,6 +1212,21 @@ Torsdag
   color: var(--ds-color-text-tertiary);
   font-weight: var(--ds-weight-regular);
   font-size: var(--ds-text-sm);
+}
+
+.dag__start {
+  display: inline-flex;
+  align-items: center;
+  min-height: 40px;
+  margin: 0 var(--ds-space-lg) var(--ds-space-lg);
+  padding: 0 18px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-bold);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .rigg-rad {
