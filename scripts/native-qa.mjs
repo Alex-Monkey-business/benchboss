@@ -94,14 +94,14 @@ try {
   await p.keyboard.press('Escape')
   await vent(500)
 
-  // Oppmøte-ark → slett-dialog → tilbake, tilbake.
-  await p.locator('.okt__her').click()
-  await p.locator('.oppg__navn').first().waitFor()
-  await vent(400)
+  // Nullstill-dialog → tilbake. Oppmøte-ark → tilbake.
   await p.locator('.okt__slett').click()
   await vent(300)
   await tilbake()
-  ok('tilbake lukker dialogen, arket står', await arkApent() && (await p.locator('.ds-dialog').count()) === 0)
+  ok('tilbake lukker nullstill-dialogen, oppmøtet står', (await p.locator('.ds-dialog').count()) === 0 && await p.locator('.rad').count() > 0)
+  await p.locator('.okt__her').click()
+  await p.locator('.oppg__navn').first().waitFor()
+  await vent(400)
   await tilbake()
   ok('tilbake lukker oppmøte-arket', !(await arkApent()) && sti() === `/trening/okt/${DAG}`)
 

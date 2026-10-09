@@ -179,19 +179,29 @@ try {
       ok(`${w} økt: låsen slippes etter øvelse ${i + 1}`, !(await laast()))
     }
 
-    // Oppmøte-arket + slett-dialogen oppå (to låser).
+    // Oppmøte-arket.
     await p.locator('.okt__her').click()
     await p.locator('.oppg__navn').first().waitFor()
     await vent(500)
     await arkSjekk('oppmøte-ark', w)
     await sveip('.ds-sheet__body', -2000)
+    await lukkArk()
+    ok(`${w} oppmøte-ark lukket: sluppet`, !(await laast()))
+
+    // Utstyr-arket.
+    await p.locator('.utstyr-rad').click()
+    await p.locator('.utstyr__liste').waitFor()
+    await vent(500)
+    ok(`${w} utstyr-ark: låst`, await laast())
+    await lukkArk()
+
+    // Nullstill-dialogen fra siden.
+    await p.locator('.okt__slett').scrollIntoViewIfNeeded()
     await p.locator('.okt__slett').click()
     await vent(300)
-    ok(`${w} slett-dialog: fortsatt låst`, await laast())
+    ok(`${w} nullstill-dialog: låst`, await laast())
     await p.getByRole('button', { name: 'Avbryt' }).click()
     await vent(300)
-    ok(`${w} slett-dialog avbrutt: arket låser fortsatt`, await laast())
-    await lukkArk()
     ok(`${w} økt: alt sluppet til slutt`, !(await laast()))
 
     // Navigér bort med arket åpent: låsen må slippes, ellers står hele appen fast.

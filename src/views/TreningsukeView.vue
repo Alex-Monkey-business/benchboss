@@ -28,6 +28,7 @@ import { useTrainingWeek } from '../composables/useTrainingWeek'
 import { useExercises, exerciseToDrill, resolveDrills, ovelsensVideo, EQUIPMENT_TAGS } from '../composables/useExercises'
 import { riggFor as riggTags, stasjonerFor } from '../lib/grupper'
 import OktListe from '../components/OktListe.vue'
+import { hentDagensOppmote } from '../composables/useTreningsOkt'
 import { useToast } from '../composables/useToast'
 import { parseTreningsplan } from '../lib/treningParser'
 import { accentForPosition } from '../lib/sessionVisuals'
@@ -559,6 +560,10 @@ async function confirmPaste() {
   showToast(`${parsed.sessions.length} ${parsed.sessions.length === 1 ? 'dag' : 'dager'} lagt til`, 'success')
 }
 
+// Dagens oppmøte per dag: knappen sier «24 her» når det er registrert.
+const oppmoteIDag = ref({})
+watch(isCoach, c => { if (c) hentDagensOppmote().then(m => { oppmoteIDag.value = m }) }, { immediate: true })
+
 onMounted(async () => {
   await fetchWeek()
   fetchExercises()
@@ -642,22 +647,24 @@ onMounted(async () => {
           </span>
         </component>
 
-        <!-- Dagens trening kan startes uten å åpne kortet. De andre dagene
-             har ikke knappen: økta startes samme dag. -->
+        <!-- Oppmøtet for dagens trening, uten å åpne kortet. De andre dagene
+             har ikke knappen: oppmøtet registreres samme dag. -->
         <router-link
-          v-if="isCoach && openDayId !== s.id && s.weekday === todayWeekday() && drillsFor(s).length"
+          v-if="isCoach && openDayId !== s.id && drillsFor(s).length && (s.weekday === todayWeekday() || oppmoteIDag[s.id] != null)"
           :to="`/trening/okt/${s.id}`"
           class="dag__start"
-        >Start økta</router-link>
+        >{{ oppmoteIDag[s.id] != null ? `${oppmoteIDag[s.id]} her` : 'Oppmøte' }}</router-link>
 
         <div v-if="openDayId === s.id" class="dag__body">
-          <!-- Økta er hovedsaken på feltet: oppmøte, grupper, trenere. -->
+          <!-- Oppmøtet er hovedsaken på feltet: det gir grupper, trenere
+               og utstyr for dem som kom. -->
           <router-link
             v-if="isCoach && drillsFor(s).length && editDayId !== s.id"
             :to="`/trening/okt/${s.id}`"
             class="okt-start"
           >
-            <span class="okt-start__tittel">Start økta</span>
+            <span class="okt-start__tittel">{{ oppmoteIDag[s.id] != null ? 'Grupper og utstyr' : 'Registrer oppmøte' }}</span>
+            <span v-if="oppmoteIDag[s.id] != null" class="okt-start__her">{{ oppmoteIDag[s.id] }} her</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </router-link>
           <!-- Riggen: én rad, detaljene i et ark. Den gjøres før noen vet
@@ -1262,6 +1269,7 @@ Torsdag
 .okt-start:active { transform: scale(0.99); }
 .okt-start svg { width: 20px; height: 20px; flex: none; }
 .okt-start__tittel { font-size: var(--ds-text-md); font-weight: var(--ds-weight-bold); }
+.okt-start__her { margin-left: auto; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); opacity: .85; font-variant-numeric: tabular-nums; }
 
 .dag__body {
   padding: 0 var(--ds-space-lg) var(--ds-space-lg);

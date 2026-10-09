@@ -1,9 +1,13 @@
 <script setup>
-// ØKTA — treninga slik den kjøres på feltet, ikke slik den leses.
+// OPPMØTE — og det oppmøtet gir: grupper, trenere og utstyr for dem som kom.
 //
 // Først «Hvem er her?»: hele kullet og alle trenerne er på, trykk bort dem som
-// mangler, «Start økta». Så økta: én kort rad per øvelse, i rekkefølge. Ingen
-// trekkspill — en rad som folder seg ut, skyver alt under seg, og siden hopper.
+// mangler, «Lagre oppmøte». Så oversikten: utstyret for antallet, og én kort
+// rad per øvelse. Ingen trekkspill — en rad som folder seg ut, skyver alt
+// under seg, og siden hopper.
+//
+// Oppmøtet gjelder i dag. Ble det registrert for å prøve, nullstilles det
+// nederst, og da teller det ikke i statistikken.
 //
 // Trykk en øvelse, så åpnes arket. Arket bytter innhold, ikke side:
 //   Grupper    — det du leser opp på banen (standard)
@@ -19,13 +23,13 @@
 import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
-import { useExercises, resolveDrills } from '../composables/useExercises'
+import { useExercises, resolveDrills, EQUIPMENT_TAGS } from '../composables/useExercises'
 import { usePlayers } from '../composables/usePlayers'
 import { usePlayerLevels } from '../composables/usePlayerLevels'
 import { useCoaches } from '../composables/useCoaches'
 import { useTreningsOkt, datoFor } from '../composables/useTreningsOkt'
 import { useAuth } from '../stores/auth'
-import { grupperFor, ovelseNokkel, fordelTrenere, kortnavn, RIGGER_FRA } from '../lib/grupper'
+import { grupperFor, ovelseNokkel, fordelTrenere, kortnavn, riggFor, RIGGER_FRA } from '../lib/grupper'
 import { weekdayDateLabel } from '../lib/dateLabels'
 import { meldEvent } from '../lib/sporing'
 import TreningsGrupper from '../components/TreningsGrupper.vue'
@@ -208,11 +212,25 @@ function ikkeHer() {
   valgt.value = null
 }
 
+// Utstyret for dem som kom: stasjonene følger gruppene, ikke hele kullet.
+const visUtstyr = ref(false)
+const utstyr = computed(() => {
+  const tags = riggFor(drills.value)
+  return {
+    ting: EQUIPMENT_TAGS.filter(t => tags.includes(t.value)).map(t => t.label),
+    stasjoner: kort.value.filter(k => k.plan && k.plan.antall > 1).map(k => ({ navn: k.d.text, n: k.plan.antall }))
+  }
+})
+
 const visSlett = ref(false)
 async function slett() {
   visSlett.value = false
-  visOppmote.value = false
   await okt.slett()
+  borteSpillere.value = new Set()
+  borteTrenere.value = new Set()
+  riggerValgt.value = undefined
+  meldEvent('okt_nullstilt')
+  window.scrollTo({ top: 0 })
 }
 
 let stopp = null
@@ -274,7 +292,7 @@ function tilbake() {
 
       <div class="oppm__fot">
         <button type="button" class="okt__start" :disabled="!antallHer || starter" @click="start">
-          Start økta med {{ antallHer }}
+          Lagre oppmøte
         </button>
       </div>
     </div>
@@ -282,6 +300,16 @@ function tilbake() {
     <!-- ── ØKTA ─────────────────────────────────────────────────── -->
     <div v-else class="okt__wrap">
       <p v-if="rigger" class="okt__rigger">Rigger <strong>{{ trenerNavn[rigger] }}</strong></p>
+      <button
+        v-if="utstyr.ting.length || utstyr.stasjoner.length"
+        type="button"
+        class="utstyr-rad"
+        @click="visUtstyr = true"
+      >
+        <span class="utstyr-rad__merke">Utstyr</span>
+        <span class="utstyr-rad__ting">{{ utstyr.ting.join(', ') || `${utstyr.stasjoner.length} øvelser med stasjoner` }}</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      </button>
       <ol class="rader">
         <li v-for="k in kort" :key="k.nokkel">
           <button type="button" class="rad" @click="apne(k.i)">
@@ -291,13 +319,14 @@ function tilbake() {
               <span class="rad__meta">
                 <template v-if="k.plan">{{ k.plan.antall }} {{ k.plan.antall === 1 ? 'gruppe' : 'grupper' }} · {{ k.plan.iHver }} i hver</template>
                 <template v-else>Alle sammen</template>
+                <template v-if="k.d.minutes"> · {{ k.d.minutes }} min</template>
               </span>
             </span>
-            <span class="rad__min">{{ k.d.minutes ? `${k.d.minutes} min` : '' }}</span>
             <svg class="rad__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
         </li>
       </ol>
+      <button type="button" class="okt__slett" @click="visSlett = true">Nullstill oppmøtet</button>
     </div>
 
     <!-- Én øvelse. Arket bytter innhold; bunnen står fast. -->
@@ -370,17 +399,27 @@ function tilbake() {
         @trener="vekslTrener"
         @rigger="velgRigger"
       />
-      <button type="button" class="okt__slett" @click="visSlett = true">Slett økta</button>
       <template #footer>
         <button type="button" class="fot__knapp fot__knapp--hoved fot__knapp--bred" @click="visOppmote = false">Ferdig</button>
       </template>
     </Sheet>
 
+    <!-- Utstyret for dem som kom. -->
+    <Sheet :show="visUtstyr" title="Utstyr" @close="visUtstyr = false">
+      <p v-if="utstyr.ting.length" class="utstyr__ting">{{ utstyr.ting.join(' · ') }}</p>
+      <ul v-if="utstyr.stasjoner.length" class="utstyr__liste">
+        <li v-for="(x, i) in utstyr.stasjoner" :key="i">
+          <span>{{ x.navn }}</span>
+          <strong>{{ x.n }} stasjoner</strong>
+        </li>
+      </ul>
+    </Sheet>
+
     <ConfirmDialog
       :show="visSlett"
-      title="Slett økta?"
-      message="Oppmøtet for denne treninga blir borte, også fra statistikken."
-      confirm-label="Slett"
+      title="Nullstill oppmøtet?"
+      message="Dagens oppmøte slettes og teller ikke i statistikken."
+      confirm-label="Nullstill"
       variant="warning"
       @confirm="slett"
       @cancel="visSlett = false"
@@ -474,7 +513,7 @@ function tilbake() {
 .okt__start:disabled { opacity: .45; cursor: default; }
 .okt__slett {
   display: block;
-  margin: var(--ds-space-2xl) auto 0;
+  margin: var(--ds-space-3xl, 48px) auto 0;
   border: 0; background: none; padding: 8px;
   font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium);
   color: var(--ds-color-error, var(--ds-color-text-secondary));
@@ -486,7 +525,7 @@ function tilbake() {
 .rader { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--ds-space-sm); }
 .rad {
   display: grid;
-  grid-template-columns: 28px 1fr auto 18px;
+  grid-template-columns: 20px 1fr 18px;
   align-items: center;
   gap: var(--ds-space-md);
   width: 100%;
@@ -504,7 +543,6 @@ function tilbake() {
 .rad:active { transform: scale(0.99); }
 
 .rad__nr { font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; }
-.rad__min { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; white-space: nowrap; }
 .rad__tekst { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
 .rad__navn {
   font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary);
@@ -514,6 +552,31 @@ function tilbake() {
 .rad__meta { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); font-variant-numeric: tabular-nums; }
 .rad__pil { width: 18px; height: 18px; color: var(--ds-color-text-tertiary); }
 
+
+/* ── Utstyr ── */
+.utstyr-rad {
+  display: flex; align-items: center; gap: var(--ds-space-md);
+  width: 100%; min-height: 52px;
+  padding: 0 var(--ds-space-md);
+  margin-bottom: var(--ds-space-lg);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-bg-elevated);
+  color: inherit; text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.utstyr-rad svg { width: 18px; height: 18px; flex: none; color: var(--ds-color-text-tertiary); }
+.utstyr-rad__merke { flex: none; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
+.utstyr-rad__ting { flex: 1; min-width: 0; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.utstyr__ting { margin: 0 0 var(--ds-space-lg); font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); line-height: 1.5; }
+.utstyr__liste { list-style: none; margin: 0; padding: 0; }
+.utstyr__liste li {
+  display: flex; justify-content: space-between; gap: var(--ds-space-md);
+  padding: var(--ds-space-md) 0;
+  border-top: 1px solid var(--ds-color-border);
+  font-size: var(--ds-text-sm); color: var(--ds-color-text-primary);
+}
+.utstyr__liste strong { flex: none; font-variant-numeric: tabular-nums; }
 
 /* ── Arket ── */
 .okt__rigger { margin: 0 0 var(--ds-space-md); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }

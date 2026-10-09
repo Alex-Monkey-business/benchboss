@@ -53,7 +53,7 @@ watch(viewingSeason, async (s) => {
 // Lagene er kullets egne (useSeasonTeams via matchMeta) — ingen fast liste.
 const { activeCohort, isCoach } = useAuth()
 
-// Oppmøte på trening, fra «Start økta». Trener-only i basen og her. Følger
+// Oppmøte på trening, registrert på treningsdagen. Trener-only i basen og her. Følger
 // sesongvelgeren som kampene: økta får sesongen som var aktiv da den startet.
 const oppmote = ref({ okter: 0, perSpiller: {} })
 const showOppmote = ref(false)
@@ -525,7 +525,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
       </div>
     </div>
 
-    <!-- Oppmøte på trening — hvem som var der, fra «Start økta». -->
+    <!-- Oppmøte på trening — hvem som var der. -->
     <div v-if="isCoach && oppmote.okter > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-4">
       <button
         type="button"

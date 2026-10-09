@@ -27,15 +27,12 @@ function iso(d) {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
-// Datoen treningsdagen gjelder: i dag hvis det er dagen, ellers neste gang
-// den kommer. Uten ukedag er det i dag.
-export function datoFor(session) {
-  const d = new Date()
-  const wd = session?.weekday
-  if (!wd) return iso(d)
-  const idag = d.getDay() === 0 ? 7 : d.getDay()
-  d.setDate(d.getDate() + ((wd - idag + 7) % 7))
-  return iso(d)
+// Oppmøtet gjelder dagen det registreres: den dagen folk faktisk var der.
+// Ikke neste gang ukedagen kommer — da lå et oppmøte registrert på en
+// torsdag og ventet på lørdagens trenere, som om de allerede hadde startet.
+// Flyttes en trening til en annen dag, stemmer datoen likevel.
+export function datoFor() {
+  return iso(new Date())
 }
 
 const UTVALG = 'id, session_id, title, dato, started_at, state, training_run_players(player_id), training_run_coaches(coach_id)'
@@ -101,8 +98,6 @@ export function useTreningsOkt() {
       }
     },
 
-    // Start økta med dem som er her. Har en annen trener startet den først,
-    // gjelder hans oppmøte — vi skriver ikke over det.
     // Hvem som var rigger sist — standard for neste økt.
     async sisteRigger() {
       if (!isSupabaseConfigured) return null
@@ -111,6 +106,8 @@ export function useTreningsOkt() {
       return (data || []).map(r => r.state?._rigger).find(Boolean) || null
     },
 
+    // Lagre oppmøtet med dem som er her. Har en annen trener lagret først,
+    // gjelder det oppmøtet — vi skriver ikke over det.
     async start(session, spillere, trenere, rigger = null) {
       const dato = datoFor(session)
       if (!isSupabaseConfigured) {
@@ -171,7 +168,8 @@ export function useTreningsOkt() {
       await skriv(() => supabase.rpc('bb_run_set_state', { p_run: r.id, p_key: nokkel, p_value: verdi }))
     },
 
-    // Avbryt en økt som ble startet ved en feil — oppmøtet går med.
+    // Nullstill: oppmøtet ble registrert ved en feil, eller for å prøve.
+    // Alt går — det teller ikke i statistikken og ikke i trenerrotasjonen.
     async slett() {
       const r = run.value
       if (!r) return
@@ -180,6 +178,15 @@ export function useTreningsOkt() {
       await skriv(() => supabase.from('training_runs').delete().eq('id', r.id).select('id'))
     }
   }
+}
+
+// Dagens oppmøte per treningsdag, for dagsiden og uka: { session_id: antall }.
+export async function hentDagensOppmote() {
+  if (!isSupabaseConfigured) return {}
+  const { data, error } = await scoped(supabase.from('training_runs').select('session_id, training_run_players(player_id)'))
+    .eq('dato', datoFor())
+  if (error || !data) return {}
+  return Object.fromEntries(data.filter(r => r.session_id).map(r => [r.session_id, (r.training_run_players || []).length]))
 }
 
 // Oppmøtet i en sesong, for statistikken. { okter, perSpiller: { id: antall } }
