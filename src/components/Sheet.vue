@@ -1,5 +1,6 @@
 <script setup>
 import { ref, watch, nextTick, onMounted, onUnmounted, computed } from 'vue'
+import { laasScroll, slippScroll } from '../lib/scrollLock'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -73,9 +74,18 @@ onMounted(() => {
   document.addEventListener('keydown', onKey)
 })
 
+// Siden bak står stille mens arket er åpent (se scrollLock).
+let laast = false
+function settLaas(apen) {
+  if (apen && !laast) { laasScroll(); laast = true }
+  if (!apen && laast) { slippScroll(); laast = false }
+}
+watch(() => props.show, settLaas, { immediate: true })
+
 onUnmounted(() => {
   window.removeEventListener('resize', checkMobile)
   document.removeEventListener('keydown', onKey)
+  settLaas(false)
 })
 
 const transitionName = computed(() => isMobile.value ? 'ds-sheet-mobile' : 'ds-sheet-desktop')

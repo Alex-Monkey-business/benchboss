@@ -103,10 +103,18 @@ export function useTreningsOkt() {
 
     // Start økta med dem som er her. Har en annen trener startet den først,
     // gjelder hans oppmøte — vi skriver ikke over det.
-    async start(session, spillere, trenere) {
+    // Hvem som var rigger sist — standard for neste økt.
+    async sisteRigger() {
+      if (!isSupabaseConfigured) return null
+      const { data } = await scoped(supabase.from('training_runs').select('state'))
+        .order('dato', { ascending: false }).order('started_at', { ascending: false }).limit(5)
+      return (data || []).map(r => r.state?._rigger).find(Boolean) || null
+    },
+
+    async start(session, spillere, trenere, rigger = null) {
       const dato = datoFor(session)
       if (!isSupabaseConfigured) {
-        run.value = { id: 'demo-run', session_id: session.id, dato, started_at: new Date().toISOString(), state: { _runde: 0 }, spillere: [...spillere], trenere: [...trenere] }
+        run.value = { id: 'demo-run', session_id: session.id, dato, started_at: new Date().toISOString(), state: { _runde: 0, ...(rigger ? { _rigger: rigger } : {}) }, spillere: [...spillere], trenere: [...trenere] }
         return true
       }
       underveis++
@@ -115,7 +123,7 @@ export function useTreningsOkt() {
         // står fast på økta, så alle telefonene fordeler likt hele økta.
         const { count } = await scoped(supabase.from('training_runs').select('id', { count: 'exact', head: true })).lt('dato', dato)
         const { data: ny, error } = await supabase.from('training_runs')
-          .upsert({ session_id: session.id, dato, cohort_id: cohortId(), state: { _runde: count || 0 } }, { onConflict: 'session_id,dato', ignoreDuplicates: true })
+          .upsert({ session_id: session.id, dato, cohort_id: cohortId(), state: { _runde: count || 0, ...(rigger ? { _rigger: rigger } : {}) } }, { onConflict: 'session_id,dato', ignoreDuplicates: true })
           .select('id')
         if (error) return false
         if (ny?.length) {

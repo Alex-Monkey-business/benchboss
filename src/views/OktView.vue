@@ -25,7 +25,7 @@ import { usePlayerLevels } from '../composables/usePlayerLevels'
 import { useCoaches } from '../composables/useCoaches'
 import { useTreningsOkt, datoFor } from '../composables/useTreningsOkt'
 import { useAuth } from '../stores/auth'
-import { grupperFor, ovelseNokkel, fordelTrenere, kortnavn } from '../lib/grupper'
+import { grupperFor, ovelseNokkel, fordelTrenere, kortnavn, RIGGER_FRA } from '../lib/grupper'
 import { weekdayDateLabel } from '../lib/dateLabels'
 import { meldEvent } from '../lib/sporing'
 import TreningsGrupper from '../components/TreningsGrupper.vue'
@@ -82,13 +82,33 @@ function vekslTrener(id) {
   borteTrenere.value = s
 }
 
+// Rigger. Før start: forrige økts rigger, hvis han er her og dere er mange
+// nok (RIGGER_FRA). Treneren kan velge noen andre, eller ingen. Etter start:
+// det som står på økta.
+const standardRigger = ref(null)
+const riggerValgt = ref(undefined) // undefined = la standarden gjelde
+const rigger = computed(() => {
+  if (run.value) {
+    const r = run.value.state?._rigger || null
+    return r && run.value.trenere.includes(r) ? r : null
+  }
+  if (riggerValgt.value !== undefined) return riggerValgt.value && trenerHer(riggerValgt.value) ? riggerValgt.value : null
+  const s = standardRigger.value
+  const her = coaches.value.filter(c => trenerHer(c.id)).length
+  return s && trenerHer(s) && her >= RIGGER_FRA ? s : null
+})
+function velgRigger(id) {
+  if (run.value) return okt.settInngrep('_rigger', id)
+  riggerValgt.value = id
+}
+
 const starter = ref(false)
 async function start() {
   if (starter.value || !session.value) return
   starter.value = true
   const sp = players.value.filter(p => !borteSpillere.value.has(p.id)).map(p => p.id)
   const tr = coaches.value.filter(c => !borteTrenere.value.has(c.id)).map(c => c.id)
-  await okt.start(session.value, sp, tr)
+  await okt.start(session.value, sp, tr, rigger.value)
   meldEvent('okt_startet', { spillere: sp.length, trenere: tr.length })
   starter.value = false
   window.scrollTo({ top: 0 })
@@ -102,8 +122,11 @@ const tilStede = computed(() =>
     ? players.value.filter(p => run.value.spillere.includes(p.id)).map(p => ({ id: p.id, niva: levelFor(p.id) }))
     : []
 )
+// Trenerne på gruppene — alle som er her, unntatt riggeren.
 const trenereIOkta = computed(() =>
-  run.value ? coaches.value.filter(c => run.value.trenere.includes(c.id)).map(c => trenerNavn.value[c.id]) : []
+  run.value
+    ? coaches.value.filter(c => run.value.trenere.includes(c.id) && c.id !== rigger.value).map(c => trenerNavn.value[c.id])
+    : []
 )
 
 // Klokka: økta begynner når den startes, og hver øvelse har sin lengde.
@@ -131,7 +154,7 @@ const kort = computed(() => {
   return drills.value.map((d, i) => {
     const nokkel = ovelseNokkel(i, d)
     const plan = grupperFor(d, i, tilStede.value, run.value?.state?.[nokkel] || {})
-    const trenere = plan ? fordelTrenere(plan.antall, trenereIOkta.value, runde) : []
+    const trenere = plan ? fordelTrenere(plan.grupper, trenereIOkta.value, runde) : []
     const tid = tider.value[i]
     return {
       d, i, nokkel, plan, trenere,
@@ -212,7 +235,8 @@ watch(session, s => {
 // Klokka må vite at økta nettopp startet, ellers står «Nå» tomt i et halvt minutt.
 watch(() => run.value?.id, () => { na.value = Date.now() })
 
-onMounted(() => {
+onMounted(async () => {
+  okt.sisteRigger().then(r => { standardRigger.value = r })
   fetchWeek()
   fetchExercises()
   fetchPlayers()
@@ -251,7 +275,6 @@ function tilbake() {
         <h1 class="okt__h1">Hvem er her?</h1>
         <p class="oppm__teller"><strong>{{ antallHer }}</strong> av {{ players.length }}</p>
       </div>
-      <p class="oppm__hjelp">Trykk bort dem som ikke kom.</p>
 
       <OppmoteGrid
         :spillere="sortert"
@@ -260,8 +283,10 @@ function tilbake() {
         :trener-navn="trenerNavn"
         :er-her="erHer"
         :trener-her="trenerHer"
+        :rigger="rigger"
         @spiller="vekslSpiller"
         @trener="vekslTrener"
+        @rigger="velgRigger"
       />
 
       <div class="oppm__fot">
@@ -273,6 +298,7 @@ function tilbake() {
 
     <!-- ── ØKTA ─────────────────────────────────────────────────── -->
     <div v-else class="okt__wrap">
+      <p v-if="rigger" class="okt__rigger">Rigger <strong>{{ trenerNavn[rigger] }}</strong></p>
       <ol class="rader">
         <li v-for="k in kort" :key="k.nokkel">
           <button
@@ -296,17 +322,16 @@ function tilbake() {
           </button>
         </li>
       </ol>
-      <p class="okt__trenere">{{ trenereIOkta.join(', ') }}</p>
     </div>
 
     <!-- Én øvelse. Arket bytter innhold; bunnen står fast. -->
     <Sheet :show="!!aktiv" :title="aktiv?.d.text || ''" tall @close="apen = null">
       <template v-if="aktiv">
         <template v-if="modus !== 'om'">
-          <p class="ark__meta">
-            <span v-if="aktiv.tid">{{ aktiv.tid }}</span>
-            <span v-if="aktiv.plan">{{ aktiv.d.type === 'mix' ? 'Nivåene blandet' : 'Likt nivå i hver gruppe' }}</span>
-          </p>
+          <div class="ark__meta">
+            <span>{{ aktiv.tid }}</span>
+            <button type="button" class="ark__om" @click="bytteModus('om')">Om øvelsen</button>
+          </div>
           <TreningsGrupper
             v-if="aktiv.plan"
             v-model:valgt="valgt"
@@ -322,7 +347,6 @@ function tilbake() {
           />
           <div v-else class="ark__alle">
             <p class="ark__alle-tittel">Alle sammen</p>
-            <p class="ark__alle-tekst">{{ tilStede.length }} spillere · {{ trenereIOkta.join(', ') }}</p>
           </div>
         </template>
         <ExerciseView v-else :exercise="aktiv.d" :minutes="aktiv.d.minutes || 0" />
@@ -331,11 +355,11 @@ function tilbake() {
       <template #footer>
         <div v-if="aktiv && modus === 'endre'" class="fot">
           <template v-if="valgt">
-            <span class="fot__hint"><strong>{{ navn[valgt] }}</strong> valgt. Trykk et navn for å bytte.</span>
+            <span class="fot__hint">Bytt <strong>{{ navn[valgt] }}</strong> med …</span>
             <button type="button" class="fot__knapp fot__knapp--hoved" @click="ikkeHer">Ikke her</button>
           </template>
           <template v-else>
-            <span class="fot__hint">Trykk to navn for å bytte dem</span>
+            <span class="fot__hint">Trykk to navn for å bytte</span>
             <button type="button" class="fot__knapp fot__knapp--hoved" @click="bytteModus('grupper')">Ferdig</button>
           </template>
         </div>
@@ -346,8 +370,8 @@ function tilbake() {
           <button type="button" class="fot__pil" :disabled="apen === 0" aria-label="Forrige øvelse" @click="bla(-1)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
           </button>
-          <button type="button" class="fot__knapp" @click="bytteModus('om')">Om øvelsen</button>
           <button v-if="aktiv.plan" type="button" class="fot__knapp" @click="bytteModus('endre')">Endre</button>
+          <span v-else class="fot__luft"></span>
           <button type="button" class="fot__pil" :disabled="apen === kort.length - 1" aria-label="Neste øvelse" @click="bla(1)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
@@ -357,7 +381,7 @@ function tilbake() {
 
     <!-- Oppmøte under økta: kom for sent, gikk tidlig. -->
     <Sheet :show="visOppmote" title="Hvem er her?" tall @close="visOppmote = false">
-      <p class="oppm__teller oppm__teller--ark"><strong>{{ antallHer }}</strong> av {{ players.length }} spillere · deles med de andre trenerne</p>
+      <p class="oppm__teller oppm__teller--ark"><strong>{{ antallHer }}</strong> av {{ players.length }}</p>
       <OppmoteGrid
         :spillere="sortert"
         :trenere="coaches"
@@ -365,8 +389,10 @@ function tilbake() {
         :trener-navn="trenerNavn"
         :er-her="erHer"
         :trener-her="trenerHer"
+        :rigger="rigger"
         @spiller="vekslSpiller"
         @trener="vekslTrener"
+        @rigger="velgRigger"
       />
       <button type="button" class="okt__slett" @click="visSlett = true">Slett økta</button>
       <template #footer>
@@ -439,12 +465,11 @@ function tilbake() {
 
 /* ── Hvem er her? ── */
 .oppm { max-width: 560px; margin: 0 auto; padding: var(--ds-space-xl) var(--ds-space-lg) 0; }
-.oppm__hode { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-md); }
+.oppm__hode { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-md); margin-bottom: var(--ds-space-lg); }
 .oppm__teller { margin: 0; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); font-variant-numeric: tabular-nums; }
 .oppm__teller strong { font-size: var(--ds-text-xl); color: var(--ds-color-text-primary); }
 .oppm__teller--ark { margin-bottom: var(--ds-space-lg); }
 .oppm__teller--ark strong { font-size: var(--ds-text-md); }
-.oppm__hjelp { margin: var(--ds-space-xs) 0 var(--ds-space-lg); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 
 /* Fast over bunnmenyen, ikke sticky: en sticky knapp følger innholdet når
    du scroller til bunnen av navnelista, og da hopper den. */
@@ -520,16 +545,13 @@ function tilbake() {
 .rad__meta { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); font-variant-numeric: tabular-nums; }
 .rad__pil { width: 18px; height: 18px; color: var(--ds-color-text-tertiary); }
 
-.okt__trenere {
-  margin: var(--ds-space-lg) 0 0;
-  text-align: center;
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-tertiary);
-}
 
 /* ── Arket ── */
+.okt__rigger { margin: 0 0 var(--ds-space-md); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+.okt__rigger strong { color: var(--ds-color-text-primary); }
 .ark__meta {
-  display: flex; flex-wrap: wrap; gap: 4px 12px;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md);
+  min-height: 36px;
   margin: 0 0 var(--ds-space-lg);
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
@@ -537,7 +559,6 @@ function tilbake() {
 }
 .ark__alle { padding: var(--ds-space-lg) 0; }
 .ark__alle-tittel { margin: 0; font-size: var(--ds-text-lg); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
-.ark__alle-tekst { margin: 4px 0 0; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 
 .fot {
   display: flex;
@@ -576,6 +597,19 @@ function tilbake() {
   color: var(--ds-color-accent-text);
 }
 .fot__knapp--bred { width: 100%; }
+.fot__luft { flex: 1 1 0; }
+.ark__om {
+  flex: none;
+  min-height: 36px;
+  padding: 0 14px;
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-elevated);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-primary);
+  cursor: pointer;
+}
 .fot__hint { flex: 1 1 0; min-width: 0; font-size: var(--ds-text-sm); line-height: 1.35; color: var(--ds-color-text-secondary); }
 .fot__hint strong { color: var(--ds-color-text-primary); }
 .fot__hint + .fot__knapp { flex: 0 0 auto; padding: 0 20px; }

@@ -1,8 +1,8 @@
 <script setup>
 // Gruppene på én øvelse — lest, eller endret.
 //
-// LESE er det du gjør på feltet: én rad per gruppe, navnene som tekst, og
-// treneren under. Du leser opp gruppene og går. Ingen knapper i veien.
+// LESE er det du gjør på feltet: én rad per gruppe, navnene som rolige
+// brikker (lette å skanne), treneren under. Ingenting her kan trykkes.
 //
 // ENDRE er et eget valg: navnene blir brikker, antallet og «bland» kommer
 // fram. Ett trykk velger et navn, et trykk til på et annet bytter dem.
@@ -56,9 +56,9 @@ function endreAntall(d) {
           <span v-if="gr.niva" class="grp__niva">{{ gr.niva }}</span>
         </span>
         <div class="grp__innhold">
-          <p v-if="!redigerer" class="grp__navnetekst">
-            <span class="sr-only">Gruppe {{ i + 1 }}: </span>{{ gr.ids.map(id => navn[id]).join(', ') }}
-          </p>
+          <ul v-if="!redigerer" class="grp__brikker grp__brikker--les" :aria-label="`Gruppe ${i + 1}`">
+            <li v-for="id in gr.ids" :key="id" class="grp__navn">{{ navn[id] }}</li>
+          </ul>
           <div v-else class="grp__brikker">
             <button
               v-for="id in gr.ids"
@@ -78,8 +78,6 @@ function endreAntall(d) {
 </template>
 
 <style scoped>
-.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
-
 .grp__verktoy {
   display: flex;
   align-items: center;
@@ -156,11 +154,18 @@ function endreAntall(d) {
 }
 
 .grp__innhold { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-.grp__navnetekst {
-  margin: 0;
-  padding-top: 6px;
-  font-size: var(--ds-text-md);
-  line-height: 1.5;
+/* Lese-brikkene: flate, ingen kant å trykke på. Endre-brikkene under har
+   kant og trykkflate — forskjellen sier hvilken modus du er i. */
+.grp__brikker--les { list-style: none; margin: 0; padding: 0; }
+.grp__navn {
+  display: inline-flex;
+  align-items: center;
+  min-height: 32px;
+  padding: 0 12px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-subtle);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
   color: var(--ds-color-text-primary);
 }
 .grp__trener {

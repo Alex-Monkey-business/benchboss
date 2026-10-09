@@ -1002,7 +1002,6 @@ Torsdag
     <!-- Riggen for dagen, for den som gjør klart før treninga. -->
     <Sheet :show="!!riggDag" title="Rigg" @close="riggDag = null">
       <template v-if="riggDag">
-        <p class="rigg__for">For hele kullet ({{ players.length }}). Det er bedre med en stasjon for mye enn en for lite.</p>
         <p v-if="riggFor(riggDag).utstyr.length" class="rigg__utstyr">{{ riggFor(riggDag).utstyr.join(' · ') }}</p>
         <ul v-if="riggFor(riggDag).stasjoner.length" class="rigg__liste">
           <li v-for="(x, i) in riggFor(riggDag).stasjoner" :key="i">
@@ -1220,7 +1219,6 @@ Torsdag
 .rigg-rad__merke { flex: none; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
 .rigg-rad__ting { flex: 1; min-width: 0; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.rigg__for { margin: 0 0 var(--ds-space-lg); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 .rigg__utstyr { margin: 0 0 var(--ds-space-lg); font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); line-height: 1.5; }
 .rigg__liste { list-style: none; margin: 0; padding: 0; }
 .rigg__liste li {

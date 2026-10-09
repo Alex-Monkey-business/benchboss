@@ -2,6 +2,7 @@
 // trenerne, oppmøtet i statistikken, og ingenting for foreldre. Mot lokal base.
 import { chromium } from 'playwright'
 import { execSync } from 'node:child_process'
+import { fordelTrenere } from '../src/lib/grupper.js'
 const API = process.env.QA_API || 'http://127.0.0.1:54321'
 const APP = process.env.QA_APP || 'http://localhost:5174'
 const OUT = process.env.QA_OUT || '/tmp'
@@ -15,6 +16,17 @@ async function inntil(fn, ms = 12000) {
   const slutt = Date.now() + ms
   while (Date.now() < slutt) { if (await fn()) return true; await vent(300) }
   return false
+}
+
+// Trenerfordelingen: C får to, A og B én; færre trenere enn grupper → A går uten.
+{
+  const abc = [{ niva: 'A' }, { niva: 'B' }, { niva: 'C' }]
+  const f = fordelTrenere(abc, ['a', 'b', 'c', 'd'], 0)
+  ok('4 trenere: C to, B én, A én', f[2].length === 2 && f[1].length === 1 && f[0].length === 1, JSON.stringify(f))
+  const tre = fordelTrenere(abc, ['a', 'b'], 0)
+  ok('2 trenere: A går uten', tre[0].length === 0 && tre[1].length === 1 && tre[2].length === 1, JSON.stringify(tre))
+  const r0 = fordelTrenere(abc, ['a', 'b', 'c', 'd'], 0), r1 = fordelTrenere(abc, ['a', 'b', 'c', 'd'], 1)
+  ok('neste trening står trenerne et annet sted', JSON.stringify(r0) !== JSON.stringify(r1))
 }
 
 sql(`delete from player_levels where cohort_id='${KULL}'`)
@@ -55,7 +67,7 @@ try {
   await p.locator('.rigg-rad').click()
   await p.locator('.rigg__liste').waitFor({ timeout: 5000 })
   const rigg = await p.locator('.ds-sheet').innerText()
-  ok('riggen åpnes fra dagen, for hele kullet', new RegExp(`hele kullet \\(${antall}\\)`).test(rigg) && /stasjoner/.test(rigg), rigg.replace(/\n/g, ' | '))
+  ok('riggen åpnes fra dagen', /stasjoner/.test(rigg) && !/bedre med/.test(rigg), rigg.replace(/\n/g, ' | '))
   ok('diff med 4 per gruppe gir 7 stasjoner for 27', /7 stasjoner/.test(rigg))
   await p.keyboard.press('Escape')
   await vent(400)
@@ -66,6 +78,8 @@ try {
   const startY = (await p.locator('.okt__start').boundingBox()).y
   for (let k = 0; k < 6; k++) await p.locator('.oppg__grid').first().locator('.oppg__navn').nth(k * 3).click()
   await p.locator('.oppg__grid').nth(1).locator('.oppg__navn').last().click()
+  const riggerNavn = (await p.locator('.oppg__valg-knapp').nth(1).innerText()).trim()
+  await p.locator('.oppg__valg-knapp').nth(1).click()
   ok('telleren viser 21 av 27', /21\s*av\s*27/.test(await p.locator('.oppm__teller').first().innerText()))
   const sluttY = (await p.locator('.okt__start').boundingBox()).y
   ok('startknappen står stille mens du trykker', likt(sluttY, startY), `${startY} → ${sluttY}`)
@@ -76,6 +90,7 @@ try {
   ok('økta lagret med 21 spillere', sql(`select count(*) from training_run_players where run_id='${RUN}'`) === '21')
   ok(`og ${trenere - 1} trenere`, sql(`select count(*) from training_run_coaches where run_id='${RUN}'`) === String(trenere - 1))
   ok('sesongen satt på økta', sql(`select season_id is not null from training_runs where id='${RUN}'`) === 't')
+  ok('økta viser riggeren', (await p.locator('.okt__rigger').innerText()).includes(riggerNavn))
   ok('oversikten er én rad per øvelse', await p.locator('.rad').count() === 2)
   const meta = await p.locator('.rad').first().locator('.rad__meta').innerText()
   ok('diff med 4 per gruppe: 5 grupper · 4–5 i hver', /5 grupper · 4–5 i hver/.test(meta), meta)
@@ -87,24 +102,23 @@ try {
   await p.locator('.rad').first().click()
   await p.locator('.grp__gruppe').first().waitFor()
   ok('arket viser 5 grupper', await p.locator('.grp__gruppe').count() === 5)
-  ok('lesemodus: navnene som tekst, ingen knapper', await p.locator('.grp__spiller').count() === 0 && await p.locator('.grp__navnetekst').count() === 5)
+  ok('riggeren står på økta', sql(`select state->>'_rigger' is not null from training_runs where id='${RUN}'`) === 't')
+  ok('riggeren står utenfor gruppene', !(await p.locator('.grp__trener').allInnerTexts()).join(' ').includes(riggerNavn), riggerNavn)
+  ok('lesemodus: navnene som brikker, ingen knapper', await p.locator('.grp__spiller').count() === 0 && await p.locator('.grp__brikker--les').count() === 5 && await p.locator('.grp__gruppe button').count() === 0)
   ok('trenerne står på gruppene', await p.locator('.grp__trener').count() >= 1)
   ok('nivået står som bokstav', /^[ABC]$/.test((await p.locator('.grp__niva').first().innerText()).trim()))
   const bunn = async () => (await p.locator('.ds-sheet__footer').boundingBox()).y
   await vent(600)
   const b0 = await bunn()
-  const t1 = (await p.locator('.grp__trener').first().innerText()).trim()
   await p.locator('.fot__pil[aria-label="Neste øvelse"]').click()
   await vent(300)
-  const t2 = (await p.locator('.grp__gruppe').first().locator('.grp__trener').innerText().catch(() => '')).trim()
-  ok('samme trener på gruppe 1 hele økta', t1 && t2.split(' og ').includes(t1), `${t1} / ${t2}`)
   const bn = await bunn()
   ok('Neste blar uten at bunnen flytter seg', likt(bn, b0), `${b0} → ${bn}`)
   ok('økta har rotasjonsrunden lagret', /^\d+$/.test(sql(`select state->>'_runde' from training_runs where id='${RUN}'`)))
   await p.locator('.fot__pil[aria-label="Forrige øvelse"]').click()
   await vent(300)
   const gruppe = i => p.locator('.grp__gruppe').nth(i)
-  const navnI = async i => (await gruppe(i).locator('.grp__navnetekst').innerText()).replace(/^Gruppe \d+: /, '').split(', ').map(x => x.trim())
+  const navnI = async i => (await gruppe(i).locator('.grp__navn').allInnerTexts()).map(x => x.trim())
 
   // En annen trener ser samme økt og samme grupper.
   const iver = await logginn('iver.vestre@gmail.com')
@@ -114,7 +128,7 @@ try {
   await iver.locator('.rad').first().click()
   await iver.locator('.grp__gruppe').first().waitFor()
   const mine = await navnI(0)
-  const hans = (await iver.locator('.grp__gruppe').first().locator('.grp__navnetekst').innerText()).replace(/^Gruppe \d+: /, '').split(', ').map(x => x.trim())
+  const hans = (await iver.locator('.grp__gruppe').first().locator('.grp__navn').allInnerTexts()).map(x => x.trim())
   ok('samme gruppe 1 på begge telefonene', JSON.stringify(mine) === JSON.stringify(hans), `${mine} / ${hans}`)
 
   // Iver melder en borte i endremodus; jeg ser 20.
@@ -136,11 +150,11 @@ try {
   await gruppe(4).locator('.grp__spiller').first().click()
   ok('byttet hos meg', (await gruppe(4).locator('.grp__spiller').allInnerTexts()).includes(a))
   await iver.locator('.fot__knapp', { hasText: 'Ferdig' }).click()
-  ok('byttet når Iver', await inntil(async () => (await iver.locator('.grp__gruppe').nth(4).locator('.grp__navnetekst').innerText()).includes(a)), a)
+  ok('byttet når Iver', await inntil(async () => (await iver.locator('.grp__gruppe').nth(4).locator('.grp__navn').allInnerTexts()).includes(a)), a)
   await p.locator('.fot__knapp', { hasText: 'Ferdig' }).click()
 
   // Om øvelsen: arket bytter innhold, bunnen står.
-  await p.locator('.fot__knapp', { hasText: 'Om øvelsen' }).click()
+  await p.locator('.ark__om').click()
   await p.locator('.ex-view').waitFor({ timeout: 5000 })
   const bo = await bunn()
   ok('«Om øvelsen» bytter innhold i arket, bunnen står', likt(bo, b0), `${b0} → ${bo}`)

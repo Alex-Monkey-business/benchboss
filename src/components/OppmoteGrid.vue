@@ -7,9 +7,11 @@ defineProps({
   navn: { type: Object, required: true },
   trenerNavn: { type: Object, required: true },
   erHer: { type: Function, required: true },
-  trenerHer: { type: Function, required: true }
+  trenerHer: { type: Function, required: true },
+  // Rigger: én trener utenfor gruppene, som tar det praktiske. null = ingen.
+  rigger: { type: String, default: null }
 })
-const emit = defineEmits(['spiller', 'trener'])
+const emit = defineEmits(['spiller', 'trener', 'rigger'])
 </script>
 
 <template>
@@ -37,6 +39,28 @@ const emit = defineEmits(['spiller', 'trener'])
           :class="{ 'oppg__navn--borte': !trenerHer(c.id) }"
           :aria-pressed="trenerHer(c.id) ? 'true' : 'false'"
           @click="emit('trener', c.id)"
+        >{{ trenerNavn[c.id] }}</button>
+      </div>
+
+      <h2 class="oppg__h2">Rigger</h2>
+      <div class="oppg__valg" role="radiogroup" aria-label="Rigger">
+        <button
+          type="button"
+          role="radio"
+          class="oppg__valg-knapp"
+          :class="{ 'oppg__valg-knapp--pa': !rigger }"
+          :aria-checked="!rigger ? 'true' : 'false'"
+          @click="emit('rigger', null)"
+        >Ingen</button>
+        <button
+          v-for="c in trenere.filter(t => trenerHer(t.id))"
+          :key="c.id"
+          type="button"
+          role="radio"
+          class="oppg__valg-knapp"
+          :class="{ 'oppg__valg-knapp--pa': rigger === c.id }"
+          :aria-checked="rigger === c.id ? 'true' : 'false'"
+          @click="emit('rigger', c.id)"
         >{{ trenerNavn[c.id] }}</button>
       </div>
     </template>
@@ -78,6 +102,26 @@ const emit = defineEmits(['spiller', 'trener'])
   background: transparent;
   color: var(--ds-color-text-tertiary);
   text-decoration: line-through;
+}
+
+/* Ett valg, ikke av/på: mindre og rundere enn navnebrikkene over. */
+.oppg__valg { display: flex; flex-wrap: wrap; gap: 8px; }
+.oppg__valg-knapp {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-elevated);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.oppg__valg-knapp--pa {
+  border-color: var(--ds-color-accent);
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
 }
 
 @media (prefers-reduced-motion: reduce) {

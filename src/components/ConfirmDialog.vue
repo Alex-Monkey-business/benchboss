@@ -1,5 +1,8 @@
 <script setup>
-defineProps({
+import { watch, onUnmounted } from 'vue'
+import { laasScroll, slippScroll } from '../lib/scrollLock'
+
+const props = defineProps({
   show: { type: Boolean, default: false },
   title: { type: String, default: 'Bekreft' },
   message: { type: String, default: '' },
@@ -9,6 +12,15 @@ defineProps({
 })
 
 const emit = defineEmits(['confirm', 'cancel'])
+
+// Siden bak står stille mens dialogen er åpen (se scrollLock).
+let laast = false
+function settLaas(apen) {
+  if (apen && !laast) { laasScroll(); laast = true }
+  if (!apen && laast) { slippScroll(); laast = false }
+}
+watch(() => props.show, settLaas, { immediate: true })
+onUnmounted(() => settLaas(false))
 </script>
 
 <template>

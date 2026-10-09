@@ -156,6 +156,7 @@
   padding: var(--ds-space-lg);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
 }
 
 /* Uten media: header står, kroppen scroller. Stacken er bare en flex-kolonne
@@ -172,6 +173,7 @@
 .ds-sheet__scroll {
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
+  overscroll-behavior: contain;
   min-height: 0;
 }
 

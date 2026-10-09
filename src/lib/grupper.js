@@ -184,17 +184,39 @@ function flertallsniva(ids, nivaAv) {
   return best ? best[0] : null
 }
 
-// Trenerne fordelt på gruppene. Innenfor en økt står hver trener på samme
-// plass hele tida — på diff er det samme nivå, gruppe 1 er de sterkeste. Fra
-// trening til trening flytter alle seg ett hakk (runde = antall tidligere
-// økter), så over tid møter hver trener alle nivåene.
-// Flere trenere enn grupper: noen grupper får to. Færre: noen får ingen.
-export function fordelTrenere(antallGrupper, trenere, runde) {
-  const ut = Array.from({ length: antallGrupper }, () => [])
-  if (!antallGrupper || !trenere.length) return ut
-  trenere.forEach((t, k) => { ut[(k + runde) % antallGrupper].push(t) })
+// Trenerne fordelt på gruppene etter behov. C trenger to trenere, A og B én —
+// de er mer selvgående. Grupper uten nivå (mix) får én hver.
+//
+// Plassene fylles i rekkefølge: én trener til hver gruppe, svakeste nivå
+// først; så den andre treneren til C; resten fordeles fra svakest og opp. Er
+// det færre trenere enn grupper, er det A som går uten.
+//
+// Innenfor en økt står hver trener på samme plass. Fra trening til trening
+// roterer rekkefølgen (runde = antall tidligere økter), så over tid møter
+// hver trener alle nivåene.
+const BEHOV = { C: 2, B: 1, A: 1 }
+const PRIO = { C: 0, B: 1, A: 2 }
+
+export function fordelTrenere(grupper, trenere, runde = 0) {
+  const G = grupper.length
+  const ut = Array.from({ length: G }, () => [])
+  if (!G || !trenere.length) return ut
+  const n = trenere.length
+  const rotert = trenere.map((_, k) => trenere[(k + runde) % n])
+  const rekke = grupper
+    .map((g, i) => ({ i, p: g.niva in PRIO ? PRIO[g.niva] : 1, behov: BEHOV[g.niva] || 1 }))
+    .sort((a, b) => a.p - b.p || a.i - b.i)
+  const plasser = rekke.map(g => g.i)
+  for (const g of rekke) for (let k = 1; k < g.behov; k++) plasser.push(g.i)
+  for (let j = 0; plasser.length < n; j++) plasser.push(rekke[j % rekke.length].i)
+  rotert.forEach((t, k) => ut[plasser[k]].push(t))
   return ut
 }
+
+// Rigger: én trener som tar det praktiske mellom øvelsene og er backup. Han
+// står utenfor gruppene. Forrige økts rigger er standard — men bare når dere
+// er mange nok til at gruppene klarer seg uten ham (fem eller flere).
+export const RIGGER_FRA = 5
 
 // Alt utstyret økta trenger.
 export function riggFor(drills) {
