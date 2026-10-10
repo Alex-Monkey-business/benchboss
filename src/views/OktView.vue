@@ -313,12 +313,12 @@ function vekslTrener(id) {
   borteTrenere.value = s
 }
 
-// ── Fordel: egne grupper når som helst ──────────────────────────────────────
+// ── Del i grupper: egne grupper når som helst ──────────────────────────────────────
 //
 // Uavhengig av kjøreplanen: velg antall og om nivåene skal samles eller
 // spres, så deler appen dem som er her. Lagres på økta, så alle trenerne ser
 // det samme. Kommer noen etterpå, havner de i den minste gruppa.
-const visFordel = ref(false)
+const paFordel = computed(() => route.name === 'okt-fordel')
 const fordeling = computed(() => run.value?.state?._fordel || null)
 const fordelValg = computed(() => ({ antall: fordeling.value?.antall || 3, type: fordeling.value?.type || 'mix' }))
 const fordelAntall = computed(() => [2, 3, 4, 5, 6].filter(v => v <= Math.max(2, her.value.length)))
@@ -334,7 +334,13 @@ function settFordel(endring) {
 function fordelPaNytt() {
   fordel(fordelValg.value.antall, fordelValg.value.type, (fordeling.value?.seed || runde.value + 1) + 1)
 }
-watch(visFordel, v => { if (v && !fordeling.value) settFordel({}) })
+// Første gang siden åpnes: tre blandede grupper. Uten oppmøte er det ingen
+// å fordele, så da går siden tilbake til opptellingen.
+watch([paFordel, () => okt.lastet.value, run], ([pa, lastet, r]) => {
+  if (!pa || !lastet || !session.value) return
+  if (!r) return router.replace(`/trening/okt/${session.value.id}`)
+  if (!fordeling.value) settFordel({})
+}, { immediate: true })
 
 const fordelGrupper = computed(() => {
   if (!fordeling.value) return []
@@ -436,6 +442,7 @@ onUnmounted(() => {
 })
 
 function tilbake() {
+  if (paFordel.value && session.value) return router.push(`/trening/okt/${session.value.id}`)
   router.push(session.value ? `/trening/dag/${session.value.id}` : '/trening')
 }
 </script>
@@ -446,7 +453,8 @@ function tilbake() {
       <button class="okt__back" aria-label="Tilbake" @click="tilbake">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
-      <span class="okt__title">{{ session?.title || 'Trening' }}<span class="okt__dato"> {{ datoTekst }}</span></span>
+      <span v-if="paFordel" class="okt__title">Del i grupper</span>
+      <span v-else class="okt__title">{{ session?.title || 'Trening' }}<span class="okt__dato"> {{ datoTekst }}</span></span>
       <button v-if="run" type="button" class="okt__her" @click="visOppmote = true">
         <strong>{{ her.length }}</strong> her
       </button>
@@ -454,6 +462,48 @@ function tilbake() {
 
     <p v-if="!isCoach" class="okt__tom">Kjøreplanen er for trenerne.</p>
     <p v-else-if="!session || !okt.lastet.value" class="okt__tom">Laster …</p>
+
+    <p v-else-if="paFordel && !run" class="okt__tom">Laster …</p>
+
+    <!-- ── FORDEL ──────────────────────────────────────────────── -->
+    <div v-else-if="paFordel" class="fordel">
+      <div class="kortene">
+        <div v-for="(g, i) in fordelGrupper" :key="i" class="gjeng">
+          <div class="gjeng__hode">
+            <span v-if="g.niva" class="gjeng__niva">{{ g.niva }}</span>
+            <span class="gjeng__trener">{{ g.navn }}<span v-if="g.trenere.length" class="fordel__trener"> · {{ navnPa(g.trenere) }}</span></span>
+            <span class="gjeng__ant">{{ g.ids.length }}</span>
+          </div>
+          <p class="gjeng__navn">{{ g.ids.map(id => navn[id]).join(' · ') }}</p>
+        </div>
+      </div>
+
+      <div class="oppm__fot">
+        <div class="oppm__fot-inn fordel__styr">
+          <div class="antall">
+            <span class="antall__navn">Grupper</span>
+            <div class="antall__valg" role="group" aria-label="Antall grupper">
+              <button
+                v-for="v in fordelAntall" :key="v" type="button" class="antall__knapp"
+                :class="{ 'antall__knapp--valgt': v === fordelValg.antall }" :aria-pressed="v === fordelValg.antall"
+                @click="settFordel({ antall: v })"
+              >{{ v }}</button>
+            </div>
+          </div>
+          <div class="antall">
+            <span class="antall__navn">Nivå</span>
+            <div class="antall__valg" role="group" aria-label="Nivå">
+              <button
+                v-for="t in [{ v: 'diff', navn: 'Likt' }, { v: 'mix', navn: 'Blandet' }]" :key="t.v" type="button" class="antall__knapp"
+                :class="{ 'antall__knapp--valgt': t.v === fordelValg.type }" :aria-pressed="t.v === fordelValg.type"
+                @click="settFordel({ type: t.v })"
+              >{{ t.navn }}</button>
+            </div>
+          </div>
+          <button type="button" class="okt__start fordel__ny" @click="fordelPaNytt">Del på nytt</button>
+        </div>
+      </div>
+    </div>
 
     <!-- ── D1 HVEM ER HER? ──────────────────────────────────────── -->
     <div v-else-if="!run" class="oppm">
@@ -491,10 +541,10 @@ function tilbake() {
     <div v-else class="plan">
       <p v-if="run.lokal" class="plan__lokal">Ikke treningsdag. Ingenting er lagret.</p>
       <p v-if="rigger" class="plan__rigger">Rigger <strong>{{ trenerNavn[rigger] }}</strong></p>
-      <button type="button" class="plan__fordel" @click="visFordel = true">
+      <button type="button" class="plan__fordel" @click="router.push(`/trening/okt/${session.id}/del`)">
         <span class="plan__fordel-tekst">
-          <strong>Fordel</strong>
-          <span>{{ fordeling ? `${fordelGrupper.length} ${fordeling.type === 'diff' ? 'grupper, likt nivå' : 'grupper, blandet'}` : 'Velg antall grupper, så deler appen' }}</span>
+          <strong>Del i grupper</strong>
+          <span>{{ fordeling ? `${fordelGrupper.length} ${fordeling.type === 'diff' ? 'grupper, likt nivå' : 'grupper, blandet'}` : 'Velg antall, så deler appen dem som er her' }}</span>
         </span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
@@ -584,46 +634,6 @@ function tilbake() {
           <button type="button" class="fot__pil" :disabled="apen === kort.length - 1" aria-label="Neste øvelse" @click="bla(1)">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </button>
-        </div>
-      </template>
-    </Sheet>
-
-    <!-- ── FORDEL ──────────────────────────────────────────────── -->
-    <Sheet :show="visFordel" title="Fordel" tall @close="visFordel = false">
-      <div class="antall">
-        <span class="antall__navn">Grupper</span>
-        <div class="antall__valg" role="group" aria-label="Antall grupper">
-          <button
-            v-for="v in fordelAntall" :key="v" type="button" class="antall__knapp"
-            :class="{ 'antall__knapp--valgt': v === fordelValg.antall }" :aria-pressed="v === fordelValg.antall"
-            @click="settFordel({ antall: v })"
-          >{{ v }}</button>
-        </div>
-      </div>
-      <div class="antall">
-        <span class="antall__navn">Nivå</span>
-        <div class="antall__valg" role="group" aria-label="Nivå">
-          <button
-            v-for="t in [{ v: 'diff', navn: 'Likt' }, { v: 'mix', navn: 'Blandet' }]" :key="t.v" type="button" class="antall__knapp"
-            :class="{ 'antall__knapp--valgt': t.v === fordelValg.type }" :aria-pressed="t.v === fordelValg.type"
-            @click="settFordel({ type: t.v })"
-          >{{ t.navn }}</button>
-        </div>
-      </div>
-      <div class="kortene fordel">
-        <div v-for="(g, i) in fordelGrupper" :key="i" class="gjeng">
-          <div class="gjeng__hode">
-            <span v-if="g.niva" class="gjeng__niva">{{ g.niva }}</span>
-            <span class="gjeng__trener">{{ g.navn }}<span v-if="g.trenere.length" class="fordel__trener"> · {{ navnPa(g.trenere) }}</span></span>
-            <span class="gjeng__ant">{{ g.ids.length }}</span>
-          </div>
-          <p class="gjeng__navn">{{ g.ids.map(id => navn[id]).join(' · ') }}</p>
-        </div>
-      </div>
-      <template #footer>
-        <div class="fot">
-          <button type="button" class="fot__knapp" @click="fordelPaNytt">Fordel på nytt</button>
-          <button type="button" class="fot__knapp fot__knapp--hoved" @click="visFordel = false">Ferdig</button>
         </div>
       </template>
     </Sheet>
@@ -902,7 +912,7 @@ function tilbake() {
 .ark__meta { margin: 4px 0 var(--ds-space-lg); font-size: var(--ds-text-sm); line-height: 1.4; color: var(--ds-color-text-secondary); }
 .plan__fordel {
   display: flex; align-items: center; gap: 12px;
-  width: 100%; min-height: 64px; margin-bottom: var(--ds-space-lg);
+  width: calc(100% - 2 * var(--ds-space-lg)); min-height: 64px; margin: var(--ds-space-sm) var(--ds-space-lg) 0;
   padding: 12px 16px 12px 18px;
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
@@ -914,7 +924,9 @@ function tilbake() {
 .plan__fordel-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .plan__fordel-tekst strong { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); }
 .plan__fordel-tekst span { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
-.fordel { margin-top: var(--ds-space-sm); }
+.fordel { max-width: 560px; margin: 0 auto; padding: var(--ds-space-lg) var(--ds-space-lg) 280px; }
+.fordel__styr .antall { margin: 0 0 var(--ds-space-md); }
+.fordel__ny { margin-top: 2px; }
 .fordel__trener { font-weight: var(--ds-weight-regular, 400); color: var(--ds-color-text-secondary); }
 .antall { display: flex; align-items: center; gap: 12px; margin: calc(-1 * var(--ds-space-sm)) 0 var(--ds-space-lg); }
 .antall__navn { flex: none; min-width: 64px; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }

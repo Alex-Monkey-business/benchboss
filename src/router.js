@@ -244,6 +244,12 @@ const routes = [
     name: 'okt',
     component: () => import('./views/OktView.vue')
   },
+  // Del i grupper: egne grupper når som helst, på egen side med valgene fast nederst.
+  {
+    path: '/trening/okt/:id/del',
+    name: 'okt-fordel',
+    component: () => import('./views/OktView.vue')
+  },
   // Måneden var en id i URL-en: /trening/<periode>. Perioden finnes ikke lenger
   // (uka gjentar seg, den ligger ikke i en måned), så id-en peker på ingenting
   // og alle de gamle formene lander på uka. Dags-id-en er fortsatt gyldig og
