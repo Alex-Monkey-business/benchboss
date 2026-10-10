@@ -138,7 +138,10 @@ function lagPlan(runde) {
 // «3 gjenger og 4 lag.» over knappen — det du får når du går videre.
 const forhand = computed(() => {
   const deler = []
-  if (harDiff.value) deler.push(`${lagGjenger(her.value, trenereIOkta.value).length} gjenger`)
+  if (harDiff.value) {
+    const n = lagGjenger(her.value, trenereIOkta.value).length
+    deler.push(`${n} ${n === 1 ? 'gjeng' : 'gjenger'}`)
+  }
   if (mixAntall.value.length) deler.push(`${mixAntall.value[0]} lag`)
   return deler.length ? `${deler.join(' og ')}.` : ''
 })

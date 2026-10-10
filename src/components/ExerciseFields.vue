@@ -212,9 +212,9 @@ function pickCategory(value) {
 }
 
 .tag-velger__opt--active {
-  border-color: var(--ds-color-text-primary);
-  background: var(--ds-color-text-primary);
-  color: var(--ds-color-bg-elevated);
+  border-color: var(--ds-color-accent);
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
 }
 
 .cat-pills {

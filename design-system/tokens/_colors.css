@@ -118,20 +118,21 @@
 /* ============================================
    DARK MODE — Spotify-style
    Deep neutral surfaces (not pure black), warm-leaning
-   light text, accent flips to white for inverse buttons.
+   light text. Accent is the brand teal, lifted so it reads on dark,
+   with dark text on it (Alex 10. okt: the white accent glared).
    ============================================ */
 [data-theme="dark"] {
   /* ---- Background ---- */
   --ds-color-bg:              #0C201B;
   --ds-color-bg-elevated:     #142E26;
-  --ds-color-bg-subtle:       #163127;
-  --ds-color-bg-hover:        #203D32;
+  --ds-color-bg-subtle:       #1B392E;
+  --ds-color-bg-hover:        #244638;
   --ds-color-bg-sunken:       #081812;
 
   /* ---- Border ---- */
   --ds-color-border:          #2B483B;
   --ds-color-border-strong:   #506D5E;
-  --ds-color-border-light:    #233F33;
+  --ds-color-border-light:    #274539;
   --ds-color-border-focus:    #EDF5EF;
 
   /* ---- Dekorfarger ---- */
@@ -147,7 +148,7 @@
   --ds-accent-taupe-bg:         #202124;
 
   /* ---- Diff/Mix ---- */
-  --ds-badge-bg:                #203D32;
+  --ds-badge-bg:                #28493C;
   --ds-badge-text:              #B5B4AE;
   --ds-badge-border:            #2B483B;
 
@@ -155,14 +156,14 @@
   /* ---- Text ---- */
   --ds-color-text-primary:    #EDF5EF;
   --ds-color-text-secondary:  #B5CBBE;
-  --ds-color-text-tertiary:   #809E8D;
-  --ds-color-text-inverse:    #034F46;
+  --ds-color-text-tertiary:   #8EAD9C;
+  --ds-color-text-inverse:    #04261F;
 
-  /* ---- Accent (inverted — white on dark) ---- */
-  --ds-color-accent:          #EDF5EF;
-  --ds-color-accent-hover:    #FFFFFF;
-  --ds-color-accent-light:    #203D32;
-  --ds-color-accent-text:     #034F46;
+  /* ---- Accent (brand teal, lifted for dark) ---- */
+  --ds-color-accent:          #35B6A2;
+  --ds-color-accent-hover:    #45C4B0;
+  --ds-color-accent-light:    #183F37;
+  --ds-color-accent-text:     #04261F;
 
   /* ---- Rose secondary in dark mode ---- */
   --ds-color-warm:            #F2C9D4;

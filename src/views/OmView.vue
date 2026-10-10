@@ -182,8 +182,8 @@
   margin-top: var(--ds-space-3xl);
   padding: 14px var(--ds-space-xl);
   border-radius: var(--ds-radius-full);
-  background: var(--ds-color-text-primary);
-  color: var(--ds-color-bg);
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
   font-size: var(--ds-text-base);
   font-weight: var(--ds-weight-semibold);
   text-decoration: none;

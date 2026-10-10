@@ -643,7 +643,7 @@ function hoppOver() {
   border-radius: var(--ds-radius-sm);
   display: grid;
   place-items: center;
-  color: var(--ds-color-bg);
+  color: var(--ds-color-accent-text);
 }
 
 .kig__lag--valgt .kig__hake {

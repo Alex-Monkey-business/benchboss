@@ -357,9 +357,9 @@ function onDemo(role) {
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-base);
   font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-bg);
-  background: var(--ds-color-text-primary);
-  border: 1px solid var(--ds-color-text-primary);
+  color: var(--ds-color-accent-text);
+  background: var(--ds-color-accent);
+  border: 1px solid var(--ds-color-accent);
   border-radius: var(--ds-radius-md);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;

@@ -617,8 +617,8 @@ async function save() {
 }
 
 .tr__pill--on {
-  background: var(--ds-color-text-primary);
-  border-color: var(--ds-color-text-primary);
-  color: var(--ds-color-bg);
+  background: var(--ds-color-accent);
+  border-color: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
 }
 </style>
