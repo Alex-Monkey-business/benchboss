@@ -142,7 +142,7 @@ try {
   ok('én rad per øvelse', await p.locator('.rad').count() === 2)
   const meta = await p.locator('.rad').first().locator('.rad__meta').innerText()
   ok('diff-øvelsen: tid og hvordan i gjengene', /20 min · /.test(meta) && /gjeng|deles|sammen|grupper/.test(meta), meta)
-  ok('mix-øvelsen: i lagene', /i lagene/.test(await p.locator('.rad').nth(1).locator('.rad__meta').innerText()))
+  ok('mix-øvelsen: fire lag uten tall på øvelsen (fem per lag)', /4 lag/.test(await p.locator('.rad').nth(1).locator('.rad__meta').innerText()))
   ok('ingen klokkeslett', !/\d{2}:\d{2}/.test(await p.locator('.plan').innerText()))
   await p.screenshot({ path: `${OUT}/okt-plan.png`, fullPage: true })
 
@@ -165,6 +165,19 @@ try {
   await iver.locator('.rad').first().waitFor({ timeout: 15000 })
   ok('Iver lander rett i kjøreplanen', /21/.test(await iver.locator('.okt__her').innerText()))
   ok('samme gjeng 1 på begge telefonene', JSON.stringify(await gjengNavn(p, 0)) === JSON.stringify(await gjengNavn(iver, 0)))
+
+  // Antall lag velges i arket; nye lag trekkes og lagres, Iver ser det samme.
+  await p.locator('.rad').nth(1).click()
+  await p.locator('.antall').waitFor()
+  ok('arket har valg for antall lag', /Lag/.test(await p.locator('.antall__navn').innerText()) && /4/.test(await p.locator('.antall__knapp--valgt').innerText()))
+  await p.locator('.antall__knapp', { hasText: '3' }).click()
+  await vent(300)
+  ok('valgt 3: metalinja sier 3 lag', /3 lag/.test(await p.locator('.ds-sheet .ark__meta').innerText()))
+  ok('valget står på økta', sql(`select count(*) from training_runs where id='${RUN}' and jsonb_array_length(state->'_lag'->'3') = 3 and state ? '_antall'`) === '1')
+  await p.locator('.fot__knapp', { hasText: 'Lukk' }).click()
+  await vent(400)
+  ok('Lagene har nå 3 lag', /Blå/.test(await p.locator('.fase').nth(1).innerText()) && !/Grønn/.test(await p.locator('.fase').nth(1).innerText()))
+  ok('Iver ser 3 lag', await inntil(async () => /3 lag/.test(await iver.locator('.rad').nth(1).locator('.rad__meta').innerText())))
 
   // Iver melder en borte fra Endre; jeg ser 20.
   await iver.locator('.fase__endre').first().click()

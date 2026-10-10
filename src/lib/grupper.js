@@ -279,17 +279,9 @@ export function lagGjenger(spillere, trenere = [], runde = 0, seed = 1) {
     gjenger.splice(best, 0, { nivaer: [...new Set([...a.nivaer, ...b.nivaer])], spillere: [...a.spillere, ...b.spillere] })
   }
 
-  // Trenere nok til én per gjeng, to på C, og én til: nivået med flest
-  // spillere deles i to, med én trener hver.
-  const behov = gjenger.reduce((s, g) => s + (g.nivaer.length === 1 && g.nivaer[0] === 'C' ? 2 : 1), 0)
-  if (k > behov && gjenger.length) {
-    const i = gjenger.reduce((m, g, j) => (g.spillere.length > gjenger[m].spillere.length ? j : m), 0)
-    const g = gjenger[i]
-    if (g.spillere.length >= 6) {
-      const halv = Math.ceil(g.spillere.length / 2)
-      gjenger.splice(i, 1, { nivaer: g.nivaer, spillere: g.spillere.slice(0, halv) }, { nivaer: g.nivaer, spillere: g.spillere.slice(halv) })
-    }
-  }
+  // Aldri flere enn tre gjenger, ett per nivå. Ekstra trenere går inn i
+  // gjengene (fordelTrenere). Trenger en øvelse mindre grupper, som Y, deles
+  // det inne i gjengen (iGjengene).
 
   // Avviket mellom største og minste gjeng kan være tre. Er det mer, flyttes
   // én spiller om gangen til en nabogjeng — aldri A inn hos C eller omvendt.
@@ -327,12 +319,14 @@ export function lagGjenger(spillere, trenere = [], runde = 0, seed = 1) {
 // enn gjenger (typisk Y), deles det inne i gjengen — B kjører to Y-er med
 // samme trener. Trenger den færre, slås nabogjenger sammen, aldri A med C.
 // gjenger: bare de som er her. Returnerer en kort tekst til metalinja.
-export function iGjengene(drill, gjenger) {
+// antall: treneren har valgt antall grupper på øvelsen (ellers fra øvelsen).
+export function iGjengene(drill, gjenger, antall = null) {
   const g = gjenger.filter(x => x.spillere.length)
   const n = g.reduce((s, x) => s + x.spillere.length, 0)
   if (!g.length || !n) return 'i gjengene'
-  if (drill.per_gruppe && drill.per_gruppe <= 2) return 'par i gjengen'
-  const N = planFor(drill, n)?.grupper
+  if (!antall && drill.per_gruppe && drill.per_gruppe <= 2) return 'par i gjengen'
+  if (antall === 1) return 'alle sammen'
+  const N = antall || planFor(drill, n)?.grupper
   if (!N || N === g.length) return 'i gjengene'
   if (N > g.length) {
     const deler = g.map(() => 1)
@@ -370,9 +364,18 @@ export function iGjengene(drill, gjenger) {
 export const LAGFARGER = ['Gul', 'Rød', 'Blå', 'Grønn', 'Oransje', 'Hvit']
 export function lagFarge(i) { return LAGFARGER[i] || `Lag ${i + 1}` }
 
+// Antall lag på en mix-øvelse. per_gruppe vinner. Ellers lagstørrelsen fra
+// navnet («4v4-turnering», «5 mot 5»), eller fem. Partall, så alle lag har
+// en motstander: 21 på 4v4 er fire lag, 24 er seks.
+export function lagStorrelse(drill) {
+  if (drill.per_gruppe) return drill.per_gruppe
+  const m = /(\d+)\s*(?:v|mot)\s*\d+/i.exec(drill.text || drill.name || '')
+  return m ? Number(m[1]) : 5
+}
 export function antallLag(drill, n) {
   if (!drill || drill.type !== 'mix' || !n) return 0
-  return Math.max(1, Math.min(n, planFor(drill, n)?.grupper || 2))
+  const lag = 2 * Math.floor(n / (2 * lagStorrelse(drill)))
+  return Math.max(Math.min(2, n), Math.min(n, lag))
 }
 
 export function trekkLag(spillere, antall, seed = 1) {

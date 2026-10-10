@@ -27,7 +27,7 @@ import { useTreningsOkt, datoFor, erTreningsdag } from '../composables/useTrenin
 import { useAuth } from '../stores/auth'
 import {
   lagGjenger, iGjengene, antallLag, trekkLag, baner, trenerePerBane, plasser,
-  gjengNavn, lagFarge, kortnavn, RIGGER_FRA
+  gjengNavn, lagFarge, kortnavn, ovelseNokkel, planFor, RIGGER_FRA
 } from '../lib/grupper'
 import { weekdayDateLabel } from '../lib/dateLabels'
 import { meldEvent } from '../lib/sporing'
@@ -99,10 +99,34 @@ const trenereIOkta = computed(() => coaches.value.filter(c => trenerHer(c.id) &&
 
 // ── Fordelingen ─────────────────────────────────────────────────────────────
 const harDiff = computed(() => drills.value.some(d => d.type === 'diff'))
-const mixAntall = computed(() => {
+const mixAntall = computed(() => [...new Set(kort.value.filter(k => k.d.type === 'mix').map(antallFor).filter(Boolean))])
+
+// Antall grupper eller lag på én øvelse: det treneren har valgt i arket,
+// ellers det øvelsen tilsier. Lagres på økta, så alle ser det samme.
+const valgtAntall = computed(() => run.value?.state?._antall || {})
+function antallFor(k) {
   const n = her.value.length
-  return [...new Set(drills.value.filter(d => d.type === 'mix').map(d => antallLag(d, n)).filter(Boolean))]
-})
+  const v = valgtAntall.value[ovelseNokkel(k.i, k.d)]
+  if (k.d.type === 'mix') return v ? Math.min(v, n) : antallLag(k.d, n)
+  if (k.d.type === 'diff') return v || planFor(k.d, n)?.grupper || null
+  return null
+}
+function valgFor(k) {
+  const n = her.value.length
+  if (k.d.type === 'mix') return [2, 3, 4, 5, 6].filter(v => v * 2 <= n || v === 2)
+  if (k.d.type === 'diff') return [1, 2, 3, 4, 5, 6].filter(v => v <= n)
+  return []
+}
+// Nytt antall lag trekkes og lagres med en gang. Finnes det lag med det
+// antallet fra før (en annen øvelse), brukes de.
+function velgAntall(k, v) {
+  if (!run.value || v === antallFor(k)) return
+  if (k.d.type === 'mix' && !run.value.state?._lag?.[v]) {
+    okt.settInngrep('_lag', { ...(run.value.state?._lag || {}), ...lagretLag.value, [v]: trekkLag(her.value, v, runde.value + 1) })
+  }
+  okt.settInngrep('_antall', { ...valgtAntall.value, [ovelseNokkel(k.i, k.d)]: v })
+  meldEvent('okt_antall_valgt', { type: k.d.type, antall: v })
+}
 
 function lagPlan(runde) {
   const ut = {}
@@ -171,7 +195,7 @@ const lagSett = computed(() => Object.entries(lagretLag.value).map(([n, lag]) =>
   const tr = trenerePerBane(b.length, trenereIOkta.value, runde.value)
   return {
     n: Number(n),
-    ovelser: kort.value.filter(k => k.d.type === 'mix' && antallLag(k.d, her.value.length) === Number(n)),
+    ovelser: kort.value.filter(k => k.d.type === 'mix' && antallFor(k) === Number(n)),
     lag: l,
     baner: b.map((bane, i) => ({ ...bane, trenere: tr[i], merknad: merknad(bane, l) }))
   }
@@ -190,8 +214,8 @@ const kort = computed(() => drills.value.map((d, i) => ({ d, i })))
 function metaFor(k) {
   const deler = []
   if (k.d.minutes) deler.push(`${k.d.minutes} min`)
-  if (k.d.type === 'diff') deler.push(iGjengene(k.d, gjenger.value))
-  else if (k.d.type === 'mix') deler.push('i lagene')
+  if (k.d.type === 'diff') deler.push(iGjengene(k.d, gjenger.value, valgtAntall.value[ovelseNokkel(k.i, k.d)] || null))
+  else if (k.d.type === 'mix') deler.push(`${antallFor(k)} lag`)
   else deler.push('alle sammen')
   const ting = (k.d.utstyr_tags || []).map(t => utstyrNavn[t]).filter(Boolean)
   if (ting.length) deler.push(ting.join(', '))
@@ -490,6 +514,16 @@ function tilbake() {
       <template v-if="aktiv">
         <p class="ark__nr">Øvelse {{ aktiv.i + 1 }} av {{ kort.length }}</p>
         <p class="ark__meta">{{ metaFor(aktiv) }}</p>
+        <div v-if="valgFor(aktiv).length" class="antall">
+          <span class="antall__navn">{{ aktiv.d.type === 'mix' ? 'Lag' : 'Grupper' }}</span>
+          <div class="antall__valg" role="group" :aria-label="aktiv.d.type === 'mix' ? 'Antall lag' : 'Antall grupper'">
+            <button
+              v-for="v in valgFor(aktiv)" :key="v" type="button" class="antall__knapp"
+              :class="{ 'antall__knapp--valgt': v === antallFor(aktiv) }" :aria-pressed="v === antallFor(aktiv)"
+              @click="velgAntall(aktiv, v)"
+            >{{ v }}</button>
+          </div>
+        </div>
         <ExerciseView :exercise="aktiv.d" :minutes="aktiv.d.minutes || 0" />
       </template>
       <template #footer>
@@ -777,6 +811,19 @@ function tilbake() {
 /* ── Arkene ── */
 .ark__nr { margin: 0; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 .ark__meta { margin: 4px 0 var(--ds-space-lg); font-size: var(--ds-text-sm); line-height: 1.4; color: var(--ds-color-text-secondary); }
+.antall { display: flex; align-items: center; gap: 12px; margin: calc(-1 * var(--ds-space-sm)) 0 var(--ds-space-lg); }
+.antall__navn { flex: none; min-width: 64px; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
+.antall__valg { flex: 1; display: flex; gap: 6px; min-width: 0; }
+.antall__knapp {
+  flex: 1 1 0; min-width: 0; min-height: 44px;
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-md, 10px);
+  background: var(--ds-color-bg-elevated);
+  font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-primary);
+  font-variant-numeric: tabular-nums;
+}
+.antall__knapp--valgt { border-color: var(--ds-color-accent); background: var(--ds-color-accent); color: var(--ds-color-accent-text); }
 
 .inn {
   display: flex; flex-direction: column; gap: 2px;

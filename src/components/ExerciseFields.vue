@@ -97,9 +97,9 @@ function pickCategory(value) {
     <!-- Bare på diff og mix: det er der appen deler gruppene. Antallet
          grupper regnes ut fra hvor mange som kommer. -->
     <div v-if="showPerGruppe && (form.type === 'diff' || form.type === 'mix')" class="ds-form-group">
-      <label class="ds-label" for="ex-per-gruppe">Spillere per gruppe</label>
+      <label class="ds-label" for="ex-per-gruppe">{{ form.type === 'mix' ? 'Spillere per lag' : 'Spillere per gruppe' }}</label>
       <input id="ex-per-gruppe" v-model.number="form.per_gruppe" class="ds-input ex-per-gruppe" type="number" inputmode="numeric" min="1" max="30" placeholder="F.eks. 5" />
-      <p class="ex-hint">Appen deler i grupper ut fra hvor mange som er på trening. {{ form.type === 'mix' ? 'Mix sprer nivåene.' : 'Diff samler likt nivå.' }}</p>
+      <p class="ex-hint">{{ form.type === 'mix' ? 'Appen trekker lag med nivåene spredt, ut fra hvor mange som er på trening. Uten tall: fra navnet («4v4»), ellers fem per lag.' : 'Gjengene deles opp når øvelsen trenger mindre grupper, som en Y med fem i hver.' }} Kan endres i kjøreplanen.</p>
     </div>
 
     <div class="ds-form-group">

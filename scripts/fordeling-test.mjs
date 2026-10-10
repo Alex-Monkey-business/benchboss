@@ -64,7 +64,9 @@ const rene = g => g.every(x => !(x.nivaer.includes('A') && x.nivaer.includes('C'
 // Trenerne.
 {
   const fem = lagGjenger(kull(6, 10, 6), ['t1', 't2', 't3', 't4', 't5'])
-  ok('5 trenere til gjengene: største nivå deles i fire gjenger', fem.length === 4 && fem.filter(x => x.nivaer[0] === 'B').length === 2, vis(fem))
+  ok('5 trenere til gjengene: fortsatt tre gjenger', fem.length === 3, vis(fem))
+  const sju = lagGjenger(kull(6, 10, 6), ['t1', 't2', 't3', 't4', 't5', 't6', 't7'])
+  ok('7 trenere: aldri flere enn tre gjenger', sju.length === 3 && sju.reduce((s, x) => s + x.trenere.length, 0) === 7, vis(sju))
   ok('ingen gjeng uten trener', fem.every(x => x.trenere.length >= 1))
   const tre = lagGjenger(kull(6, 9, 6), ['t1', 't2', 't3'])
   ok('3 trenere: tre gjenger med én hver', tre.length === 3 && tre.every(x => x.trenere.length === 1), vis(tre))
@@ -76,6 +78,19 @@ const rene = g => g.every(x => !(x.nivaer.includes('A') && x.nivaer.includes('C'
   const r1 = lagGjenger(kull(6, 9, 6), ['t1', 't2', 't3', 't4'], 1)
   ok('rotasjon: neste trening har A en annen trener', r0[0].trenere[0] !== r1[0].trenere[0])
   ok('samme frø gir samme gjenger', JSON.stringify(lagGjenger(kull(6, 9, 6), ['t1'], 0, 3)) === JSON.stringify(lagGjenger(kull(6, 9, 6), ['t1'], 0, 3)))
+}
+// Antall lag uten per_gruppe: fra navnet, ellers fem per lag, alltid partall.
+{
+  ok('4v4-turnering, 21 her: fire lag', antallLag({ type: 'mix', text: '4v4-turnering' }, 21) === 4)
+  ok('4v4-turnering, 24 her: seks lag', antallLag({ type: 'mix', text: '4v4-turnering' }, 24) === 6)
+  ok('5v5, 21 her: fire lag', antallLag({ type: 'mix', text: '5v5' }, 21) === 4)
+  ok('uten tall i navnet, 21 her: fire lag', antallLag({ type: 'mix', text: 'Vinneren står, 3 touch' }, 21) === 4)
+  ok('12 her: to lag', antallLag({ type: 'mix', text: '5v5' }, 12) === 2)
+  ok('3 her: to lag', antallLag({ type: 'mix', text: '5v5' }, 3) === 2)
+  const g = lagGjenger(kull(6, 9, 6), ['t1', 't2', 't3', 't4'])
+  ok('valgt antall: 5 grupper deler de største', iGjengene({ type: 'diff' }, g, 5) === 'B deles i to, C deles i to' || /deles i to/.test(iGjengene({ type: 'diff' }, g, 5)), iGjengene({ type: 'diff' }, g, 5))
+  ok('valgt antall: 1 er alle sammen', iGjengene({ type: 'diff' }, g, 1) === 'alle sammen')
+  ok('valgt antall: 3 er i gjengene', iGjengene({ type: 'diff', per_gruppe: 2 }, g, 3) === 'i gjengene')
 }
 console.log(feilet ? `${feilet} feil` : 'Alt grønt')
 process.exit(feilet ? 1 : 0)
