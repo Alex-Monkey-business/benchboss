@@ -663,7 +663,7 @@ onMounted(async () => {
             :to="`/trening/okt/${s.id}`"
             class="okt-start"
           >
-            <span class="okt-start__tittel">{{ oppmoteIDag[s.id] != null ? 'Grupper og utstyr' : 'Registrer oppmøte' }}</span>
+            <span class="okt-start__tittel">{{ oppmoteIDag[s.id] != null ? 'Kjøreplanen' : 'Registrer oppmøte' }}</span>
             <span v-if="oppmoteIDag[s.id] != null" class="okt-start__her">{{ oppmoteIDag[s.id] }} her</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </router-link>

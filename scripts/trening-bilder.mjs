@@ -15,6 +15,9 @@ const DAG = sql(`select id from training_sessions where cohort_id='${KULL}' orde
 const VD = sql(`select coalesce(weekday::text,'null') from training_sessions where id='${DAG}'`)
 sql(`update training_sessions set weekday=${UKEDAG} where id='${DAG}'`)
 sql(`delete from training_runs where session_id='${DAG}'`)
+// Nivåer så gjengene blir ekte: annenhver tredjedel A, B, C.
+const HADDE_NIVA = sql(`select count(*) from player_levels where cohort_id='${KULL}'`) !== '0'
+if (!HADDE_NIVA) sql(`insert into player_levels (player_id, cohort_id, level) select id, cohort_id, (array['A','B','B','C'])[1 + (row_number() over (order by name))::int % 4] from players where cohort_id='${KULL}'`)
 const b = await chromium.launch()
 const r = await fetch(`${API}/auth/v1/admin/generate_link`, { method: 'POST', headers: { apikey: SVC, Authorization: `Bearer ${SVC}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'magiclink', email: 'alexander.samnoy@gmail.com' }) })
 const tok = (await r.json()).hashed_token
@@ -40,21 +43,28 @@ try {
   for (const i of [1, 4, 7]) await p.locator('.oppg__navn').nth(i).click()
   await bilde('oppmote-tre-borte')
   await p.locator(process.env.START || '.okt__start').click()
-  await p.locator('.rad').first().waitFor(); await bilde('okta', true)
-  await steg('ark', async () => {
-    await p.locator('.rad').first().click(); await bilde('ark-grupper')
-    await p.locator('.fot__knapp', { hasText: 'Endre' }).click(); await bilde('ark-endre')
-    await p.locator('.fot__knapp', { hasText: 'Ferdig' }).click()
-    await p.locator('.ark__om').click(); await bilde('ark-om')
+  await p.locator('.rad').first().waitFor(); await bilde('plan'); await bilde('plan-hel', true)
+  await steg('ovelse', async () => {
+    await p.locator('.rad').nth(1).click(); await bilde('ovelse')
+    await p.keyboard.press('Escape'); await vent(400)
+  })
+  await steg('endre', async () => {
+    await p.locator('.fase__endre').first().click(); await vent(500)
+    await p.locator('.brikke').nth(2).click(); await bilde('endre-gjengene')
+    await p.keyboard.press('Escape'); await vent(400)
+  })
+  await steg('kom-for-sent', async () => {
+    await p.locator('.okt__her').click(); await vent(500)
+    await p.locator('.oppg__navn--borte').first().click(); await bilde('kom-for-sent')
     await p.keyboard.press('Escape'); await vent(400)
   })
   await steg('ekstra', async () => { if (process.env.EKSTRA) await eval(process.env.EKSTRA) })
-  await steg('her', async () => { await p.locator('.okt__her').click(); await bilde('her-ark'); await p.keyboard.press('Escape'); await vent(400) })
   await p.goto(`${APP}/trening/dag/${DAG}`); await p.locator('.steg__hode').first().waitFor(); await bilde('dagen-etter')
   await p.goto(`${APP}/statistikk`); await vent(1500); await bilde('statistikk', true)
 } finally {
   console.log('sidefeil:', feil.length ? feil.join(' | ') : 'ingen')
   if (!process.env.BEHOLD) sql(`delete from training_runs where session_id='${DAG}'`)
   sql(`update training_sessions set weekday=${VD} where id='${DAG}'`)
+  if (!HADDE_NIVA) sql(`delete from player_levels where cohort_id='${KULL}'`)
   await b.close()
 }

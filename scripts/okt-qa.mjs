@@ -146,54 +146,57 @@ try {
     await p.locator('.rad').first().waitFor({ timeout: 10000 })
     await vent(400)
 
-    // ── Økta ──
-    ok(`${w} økt: ingen sideveis scroll`, (await scrollX()) === 0)
+    // ── Kjøreplanen ──
+    ok(`${w} plan: ingen sideveis scroll`, (await scrollX()) === 0)
     await strekk()
-    ok(`${w} økt: lange navn holder seg innenfor`, !(await utenfor()).length, (await utenfor()).join(', '))
+    ok(`${w} plan: lange navn holder seg innenfor`, !(await utenfor()).length, (await utenfor()).join(', '))
     await tilbakestill()
     const rader = await p.locator('.rad').count()
     for (let i = 0; i < rader; i++) {
       await p.locator('.rad').nth(i).click()
       await p.locator('.ds-sheet__footer').waitFor({ timeout: 5000 })
       await vent(500)
+      ok(`${w} øvelse ${i + 1}: arket åpner på toppen`, (await p.evaluate(() => document.querySelector('.ds-sheet__body')?.scrollTop || 0)) === 0)
       await arkSjekk(`øvelse ${i + 1}`, w)
-      if (await p.locator('.fot__knapp', { hasText: 'Endre' }).count()) {
-        await p.locator('.fot__knapp', { hasText: 'Endre' }).click()
-        await vent(250)
-        await p.locator('.grp__spiller').first().click()
-        await arkSjekk(`øvelse ${i + 1} endre`, w)
-        await p.locator('.grp__spiller--valgt').click()
-        await p.locator('.fot__knapp', { hasText: 'Ferdig' }).click()
-      }
-      await p.locator('.ark__om').click()
-      await vent(300)
-      // Om øvelsen er langt: arket scroller, ikke siden.
+      // Øvelsen er lang: arket scroller, ikke siden.
+      await p.evaluate(() => document.querySelector('.ds-sheet__body')?.scrollTo({ top: 0 }))
+      await vent(100)
       const fr = await p.evaluate(() => document.querySelector('.ds-sheet__body')?.scrollTop || 0)
       await sveip('.ds-sheet__body', -500)
       const til = await p.evaluate(() => document.querySelector('.ds-sheet__body')?.scrollTop || 0)
       const lang = await p.evaluate(() => { const e = document.querySelector('.ds-sheet__body'); return e.scrollHeight > e.clientHeight + 10 })
-      if (lang) ok(`${w} øvelse ${i + 1} om: arket scroller innholdet sitt`, til > fr, `${fr} → ${til}`)
-      await arkSjekk(`øvelse ${i + 1} om`, w)
-      await p.locator('.fot__knapp', { hasText: 'Tilbake' }).click()
+      if (lang) ok(`${w} øvelse ${i + 1}: arket scroller innholdet sitt`, til > fr, `${fr} → ${til}`)
       await lukkArk()
-      ok(`${w} økt: låsen slippes etter øvelse ${i + 1}`, !(await laast()))
+      ok(`${w} plan: låsen slippes etter øvelse ${i + 1}`, !(await laast()))
     }
 
-    // Oppmøte-arket.
+    // Endre gjengene og lagene: valgt spiller, mål i bunnen.
+    const endre = await p.locator('.fase__endre').count()
+    for (let i = 0; i < endre; i++) {
+      await p.locator('.fase__endre').nth(i).scrollIntoViewIfNeeded()
+      await p.locator('.fase__endre').nth(i).click()
+      await p.locator('.brikke').first().waitFor({ timeout: 5000 })
+      await vent(500)
+      await p.locator('.brikke').first().click()
+      await vent(200)
+      await arkSjekk(`endre ${i + 1}`, w)
+      const kb = await kuttet('.mal__knapp, .fot__tekst')
+      ok(`${w} endre ${i + 1}: målknappene er hele`, !kb.length, kb.join(' | '))
+      await lukkArk()
+      ok(`${w} endre ${i + 1}: sluppet`, !(await laast()))
+    }
+
+    // Oppmøte-arket, og en som kommer for sent.
     await p.locator('.okt__her').click()
     await p.locator('.oppg__navn').first().waitFor()
     await vent(500)
     await arkSjekk('oppmøte-ark', w)
+    await p.locator('.oppg__navn--borte').first().click()
+    await p.locator('.inn').waitFor({ timeout: 5000 })
+    await arkSjekk('kom for sent', w)
     await sveip('.ds-sheet__body', -2000)
     await lukkArk()
     ok(`${w} oppmøte-ark lukket: sluppet`, !(await laast()))
-
-    // Utstyr-arket.
-    await p.locator('.utstyr-rad').click()
-    await p.locator('.utstyr__liste').waitFor()
-    await vent(500)
-    ok(`${w} utstyr-ark: låst`, await laast())
-    await lukkArk()
 
     // Nullstill-dialogen fra siden.
     await p.locator('.okt__slett').scrollIntoViewIfNeeded()

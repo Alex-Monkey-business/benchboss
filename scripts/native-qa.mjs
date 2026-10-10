@@ -67,19 +67,13 @@ try {
   ok('tilbake lukker øvelsesarket', !(await arkApent()))
   ok('og blir på økta', sti() === `/trening/okt/${DAG}` && await p.locator('.rad').count() > 0, sti())
 
-  // Om øvelsen → tilbake → gruppene → tilbake → lukket.
-  await p.locator('.rad').first().click()
-  await p.locator('.ds-sheet__footer').waitFor()
+  // Endre gjengene: tilbake lukker arket, ikke siden.
+  await p.locator('.fase__endre').first().click()
+  await p.locator('.brikke').first().waitFor()
   await vent(400)
-  await p.locator('.ark__om').click()
-  await p.locator('.ex-view').waitFor()
+  await p.locator('.brikke').first().click()
   await tilbake()
-  ok('tilbake fra «Om øvelsen» gir gruppene', await arkApent() && await p.locator('.grp__gruppe').count() > 0)
-  await p.locator('.fot__knapp', { hasText: 'Endre' }).click()
-  await tilbake()
-  ok('tilbake fra Endre gir gruppene', await arkApent() && await p.locator('.grp__spiller').count() === 0)
-  await tilbake()
-  ok('tilbake igjen lukker arket', !(await arkApent()))
+  ok('tilbake lukker Endre-arket', !(await arkApent()) && sti() === `/trening/okt/${DAG}`)
 
   // Lukket med krysset: neste tilbake går rett til dagen, ingen døde steg.
   await p.locator('.rad').first().click()

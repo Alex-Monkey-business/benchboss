@@ -231,3 +231,191 @@ export function stasjonerFor(drill, kull) {
   if (!drill || !['diff', 'mix'].includes(drill.type) || !kull) return 0
   return planFor(drill, kull)?.grupper || Math.min(kull, drill.type === 'mix' ? 2 : 3)
 }
+
+// ── Gjengene og lagene ──────────────────────────────────────────────────────
+//
+// Økta har to faser. Diff-øvelsene kjøres i GJENGER: nivågrupper som lages én
+// gang per økt, med samme trener gjennom alle diff-øvelsene. Mix-øvelsene
+// kjøres i LAG som trekkes én gang, med nivåene spredt.
+//
+// Fordelingen lages når planen vises og lagres på økta. Den som kommer for
+// sent legges til; ingen andre flyttes. Gruppene over (grupperFor) regnes på
+// nytt av oppmøtet og brukes ikke i kjøreplanen.
+
+const NIVAER = ['A', 'B', 'C']
+const nivaTil = s => (s.niva in RANG ? s.niva : 'B')
+const ytterpunkter = (a, b) => (a === 'A' && b.has('C')) || (a === 'C' && b.has('A'))
+const tall = n => ['null', 'én', 'to', 'tre', 'fire', 'fem', 'seks'][n] || String(n)
+
+// Navnet på en gjeng: «A», «B», «A og B». Delte nivåer heter det samme;
+// treneren skiller dem.
+export function gjengNavn(g) {
+  return g.nivaer.length > 1 ? g.nivaer.join(' og ') : g.nivaer[0]
+}
+
+// spillere: [{ id, niva }], trenere: [id] — riggeren er allerede tatt ut.
+// runde: trenerrotasjonen fra trening til trening.
+// Returnerer [{ id, nivaer, spillere: [id], trenere: [id] }], A først.
+export function lagGjenger(spillere, trenere = [], runde = 0, seed = 1) {
+  if (!spillere.length) return []
+  const rng = frøRng(seed)
+  const nivaAv = Object.fromEntries(spillere.map(s => [s.id, nivaTil(s)]))
+  let gjenger = NIVAER
+    .map(n => ({ nivaer: [n], spillere: stokk(spillere.filter(s => nivaTil(s) === n).map(s => s.id), rng) }))
+    .filter(g => g.spillere.length)
+  const k = trenere.length
+
+  // Færre trenere enn nivåer: slå sammen naboer, aldri A med C — med mindre
+  // det bare er én trener. Ingen gruppe uten trener; heller større grupper.
+  while (k && gjenger.length > k) {
+    let best = -1
+    for (let i = 0; i < gjenger.length - 1; i++) {
+      const sammen = new Set([...gjenger[i].nivaer, ...gjenger[i + 1].nivaer])
+      if (sammen.has('A') && sammen.has('C') && k > 1) continue
+      if (best < 0 || gjenger[i].spillere.length + gjenger[i + 1].spillere.length < gjenger[best].spillere.length + gjenger[best + 1].spillere.length) best = i
+    }
+    if (best < 0) break
+    const [a, b] = gjenger.splice(best, 2)
+    gjenger.splice(best, 0, { nivaer: [...new Set([...a.nivaer, ...b.nivaer])], spillere: [...a.spillere, ...b.spillere] })
+  }
+
+  // Trenere nok til én per gjeng, to på C, og én til: nivået med flest
+  // spillere deles i to, med én trener hver.
+  const behov = gjenger.reduce((s, g) => s + (g.nivaer.length === 1 && g.nivaer[0] === 'C' ? 2 : 1), 0)
+  if (k > behov && gjenger.length) {
+    const i = gjenger.reduce((m, g, j) => (g.spillere.length > gjenger[m].spillere.length ? j : m), 0)
+    const g = gjenger[i]
+    if (g.spillere.length >= 6) {
+      const halv = Math.ceil(g.spillere.length / 2)
+      gjenger.splice(i, 1, { nivaer: g.nivaer, spillere: g.spillere.slice(0, halv) }, { nivaer: g.nivaer, spillere: g.spillere.slice(halv) })
+    }
+  }
+
+  // Avviket mellom største og minste gjeng kan være tre. Er det mer, flyttes
+  // én spiller om gangen til en nabogjeng — aldri A inn hos C eller omvendt.
+  for (let vakt = 0; vakt < 60; vakt++) {
+    const str = gjenger.map(g => g.spillere.length)
+    if (Math.max(...str) - Math.min(...str) <= 3) break
+    const fra = str.indexOf(Math.max(...str))
+    const naboer = [fra - 1, fra + 1].filter(j => j >= 0 && j < gjenger.length && str[j] < str[fra] - 1)
+    let flyttet = false
+    for (const til of naboer.sort((a, b) => str[a] - str[b])) {
+      const mal = new Set(gjenger[til].spillere.map(id => nivaAv[id]))
+      // Den som står nærmest nabonivået: sist i lista mot C, først mot A.
+      const kandidater = til > fra ? [...gjenger[fra].spillere].reverse() : gjenger[fra].spillere
+      const id = kandidater.find(x => !ytterpunkter(nivaAv[x], mal))
+      if (!id) continue
+      gjenger[fra].spillere = gjenger[fra].spillere.filter(x => x !== id)
+      gjenger[til].spillere = til > fra ? [id, ...gjenger[til].spillere] : [...gjenger[til].spillere, id]
+      flyttet = true
+      break
+    }
+    if (!flyttet) break
+  }
+  for (const g of gjenger) g.nivaer = NIVAER.filter(n => g.spillere.some(id => nivaAv[id] === n))
+
+  const fordelt = fordelTrenere(gjenger.map(g => ({ niva: g.nivaer.length === 1 ? g.nivaer[0] : null })), trenere, runde)
+  const sett = {}
+  return gjenger.map((g, i) => {
+    const navn = g.nivaer.join('')
+    sett[navn] = (sett[navn] || 0) + 1
+    return { id: navn + sett[navn], nivaer: g.nivaer, spillere: g.spillere, trenere: fordelt[i] }
+  })
+}
+
+// Hvordan én diff-øvelse kjøres i gjengene. Trenger øvelsen flere grupper
+// enn gjenger (typisk Y), deles det inne i gjengen — B kjører to Y-er med
+// samme trener. Trenger den færre, slås nabogjenger sammen, aldri A med C.
+// gjenger: bare de som er her. Returnerer en kort tekst til metalinja.
+export function iGjengene(drill, gjenger) {
+  const g = gjenger.filter(x => x.spillere.length)
+  const n = g.reduce((s, x) => s + x.spillere.length, 0)
+  if (!g.length || !n) return 'i gjengene'
+  if (drill.per_gruppe && drill.per_gruppe <= 2) return 'par i gjengen'
+  const N = planFor(drill, n)?.grupper
+  if (!N || N === g.length) return 'i gjengene'
+  if (N > g.length) {
+    const deler = g.map(() => 1)
+    for (let e = 0; e < N - g.length; e++) {
+      let best = 0
+      for (let i = 1; i < g.length; i++) if (g[i].spillere.length / deler[i] > g[best].spillere.length / deler[best]) best = i
+      deler[best]++
+    }
+    return g.map((x, i) => (deler[i] > 1 ? `${gjengNavn(x)} deles i ${tall(deler[i])}` : null)).filter(Boolean).join(', ')
+  }
+  let rest = g.map(x => ({ nivaer: [...x.nivaer], n: x.spillere.length }))
+  const sammen = []
+  while (rest.length > N) {
+    let best = -1
+    for (let i = 0; i < rest.length - 1; i++) {
+      const s = new Set([...rest[i].nivaer, ...rest[i + 1].nivaer])
+      if (s.has('A') && s.has('C')) continue
+      if (best < 0 || rest[i].n + rest[i + 1].n < rest[best].n + rest[best + 1].n) best = i
+    }
+    if (best < 0) break
+    const [a, b] = rest.splice(best, 2)
+    const ny = { nivaer: [...new Set([...a.nivaer, ...b.nivaer])], n: a.n + b.n }
+    rest.splice(best, 0, ny)
+    sammen.push(ny)
+  }
+  // Én sammenslåing: «A og B sammen». Flere: «i to grupper: A og B, B og C».
+  const slatt = rest.filter(x => sammen.includes(x))
+  if (!slatt.length) return 'i gjengene'
+  if (slatt.length === 1 && rest.length > 1) return `${slatt[0].nivaer.join(' og ')} sammen`
+  return `i ${tall(rest.length)} ${rest.length === 1 ? 'gruppe' : 'grupper'}: ${rest.map(x => x.nivaer.join(' og ')).join(', ')}`
+}
+
+// Lagene: slangetrekning over nivåsortert liste, så hvert lag får sin andel
+// av A, B og C. Navnet er vestfargen.
+export const LAGFARGER = ['Gul', 'Rød', 'Blå', 'Grønn', 'Oransje', 'Hvit']
+export function lagFarge(i) { return LAGFARGER[i] || `Lag ${i + 1}` }
+
+export function antallLag(drill, n) {
+  if (!drill || drill.type !== 'mix' || !n) return 0
+  return Math.max(1, Math.min(n, planFor(drill, n)?.grupper || 2))
+}
+
+export function trekkLag(spillere, antall, seed = 1) {
+  return lagGrupper(spillere, antall, 'mix', seed)
+}
+
+// To lag per bane. Lagene pares etter størrelse, så de like store møtes og
+// et skjevt oppgjør havner på én bane, ikke to.
+// lag: [[id]] (bare de som er her). Returnerer [{ lag: [indeks, …] }].
+export function baner(lag) {
+  const rekke = lag.map((l, i) => i).sort((a, b) => lag[b].length - lag[a].length || a - b)
+  const ut = []
+  for (let i = 0; i < rekke.length; i += 2) ut.push({ lag: rekke.slice(i, i + 2).sort((a, b) => a - b) })
+  return ut
+}
+
+// Trenerne per bane, rotert fra trening til trening.
+export function trenerePerBane(antallBaner, trenere, runde = 0) {
+  const ut = Array.from({ length: antallBaner }, () => [])
+  if (!antallBaner || !trenere.length) return ut
+  trenere.forEach((t, k) => ut[(k + runde) % antallBaner].push(t))
+  return ut
+}
+
+// Den som kommer for sent: inn i gjengen for sitt nivå og på laget som gjør
+// banene jevnest. Ingen andre flyttes.
+// gjenger og lag med bare dem som er her; returnerer { gjeng, lag } (indekser).
+export function plasser(niva, gjenger, lag) {
+  const n = niva in RANG ? niva : 'B'
+  let gjeng = -1
+  const sin = gjenger.map((g, i) => i).filter(i => gjenger[i].nivaer.includes(n))
+  const lovlige = gjenger.map((g, i) => i).filter(i => !ytterpunkter(n, new Set(gjenger[i].nivaer)))
+  const valg = sin.length ? sin : lovlige.length ? lovlige : gjenger.map((g, i) => i)
+  for (const i of valg) if (gjeng < 0 || gjenger[i].spillere.length < gjenger[gjeng].spillere.length) gjeng = i
+
+  let lagI = -1
+  if (lag?.length) {
+    const motstander = {}
+    for (const b of baner(lag)) if (b.lag.length === 2) { motstander[b.lag[0]] = b.lag[1]; motstander[b.lag[1]] = b.lag[0] }
+    const skjevhet = i => lag[i].length - (motstander[i] != null ? lag[motstander[i]].length : lag[i].length)
+    lag.forEach((l, i) => {
+      if (lagI < 0 || skjevhet(i) < skjevhet(lagI) || (skjevhet(i) === skjevhet(lagI) && l.length < lag[lagI].length)) lagI = i
+    })
+  }
+  return { gjeng, lag: lagI }
+}

@@ -26,6 +26,14 @@ if ! npm run --silent build > /dev/null 2>&1; then
 fi
 si "${GREEN}build ok${OFF}"
 
+# Fordelingen i kjøreplanen: rene regler, ingen base. Sekunder.
+if ! node scripts/fordeling-test.mjs > /dev/null; then
+  si "${RED}Fordelingen bryter reglene. Push avbrutt.${OFF}"
+  node scripts/fordeling-test.mjs | grep FEIL
+  exit 1
+fi
+si "${GREEN}fordeling ok${OFF}"
+
 # 2. Hele flyten. Krever den lokale basen. Er den ikke oppe, sier vi det rett
 #    ut i stedet for å late som vi har dekningen.
 if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q supabase_db_halsen-dommerutlegg; then
@@ -77,6 +85,8 @@ QA_APP="$QA_APP" node scripts/klubbdeling-test.mjs || status=1
 QA_APP="$QA_APP" node scripts/qa-full-flyt.mjs || status=1
 QA_APP="$QA_APP" node scripts/kampmodus-to-trenere-test.mjs || status=1
 QA_APP="$QA_APP" node scripts/kampmodus-trykk-test.mjs || status=1
+QA_APP="$QA_APP" node scripts/grupper-test.mjs || status=1
+QA_APP="$QA_APP" node scripts/native-qa.mjs || status=1
 
 if [ "$status" != 0 ]; then
   si "${RED}QA feiler. Push avbrutt.${OFF}"

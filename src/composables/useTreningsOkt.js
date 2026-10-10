@@ -35,6 +35,16 @@ export function datoFor() {
   return iso(new Date())
 }
 
+// Oppmøtet lagres bare på selve treningsdagen. Andre dager vises
+// kjøreplanen uten at noe lagres — da kan du se hvordan det blir, uten at
+// det havner i statistikken. En dag uten ukedag regnes som i dag.
+export function erTreningsdag(session) {
+  const wd = session?.weekday
+  if (!wd) return true
+  const d = new Date().getDay()
+  return wd === (d === 0 ? 7 : d)
+}
+
 const UTVALG = 'id, session_id, title, dato, started_at, state, training_run_players(player_id), training_run_coaches(coach_id)'
 
 function form(r) {
@@ -54,6 +64,8 @@ async function hent() {
     supabase.from('training_runs').select(UTVALG)
   ).eq('session_id', sessionId).eq('dato', dato).maybeSingle()
   if (underveis || aktiv?.sessionId !== sessionId) return
+  // En plan som bare står på telefonen (ikke treningsdag) har ingen rad.
+  if (run.value?.lokal && run.value.session_id === sessionId) { lastet.value = true; return }
   if (!error) run.value = form(data)
   lastet.value = true
 }
@@ -82,7 +94,7 @@ export function useTreningsOkt() {
     // Følg økta for én treningsdag. Returnerer stopp.
     folg(session) {
       const dato = datoFor(session)
-      if (aktiv?.sessionId !== session.id || aktiv?.dato !== dato) {
+      if (aktiv?.sessionId !== session.id || aktiv?.dato !== dato || (run.value?.lokal && run.value.session_id !== session.id)) {
         run.value = null
         lastet.value = false
       }
@@ -108,19 +120,24 @@ export function useTreningsOkt() {
 
     // Lagre oppmøtet med dem som er her. Har en annen trener lagret først,
     // gjelder det oppmøtet — vi skriver ikke over det.
-    async start(session, spillere, trenere, rigger = null) {
+    // plan(runde) lager fordelingen — gjengene og lagene — som lagres på
+    // økta sammen med oppmøtet. Trenerrotasjonen må være kjent først.
+    async start(session, spillere, trenere, rigger = null, plan = () => ({})) {
       const dato = datoFor(session)
-      if (!isSupabaseConfigured) {
-        run.value = { id: 'demo-run', session_id: session.id, dato, started_at: new Date().toISOString(), state: { _runde: 0, ...(rigger ? { _rigger: rigger } : {}) }, spillere: [...spillere], trenere: [...trenere] }
+      const lokal = !isSupabaseConfigured || !erTreningsdag(session)
+      if (lokal) {
+        const runde = isSupabaseConfigured ? await tidligereOkter(dato) : 0
+        run.value = { id: 'lokal', lokal: true, session_id: session.id, dato, started_at: new Date().toISOString(), state: { _runde: runde, ...(rigger ? { _rigger: rigger } : {}), ...plan(runde) }, spillere: [...spillere], trenere: [...trenere] }
+        lastet.value = true
         return true
       }
       underveis++
       try {
         // Trenerrotasjonen: hvor mange økter kullet har hatt før denne. Den
         // står fast på økta, så alle telefonene fordeler likt hele økta.
-        const { count } = await scoped(supabase.from('training_runs').select('id', { count: 'exact', head: true })).lt('dato', dato)
+        const runde = await tidligereOkter(dato)
         const { data: ny, error } = await supabase.from('training_runs')
-          .upsert({ session_id: session.id, dato, cohort_id: cohortId(), state: { _runde: count || 0, ...(rigger ? { _rigger: rigger } : {}) } }, { onConflict: 'session_id,dato', ignoreDuplicates: true })
+          .upsert({ session_id: session.id, dato, cohort_id: cohortId(), state: { _runde: runde, ...(rigger ? { _rigger: rigger } : {}), ...plan(runde) } }, { onConflict: 'session_id,dato', ignoreDuplicates: true })
           .select('id')
         if (error) return false
         if (ny?.length) {
@@ -142,7 +159,7 @@ export function useTreningsOkt() {
       const r = run.value
       if (!r) return
       r.spillere = her ? [...new Set([...r.spillere, id])] : r.spillere.filter(x => x !== id)
-      if (!isSupabaseConfigured) return
+      if (r.lokal) return
       await skriv(() => her
         ? supabase.from('training_run_players').upsert({ run_id: r.id, player_id: id, cohort_id: cohortId() }, { onConflict: 'run_id,player_id' }).select('player_id')
         : supabase.from('training_run_players').delete().eq('run_id', r.id).eq('player_id', id).select('player_id'))
@@ -152,7 +169,7 @@ export function useTreningsOkt() {
       const r = run.value
       if (!r) return
       r.trenere = her ? [...new Set([...r.trenere, id])] : r.trenere.filter(x => x !== id)
-      if (!isSupabaseConfigured) return
+      if (r.lokal) return
       await skriv(() => her
         ? supabase.from('training_run_coaches').upsert({ run_id: r.id, coach_id: id, cohort_id: cohortId() }, { onConflict: 'run_id,coach_id' }).select('coach_id')
         : supabase.from('training_run_coaches').delete().eq('run_id', r.id).eq('coach_id', id).select('coach_id'))
@@ -164,7 +181,7 @@ export function useTreningsOkt() {
       const r = run.value
       if (!r) return
       r.state = { ...r.state, [nokkel]: verdi }
-      if (!isSupabaseConfigured) return
+      if (r.lokal) return
       await skriv(() => supabase.rpc('bb_run_set_state', { p_run: r.id, p_key: nokkel, p_value: verdi }))
     },
 
@@ -174,10 +191,16 @@ export function useTreningsOkt() {
       const r = run.value
       if (!r) return
       run.value = null
-      if (!isSupabaseConfigured) return
+      if (r.lokal) return
       await skriv(() => supabase.from('training_runs').delete().eq('id', r.id).select('id'))
     }
   }
+}
+
+// Trenerrotasjonen: hvor mange økter kullet har hatt før denne datoen.
+async function tidligereOkter(dato) {
+  const { count } = await scoped(supabase.from('training_runs').select('id', { count: 'exact', head: true })).lt('dato', dato)
+  return count || 0
 }
 
 // Dagens oppmøte per treningsdag, for dagsiden og uka: { session_id: antall }.
