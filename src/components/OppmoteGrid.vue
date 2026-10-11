@@ -93,22 +93,25 @@ function velg(id) {
   color: var(--ds-color-text-secondary);
 }
 
-/* Store mål: tjue navn trykkes med tommelen i kulda. */
+/* Chips som flyter: tar halve plassen av et rutenett med like store ruter,
+   og er de samme brikkene som i Endre. 44 px høye, så de treffes med
+   tommelen i kulda. */
 .oppg__grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-  gap: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
 }
 .oppg__navn {
-  min-height: 48px;
-  padding: 0 10px;
+  display: inline-flex; align-items: center; gap: 6px;
+  min-height: 44px;
+  padding: 0 16px;
   border: 1.5px solid var(--ds-color-accent);
-  border-radius: var(--ds-radius-md);
+  border-radius: var(--ds-radius-full);
   background: var(--ds-color-accent-light, var(--ds-color-bg-elevated));
   color: var(--ds-color-text-primary);
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  white-space: nowrap;
   cursor: pointer;
   transition: background .15s ease, border-color .15s ease, color .15s ease, transform .1s ease;
   -webkit-tap-highlight-color: transparent;
@@ -121,8 +124,7 @@ function velg(id) {
   text-decoration: line-through;
 }
 
-.oppg__navn--trener { display: flex; flex-direction: column; align-items: center; justify-content: center; line-height: 1.2; }
-.oppg__navn small { font-size: var(--ds-text-xs, 12px); font-weight: var(--ds-weight-medium); }
+.oppg__navn small { font-size: var(--ds-text-xs, 12px); font-weight: var(--ds-weight-semibold); opacity: .8; }
 .oppg__navn--rigger:not(.oppg__navn--borte) {
   background: var(--ds-color-accent);
   color: var(--ds-color-accent-text);
