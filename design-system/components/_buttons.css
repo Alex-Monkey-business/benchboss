@@ -2,7 +2,19 @@
    BUTTONS
    Notion-monokrom: solid charcoal primary, ghost secondary.
    No offset shadow. Hover via bg shift, not translate.
+
+   Tre høyder i hele appen (10. okt 2026):
+   stor 52 px = hovedhandlingen på en flate, full bredde, 17 px
+   standard 44 px = alle andre knapper, 15 px (minste trykkflate)
+   liten 36 px = i tette rader (Rediger ved en tittel), 13 px
+   Alle knapper er halvfete.
    ============================================ */
+
+:root {
+  --ds-btn-h-lg: 52px;
+  --ds-btn-h:    44px;
+  --ds-btn-h-sm: 36px;
+}
 
 .ds-btn {
   display: inline-flex;
@@ -13,8 +25,9 @@
   border: var(--ds-border-width) solid transparent;
   border-radius: var(--ds-radius-md);
   font-family: var(--ds-font-body);
+  min-height: var(--ds-btn-h);
   font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
+  font-weight: var(--ds-weight-semibold);
   line-height: 1;
   letter-spacing: -0.005em;
   text-decoration: none;
@@ -64,7 +77,7 @@
 }
 
 .ds-btn--primary:active {
-  background: #000000;
+  background: var(--ds-color-accent-hover);
 }
 
 /* ---- Secondary (hairline ghost) ---- */
@@ -105,10 +118,10 @@
   background: var(--ds-color-accent);
   color: var(--ds-color-accent-text);
   border-color: var(--ds-color-accent);
-  padding: var(--ds-space-md) var(--ds-space-2xl);
+  min-height: var(--ds-btn-h-lg);
+  padding: 0 var(--ds-space-2xl);
   font-size: var(--ds-text-md);
-  font-weight: var(--ds-weight-medium);
-  border-radius: var(--ds-radius-md);
+  border-radius: var(--ds-radius-lg);
   width: 100%;
   max-width: 400px;
 }
@@ -119,7 +132,7 @@
 }
 
 .ds-btn--confirm:active {
-  background: #000000;
+  background: var(--ds-color-accent-hover);
 }
 
 /* ---- Danger ---- */
@@ -140,15 +153,17 @@
 
 /* ---- Size Modifiers ---- */
 .ds-btn--sm {
+  min-height: var(--ds-btn-h-sm);
   padding: 0.4375rem var(--ds-space-md);
   font-size: var(--ds-text-xs);
   border-radius: var(--ds-radius-sm);
 }
 
 .ds-btn--lg {
-  padding: 0.875rem var(--ds-space-xl);
+  min-height: var(--ds-btn-h-lg);
+  padding: 0 var(--ds-space-xl);
   font-size: var(--ds-text-md);
-  border-radius: var(--ds-radius-md);
+  border-radius: var(--ds-radius-lg);
 }
 
 /* ---- Icon-only Button ---- */

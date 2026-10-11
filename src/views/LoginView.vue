@@ -352,19 +352,19 @@ function onDemo(role) {
 
 .login-button {
   width: 100%;
-  padding: var(--ds-space-md);
+  padding: 0 var(--ds-space-lg);
   margin-top: var(--ds-space-sm);
   font-family: var(--ds-font-body);
-  font-size: var(--ds-text-base);
+  font-size: var(--ds-text-md);
   font-weight: var(--ds-weight-semibold);
   color: var(--ds-color-accent-text);
   background: var(--ds-color-accent);
   border: 1px solid var(--ds-color-accent);
-  border-radius: var(--ds-radius-md);
+  border-radius: var(--ds-radius-lg);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   transition: transform 180ms ease, opacity 180ms ease, background 180ms ease;
-  min-height: 52px;
+  min-height: var(--ds-btn-h-lg);
 }
 
 .login-button:active {

@@ -416,15 +416,16 @@ onMounted(load)
 
 .tilgang-invite {
   width: 100%;
-  padding: var(--ds-space-md);
+  padding: 0 var(--ds-space-lg);
   font-family: var(--ds-font-body);
-  font-size: var(--ds-text-base);
+  font-size: var(--ds-text-md);
   font-weight: var(--ds-weight-semibold);
   color: var(--ds-color-accent-text);
   background: var(--ds-color-accent);
   border: 1px solid var(--ds-color-accent);
-  border-radius: var(--ds-radius-md);
+  border-radius: var(--ds-radius-lg);
   cursor: pointer;
+  min-height: var(--ds-btn-h-lg);
 }
 
 .tilgang-group {

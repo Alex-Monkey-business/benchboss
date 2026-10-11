@@ -31,7 +31,7 @@ const rene = g => g.every(x => !(x.nivaer.includes('A') && x.nivaer.includes('C'
   const g = lagGjenger(kull(6, 9, 6), ['t1', 't2', 't3', 't4'])
   const t = iGjengene({ type: 'diff', per_gruppe: 5 }, g)
   ok('Y med 5 per gruppe: B deles i to', t === 'B deles i to', t)
-  ok('1v1 (2 per gruppe): par i gjengen', iGjengene({ type: 'diff', per_gruppe: 2 }, g) === 'par i gjengen')
+  ok('1v1 (2 per gruppe): par i gruppa', iGjengene({ type: 'diff', per_gruppe: 2 }, g) === 'par i gruppa')
   const f = iGjengene({ type: 'diff', per_gruppe: 10 }, g)
   ok('færre grupper: naboer slås sammen, aldri A med C', /sammen/.test(f) && !/A og C/.test(f), f)
 }
@@ -90,7 +90,7 @@ const rene = g => g.every(x => !(x.nivaer.includes('A') && x.nivaer.includes('C'
   const g = lagGjenger(kull(6, 9, 6), ['t1', 't2', 't3', 't4'])
   ok('valgt antall: 5 grupper deler de største', iGjengene({ type: 'diff' }, g, 5) === 'B deles i to, C deles i to' || /deles i to/.test(iGjengene({ type: 'diff' }, g, 5)), iGjengene({ type: 'diff' }, g, 5))
   ok('valgt antall: 1 er alle sammen', iGjengene({ type: 'diff' }, g, 1) === 'alle sammen')
-  ok('valgt antall: 3 er i gjengene', iGjengene({ type: 'diff', per_gruppe: 2 }, g, 3) === 'i gjengene')
+  ok('valgt antall: 3 er i gjengene', iGjengene({ type: 'diff', per_gruppe: 2 }, g, 3) === 'i gruppene')
 }
 console.log(feilet ? `${feilet} feil` : 'Alt grønt')
 process.exit(feilet ? 1 : 0)

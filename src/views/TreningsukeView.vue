@@ -1256,7 +1256,7 @@ Torsdag
   align-items: center;
   justify-content: space-between;
   gap: var(--ds-space-md);
-  min-height: 56px;
+  min-height: var(--ds-btn-h-lg);
   padding: 0 var(--ds-space-lg);
   margin-bottom: var(--ds-space-sm);
   border-radius: var(--ds-radius-lg);

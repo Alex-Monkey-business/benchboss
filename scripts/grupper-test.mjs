@@ -106,7 +106,7 @@ try {
   ok('riggeren er markert på brikken', await p.locator('.oppg__navn--rigger').count() === 1)
   ok('telleren viser 21 av 27', /21\s*av\s*27/.test(await p.locator('.oppm__teller').first().innerText()))
   const linje = await p.locator('.oppm__linje').innerText()
-  ok('linja over knappen: gjenger, lag og at det lagres', /\d+ gjenger og \d+ lag\.\s+Oppmøtet lagres når du går videre/.test(linje), linje)
+  ok('linja over knappen: gjenger, lag og at det lagres', /\d+ grupper og \d+ lag\.\s+Oppmøtet lagres når du går videre/.test(linje), linje)
   const sluttY = (await p.locator('.okt__start').boundingBox()).y
   ok('knappen står stille mens du trykker', likt(sluttY, startY), `${startY} → ${sluttY}`)
   await p.screenshot({ path: `${OUT}/okt-oppmote.png` })
@@ -131,7 +131,7 @@ try {
   // Kjøreplanen: gjengene, lagene, øvelsene — på én side.
   const gjengNavn = async (side, i) => (await side.locator('.fase').first().locator('.gjeng').nth(i).locator('.gjeng__navn').innerText()).split(' · ').map(x => x.trim())
   const antGjenger = await p.locator('.fase').first().locator('.gjeng').count()
-  ok('gjengene står først', /Gjengene/.test(await p.locator('.fase').first().innerText()) && antGjenger >= 2, String(antGjenger))
+  ok('gjengene står først', /Gruppene/.test(await p.locator('.fase').first().innerText()) && antGjenger >= 2, String(antGjenger))
   let alle = []
   for (let i = 0; i < antGjenger; i++) alle = alle.concat(await gjengNavn(p, i))
   ok('alle 21 i nøyaktig én gjeng', alle.length === 21 && new Set(alle).size === 21, String(alle.length))
@@ -141,7 +141,7 @@ try {
   ok('lagene heter etter vestfarge', /Gul/.test(await p.locator('.fase').nth(1).innerText()))
   ok('én rad per øvelse', await p.locator('.rad').count() === 2)
   const meta = await p.locator('.rad').first().locator('.rad__meta').innerText()
-  ok('diff-øvelsen: tid og hvordan i gjengene', /20 min · /.test(meta) && /gjeng|deles|sammen|grupper/.test(meta), meta)
+  ok('diff-øvelsen: tid og hvordan i gjengene', /20 min · /.test(meta) && /gruppe|deles|sammen|grupper/.test(meta), meta)
   ok('mix-øvelsen: fire lag uten tall på øvelsen (fem per lag)', /4 lag/.test(await p.locator('.rad').nth(1).locator('.rad__meta').innerText()))
   ok('ingen klokkeslett', !/\d{2}:\d{2}/.test(await p.locator('.plan').innerText()))
   await p.screenshot({ path: `${OUT}/okt-plan.png`, fullPage: true })
@@ -240,7 +240,7 @@ try {
   await p.locator('.oppg__navn--borte').first().click()
   await vent(600)
   const inn = await p.locator('.inn').innerText()
-  ok('bekreftelsen sier hvor', /er med/.test(inn) && /gjengen/.test(inn) && /lag\./.test(inn), inn.replace(/\n/g, ' | '))
+  ok('bekreftelsen sier hvor', /er med/.test(inn) && /-gruppa/.test(inn) && /lag\./.test(inn), inn.replace(/\n/g, ' | '))
   await p.locator('.fot__knapp', { hasText: 'Ferdig' }).click()
   await vent(1500)
   const etter2 = lagret()

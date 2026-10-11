@@ -1951,17 +1951,18 @@ function focusSummaryGroup() {
   justify-content: center;
   gap: 8px;
   width: 100%;
-  padding: 14px;
+  padding: 0 var(--ds-space-lg);
   border: 1.5px solid var(--ds-color-accent);
   border-radius: var(--ds-radius-lg);
   background: var(--ds-color-accent);
   color: var(--ds-color-accent-text);
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-md);
-  font-weight: var(--ds-weight-bold);
+  font-weight: var(--ds-weight-semibold);
   cursor: pointer;
   transition: transform 160ms var(--ds-ease-pop, ease), filter 0.15s ease;
   -webkit-tap-highlight-color: transparent;
+  min-height: var(--ds-btn-h-lg);
 }
 
 .match-mode-cta svg {

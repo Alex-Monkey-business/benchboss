@@ -114,6 +114,21 @@ try {
   const x = Math.round(hode.x + hode.width / 2), y = Math.round(hode.y + hode.height / 2)
   const top0 = (await p.locator('.ds-sheet').boundingBox()).y
 
+  // Scrollet ned i innholdet: et drag nedover scroller opp igjen, det lukker
+  // ikke arket. Feilen fra Android: arket spurte feil element og trodde det
+  // alltid sto øverst.
+  const kropp = p.locator('.ds-sheet__body')
+  await kropp.evaluate(el => { el.scrollTop = 400 })
+  await vent(200)
+  const st0 = await kropp.evaluate(el => el.scrollTop)
+  const kb = await kropp.boundingBox()
+  await dra(Math.round(kb.x + kb.width / 2), Math.round(kb.y + 120), 200, 12, 16)
+  await slipp()
+  await vent(450)
+  ok('scrollet ned: drag nedover lukker ikke arket', await arkApent() && Math.abs((await p.locator('.ds-sheet').boundingBox()).y - top0) < 2, `scrollTop før ${st0}`)
+  await kropp.evaluate(el => { el.scrollTop = 0 })
+  await vent(200)
+
   // Litt dra, sakte: glir tilbake, forblir åpent.
   await dra(x, y, 60, 12, 30)
   const bg0 = await p.evaluate(() => getComputedStyle(document.querySelector('.ds-sheet-overlay')).backgroundColor)

@@ -178,16 +178,17 @@ const detailLine = computed(() => {
   justify-content: center;
   gap: 8px;
   width: 100%;
-  padding: 12px;
+  padding: 0 var(--ds-space-lg);
   border: 1.5px solid var(--ds-color-accent);
-  border-radius: var(--ds-radius-md);
+  border-radius: var(--ds-radius-lg);
   background: var(--ds-color-accent);
   color: var(--ds-color-accent-text);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-bold);
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-semibold);
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
   transition: transform var(--ds-duration-fast) var(--ds-ease-out);
+  min-height: var(--ds-btn-h-lg);
 }
 
 .next-match__cta:active { transform: scale(0.98); }
@@ -275,7 +276,7 @@ const detailLine = computed(() => {
   font-weight: var(--ds-weight-semibold);
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ds-color-text-tertiary);
+  color: var(--ds-color-text-secondary);
   white-space: nowrap;
 }
 

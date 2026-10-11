@@ -28,13 +28,21 @@ const dragY = ref(0)
 const dragging = ref(false)
 let touch = null
 
+// Det som faktisk scroller under fingeren: nærmeste forelder med innhold å
+// scrolle, opp til arket. Før ble stacken spurt — den scroller aldri, så
+// scrollTop var alltid 0 og hvert drag nedover i innholdet lukket arket.
+function scrollerUnder(el, ark) {
+  for (let e = el; e && e !== ark; e = e.parentElement) {
+    if (e.scrollHeight > e.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(e).overflowY)) return e
+  }
+  return null
+}
+
 function onTouchStart(e) {
   if (!isMobile.value || e.touches.length !== 1) return
   const t = e.touches[0]
-  const scroller = scrollRef.value || bodyRef.value
-  const inScroller = scroller && scroller.contains(e.target)
-  const atTop = !scroller || scroller.scrollTop <= 0
-  touch = { x: t.clientX, y: t.clientY, t: performance.now(), kan: !inScroller || atTop, aktiv: false, h: e.currentTarget.offsetHeight || 600 }
+  const scroller = scrollerUnder(e.target, e.currentTarget)
+  touch = { x: t.clientX, y: t.clientY, t: performance.now(), scroller, kan: !scroller || scroller.scrollTop <= 0, aktiv: false, h: e.currentTarget.offsetHeight || 600 }
 }
 
 function onTouchMove(e) {
@@ -43,6 +51,9 @@ function onTouchMove(e) {
   const dy = t.clientY - touch.y
   const dx = t.clientX - touch.x
   if (!touch.aktiv) {
+    // Har innholdet scrollet siden fingeren landet (fart fra et tidligere
+    // sveip), er det scrolling, ikke dra.
+    if (touch.scroller && touch.scroller.scrollTop > 0) { touch.kan = false; return }
     if (dy < 8 || Math.abs(dx) > Math.abs(dy)) { if (dy < -4 || Math.abs(dx) > 12) touch.kan = false; return }
     touch.aktiv = true
     dragging.value = true

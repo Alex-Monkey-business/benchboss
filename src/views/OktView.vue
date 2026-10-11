@@ -140,7 +140,7 @@ const forhand = computed(() => {
   const deler = []
   if (harDiff.value) {
     const n = lagGjenger(her.value, trenereIOkta.value).length
-    deler.push(`${n} ${n === 1 ? 'gjeng' : 'gjenger'}`)
+    deler.push(`${n} ${n === 1 ? 'gruppe' : 'grupper'}`)
   }
   if (mixAntall.value.length) deler.push(`${mixAntall.value[0]} lag`)
   return deler.length ? `${deler.join(' og ')}.` : ''
@@ -285,7 +285,7 @@ function kommer(id) {
       nyGjenger.find(x => x.id === g.id)?.spillere.push(id)
     }
     const n = g.nivaer
-    deler.push(`${n.length > 1 ? `${n.slice(0, -1).join('-, ')}- og ${n[n.length - 1]}` : n[0]}-gjengen${g.trenere.length ? ` hos ${navnPa(g.trenere)}` : ''}`)
+    deler.push(`${n.length > 1 ? `${n.slice(0, -1).join('-, ')}- og ${n[n.length - 1]}` : n[0]}-gruppa${g.trenere.length ? ` hos ${navnPa(g.trenere)}` : ''}`)
   }
   lagSett.value.forEach((sett, si) => {
     let i = nyLag[sett.n].findIndex(l => l.includes(id))
@@ -554,7 +554,7 @@ function tilbake() {
 
       <section v-if="gjenger.length" class="fase">
         <div class="fase__hode">
-          <h2 class="fase__tittel">Gjengene</h2>
+          <h2 class="fase__tittel">Gruppene</h2>
           <button type="button" class="fase__endre" @click="endre = { hva: 'gjenger' }">Endre</button>
         </div>
         <div class="kortene">
@@ -668,7 +668,7 @@ function tilbake() {
     </Sheet>
 
     <!-- ── D5 ENDRE ────────────────────────────────────────────── -->
-    <Sheet :show="!!endre" :title="endre?.hva === 'lag' ? 'Endre lagene' : 'Endre gjengene'" tall @close="endre = null">
+    <Sheet :show="!!endre" :title="endre?.hva === 'lag' ? 'Endre lagene' : 'Endre gruppene'" tall @close="endre = null">
       <p v-if="endreGjelder" class="ark__meta">{{ endreGjelder }}</p>
       <div v-for="g in endreGrupper" :key="g.key" class="endre-gr">
         <div class="gjeng__hode">
@@ -808,10 +808,12 @@ function tilbake() {
 .oppm__linje strong { color: var(--ds-color-text-primary); font-weight: var(--ds-weight-semibold); }
 .okt__start {
   display: block; width: 100%;
-  min-height: 56px; border: none; border-radius: var(--ds-radius-lg);
+  min-height: var(--ds-btn-h-lg); border: none; border-radius: var(--ds-radius-lg);
   background: var(--ds-color-accent); color: var(--ds-color-accent-text);
   font-family: var(--ds-font-body); font-size: var(--ds-text-lg); font-weight: var(--ds-weight-bold);
   cursor: pointer; -webkit-tap-highlight-color: transparent;
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-semibold);
 }
 .okt__start:disabled { opacity: .45; cursor: default; }
 
@@ -986,7 +988,7 @@ function tilbake() {
 .fot__pil:disabled { color: var(--ds-color-text-tertiary); opacity: .5; cursor: default; }
 .fot__knapp {
   flex: 1 1 0;
-  min-height: 52px;
+  min-height: var(--ds-btn-h-lg);
   padding: 0 8px;
   border: 1px solid transparent;
   border-radius: var(--ds-radius-lg);

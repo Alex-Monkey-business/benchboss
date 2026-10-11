@@ -450,6 +450,8 @@ const links = computed(() => [
 .theme-toggle--wrap .theme-toggle__option {
   flex: 0 1 auto;
   background: var(--ds-color-bg-subtle);
+  min-height: var(--ds-btn-h);
+  font-weight: var(--ds-weight-semibold);
 }
 
 .theme-toggle--wrap .theme-toggle__option--active {

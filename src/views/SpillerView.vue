@@ -352,7 +352,7 @@ async function confirmDelete() {
   margin: 2px 0 0; display: flex; align-items: center; gap: 5px;
   font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary);
 }
-.sp__star { color: var(--ds-color-warning); }
+.sp__star { color: var(--ds-color-warning-text, var(--ds-color-warning)); }
 
 .sp__section { padding: 0 var(--ds-space-lg) var(--ds-space-xl); }
 /* Utseendet kommer fra .ds-section-label; her bare marginen i denne siden. */

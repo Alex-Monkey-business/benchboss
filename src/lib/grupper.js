@@ -323,11 +323,11 @@ export function lagGjenger(spillere, trenere = [], runde = 0, seed = 1) {
 export function iGjengene(drill, gjenger, antall = null) {
   const g = gjenger.filter(x => x.spillere.length)
   const n = g.reduce((s, x) => s + x.spillere.length, 0)
-  if (!g.length || !n) return 'i gjengene'
-  if (!antall && drill.per_gruppe && drill.per_gruppe <= 2) return 'par i gjengen'
+  if (!g.length || !n) return 'i gruppene'
+  if (!antall && drill.per_gruppe && drill.per_gruppe <= 2) return 'par i gruppa'
   if (antall === 1) return 'alle sammen'
   const N = antall || planFor(drill, n)?.grupper
-  if (!N || N === g.length) return 'i gjengene'
+  if (!N || N === g.length) return 'i gruppene'
   if (N > g.length) {
     const deler = g.map(() => 1)
     for (let e = 0; e < N - g.length; e++) {
@@ -354,7 +354,7 @@ export function iGjengene(drill, gjenger, antall = null) {
   }
   // Én sammenslåing: «A og B sammen». Flere: «i to grupper: A og B, B og C».
   const slatt = rest.filter(x => sammen.includes(x))
-  if (!slatt.length) return 'i gjengene'
+  if (!slatt.length) return 'i gruppene'
   if (slatt.length === 1 && rest.length > 1) return `${slatt[0].nivaer.join(' og ')} sammen`
   return `i ${tall(rest.length)} ${rest.length === 1 ? 'gruppe' : 'grupper'}: ${rest.map(x => x.nivaer.join(' og ')).join(', ')}`
 }
