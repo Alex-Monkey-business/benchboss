@@ -250,20 +250,23 @@ const tall = n => ['null', 'én', 'to', 'tre', 'fire', 'fem', 'seks'][n] || Stri
 // Navnet på en gjeng: «A», «B», «A og B». Delte nivåer heter det samme;
 // treneren skiller dem.
 export function gjengNavn(g) {
-  return g.nivaer.length > 1 ? g.nivaer.join(' og ') : g.nivaer[0]
+  const n = g.nivaer
+  return n.length > 1 ? `${n.slice(0, -1).join(', ')} og ${n[n.length - 1]}` : n[0]
 }
 
 // spillere: [{ id, niva }], trenere: [id] — riggeren er allerede tatt ut.
 // runde: trenerrotasjonen fra trening til trening.
 // Returnerer [{ id, nivaer, spillere: [id], trenere: [id] }], A først.
-export function lagGjenger(spillere, trenere = [], runde = 0, seed = 1) {
+// antall: valgt i Del inn. Uten det styrer trenerne: én gjeng per trener,
+// aldri flere enn nivåene (tre).
+export function lagGjenger(spillere, trenere = [], runde = 0, seed = 1, antall = null) {
   if (!spillere.length) return []
   const rng = frøRng(seed)
   const nivaAv = Object.fromEntries(spillere.map(s => [s.id, nivaTil(s)]))
   let gjenger = NIVAER
     .map(n => ({ nivaer: [n], spillere: stokk(spillere.filter(s => nivaTil(s) === n).map(s => s.id), rng) }))
     .filter(g => g.spillere.length)
-  const k = trenere.length
+  const k = antall ? Math.min(antall, spillere.length) : trenere.length
 
   // Færre trenere enn nivåer: slå sammen naboer, aldri A med C — med mindre
   // det bare er én trener. Ingen gruppe uten trener; heller større grupper.
@@ -282,6 +285,17 @@ export function lagGjenger(spillere, trenere = [], runde = 0, seed = 1) {
   // Aldri flere enn tre gjenger, ett per nivå. Ekstra trenere går inn i
   // gjengene (fordelTrenere). Trenger en øvelse mindre grupper, som Y, deles
   // det inne i gjengen (iGjengene).
+  //
+  // Velger treneren flere i Del inn, deles den største gjengen i to, innenfor
+  // nivået. Delene står ved siden av hverandre, så naboreglene holder.
+  while (antall && gjenger.length < k) {
+    let st = 0
+    gjenger.forEach((g, i) => { if (g.spillere.length > gjenger[st].spillere.length) st = i })
+    const g = gjenger[st]
+    if (g.spillere.length < 2) break
+    const halv = Math.ceil(g.spillere.length / 2)
+    gjenger.splice(st, 1, { nivaer: g.nivaer, spillere: g.spillere.slice(0, halv) }, { nivaer: g.nivaer, spillere: g.spillere.slice(halv) })
+  }
 
   // Avviket mellom største og minste gjeng kan være tre. Er det mer, flyttes
   // én spiller om gangen til en nabogjeng — aldri A inn hos C eller omvendt.
@@ -421,4 +435,78 @@ export function plasser(niva, gjenger, lag) {
     })
   }
   return { gjeng, lag: lagI }
+}
+
+// ── Del inn ─────────────────────────────────────────────────────────────────
+//
+// Én motor for all inndeling: kjøreplanen (gruppene og lagene når oppmøtet
+// lagres) og Del inn (fritt, fra Hjem, eller «Endre» fra planen).
+//
+// form: 'grupper' (en trener per gruppe) eller 'lag' (to og to per bane).
+// type: 'diff' (likt nivå) eller 'mix' (nivåene spredt). Standard er diff på
+// grupper og mix på lag. antall: valgt med − og +; uten det regnes det ut.
+// spillere: [{ id, niva }], trenere: [id] — riggeren er allerede tatt ut.
+//
+// Returnerer { form, type, antall, standard, enheter, baner, info }:
+//   enheter: [{ id, navn, nivaer, spillere: [id], trenere: [id] }]
+//   baner (bare lag): [{ lag: [indeks, indeks], trenere: [id], pluss }]
+//     pluss: laget som er én færre og får en trener med seg, ellers null.
+export function standardType(form) { return form === 'lag' ? 'mix' : 'diff' }
+
+export function standardAntall(form, n, trenere = 0, drill = null) {
+  if (!n) return 0
+  if (form === 'lag') return antallLag(drill || { type: 'mix' }, n)
+  return Math.max(1, Math.min(n, 3, trenere || 3))
+}
+
+export function delInn({ spillere = [], trenere = [], form = 'grupper', type = null, antall = null, runde = 0, seed = 1, drill = null } = {}) {
+  type = type || standardType(form)
+  const n = spillere.length
+  const standard = form === 'grupper' && type === 'diff'
+    ? lagGjenger(spillere, trenere, runde, seed).length
+    : standardAntall(form, n, trenere.length, drill)
+  const N = Math.max(form === 'lag' ? Math.min(2, n) : 1, Math.min(antall || standard, n))
+  const ut = { form, type, antall: N, standard, enheter: [], baner: [], info: '' }
+  if (!n) return ut
+
+  // Grupper på likt nivå: gjengene, med trenerne. Lag på likt nivå: like
+  // store biter av den nivåsorterte lista — på en bane teller like store lag
+  // mer enn rene nivåer. Blandet: slangetrekning.
+  const nivaAv = Object.fromEntries(spillere.map(s => [s.id, nivaTil(s)]))
+  const somDel = ids => ({ nivaer: NIVAER.filter(v => ids.some(id => nivaAv[id] === v)), spillere: ids, trenere: [] })
+  const deler = form === 'grupper' && type === 'diff'
+    ? lagGjenger(spillere, trenere, runde, seed, N)
+    : lagGrupper(spillere, N, type, seed).map(somDel)
+
+  if (form === 'grupper') {
+    const tr = type === 'diff' ? deler.map(d => d.trenere) : fordelTrenere(deler.map(() => ({ niva: null })), trenere, runde)
+    ut.enheter = deler.map((d, i) => ({
+      id: `g${i}`,
+      navn: type === 'diff' ? gjengNavn(d) : `Gruppe ${i + 1}`,
+      nivaer: d.nivaer,
+      spillere: d.spillere,
+      trenere: tr[i]
+    }))
+    const uten = ut.enheter.filter(e => !e.trenere.length).length
+    ut.info = !trenere.length ? '' : uten ? `${uten} uten trener` : ut.enheter.every(e => e.trenere.length === 1) ? 'Én trener i hver' : 'Minst én trener i hver'
+    return ut
+  }
+
+  // Lag: diff-lag står i nivårekkefølge, så like nivåer møtes på samme bane.
+  // Mix-lag pares etter størrelse.
+  const lag = deler.map(d => d.spillere)
+  ut.enheter = deler.map((d, i) => ({ id: `l${i}`, navn: lagFarge(i), nivaer: d.nivaer, spillere: d.spillere, trenere: [] }))
+  const par = type === 'diff'
+    ? Array.from({ length: Math.ceil(lag.length / 2) }, (_, i) => ({ lag: [2 * i, 2 * i + 1].filter(j => j < lag.length) }))
+    : baner(lag)
+  const tr = trenerePerBane(par.length, trenere, runde)
+  ut.baner = par.map((b, i) => {
+    const [x, y] = b.lag
+    const pluss = y == null || Math.abs(lag[x].length - lag[y].length) !== 1 ? null : lag[x].length < lag[y].length ? x : y
+    return { lag: b.lag, trenere: tr[i], pluss }
+  })
+  const str = lag.map(l => l.length)
+  const min = Math.min(...str), max = Math.max(...str)
+  ut.info = `${par.length} ${par.length === 1 ? 'bane' : 'baner'}, ${min === max ? min : `${min}–${max}`} på hvert lag`
+  return ut
 }

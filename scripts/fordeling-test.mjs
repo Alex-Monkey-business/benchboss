@@ -1,6 +1,6 @@
 // Fordelingen i kjøreplanen: testcasene fra docs/handover-trening-pa-feltet.md.
 //   node scripts/fordeling-test.mjs
-import { lagGjenger, iGjengene, antallLag, trekkLag, baner, plasser, trenerePerBane, gjengNavn } from '../src/lib/grupper.js'
+import { lagGjenger, iGjengene, antallLag, trekkLag, baner, plasser, trenerePerBane, gjengNavn, delInn } from '../src/lib/grupper.js'
 let feilet = 0
 const ok = (l, c, x = '') => { if (!c) feilet++; console.log(`${c ? 'OK  ' : 'FEIL'} ${l}${x ? '  — ' + x : ''}`) }
 const kull = (a, b, c) => [
@@ -91,6 +91,49 @@ const rene = g => g.every(x => !(x.nivaer.includes('A') && x.nivaer.includes('C'
   ok('valgt antall: 5 grupper deler de største', iGjengene({ type: 'diff' }, g, 5) === 'B deles i to, C deles i to' || /deles i to/.test(iGjengene({ type: 'diff' }, g, 5)), iGjengene({ type: 'diff' }, g, 5))
   ok('valgt antall: 1 er alle sammen', iGjengene({ type: 'diff' }, g, 1) === 'alle sammen')
   ok('valgt antall: 3 er i gjengene', iGjengene({ type: 'diff', per_gruppe: 2 }, g, 3) === 'i gruppene')
+}
+// Del inn: samme motor som kjøreplanen. Testcasene i handoveren (Flyten).
+{
+  const sp = kull(6, 9, 6)
+  const fire = ['iver', 'alex', 'trond', 'kristian']
+  const d = delInn({ spillere: sp, trenere: fire })
+  ok('Del inn er samme fordeling som kjøreplanen', JSON.stringify(d.enheter.map(e => e.spillere)) === JSON.stringify(lagGjenger(sp, fire).map(g => g.spillere)))
+  ok('21, 4 trenere: 3 grupper 6/9/6, C har to', d.antall === 3 && d.enheter.map(e => e.spillere.length).join() === '6,9,6' && d.enheter[2].trenere.length === 2, d.enheter.map(e => `${e.navn}:${e.spillere.length}/${e.trenere.length}`).join(' '))
+  ok('standard er diff på grupper', d.type === 'diff' && d.standard === 3)
+
+  const tre = delInn({ spillere: sp, trenere: ['iver', 'alex', 'trond'] })
+  ok('Kristian tas bort: 3 grupper, én trener i hver', tre.antall === 3 && tre.enheter.every(e => e.trenere.length === 1) && tre.info === 'Én trener i hver', tre.info)
+
+  const ac = delInn({ spillere: kull(7, 0, 5), trenere: ['t1', 't2', 't3'] })
+  ok('7 A, 0 B, 5 C i Del inn: A og C aldri sammen', ac.enheter.every(e => !(e.nivaer.includes('A') && e.nivaer.includes('C'))), ac.enheter.map(e => e.navn).join(' '))
+  const to = delInn({ spillere: sp, trenere: fire, antall: 2 })
+  ok('− til 2 grupper: naboer slås sammen, aldri A med C', to.antall === 2 && to.enheter.every(e => !(e.nivaer.includes('A') && e.nivaer.includes('C'))), to.enheter.map(e => e.navn).join(' / '))
+  const f4 = delInn({ spillere: sp, trenere: fire, antall: 4 })
+  ok('+ til 4 grupper: den største deles innenfor nivået', f4.antall === 4 && f4.enheter.every(e => e.nivaer.length === 1) && f4.enheter.filter(e => e.navn === 'B').length === 2, f4.enheter.map(e => `${e.navn}:${e.spillere.length}`).join(' '))
+  ok('+ til 4 med 4 trenere: én trener i hver', f4.enheter.every(e => e.trenere.length === 1), f4.info)
+  const f5 = delInn({ spillere: sp, trenere: fire, antall: 5 })
+  ok('flere grupper enn trenere sier fra', f5.info === '1 uten trener', f5.info)
+
+  const mix = delInn({ spillere: sp, trenere: ['t1', 't2', 't3'], type: 'mix' })
+  ok('grupper blandet: 7/7/7 med nivåene spredt', mix.enheter.map(e => e.spillere.length).join() === '7,7,7' && mix.enheter.every(e => e.nivaer.length === 3), mix.enheter.map(e => e.navn).join(' '))
+
+  const lag = delInn({ spillere: sp, trenere: fire, form: 'lag' })
+  ok('lag: standard mix, 4 lag på 2 baner', lag.type === 'mix' && lag.antall === 4 && lag.baner.length === 2)
+  ok('lag: 5/5/5/6 og vestfarger', lag.enheter.map(e => e.spillere.length).sort().join() === '5,5,5,6' && lag.enheter[0].navn === 'Gul' && lag.enheter[3].navn === 'Grønn')
+  const skjev = lag.baner.find(b => b.pluss != null)
+  ok('+ trener på laget med 5 på banen med 5 mot 6', skjev && lag.enheter[skjev.pluss].spillere.length === 5 && lag.baner.filter(b => b.pluss != null).length === 1)
+  ok('lag: to trenere per bane', lag.baner.every(b => b.trenere.length === 2))
+  ok('lag: infolinja', lag.info === '2 baner, 5–6 på hvert lag', lag.info)
+  const tl = delInn({ spillere: sp, trenere: ['iver', 'alex', 'trond'], form: 'lag' })
+  ok('lag med 3 trenere: én bane får én', tl.baner.map(b => b.trenere.length).sort().join() === '1,2')
+  const ld = delInn({ spillere: sp, trenere: fire, form: 'lag', type: 'diff' })
+  ok('lag likt nivå: like nivåer møtes, aldri A mot C', ld.baner.every(b => !b.lag.some(i => ld.enheter[i].nivaer.includes('A')) || !b.lag.some(i => ld.enheter[i].nivaer.includes('C'))), ld.enheter.map(e => e.nivaer.join('')).join(' '))
+  ok('lag likt nivå: like store lag (5/5/5/6)', ld.enheter.map(e => e.spillere.length).sort().join() === '5,5,5,6', ld.enheter.map(e => e.spillere.length).join())
+  ok('tre nivåer i én gruppe heter «A, B og C»', delInn({ spillere: sp, antall: 1 }).enheter[0].navn === 'A, B og C')
+  ok('lag: aldri færre enn to', delInn({ spillere: sp, form: 'lag', antall: 1 }).antall === 2)
+  ok('samme frø gir samme lag', JSON.stringify(delInn({ spillere: sp, form: 'lag', seed: 4 })) === JSON.stringify(delInn({ spillere: sp, form: 'lag', seed: 4 })))
+  ok('nytt frø gir nye lag', JSON.stringify(delInn({ spillere: sp, form: 'lag', seed: 4 }).enheter) !== JSON.stringify(delInn({ spillere: sp, form: 'lag', seed: 5 }).enheter))
+  ok('ingen her: tomt', delInn({ spillere: [] }).enheter.length === 0)
 }
 console.log(feilet ? `${feilet} feil` : 'Alt grønt')
 process.exit(feilet ? 1 : 0)
