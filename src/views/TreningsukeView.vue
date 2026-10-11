@@ -117,7 +117,12 @@ const fokus = computed(() => {
 const router = useRouter()
 const dagId = computed(() => route.params.dagId || null)
 const openDayId = computed(() => dagId.value)
-const synligeDager = computed(() => (dagId.value ? dager.value.filter(s => s.id === dagId.value) : dager.value))
+// Dagens trening øverst i uka: det er den du er på vei til.
+const synligeDager = computed(() => {
+  if (dagId.value) return dager.value.filter(s => s.id === dagId.value)
+  const idag = dager.value.filter(s => s.weekday === todayWeekday())
+  return [...idag, ...dager.value.filter(s => s.weekday !== todayWeekday())]
+})
 const fantIkkeDagen = computed(() => !!dagId.value && !loading.value && !synligeDager.value.length)
 
 function apneDag(s) {
@@ -626,7 +631,7 @@ onMounted(async () => {
           @click="!dagId && apneDag(s)"
         >
           <span class="dag__head">
-            <span class="dag__name">{{ s.title }}</span>
+            <span class="dag__name">{{ s.title }}<span v-if="!dagId && s.weekday === todayWeekday()" class="dag__idag">I dag</span></span>
             <span class="dag__meta">
               <span v-if="s.duration_min" class="dag__len">{{ formatDuration(s.duration_min) }}</span>
             </span>
@@ -1071,6 +1076,17 @@ Torsdag
 }
 
 .dag--open .dag__toggle { padding-bottom: var(--ds-space-sm); }
+
+.dag__idag {
+  display: inline-flex; align-items: center;
+  height: 22px; margin-left: 10px; padding: 0 10px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-accent); color: var(--ds-color-accent-text);
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-xs, 12px); font-weight: var(--ds-weight-semibold);
+  letter-spacing: 0; text-transform: none;
+  vertical-align: middle;
+}
 
 .dag__head {
   display: flex;

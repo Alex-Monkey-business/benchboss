@@ -244,11 +244,18 @@ const routes = [
     name: 'okt',
     component: () => import('./views/OktView.vue')
   },
-  // Del i grupper: egne grupper når som helst, på egen side med valgene fast nederst.
+  // Endre gruppene eller lagene i kjøreplanen: Del inn, låst til planen.
   {
-    path: '/trening/okt/:id/del',
-    name: 'okt-fordel',
+    path: '/trening/okt/:id/endre/:hva(grupper|lag)/:n?',
+    name: 'okt-endre',
     component: () => import('./views/OktView.vue')
+  },
+  { path: '/trening/okt/:id/del', redirect: '/del-inn' },
+  // Del inn: grupper eller lag når som helst, fra Hjem. Trener-only.
+  {
+    path: '/del-inn',
+    name: 'del-inn',
+    component: () => import('./views/DelInnView.vue')
   },
   // Måneden var en id i URL-en: /trening/<periode>. Perioden finnes ikke lenger
   // (uka gjentar seg, den ligger ikke i en måned), så id-en peker på ingenting

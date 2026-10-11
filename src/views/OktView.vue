@@ -2,17 +2,18 @@
 // OPPMØTE OG KJØREPLAN — planen for økta er ferdig når oppmøtet er telt opp.
 //
 // Først «Hvem er her?»: hele kullet og alle trenerne er på, trykk bort dem som
-// mangler, «Se kjøreplanen». Da lages fordelingen og lagres sammen med
-// oppmøtet (bare på selve treningsdagen):
-//   Gjengene — nivågrupper for diff-øvelsene, én gang per økt, samme trener
-//              gjennom alle diff-øvelsene.
-//   Lagene   — trukket én gang for mix-øvelsene, nivåene spredt, to per bane.
+// mangler, «Se kjøreplanen». Da lages fordelingen med Del inn-motoren
+// (lib/grupper) og lagres sammen med oppmøtet (bare på selve treningsdagen):
+//   Grupper — nivågrupper for diff-øvelsene, én gang per økt, samme trener
+//             gjennom alle diff-øvelsene.
+//   Lag     — trukket én gang for mix-øvelsene, nivåene spredt, to per bane.
 //
-// Kjøreplanen er én side: gjengene, lagene, så øvelsene i planlagt rekkefølge
-// med hvordan de kjøres og hva som trengs. Ingen ark for å lese planen; et ark
-// bare for innholdet i én øvelse, oppmøtet og endringer.
+// Kjøreplanen er én side. Er planen diff først og mix etterpå, står gruppene
+// med sine øvelser og så lagene med sine; ellers gruppene og lagene øverst og
+// øvelsene i planlagt rekkefølge. «Endre» åpner Del inn låst til planen, på
+// egen side. Ark bare for én øvelse og for oppmøtet.
 //
-// Den som kommer for sent legges i gjengen for sitt nivå og på laget som gjør
+// Den som kommer for sent legges i gruppa for sitt nivå og på laget som gjør
 // banene jevnest. Ingen andre flyttes. Den som går, tas bare ut.
 //
 // Andre dager enn treningsdagen vises kjøreplanen uten at noe lagres.
@@ -28,7 +29,7 @@ import { useTreningsOkt, datoFor, erTreningsdag } from '../composables/useTrenin
 import { useAuth } from '../stores/auth'
 import {
   lagGjenger, iGjengene, antallLag, trekkLag, baner, trenerePerBane, plasser,
-  gjengNavn, lagFarge, kortnavn, ovelseNokkel, planFor, lagGrupper, fordelTrenere, RIGGER_FRA
+  gjengNavn, lagFarge, kortnavn, ovelseNokkel, planFor, RIGGER_FRA
 } from '../lib/grupper'
 import { weekdayDateLabel } from '../lib/dateLabels'
 import { meldEvent } from '../lib/sporing'
@@ -36,10 +37,12 @@ import OppmoteGrid from '../components/OppmoteGrid.vue'
 import ExerciseView from '../components/ExerciseView.vue'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import Steg from '../components/Steg.vue'
+import OvelseRader from '../components/OvelseRader.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { isCoach, activeCohort } = useAuth()
+const { isCoach, activeCohort, coach } = useAuth()
 const { days, fetchWeek } = useTrainingWeek()
 const { exercises, fetchExercises } = useExercises()
 const { players, fetchPlayers } = usePlayers()
@@ -203,15 +206,15 @@ const lagSett = computed(() => Object.entries(lagretLag.value).map(([n, lag]) =>
     n: Number(n),
     ovelser: kort.value.filter(k => k.d.type === 'mix' && antallFor(k) === Number(n)),
     lag: l,
-    baner: b.map((bane, i) => ({ ...bane, trenere: tr[i], merknad: merknad(bane, l) }))
+    baner: b.map((bane, i) => ({ ...bane, trenere: tr[i], pluss: pluss(bane, l) }))
   }
 }))
-function merknad(bane, lag) {
-  if (bane.lag.length < 2) return ''
+// Laget som er én færre på banen: en trener spiller med dem.
+function pluss(bane, lag) {
+  if (bane.lag.length < 2) return null
   const [a, b] = bane.lag
-  if (lag[a].length === lag[b].length) return ''
-  const minst = lag[a].length < lag[b].length ? a : b
-  return `en trener spiller med ${lagFarge(minst).toLowerCase()}`
+  if (Math.abs(lag[a].length - lag[b].length) !== 1) return null
+  return lag[a].length < lag[b].length ? a : b
 }
 
 // ── Øvelsene, i planlagt rekkefølge ─────────────────────────────────────────
@@ -288,7 +291,8 @@ function kommer(id) {
       nyGjenger.find(x => x.id === g.id)?.spillere.push(id)
     }
     const n = g.nivaer
-    deler.push(`${n.length > 1 ? `${n.slice(0, -1).join('-, ')}- og ${n[n.length - 1]}` : n[0]}-gruppa${g.trenere.length ? ` hos ${navnPa(g.trenere)}` : ''}`)
+    const gruppa = !n.length ? 'Gruppa' : `${n.length > 1 ? `${n.slice(0, -1).join('-, ')}- og ${n[n.length - 1]}` : n[0]}-gruppa`
+    deler.push(`${gruppa}${g.trenere.length ? ` hos ${navnPa(g.trenere)}` : ''}`)
   }
   lagSett.value.forEach((sett, si) => {
     let i = nyLag[sett.n].findIndex(l => l.includes(id))
@@ -319,58 +323,78 @@ function vekslTrener(id) {
   borteTrenere.value = s
 }
 
-// ── Del i grupper: egne grupper når som helst ──────────────────────────────────────
+// ── Endre: Del inn, låst til planen ─────────────────────────────────────────
 //
-// Uavhengig av kjøreplanen: velg antall og om nivåene skal samles eller
-// spres, så deler appen dem som er her. Lagres på økta, så alle trenerne ser
-// det samme. Kommer noen etterpå, havner de i den minste gruppa.
-const paFordel = computed(() => route.name === 'okt-fordel')
-const fordeling = computed(() => run.value?.state?._fordel || null)
-const fordelValg = computed(() => ({ antall: fordeling.value?.antall || 3, type: fordeling.value?.type || 'mix' }))
-const fordelAntall = computed(() => [2, 3, 4, 5, 6].filter(v => v <= Math.max(2, her.value.length)))
-
-function fordel(antall, type, seed) {
-  okt.settInngrep('_fordel', { antall, type, seed, grupper: lagGrupper(her.value, antall, type, seed) })
-  meldEvent('okt_fordelt', { antall, type })
-}
-function settFordel(endring) {
-  const v = { ...fordelValg.value, ...endring }
-  fordel(v.antall, v.type, fordeling.value?.seed || runde.value + 1)
-}
-function fordelPaNytt() {
-  fordel(fordelValg.value.antall, fordelValg.value.type, (fordeling.value?.seed || runde.value + 1) + 1)
-}
-// Første gang siden åpnes: tre blandede grupper. Uten oppmøte er det ingen
-// å fordele, så da går siden tilbake til opptellingen.
-watch([paFordel, () => okt.lastet.value, run], ([pa, lastet, r]) => {
-  if (!pa || !lastet || !session.value) return
-  if (!r) return router.replace(`/trening/okt/${session.value.id}`)
-  if (!fordeling.value) settFordel({})
+// Egen side (/endre/grupper eller /endre/lag/:n). Antallet med − og +, et
+// trykk på et navn flytter én spiller. Alt skrives rett til økta, hos alle.
+const paEndre = computed(() => route.name === 'okt-endre')
+const endre = computed(() => {
+  if (!paEndre.value) return null
+  if (route.params.hva === 'lag') return { hva: 'lag', n: Number(route.params.n) || lagSett.value[0]?.n || 0 }
+  return { hva: 'gjenger' }
+})
+const valgt = ref(null)
+watch(() => route.fullPath, () => { valgt.value = null })
+// Uten oppmøte er det ingenting å endre: tilbake til opptellingen.
+watch([paEndre, () => okt.lastet.value, run], ([pa, lastet, r]) => {
+  if (pa && lastet && session.value && !r) router.replace(`/trening/okt/${session.value.id}`)
 }, { immediate: true })
 
-const fordelGrupper = computed(() => {
-  if (!fordeling.value) return []
-  const plassert = new Set(fordeling.value.grupper.flat())
-  const gr = fordeling.value.grupper.map(ids => ids.filter(id => tilStede.value.has(id)))
-  for (const s of her.value) {
-    if (plassert.has(s.id)) continue
-    gr.reduce((m, g) => (g.length < m.length ? g : m), gr[0])?.push(s.id)
-  }
-  const diff = fordeling.value.type === 'diff'
-  const nivaer = gr.map(ids => {
-    if (!diff) return null
-    const t = {}
-    for (const id of ids) { const n = levelFor(id); if (n) t[n] = (t[n] || 0) + 1 }
-    return Object.entries(t).sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))[0]?.[0] || null
-  })
-  const tr = fordelTrenere(nivaer.map(niva => ({ niva })), trenereIOkta.value, runde.value)
-  return gr.map((ids, i) => ({ ids, niva: nivaer[i], navn: diff ? `Gruppe ${i + 1}` : lagFarge(i), trenere: tr[i] }))
-})
+// «Endret 17:50 av Alex» under overskriften.
+function merkEndret(hva) {
+  const st = run.value?.state || {}
+  okt.settInngrep('_endret', { ...(st._endret || {}), [hva]: { tid: new Date().toISOString(), av: coach.value?.id || null, navn: coach.value?.name || null } })
+}
+function endretTekst(hva) {
+  const e = run.value?.state?._endret?.[hva]
+  if (!e?.tid) return ''
+  const t = new Date(e.tid)
+  const kl = `${String(t.getHours()).padStart(2, '0')}:${String(t.getMinutes()).padStart(2, '0')}`
+  const hvem = (e.av && trenerNavn.value[e.av]) || (e.navn ? String(e.navn).split(/\s+/)[0] : '')
+  return `Endret ${kl}${hvem ? ` av ${hvem}` : ''}`
+}
 
-// ── Endre: flytt én spiller om gangen ───────────────────────────────────────
-const endre = ref(null) // null | { hva: 'gjenger' } | { hva: 'lag', n }
-const valgt = ref(null)
-watch(endre, () => { valgt.value = null })
+// Antallet. Gruppene lages på nytt med samme motor; lagene trekkes.
+const endreAntall = computed(() => {
+  if (!endre.value) return 0
+  return endre.value.hva === 'gjenger' ? gjenger.value.length : endre.value.n
+})
+const endreMaks = computed(() => {
+  const n = her.value.length
+  return endre.value?.hva === 'lag' ? Math.max(2, Math.min(6, Math.floor(n / 2))) : Math.max(1, Math.min(6, n))
+})
+function settEndreAntall(v) {
+  if (!run.value || !endre.value) return
+  if (endre.value.hva === 'gjenger') {
+    const standard = lagGjenger(her.value, trenereIOkta.value).length
+    okt.settInngrep('_gjenger', lagGjenger(her.value, trenereIOkta.value, runde.value, runde.value + 1, v === standard ? null : v))
+    merkEndret('grupper')
+  } else {
+    const sett = lagSett.value.find(x => x.n === endre.value.n)
+    if (!run.value.state?._lag?.[v]) okt.settInngrep('_lag', { ...(run.value.state?._lag || {}), ...lagretLag.value, [v]: trekkLag(her.value, v, runde.value + 1) })
+    const antall = { ...valgtAntall.value }
+    for (const k of sett?.ovelser || []) antall[ovelseNokkel(k.i, k.d)] = v
+    okt.settInngrep('_antall', antall)
+    merkEndret('lag')
+    router.replace(`/trening/okt/${session.value.id}/endre/lag/${v}`)
+  }
+  meldEvent('okt_antall_valgt', { type: endre.value.hva, antall: v })
+}
+function trekkPaNytt() {
+  if (!run.value || endre.value?.hva !== 'lag') return
+  const n = endre.value.n
+  okt.settInngrep('_lag', { ...lagretLag.value, [n]: trekkLag(her.value, n, Math.floor(Math.random() * 1e9) + 1) })
+  merkEndret('lag')
+  meldEvent('okt_trukket')
+}
+const endreInfo = computed(() => {
+  if (endre.value?.hva !== 'lag') return ''
+  const sett = lagSett.value.find(x => x.n === endre.value.n)
+  if (!sett) return ''
+  const str = sett.lag.map(l => l.length)
+  const lo = Math.min(...str), hi = Math.max(...str)
+  return `${sett.baner.length} ${sett.baner.length === 1 ? 'bane' : 'baner'}, ${lo === hi ? lo : `${lo}–${hi}`} på hvert lag`
+})
 
 const endreGrupper = computed(() => {
   if (!endre.value) return []
@@ -382,8 +406,8 @@ const endreGrupper = computed(() => {
 })
 const endreGjelder = computed(() => {
   if (!endre.value) return ''
-  if (endre.value.hva === 'gjenger') return gjelder(diffNr.value)
-  return gjelder((lagSett.value.find(s => s.n === endre.value.n)?.ovelser || []).map(k => k.i + 1))
+  const nr = endre.value.hva === 'gjenger' ? diffNr.value : (lagSett.value.find(s => s.n === endre.value.n)?.ovelser || []).map(k => k.i + 1)
+  return gjelder(nr).replace(/\.$/, '')
 })
 // Gjengene: bare nabonivåer, aldri A inn hos C eller omvendt.
 const flyttTil = computed(() => {
@@ -409,6 +433,7 @@ function flytt(til) {
     ny[n][til.key].push(id)
     okt.settInngrep('_lag', ny)
   }
+  merkEndret(endre.value.hva === 'gjenger' ? 'grupper' : 'lag')
   meldEvent('okt_flyttet', { hva: endre.value.hva })
   valgt.value = null
 }
@@ -450,10 +475,35 @@ onUnmounted(() => {
   stopp?.()
 })
 
+// Fra Endre: tilbake til kjøreplanen. Fra kjøreplanen: Trening-fanen.
+// Fra opptellingen: dit du kom fra.
 function tilbake() {
-  if (paFordel.value && session.value) return router.push(`/trening/okt/${session.value.id}`)
+  if (paEndre.value && session.value) return router.push(`/trening/okt/${session.value.id}`)
+  if (run.value) return router.push('/trening')
+  if (window.history.state?.back) return router.back()
   router.push(session.value ? `/trening/dag/${session.value.id}` : '/trening')
 }
+function tilEndre(hva, n) {
+  router.push(`/trening/okt/${session.value.id}/endre/${hva}${n ? `/${n}` : ''}`)
+}
+
+// Kjøreplanen i to deler når planen er diff først og mix etterpå (det
+// vanlige): gruppene med sine øvelser, så lagene med sine. Blander planen,
+// står gruppene og lagene øverst og øvelsene i planlagt rekkefølge under.
+const delt = computed(() => {
+  const forsteMix = kort.value.findIndex(k => k.d.type === 'mix')
+  if (forsteMix < 0 || lagSett.value.length !== 1) return null
+  if (kort.value.slice(forsteMix).some(k => k.d.type === 'diff')) return null
+  return { grupper: kort.value.slice(0, forsteMix), lag: kort.value.slice(forsteMix) }
+})
+
+// Fra Del inn («Bruk som dagens …») med #grupper eller #lag: rull dit når
+// planen står.
+watch([() => route.hash, () => !!run.value, () => drills.value.length], async ([h, harRun, n]) => {
+  if (!h || !harRun || !n || paEndre.value) return
+  await nextTick()
+  document.querySelector(h)?.scrollIntoView({ block: 'start' })
+}, { immediate: true })
 </script>
 
 <template>
@@ -462,54 +512,73 @@ function tilbake() {
       <button class="okt__back" aria-label="Tilbake" @click="tilbake">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
-      <span v-if="paFordel" class="okt__title">Del i grupper</span>
-      <span v-else class="okt__title">{{ session?.title || 'Trening' }}<span class="okt__dato"> {{ datoTekst }}</span></span>
-      <button v-if="run" type="button" class="okt__her" @click="visOppmote = true">
-        <strong>{{ her.length }}</strong> her
-      </button>
+      <template v-if="paEndre">
+        <span class="okt__title">{{ endre?.hva === 'lag' ? 'Lag' : 'Grupper' }}</span>
+        <span class="okt__tag">{{ endre?.hva === 'lag' ? 'Mix' : 'Diff' }}</span>
+        <button v-if="run" type="button" class="okt__antall" @click="visOppmote = true">
+          <strong>{{ her.length }}</strong> · <strong>{{ trenereIOkta.length }}</strong> {{ trenereIOkta.length === 1 ? 'trener' : 'trenere' }}
+        </button>
+      </template>
+      <template v-else>
+        <span class="okt__title">{{ session?.title || 'Trening' }}<span class="okt__dato"> {{ datoTekst }}</span></span>
+        <button v-if="run" type="button" class="okt__her" @click="visOppmote = true">
+          <strong>{{ her.length }}</strong> her
+        </button>
+      </template>
     </header>
 
     <p v-if="!isCoach" class="okt__tom">Kjøreplanen er for trenerne.</p>
     <p v-else-if="!session || !okt.lastet.value" class="okt__tom">Laster …</p>
 
-    <p v-else-if="paFordel && !run" class="okt__tom">Laster …</p>
+    <p v-else-if="paEndre && !run" class="okt__tom">Laster …</p>
 
-    <!-- ── FORDEL ──────────────────────────────────────────────── -->
-    <div v-else-if="paFordel" class="fordel">
-      <div class="kortene">
-        <div v-for="(g, i) in fordelGrupper" :key="i" class="gjeng">
-          <div class="gjeng__hode">
-            <span v-if="g.niva" class="gjeng__niva">{{ g.niva }}</span>
-            <span class="gjeng__trener">{{ g.navn }}<span v-if="g.trenere.length" class="fordel__trener"> · {{ navnPa(g.trenere) }}</span></span>
-            <span class="gjeng__ant">{{ g.ids.length }}</span>
-          </div>
-          <p class="gjeng__navn">{{ g.ids.map(id => navn[id]).join(' · ') }}</p>
+    <!-- ── ENDRE: Del inn, låst til planen ─────────────────────── -->
+    <div v-else-if="paEndre" class="endre">
+      <div class="endre__styr">
+        <span class="endre__gjelder">{{ endreGjelder }}</span>
+        <Steg
+          :verdi="endreAntall" :min="endre.hva === 'lag' ? 2 : 1" :maks="endreMaks"
+          :navn="endre.hva === 'lag' ? 'Antall lag' : 'Antall grupper'"
+          @endre="settEndreAntall"
+        />
+      </div>
+      <div v-if="endre.hva === 'lag'" class="endre__info">
+        <span>{{ endreInfo }}</span>
+        <button type="button" class="endre__trekk" @click="trekkPaNytt">Trekk på nytt</button>
+      </div>
+      <p class="endre__hint">Trykk et navn for å flytte.</p>
+      <div v-for="g in endreGrupper" :key="g.key" class="endre-gr">
+        <div class="gjeng__hode">
+          <span v-if="g.merke" class="gjeng__niva">{{ g.merke }}</span>
+          <span class="gjeng__trener">{{ g.tittel || 'Ingen trener' }}</span>
+          <span class="gjeng__ant">{{ g.spillere.length }}</span>
+        </div>
+        <div class="brikker">
+          <button
+            v-for="id in g.spillere"
+            :key="id"
+            type="button"
+            class="brikke"
+            :class="{ 'brikke--valgt': valgt === id }"
+            :aria-pressed="valgt === id ? 'true' : 'false'"
+            @click="valgt = valgt === id ? null : id"
+          >{{ navn[id] }}</button>
         </div>
       </div>
 
       <div class="oppm__fot">
-        <div class="oppm__fot-inn fordel__styr">
-          <div class="antall">
-            <span class="antall__navn">Grupper</span>
-            <div class="antall__valg" role="group" aria-label="Antall grupper">
-              <button
-                v-for="v in fordelAntall" :key="v" type="button" class="antall__knapp"
-                :class="{ 'antall__knapp--valgt': v === fordelValg.antall }" :aria-pressed="v === fordelValg.antall"
-                @click="settFordel({ antall: v })"
-              >{{ v }}</button>
-            </div>
+        <div v-if="valgt" class="oppm__fot-inn fot--kolonne fot">
+          <p class="fot__hint">Flytt <strong>{{ navn[valgt] }}</strong> til</p>
+          <div class="mal">
+            <button v-for="g in flyttTil" :key="g.key" type="button" class="mal__knapp" @click="flytt(g)">
+              <span v-if="g.merke" class="gjeng__niva gjeng__niva--liten">{{ g.merke }}</span>
+              {{ g.tittel || g.merke }}
+            </button>
           </div>
-          <div class="antall">
-            <span class="antall__navn">Nivå</span>
-            <div class="antall__valg" role="group" aria-label="Nivå">
-              <button
-                v-for="t in [{ v: 'diff', navn: 'Likt' }, { v: 'mix', navn: 'Blandet' }]" :key="t.v" type="button" class="antall__knapp"
-                :class="{ 'antall__knapp--valgt': t.v === fordelValg.type }" :aria-pressed="t.v === fordelValg.type"
-                @click="settFordel({ type: t.v })"
-              >{{ t.navn }}</button>
-            </div>
-          </div>
-          <button type="button" class="okt__start fordel__ny" @click="fordelPaNytt">Del på nytt</button>
+          <button type="button" class="fot__tekst" @click="ikkeHer">{{ navn[valgt] }} er ikke her</button>
+        </div>
+        <div v-else class="oppm__fot-inn">
+          <button type="button" class="okt__start" @click="tilbake">Ferdig</button>
         </div>
       </div>
     </div>
@@ -549,47 +618,50 @@ function tilbake() {
     <!-- ── D2 KJØREPLANEN ───────────────────────────────────────── -->
     <div v-else class="plan">
       <p v-if="run.lokal" class="plan__lokal">Ikke treningsdag. Ingenting er lagret.</p>
-      <p v-if="rigger" class="plan__rigger">Rigger <strong>{{ trenerNavn[rigger] }}</strong></p>
-      <button type="button" class="plan__fordel" @click="router.push(`/trening/okt/${session.id}/del`)">
-        <span class="plan__fordel-tekst">
-          <strong>Del i grupper</strong>
-          <span>{{ fordeling ? `${fordelGrupper.length} ${fordeling.type === 'diff' ? 'grupper, likt nivå' : 'grupper, blandet'}` : 'Velg antall, så deler appen dem som er her' }}</span>
-        </span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-      </button>
 
-      <section v-if="gjenger.length" class="fase">
+      <section v-if="gjenger.length" id="grupper" class="fase">
         <div class="fase__hode">
-          <h2 class="fase__tittel">Gruppene</h2>
-          <button type="button" class="fase__endre" @click="endre = { hva: 'gjenger' }">Endre</button>
+          <h2 class="fase__tittel">Grupper</h2>
+          <span class="fase__tag">Diff</span>
+          <button type="button" class="fase__endre" @click="tilEndre('grupper')">Endre</button>
         </div>
+        <p v-if="endretTekst('grupper')" class="fase__endret">{{ endretTekst('grupper') }}</p>
         <div class="kortene">
           <div v-for="g in gjenger" :key="g.id" class="gjeng">
             <div class="gjeng__hode">
-              <span class="gjeng__niva" :aria-label="`Nivå ${gjengNavn(g)}`">{{ g.nivaer.join('') }}</span>
+              <span v-if="g.nivaer.length" class="gjeng__niva" :aria-label="`Nivå ${gjengNavn(g)}`">{{ g.nivaer.join('') }}</span>
               <span class="gjeng__trener">{{ navnPa(g.trenere) || 'Ingen trener' }}</span>
               <span class="gjeng__ant">{{ g.spillere.length }}</span>
             </div>
             <p class="gjeng__navn">{{ g.spillere.map(id => navn[id]).join(' · ') }}</p>
           </div>
         </div>
+        <OvelseRader v-if="delt && delt.grupper.length" class="fase__ovelser" :kort="delt.grupper" :meta="metaFor" @apne="apne" />
+      </section>
+      <section v-else-if="delt && delt.grupper.length" class="fase">
+        <h2 class="fase__tittel fase__tittel--alene">Øvelsene</h2>
+        <OvelseRader :kort="delt.grupper" :meta="metaFor" @apne="apne" />
       </section>
 
-      <section v-for="sett in lagSett" :key="sett.n" class="fase">
+      <section v-for="(sett, si) in lagSett" :id="si === 0 ? 'lag' : undefined" :key="sett.n" class="fase">
         <div class="fase__hode">
-          <h2 class="fase__tittel">Lagene</h2>
-          <button type="button" class="fase__endre" @click="endre = { hva: 'lag', n: sett.n }">Endre</button>
+          <h2 class="fase__tittel">Lag</h2>
+          <span class="fase__tag">Mix</span>
+          <button type="button" class="fase__endre" @click="tilEndre('lag', sett.n)">Endre</button>
         </div>
+        <p v-if="endretTekst('lag')" class="fase__endret">{{ endretTekst('lag') }}</p>
         <p v-if="lagSett.length > 1" class="fase__til">Til {{ sett.ovelser.map(k => k.d.text).join(', ') }}</p>
+        <OvelseRader v-if="delt" class="fase__ovelser fase__ovelser--forst" :kort="delt.lag" :meta="metaFor" @apne="apne" />
         <div v-for="(b, bi) in sett.baner" :key="bi" class="bane">
           <p class="bane__hode">
             <strong>Bane {{ bi + 1 }}</strong>
-            <span v-if="navnPa(b.trenere) || b.merknad">{{ [navnPa(b.trenere), b.merknad].filter(Boolean).join(' · ') }}</span>
+            <span v-if="b.trenere.length">{{ navnPa(b.trenere) }}</span>
           </p>
           <div class="kortene">
             <div v-for="li in b.lag" :key="li" class="gjeng">
               <div class="gjeng__hode">
                 <span class="gjeng__trener">{{ lagFarge(li) }}</span>
+                <span v-if="b.pluss === li" class="gjeng__pluss">+ trener</span>
                 <span class="gjeng__ant">{{ sett.lag[li].length }}</span>
               </div>
               <p class="gjeng__navn">{{ sett.lag[li].map(id => navn[id]).join(' · ') }}</p>
@@ -598,20 +670,9 @@ function tilbake() {
         </div>
       </section>
 
-      <section class="fase">
+      <section v-if="!delt" class="fase">
         <h2 class="fase__tittel fase__tittel--alene">Øvelsene</h2>
-        <ol class="ovelser">
-          <li v-for="k in kort" :key="k.i">
-            <button type="button" class="rad" @click="apne(k.i)">
-              <span class="rad__nr">{{ k.i + 1 }}</span>
-              <span class="rad__tekst">
-                <span class="rad__navn">{{ k.d.text }}</span>
-                <span class="rad__meta">{{ metaFor(k) }}</span>
-              </span>
-              <svg class="rad__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-            </button>
-          </li>
-        </ol>
+        <OvelseRader :kort="kort" :meta="metaFor" @apne="apne" />
       </section>
 
       <button type="button" class="okt__slett" @click="visSlett = true">{{ run.lokal ? 'Tell på nytt' : 'Nullstill oppmøtet' }}</button>
@@ -669,44 +730,6 @@ function tilbake() {
             <span v-if="sistInn.tekst">{{ sistInn.tekst }}</span>
           </div>
           <button type="button" class="fot__knapp fot__knapp--hoved fot__knapp--bred" @click="visOppmote = false">Ferdig</button>
-        </div>
-      </template>
-    </Sheet>
-
-    <!-- ── D5 ENDRE ────────────────────────────────────────────── -->
-    <Sheet :show="!!endre" :title="endre?.hva === 'lag' ? 'Endre lagene' : 'Endre gruppene'" tall @close="endre = null">
-      <p v-if="endreGjelder" class="ark__meta">{{ endreGjelder }}</p>
-      <div v-for="g in endreGrupper" :key="g.key" class="endre-gr">
-        <div class="gjeng__hode">
-          <span v-if="g.merke" class="gjeng__niva">{{ g.merke }}</span>
-          <span class="gjeng__trener">{{ g.tittel || 'Ingen trener' }}</span>
-          <span class="gjeng__ant">{{ g.spillere.length }}</span>
-        </div>
-        <div class="brikker">
-          <button
-            v-for="id in g.spillere"
-            :key="id"
-            type="button"
-            class="brikke"
-            :class="{ 'brikke--valgt': valgt === id }"
-            :aria-pressed="valgt === id ? 'true' : 'false'"
-            @click="valgt = valgt === id ? null : id"
-          >{{ navn[id] }}</button>
-        </div>
-      </div>
-      <template #footer>
-        <div v-if="valgt" class="fot fot--kolonne">
-          <p class="fot__hint">Flytt <strong>{{ navn[valgt] }}</strong> til</p>
-          <div class="mal">
-            <button v-for="g in flyttTil" :key="g.key" type="button" class="mal__knapp" @click="flytt(g)">
-              <span v-if="g.merke" class="gjeng__niva gjeng__niva--liten">{{ g.merke }}</span>
-              {{ g.tittel || g.merke }}
-            </button>
-          </div>
-          <button type="button" class="fot__tekst" @click="ikkeHer">{{ navn[valgt] }} er ikke her</button>
-        </div>
-        <div v-else class="fot">
-          <button type="button" class="fot__knapp fot__knapp--hoved fot__knapp--bred" @click="endre = null">Ferdig</button>
         </div>
       </template>
     </Sheet>
@@ -825,11 +848,10 @@ function tilbake() {
 
 /* ── D2 Kjøreplanen ── */
 .plan { max-width: 560px; margin: 0 auto; padding: var(--ds-space-lg) 0 0; }
-.plan__lokal, .plan__rigger {
+.plan__lokal {
   margin: 0 var(--ds-space-lg) var(--ds-space-sm);
   font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
 }
-.plan__rigger strong { color: var(--ds-color-text-primary); }
 
 .fase { padding: var(--ds-space-lg) var(--ds-space-lg) var(--ds-space-xl); }
 .fase + .fase { border-top: 1px solid var(--ds-color-border-light, var(--ds-color-border)); padding-top: var(--ds-space-xl); }
@@ -843,6 +865,57 @@ function tilbake() {
   letter-spacing: -0.01em;
 }
 .fase__tittel--alene { margin-bottom: var(--ds-space-sm); }
+.fase { scroll-margin-top: 72px; }
+.fase__tag, .okt__tag {
+  flex: none; display: inline-flex; align-items: center;
+  height: 28px; padding: 0 12px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-badge-bg, var(--ds-color-bg-subtle));
+  color: var(--ds-badge-text, var(--ds-color-text-primary));
+  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold);
+}
+.fase__endret { margin: -4px 0 var(--ds-space-md); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+.fase__ovelser { margin-top: var(--ds-space-sm); }
+.fase__ovelser--forst { margin: -8px 0 var(--ds-space-md); }
+.gjeng__pluss {
+  flex: none; padding: 2px 10px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-elevated);
+  font-size: var(--ds-text-xs, 12px); font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-primary);
+}
+
+/* ── Endre ── */
+.endre { max-width: 560px; margin: 0 auto; padding: 0 var(--ds-space-lg) 300px; }
+.endre__styr {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md);
+  margin: 0 calc(-1 * var(--ds-space-lg));
+  padding: var(--ds-space-sm) var(--ds-space-lg) var(--ds-space-md);
+  border-bottom: 1px solid var(--ds-color-border-light, var(--ds-color-border));
+}
+.endre__gjelder { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+.endre__info {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md);
+  min-height: 44px; padding-top: var(--ds-space-sm);
+  font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
+}
+.endre__trekk {
+  flex: none; min-height: 44px; padding: 0 4px;
+  border: 0; background: none;
+  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-primary);
+  text-decoration: underline; text-underline-offset: 3px;
+  cursor: pointer;
+}
+.endre__hint { margin: var(--ds-space-md) 0 var(--ds-space-lg); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+.okt__antall {
+  margin-left: auto; flex: none;
+  min-height: 44px; padding: 0 4px;
+  border: 0; background: none;
+  font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
+  cursor: pointer;
+}
+.okt__antall strong { color: var(--ds-color-text-primary); font-variant-numeric: tabular-nums; }
 .fase__til { margin: -4px 0 var(--ds-space-md); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 .fase__endre {
   margin-left: auto; flex: none;
@@ -883,31 +956,6 @@ function tilbake() {
 }
 .bane__hode strong { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
 
-.ovelser { list-style: none; margin: 0; padding: 0; }
-.ovelser li + li .rad { border-top: 1px solid var(--ds-color-border-light, var(--ds-color-border)); }
-.rad {
-  display: flex; align-items: center; gap: var(--ds-space-md);
-  width: 100%; min-height: 72px;
-  padding: var(--ds-space-md) 0;
-  border: 0; background: none;
-  text-align: left; color: inherit; cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.rad__nr {
-  flex: none;
-  display: grid; place-items: center;
-  width: 32px; height: 32px;
-  border: 1.5px solid var(--ds-color-text-primary);
-  border-radius: var(--ds-radius-full);
-  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-primary);
-  font-variant-numeric: tabular-nums;
-}
-.rad__tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-.rad__navn { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); line-height: 1.3; }
-.rad__meta { font-size: var(--ds-text-sm); line-height: 1.4; color: var(--ds-color-text-secondary); }
-.rad__pil { flex: none; width: 20px; height: 20px; color: var(--ds-color-text-tertiary); }
-
 .okt__slett {
   display: block;
   margin: var(--ds-space-xl) auto 0;
@@ -921,24 +969,6 @@ function tilbake() {
 /* ── Arkene ── */
 .ark__nr { margin: 0; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 .ark__meta { margin: 4px 0 var(--ds-space-lg); font-size: var(--ds-text-sm); line-height: 1.4; color: var(--ds-color-text-secondary); }
-.plan__fordel {
-  display: flex; align-items: center; gap: 12px;
-  width: calc(100% - 2 * var(--ds-space-lg)); min-height: 64px; margin: var(--ds-space-sm) var(--ds-space-lg) 0;
-  padding: 12px 16px 12px 18px;
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-lg);
-  background: var(--ds-color-bg-elevated);
-  color: var(--ds-color-text-primary);
-  text-align: left; cursor: pointer;
-}
-.plan__fordel svg { flex: none; width: 18px; height: 18px; color: var(--ds-color-text-tertiary); }
-.plan__fordel-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.plan__fordel-tekst strong { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); }
-.plan__fordel-tekst span { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
-.fordel { max-width: 560px; margin: 0 auto; padding: var(--ds-space-lg) var(--ds-space-lg) 280px; }
-.fordel__styr .antall { margin: 0 0 var(--ds-space-md); }
-.fordel__ny { margin-top: 2px; }
-.fordel__trener { font-weight: var(--ds-weight-regular, 400); color: var(--ds-color-text-secondary); }
 .antall { display: flex; align-items: center; gap: 12px; margin: calc(-1 * var(--ds-space-sm)) 0 var(--ds-space-lg); }
 .antall__navn { flex: none; min-width: 64px; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
 .antall__valg { flex: 1; display: flex; gap: 6px; min-width: 0; }

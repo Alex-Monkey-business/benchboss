@@ -250,7 +250,8 @@ const tall = n => ['null', 'én', 'to', 'tre', 'fire', 'fem', 'seks'][n] || Stri
 // Navnet på en gjeng: «A», «B», «A og B». Delte nivåer heter det samme;
 // treneren skiller dem.
 export function gjengNavn(g) {
-  const n = g.nivaer
+  const n = g.nivaer || []
+  if (!n.length) return 'gruppa'
   return n.length > 1 ? `${n.slice(0, -1).join(', ')} og ${n[n.length - 1]}` : n[0]
 }
 
@@ -286,15 +287,31 @@ export function lagGjenger(spillere, trenere = [], runde = 0, seed = 1, antall =
   // gjengene (fordelTrenere). Trenger en øvelse mindre grupper, som Y, deles
   // det inne i gjengen (iGjengene).
   //
-  // Velger treneren flere i Del inn, deles den største gjengen i to, innenfor
-  // nivået. Delene står ved siden av hverandre, så naboreglene holder.
-  while (antall && gjenger.length < k) {
-    let st = 0
-    gjenger.forEach((g, i) => { if (g.spillere.length > gjenger[st].spillere.length) st = i })
-    const g = gjenger[st]
-    if (g.spillere.length < 2) break
-    const halv = Math.ceil(g.spillere.length / 2)
-    gjenger.splice(st, 1, { nivaer: g.nivaer, spillere: g.spillere.slice(0, halv) }, { nivaer: g.nivaer, spillere: g.spillere.slice(halv) })
+  // Velger treneren flere i Del inn, deles gjengene innenfor nivået. De
+  // ekstra delene går en om gangen dit det er flest per del, og hver gjeng
+  // deles i like store biter som står ved siden av hverandre, så naboreglene
+  // holder.
+  if (antall && gjenger.length < k) {
+    const deler = gjenger.map(() => 1)
+    for (let e = gjenger.length; e < k; e++) {
+      let best = -1
+      gjenger.forEach((g, i) => {
+        if (deler[i] >= g.spillere.length) return
+        if (best < 0 || g.spillere.length / deler[i] > gjenger[best].spillere.length / deler[best]) best = i
+      })
+      if (best < 0) break
+      deler[best]++
+    }
+    gjenger = gjenger.flatMap((g, i) => {
+      const n = g.spillere.length, d = deler[i]
+      let fra = 0
+      return Array.from({ length: d }, (_, j) => {
+        const str = Math.floor(n / d) + (j < n % d ? 1 : 0)
+        const del = { nivaer: g.nivaer, spillere: g.spillere.slice(fra, fra + str) }
+        fra += str
+        return del
+      })
+    })
   }
 
   // Avviket mellom største og minste gjeng kan være tre. Er det mer, flyttes

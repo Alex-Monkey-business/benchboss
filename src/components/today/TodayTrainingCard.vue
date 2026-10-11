@@ -5,7 +5,11 @@ import { sessionMotif } from '../../lib/sessionVisuals'
 import { dagLink } from '../../lib/trainingLinks'
 
 const props = defineProps({
-  session: { type: Object, required: true }
+  session: { type: Object, required: true },
+  // Trenere går rett til opptellingen, eller kjøreplanen når den er lagret.
+  til: { type: String, default: null },
+  // Dagens oppmøte: antall her, null = ikke telt opp ennå, undefined = vis ikke.
+  oppmote: { type: Number, default: undefined }
 })
 
 // Samme bilde som økta selv viser — ukedagen velger det (lib/sessionVisuals).
@@ -19,13 +23,17 @@ function varighet(min) {
 }
 const antall = computed(() => (props.session.drills || []).filter(d => d?.text).length)
 const tittel = computed(() => varighet(props.session.duration_min) || 'Trening')
-const linje = computed(() => antall.value ? `${antall.value} ${antall.value === 1 ? 'øvelse' : 'øvelser'}` : 'Ingen øvelser ennå')
+const linje = computed(() => {
+  if (props.oppmote != null) return `${props.oppmote} her · planen er klar`
+  const ov = antall.value ? `${antall.value} ${antall.value === 1 ? 'øvelse' : 'øvelser'}` : 'Ingen øvelser ennå'
+  return props.oppmote === null ? `${ov} · ikke telt opp ennå` : ov
+})
 
 </script>
 
 <template>
   <router-link
-    :to="dagLink(session.id)"
+    :to="til || dagLink(session.id)"
     class="ds-card ds-card--interactive today-training"
     :data-accent="session.accent || 'warm'"
   >

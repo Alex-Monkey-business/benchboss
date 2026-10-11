@@ -1,4 +1,6 @@
-// Fordelingen i kjøreplanen: testcasene fra docs/handover-trening-pa-feltet.md.
+// Fordelingen i kjøreplanen og Del inn: testcasene fra docs/handover-trening-pa-feltet.md.
+// De to siste testcasene (Bruk som dagens grupper, Del inn uten trening) er
+// flyt og ligger i grupper-test.mjs.
 //   node scripts/fordeling-test.mjs
 import { lagGjenger, iGjengene, antallLag, trekkLag, baner, plasser, trenerePerBane, gjengNavn, delInn } from '../src/lib/grupper.js'
 let feilet = 0
@@ -134,6 +136,16 @@ const rene = g => g.every(x => !(x.nivaer.includes('A') && x.nivaer.includes('C'
   ok('samme frø gir samme lag', JSON.stringify(delInn({ spillere: sp, form: 'lag', seed: 4 })) === JSON.stringify(delInn({ spillere: sp, form: 'lag', seed: 4 })))
   ok('nytt frø gir nye lag', JSON.stringify(delInn({ spillere: sp, form: 'lag', seed: 4 }).enheter) !== JSON.stringify(delInn({ spillere: sp, form: 'lag', seed: 5 }).enheter))
   ok('ingen her: tomt', delInn({ spillere: [] }).enheter.length === 0)
+  // Kanttilfeller: én spiller, ingen trenere, ingen nivåer, få til lag.
+  const en = delInn({ spillere: [{ id: 'x', niva: 'A' }] })
+  ok('én spiller: én gruppe', en.antall === 1 && en.enheter[0].spillere.length === 1)
+  const uten = delInn({ spillere: sp, trenere: [] })
+  ok('ingen trenere: tre grupper, ingen infolinje om trenere', uten.antall === 3 && uten.info === '')
+  const ukjent = delInn({ spillere: sp.map(x => ({ id: x.id, niva: null })), trenere: fire, antall: 3 })
+  ok('uten nivåer: tre jevne grupper', ukjent.enheter.map(e => e.spillere.length).sort().join() === '7,7,7', ukjent.enheter.map(e => e.spillere.length).join())
+  const fa = delInn({ spillere: kull(1, 1, 1), form: 'lag' })
+  ok('3 spillere: to lag på én bane', fa.antall === 2 && fa.baner.length === 1 && fa.info === '1 bane, 1–2 på hvert lag', fa.info)
+  ok('antall over spillere kappes', delInn({ spillere: kull(1, 1, 0), antall: 6 }).antall === 2)
 }
 console.log(feilet ? `${feilet} feil` : 'Alt grønt')
 process.exit(feilet ? 1 : 0)

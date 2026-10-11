@@ -13,7 +13,9 @@ defineProps({
   erHer: { type: Function, required: true },
   trenerHer: { type: Function, required: true },
   // Rigger: én trener utenfor gruppene, som tar det praktiske. null = ingen.
-  rigger: { type: String, default: null }
+  rigger: { type: String, default: null },
+  // Del inn har ingen rigger å velge: der er det bare hvem som er med.
+  riggerValg: { type: Boolean, default: true }
 })
 const emit = defineEmits(['spiller', 'trener', 'rigger'])
 const velgRigger = ref(false)
@@ -52,6 +54,7 @@ function velg(id) {
       </div>
 
       <button
+        v-if="riggerValg"
         type="button"
         class="oppg__rigger"
         :aria-expanded="velgRigger ? 'true' : 'false'"
@@ -60,7 +63,7 @@ function velg(id) {
         <span>Rigger: <strong>{{ rigger ? trenerNavn[rigger] : 'ingen' }}</strong></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline :points="velgRigger ? '6 15 12 9 18 15' : '9 18 15 12 9 6'"/></svg>
       </button>
-      <div v-if="velgRigger" class="oppg__valg" role="radiogroup" aria-label="Rigger">
+      <div v-if="riggerValg && velgRigger" class="oppg__valg" role="radiogroup" aria-label="Rigger">
         <button
           type="button"
           role="radio"
@@ -124,7 +127,7 @@ function velg(id) {
   text-decoration: line-through;
 }
 
-.oppg__navn small { font-size: var(--ds-text-xs, 12px); font-weight: var(--ds-weight-semibold); opacity: .8; }
+.oppg__navn small { font-size: var(--ds-text-xs, 12px); font-weight: var(--ds-weight-semibold); }
 .oppg__navn--rigger:not(.oppg__navn--borte) {
   background: var(--ds-color-accent);
   color: var(--ds-color-accent-text);

@@ -23,6 +23,7 @@ import OnboardingCards from '../components/today/OnboardingCards.vue'
 import { useOnboarding } from '../composables/useOnboarding'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import { dagLink } from '../lib/trainingLinks'
+import { hentDagensOppmote } from '../composables/useTreningsOkt'
 
 const {
   loading, refresh, greeting,
@@ -52,7 +53,16 @@ const { cupFirst } = useCupFirst()
 // Før gjettet reconcileWithCoaches seg fram på navn når trener-id-en var
 // ukjent, og bommet stille — man fikk et annet lags kamper og alt så riktig ut.
 // Nå står det her i stedet.
-const { identityIncomplete } = useAuth()
+const { identityIncomplete, isCoach } = useAuth()
+
+// Dagens trening for trenere: rett til opptellingen eller kjøreplanen, med
+// oppmøtet i linja. null = ikke telt opp ennå.
+const dagensOppmote = ref(undefined)
+watch(() => todayTraining.value?.id, async id => {
+  if (!id || !isCoach.value) { dagensOppmote.value = undefined; return }
+  const alle = await hentDagensOppmote()
+  dagensOppmote.value = id in alle ? alle[id] : null
+}, { immediate: true })
 
 // Et tomt kull skal fylles her, ikke lete etter Admin. Kortene forsvinner
 // ett og ett; er alt på plass, finnes de ikke.
@@ -197,8 +207,20 @@ function coachNamesForMatch(matchId) {
       <TodayTrainingCard
         v-if="todayTraining"
         :session="todayTraining"
+        :til="isCoach ? `/trening/okt/${todayTraining.id}` : null"
+        :oppmote="isCoach ? dagensOppmote : undefined"
         class="ds-anim-fade-up ds-anim-delay-2"
       />
+
+      <!-- Del inn: grupper eller lag når som helst. Bare for trenere. -->
+      <RouterLink v-if="isCoach && !onboardingActive" to="/del-inn" class="hjem-delinn ds-anim-fade-up ds-anim-delay-2">
+        <svg class="hjem-delinn__ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="8" r="3" /><circle cx="17" cy="8" r="3" /><path d="M2 20c0-3 2.2-5 5-5s5 2 5 5" /><path d="M12 20c0-3 2.2-5 5-5s5 2 5 5" /></svg>
+        <span class="hjem-delinn__tekst">
+          <span class="hjem-delinn__tittel">Del inn</span>
+          <span class="hjem-delinn__lead">Grupper eller lag, når som helst</span>
+        </span>
+        <svg class="hjem-delinn__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+      </RouterLink>
 
       <CupEntryCard
         v-if="showCupEntry && cupNear"
@@ -304,6 +326,25 @@ function coachNamesForMatch(matchId) {
   color: var(--ds-color-text-secondary);
   font-size: var(--ds-text-sm);
 }
+
+.hjem-delinn {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-md);
+  min-height: 72px;
+  padding: var(--ds-space-md) var(--ds-space-lg);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.hjem-delinn:active { background: var(--ds-color-accent-hover, var(--ds-color-accent)); }
+.hjem-delinn__ikon { flex: none; width: 24px; height: 24px; }
+.hjem-delinn__pil { flex: none; width: 20px; height: 20px; }
+.hjem-delinn__tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hjem-delinn__tittel { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); }
+.hjem-delinn__lead { font-size: var(--ds-text-sm); }
 
 .hjem-hero {
   padding-top: var(--ds-space-xl);

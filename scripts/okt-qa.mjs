@@ -170,20 +170,34 @@ try {
       ok(`${w} plan: låsen slippes etter øvelse ${i + 1}`, !(await laast()))
     }
 
-    // Endre gjengene og lagene: valgt spiller, mål i bunnen.
+    // Endre gruppene og lagene: egen side. Valgt spiller, mål i bunnen, og
+    // det siste navnet skal kunne scrolles fram over bunnen.
     const endre = await p.locator('.fase__endre').count()
     for (let i = 0; i < endre; i++) {
       await p.locator('.fase__endre').nth(i).scrollIntoViewIfNeeded()
       await p.locator('.fase__endre').nth(i).click()
+      await p.waitForURL(/\/endre\//, { timeout: 5000 })
       await p.locator('.brikke').first().waitFor({ timeout: 5000 })
-      await vent(500)
+      await vent(300)
+      ok(`${w} endre ${i + 1}: ingen sideveis scroll`, (await scrollX()) === 0 && !(await utenfor()).length, (await utenfor()).join(' | '))
+      const kt = await kuttet('.steg__knapp, .endre__trekk, .okt__antall, .okt__start')
+      ok(`${w} endre ${i + 1}: ingen kuttede knapper`, !kt.length, kt.join(' | '))
+      await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+      await vent(200)
+      const sist = await p.locator('.brikke').last().boundingBox()
+      const fot = await p.locator('.oppm__fot').boundingBox()
+      ok(`${w} endre ${i + 1}: siste navn står over bunnen`, sist.y + sist.height <= fot.y + 1, `${Math.round(sist.y + sist.height)} > ${Math.round(fot.y)}`)
+      await p.evaluate(() => window.scrollTo(0, 0))
       await p.locator('.brikke').first().click()
       await vent(200)
-      await arkSjekk(`endre ${i + 1}`, w)
       const kb = await kuttet('.mal__knapp, .fot__tekst')
       ok(`${w} endre ${i + 1}: målknappene er hele`, !kb.length, kb.join(' | '))
-      await lukkArk()
-      ok(`${w} endre ${i + 1}: sluppet`, !(await laast()))
+      const fot2 = await p.locator('.oppm__fot').boundingBox()
+      ok(`${w} endre ${i + 1}: flytt-panelet er innenfor skjermen`, fot2.y >= 0 && fot2.y + fot2.height <= (await p.evaluate(() => innerHeight)) + 1)
+      await p.locator('.okt__back').click()
+      await p.waitForURL(/\/trening\/okt\/[^/]+$/, { timeout: 5000 })
+      await p.locator('.rad').first().waitFor()
+      ok(`${w} endre ${i + 1}: tilbake til kjøreplanen`, !(await laast()))
     }
 
     // Oppmøte-arket, og en som kommer for sent.
@@ -215,6 +229,30 @@ try {
     ok(`${w} tilbake med åpent ark: låsen er sluppet`, !(await laast()))
     await p.evaluate(() => window.scrollTo(0, 400))
     ok(`${w} tilbake med åpent ark: siden kan scrolles`, (await p.evaluate(() => window.scrollY)) > 0)
+
+    // Del inn: begge fanene, uten sideveis scroll eller kuttede knapper.
+    await p.goto(`${APP}/del-inn`)
+    await p.locator('.kort').first().waitFor({ timeout: 15000 })
+    for (const fane of ['Grupper', 'Lag']) {
+      await p.locator('.seg__knapp', { hasText: fane }).click()
+      await vent(200)
+      ok(`${w} del inn ${fane}: ingen sideveis scroll`, (await scrollX()) === 0 && !(await utenfor()).length, (await utenfor()).join(' | '))
+      const kd = await kuttet('.seg__knapp, .steg__knapp, .del__trekk, .del__her, .del__bruk')
+      ok(`${w} del inn ${fane}: ingen kuttede knapper`, !kd.length, kd.join(' | '))
+      await p.evaluate(() => window.scrollTo(0, document.body.scrollHeight))
+      await vent(200)
+      const sist = await p.locator('.kort').last().boundingBox()
+      const fot = await p.locator('.del__fot').boundingBox().catch(() => null)
+      if (fot) ok(`${w} del inn ${fane}: siste kort over bunnen`, sist.y + sist.height <= fot.y + 1, `${Math.round(sist.y + sist.height)} > ${Math.round(fot.y)}`)
+      await p.evaluate(() => window.scrollTo(0, 0))
+    }
+    await p.locator('.del__her').click()
+    await p.locator('.ds-sheet .oppg__navn').first().waitFor()
+    await vent(400)
+    await arkSjekk('del inn oppmøte', w)
+    await lukkArk()
+    ok(`${w} del inn: sluppet`, !(await laast()))
+    if (w === 360) await p.screenshot({ path: `${OUT}/qa-360-del-inn.png` })
 
     if (w === 360) {
       await p.goto(`${APP}/trening/okt/${DAG}`)
