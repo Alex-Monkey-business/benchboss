@@ -96,6 +96,8 @@ try {
   await p.locator('.oppg__navn').first().waitFor({ timeout: 15000 })
   ok('«Hvem er her?» med hele kullet på', await p.locator('.oppg__grid').first().locator('.oppg__navn').count() === antall && await p.locator('.oppg__navn--borte').count() === 0)
   await vent(600)
+  const riggAnsvar = sql(`select c.name from coach_responsibilities r join coaches c on c.id = r.coach_id where r.cohort_id='${KULL}' and r.area ilike '%rigg%' limit 1`).split(' ')[0]
+  if (riggAnsvar) ok('standard rigger er den med rigg som ansvarsområde', (await p.locator('.oppg__rigger').innerText()).includes(riggAnsvar), `${riggAnsvar}: ${await p.locator('.oppg__rigger').innerText()}`)
   const startY = (await p.locator('.okt__start').boundingBox()).y
   for (let k = 0; k < 6; k++) await p.locator('.oppg__grid').first().locator('.oppg__navn').nth(k * 3).click()
   await p.locator('.oppg__grid').nth(1).locator('.oppg__navn').last().click()

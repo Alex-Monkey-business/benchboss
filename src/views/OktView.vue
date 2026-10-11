@@ -23,6 +23,7 @@ import { useExercises, resolveDrills, EQUIPMENT_TAGS } from '../composables/useE
 import { usePlayers } from '../composables/usePlayers'
 import { usePlayerLevels } from '../composables/usePlayerLevels'
 import { useCoaches } from '../composables/useCoaches'
+import { useResponsibilities } from '../composables/useResponsibilities'
 import { useTreningsOkt, datoFor, erTreningsdag } from '../composables/useTreningsOkt'
 import { useAuth } from '../stores/auth'
 import {
@@ -38,12 +39,13 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 
 const route = useRoute()
 const router = useRouter()
-const { isCoach } = useAuth()
+const { isCoach, activeCohort } = useAuth()
 const { days, fetchWeek } = useTrainingWeek()
 const { exercises, fetchExercises } = useExercises()
 const { players, fetchPlayers } = usePlayers()
 const { fetchPlayerLevels, levelFor } = usePlayerLevels()
 const { coaches, fetchCoaches } = useCoaches()
+const { fetchResponsibilities } = useResponsibilities()
 const okt = useTreningsOkt()
 const run = okt.run
 
@@ -76,7 +78,8 @@ function trenerHer(id) {
 }
 const her = computed(() => players.value.filter(p => erHer(p.id)).map(p => ({ id: p.id, niva: levelFor(p.id) })))
 
-// Rigger. Før lagring: forrige økts rigger, hvis han er her og dere er mange
+// Rigger. Før lagring: den med rigg som ansvarsområde (ellers forrige økts
+// rigger), hvis han er her og dere er mange
 // nok (RIGGER_FRA). Treneren kan velge noen andre, eller ingen.
 const standardRigger = ref(null)
 const riggerValgt = ref(undefined) // undefined = la standarden gjelde
@@ -433,12 +436,15 @@ watch(session, s => {
 }, { immediate: true })
 
 onMounted(async () => {
-  okt.sisteRigger().then(r => { standardRigger.value = r })
   fetchWeek()
   fetchExercises()
   fetchPlayers()
   fetchPlayerLevels()
-  fetchCoaches()
+  // Standard rigger: den som har rigg som ansvarsområde i trenerteamet
+  // (Admin → Ansvarsområder). Uten det: den som rigget sist.
+  const [liste, sist] = await Promise.all([fetchCoaches(), okt.sisteRigger()])
+  const ansvar = activeCohort.value?.id ? await fetchResponsibilities(activeCohort.value.id, liste || []) : []
+  standardRigger.value = (ansvar || []).find(r => /rigg/i.test(r.area))?.coach_id || sist
 })
 onUnmounted(() => {
   stopp?.()
