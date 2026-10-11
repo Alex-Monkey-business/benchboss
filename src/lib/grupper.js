@@ -337,7 +337,9 @@ export function lagGjenger(spillere, trenere = [], runde = 0, seed = 1, antall =
   }
   for (const g of gjenger) g.nivaer = NIVAER.filter(n => g.spillere.some(id => nivaAv[id] === n))
 
-  const fordelt = fordelTrenere(gjenger.map(g => ({ niva: g.nivaer.length === 1 ? g.nivaer[0] : null })), trenere, runde)
+  // Trenerbehovet følger det svakeste nivået i gjengen: «B og C» trenger to
+  // trenere som C, «A og B» én.
+  const fordelt = fordelTrenere(gjenger.map(g => ({ niva: g.nivaer[g.nivaer.length - 1] || null })), trenere, runde)
   const sett = {}
   return gjenger.map((g, i) => {
     const navn = g.nivaer.join('')

@@ -136,6 +136,9 @@ const rene = g => g.every(x => !(x.nivaer.includes('A') && x.nivaer.includes('C'
   ok('samme frø gir samme lag', JSON.stringify(delInn({ spillere: sp, form: 'lag', seed: 4 })) === JSON.stringify(delInn({ spillere: sp, form: 'lag', seed: 4 })))
   ok('nytt frø gir nye lag', JSON.stringify(delInn({ spillere: sp, form: 'lag', seed: 4 }).enheter) !== JSON.stringify(delInn({ spillere: sp, form: 'lag', seed: 5 }).enheter))
   ok('ingen her: tomt', delInn({ spillere: [] }).enheter.length === 0)
+  const ujevn = delInn({ spillere: kull(3, 9, 3), trenere: fire })
+  const bc = ujevn.enheter.find(e => e.nivaer.includes('C'))
+  ok('blandet gruppe med C får fortsatt to trenere', bc.trenere.length === 2, ujevn.enheter.map(e => `${e.navn}:${e.trenere.length}`).join(' '))
   // Kanttilfeller: én spiller, ingen trenere, ingen nivåer, få til lag.
   const en = delInn({ spillere: [{ id: 'x', niva: 'A' }] })
   ok('én spiller: én gruppe', en.antall === 1 && en.enheter[0].spillere.length === 1)
@@ -146,6 +149,41 @@ const rene = g => g.every(x => !(x.nivaer.includes('A') && x.nivaer.includes('C'
   const fa = delInn({ spillere: kull(1, 1, 1), form: 'lag' })
   ok('3 spillere: to lag på én bane', fa.antall === 2 && fa.baner.length === 1 && fa.info === '1 bane, 1–2 på hvert lag', fa.info)
   ok('antall over spillere kappes', delInn({ spillere: kull(1, 1, 0), antall: 6 }).antall === 2)
+}
+// Tusen tilfeldige oppmøter med kullets form (27 spillere, 9/9/9, opptil fem
+// trenere). Reglene skal holde hver gang, ikke bare i testcasene.
+{
+  let a = 7
+  const rnd = () => { a = (a * 1103515245 + 12345) % 2147483648; return a / 2147483648 }
+  const alle = kull(9, 9, 9)
+  const brudd = {}
+  const brudd1 = (navn, info) => { brudd[navn] = brudd[navn] || info }
+  for (let k = 0; k < 1000; k++) {
+    const sp = alle.filter(() => rnd() > 0.3 * rnd() * 2)
+    if (sp.length < 2) continue
+    const tr = ['t1', 't2', 't3', 't4', 't5'].slice(0, 1 + Math.floor(rnd() * 5))
+    const valgt = rnd() < 0.5 ? null : 1 + Math.floor(rnd() * 6)
+    const g = delInn({ spillere: sp, trenere: tr, antall: valgt, seed: k })
+    const ids = g.enheter.flatMap(e => e.spillere)
+    if (ids.length !== sp.length || new Set(ids).size !== sp.length) brudd1('alle én gang (grupper)', `${sp.length} → ${ids.length}`)
+    if (g.antall > 1 && g.enheter.some(e => e.nivaer.includes('A') && e.nivaer.includes('C'))) brudd1('aldri A og C', g.enheter.map(e => e.navn).join('/'))
+    if (!valgt && g.enheter.some(e => !e.trenere.length)) brudd1('ingen gruppe uten trener', `${tr.length} trenere, ${g.antall} grupper`)
+    if (!valgt && g.antall > 3) brudd1('aldri flere enn tre uten valg', String(g.antall))
+    if (g.enheter.some(e => !e.spillere.length)) brudd1('ingen tomme grupper', g.enheter.map(e => e.spillere.length).join())
+    const brukt = g.enheter.flatMap(e => e.trenere)
+    if (new Set(brukt).size !== brukt.length) brudd1('ingen trener i to grupper', brukt.join())
+    const l = delInn({ spillere: sp, trenere: tr, form: 'lag', antall: rnd() < 0.5 ? null : 2 + Math.floor(rnd() * 5), seed: k })
+    const lid = l.enheter.flatMap(e => e.spillere)
+    if (lid.length !== sp.length || new Set(lid).size !== sp.length) brudd1('alle én gang (lag)', `${sp.length} → ${lid.length}`)
+    const str = l.enheter.map(e => e.spillere.length)
+    if (Math.max(...str) - Math.min(...str) > 1) brudd1('lagene skiller maks én', str.join())
+    if (l.baner.flatMap(b => b.lag).sort().join() !== l.enheter.map((_, i) => i).join()) brudd1('hvert lag på én bane', JSON.stringify(l.baner))
+    for (const b of l.baner) {
+      if (b.pluss != null && l.enheter[b.pluss].spillere.length !== Math.min(...b.lag.map(i => l.enheter[i].spillere.length))) brudd1('+ trener på det minste laget', JSON.stringify(b))
+    }
+  }
+  const navn = Object.keys(brudd)
+  ok('tusen tilfeldige oppmøter: alle reglene holder', !navn.length, navn.map(n => `${n}: ${brudd[n]}`).join(' | '))
 }
 console.log(feilet ? `${feilet} feil` : 'Alt grønt')
 process.exit(feilet ? 1 : 0)

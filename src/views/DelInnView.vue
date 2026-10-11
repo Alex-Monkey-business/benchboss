@@ -111,9 +111,13 @@ function trekkPaNytt() {
 // den andre står urørt. Ingen dialog — «Angre» i meldingen etterpå.
 const kanBruke = computed(() => !!dagensRun.value && !!her.value.length)
 const knappTekst = computed(() => (form.value === 'lag' ? 'Bruk som dagens lag' : 'Bruk som dagens grupper'))
+// Ett trykk er ett bytte: et dobbelttrykk skal ikke gi to meldinger og
+// to steg i historikken.
+let bruker = false
 async function bruk() {
   const r = dagensRun.value
-  if (!r) return
+  if (!r || bruker) return
+  bruker = true
   const st = r.state || {}
   const hva = form.value
   const res = resultat.value
@@ -140,7 +144,8 @@ async function bruk() {
   }
   await okt.settInngrep('_endret', endret)
   meldEvent('del_inn_brukt', { form: hva, type: res.type, antall: res.antall })
-  router.push(`/trening/okt/${r.session_id}#${hva}`)
+  await router.push(`/trening/okt/${r.session_id}#${hva}`)
+  bruker = false
   toast.show(hva === 'lag' ? 'Dagens lag er byttet' : 'Dagens grupper er byttet', 'success', 6000, {
     action: {
       label: 'Angre',
