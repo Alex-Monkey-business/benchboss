@@ -311,7 +311,7 @@ function tilbake() {
       </div>
     </template>
 
-    <Sheet :show="visOppmote" title="Hvem er med?" tall @close="visOppmote = false">
+    <Sheet :show="visOppmote" title="Hvem mangler?" tall @close="visOppmote = false">
       <p class="del__teller"><strong>{{ her.length }}</strong> av {{ players.length }}</p>
       <OppmoteGrid
         :spillere="sortert"

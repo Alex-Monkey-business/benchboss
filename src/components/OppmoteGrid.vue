@@ -27,6 +27,7 @@ function velg(id) {
 
 <template>
   <div class="oppg">
+    <p class="oppg__hint">Trykk på dem som ikke er på trening.</p>
     <div class="oppg__grid">
       <button
         v-for="p in spillere"
@@ -36,7 +37,7 @@ function velg(id) {
         :class="{ 'oppg__navn--borte': !erHer(p.id) }"
         :aria-pressed="erHer(p.id) ? 'true' : 'false'"
         @click="emit('spiller', p.id)"
-      >{{ navn[p.id] }}</button>
+      >{{ navn[p.id] }}<svg v-if="erHer(p.id)" class="oppg__x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
     </div>
 
     <template v-if="trenere.length">
@@ -50,7 +51,7 @@ function velg(id) {
           :class="{ 'oppg__navn--borte': !trenerHer(c.id), 'oppg__navn--rigger': rigger === c.id }"
           :aria-pressed="trenerHer(c.id) ? 'true' : 'false'"
           @click="emit('trener', c.id)"
-        >{{ trenerNavn[c.id] }}<small v-if="rigger === c.id">Rigger</small></button>
+        >{{ trenerNavn[c.id] }}<small v-if="rigger === c.id">Rigger</small><svg v-if="trenerHer(c.id)" class="oppg__x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
       </div>
 
       <button
@@ -88,6 +89,11 @@ function velg(id) {
 </template>
 
 <style scoped>
+.oppg__hint {
+  margin: 0 0 var(--ds-space-md);
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+}
 .oppg__h2 {
   margin: var(--ds-space-xl) 0 var(--ds-space-sm);
   font-family: var(--ds-font-body);
@@ -120,6 +126,8 @@ function velg(id) {
   -webkit-tap-highlight-color: transparent;
 }
 .oppg__navn:active { transform: scale(0.96); }
+/* Krysset sier hva et trykk gjør: tar personen ut. Borte-brikkene har det ikke. */
+.oppg__x { width: 14px; height: 14px; margin-right: -4px; flex: none; color: var(--ds-color-text-tertiary); }
 .oppg__navn--borte {
   border-color: var(--ds-color-border);
   background: transparent;

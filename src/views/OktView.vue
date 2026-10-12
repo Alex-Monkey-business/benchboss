@@ -585,8 +585,7 @@ watch([() => route.hash, () => !!run.value, () => drills.value.length], async ([
 
     <!-- ── D1 HVEM ER HER? ──────────────────────────────────────── -->
     <div v-else-if="!run" class="oppm">
-      <h1 class="okt__h1">Hvem er her?</h1>
-      <p class="oppm__under">Trykk bort dem som mangler.</p>
+      <h1 class="okt__h1">Hvem mangler?</h1>
       <p class="oppm__teller"><strong>{{ her.length }}</strong> av {{ players.length }} spillere</p>
 
       <OppmoteGrid
@@ -709,7 +708,7 @@ watch([() => route.hash, () => !!run.value, () => drills.value.length], async ([
     </Sheet>
 
     <!-- ── D4 HVEM ER HER? (under økta) ────────────────────────── -->
-    <Sheet :show="visOppmote" title="Hvem er her?" tall @close="visOppmote = false">
+    <Sheet :show="visOppmote" title="Hvem mangler?" tall @close="visOppmote = false">
       <p class="oppm__teller oppm__teller--ark"><strong>{{ her.length }}</strong> av {{ players.length }}</p>
       <OppmoteGrid
         :spillere="sortert"
@@ -799,7 +798,6 @@ watch([() => route.hash, () => !!run.value, () => drills.value.length], async ([
 
 /* ── D1 Hvem er her? ── */
 .oppm { max-width: 560px; margin: 0 auto; padding: var(--ds-space-xl) var(--ds-space-lg) 180px; }
-.oppm__under { margin: 6px 0 0; font-size: var(--ds-text-md); color: var(--ds-color-text-secondary); }
 .oppm__teller {
   margin: var(--ds-space-xl) 0 var(--ds-space-lg);
   font-size: var(--ds-text-md); color: var(--ds-color-text-secondary);
