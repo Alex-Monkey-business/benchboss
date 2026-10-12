@@ -97,6 +97,8 @@ function skann() {
       if (!vis(el)) continue
       const c = rgba(getComputedStyle(el).backgroundColor)
       if (!c || c[3] < 0.9) continue
+      // Lagmerket bærer lagfargen, som er pastell i mørk modus med vilje.
+      if (el.closest('.crest')) continue
       const r = el.getBoundingClientRect()
       if (r.width * r.height < 1500 || lum(c) < 0.5) continue
       const nokkel = `flate|${sti(el)}`
