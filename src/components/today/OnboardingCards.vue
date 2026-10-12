@@ -314,7 +314,6 @@ async function sendInvite() {
       <span class="onb-card__step">{{ stepNo.teams }}</span>
       <span class="onb-card__body">
         <span class="onb-card__title">Sett opp lagene</span>
-        <span class="onb-card__lead">Ett eller flere. Spillerne fordeles på dem etterpå.</span>
       </span>
       <svg class="onb-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
@@ -340,7 +339,6 @@ async function sendInvite() {
       <span class="onb-card__step">{{ stepNo.coaches }}</span>
       <span class="onb-card__body">
         <span class="onb-card__title">Inviter trenerne</span>
-        <span class="onb-card__lead">De får en e-post med innlogging.</span>
       </span>
       <svg class="onb-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
@@ -369,7 +367,7 @@ async function sendInvite() {
       <span class="onb-card__step">{{ stepNo.matches }}</span>
       <span class="onb-card__body">
         <span class="onb-card__title">Last opp kampprogrammet</span>
-        <span class="onb-card__lead">Excel-fila fra kretsen{{ activeSeason ? ` → ${activeSeason.name}` : '' }}. Da våkner Hjem.</span>
+        <span class="onb-card__lead">Excel-fila fra kretsen{{ activeSeason ? ` → ${activeSeason.name}` : '' }}</span>
       </span>
       <svg class="onb-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </router-link>

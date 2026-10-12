@@ -571,7 +571,7 @@ function formatMatchDate(dateStr) {
         <!-- Koblet, men ingen sjekk kjørt ennå -->
         <template v-else-if="!synk">
           <p class="fiks-lead">
-            Viser hva som er endret. Ingenting flyttes før du godkjenner.
+            Ingenting flyttes før du godkjenner.
           </p>
           <button class="ds-btn ds-btn--primary fiks-knapp" :disabled="synker" @click="sjekkTerminliste">
             {{ synker ? 'Henter fra fotball.no…' : 'Sjekk terminlista' }}

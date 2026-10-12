@@ -68,7 +68,6 @@ async function remove(playerId) {
 
       <!-- Samme layout i lese- og edit-modus: lag-kort med chips -->
       <template v-else>
-        <p v-if="editing" class="edit-hint">Trykk × for å ta av laget. Trykk en farge for å plassere.</p>
 
         <section v-for="(t, i) in cupTeams" :key="t.slug" class="teamcard" :data-accent="teamAccent(i)">
           <header class="teamcard__head">
@@ -123,10 +122,6 @@ async function remove(playerId) {
 }
 .tropp-hint { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); }
 
-.edit-hint {
-  color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm);
-  margin: 0 0 var(--ds-space-md);
-}
 
 /* Tonal accent-palett (delt med treningsplan/login) */
 

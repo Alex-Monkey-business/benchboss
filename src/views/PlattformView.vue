@@ -325,8 +325,7 @@ function nårTekst(iso) {
 
       <p v-if="lasterFeil" class="plattform-empty">Henter…</p>
       <p v-else-if="!feil.length" class="plattform-empty">
-        Ingenting har krasjet. Det er ikke det samme som at ingenting er galt — en
-        knapp som ikke gjør noe krasjer heller ikke.
+        Ingen krasj.
       </p>
 
       <div v-for="s in feil" :key="s.fingerprint" class="feil-sak">
@@ -371,7 +370,7 @@ function nårTekst(iso) {
             <label class="plattform-label" for="nk-club-sok">Søk etter klubben på fotball.no</label>
             <input id="nk-club-sok" v-model="sok" type="search" autocomplete="off" class="plattform-input" placeholder="Stag" />
 
-            <p v-if="searching" class="plattform-hint">Søker … korte søkeord kan ta noen sekunder.</p>
+            <p v-if="searching" class="plattform-hint">Søker …</p>
             <p v-else-if="sokFeil" class="plattform-hint">{{ sokFeil }}</p>
             <p v-else-if="sok.trim().length >= 2 && !treff.length" class="plattform-hint">Ingen klubber med det navnet.</p>
 

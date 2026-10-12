@@ -240,7 +240,9 @@ function tilbake() {
       </button>
       <span class="del__title">Del inn</span>
       <button v-if="isCoach" type="button" class="del__her" @click="visOppmote = true">
-        <strong>{{ her.length }}</strong> {{ her.length === 1 ? 'spiller' : 'spillere' }}<template v-if="trenere.length"> · <strong>{{ trenere.length }}</strong> {{ trenere.length === 1 ? 'trener' : 'trenere' }}</template>
+        <svg class="del__her-ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><path d="M16 4.5a3.2 3.2 0 0 1 0 6.3" /><path d="M18 14.3c1.8.8 3 2.6 3 4.7" /></svg>
+        <span><strong>{{ her.length }}</strong> {{ her.length === 1 ? 'spiller' : 'spillere' }}<template v-if="trenere.length"> · <strong>{{ trenere.length }}</strong> {{ trenere.length === 1 ? 'trener' : 'trenere' }}</template></span>
+        <svg class="del__her-pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
       </button>
     </header>
 
@@ -262,12 +264,12 @@ function tilbake() {
         </div>
       </div>
 
-      <div class="del__info">
+      <div v-if="resultat.info || form === 'lag'" class="del__info">
         <span>{{ resultat.info }}</span>
         <button v-if="form === 'lag'" type="button" class="del__trekk" @click="trekkPaNytt">Trekk på nytt</button>
       </div>
 
-      <p v-if="!her.length" class="del__tom">Ingen er med. Trykk på antallet øverst for å velge hvem.</p>
+      <p v-if="!her.length" class="del__tom">Ingen er med.</p>
 
       <div v-else-if="form === 'grupper'" class="kortene">
         <div v-for="(e, i) in resultat.enheter" :key="e.id" class="kort">
@@ -350,12 +352,22 @@ function tilbake() {
 .del__title { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
 .del__her {
   margin-left: auto; flex: none;
-  min-height: 44px; padding: 0 4px;
-  border: 0; background: none;
-  font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 44px; padding: 0 12px 0 14px;
+  border: 1px solid var(--ds-color-border);
+  border-radius: 999px;
+  background: var(--ds-color-bg-elevated);
+  box-shadow: var(--ds-shadow-sm, 0 1px 2px rgba(15, 15, 15, .08));
+  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium, 500);
+  color: var(--ds-color-text-primary);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
-.del__her strong { color: var(--ds-color-text-primary); font-variant-numeric: tabular-nums; }
+.del__her:active { background: var(--ds-color-bg-hover); }
+.del__her strong { font-weight: var(--ds-weight-bold); font-variant-numeric: tabular-nums; }
+.del__her-ikon { width: 18px; height: 18px; flex: none; }
+.del__her-pil { width: 16px; height: 16px; flex: none; color: var(--ds-color-text-secondary); }
+:global([data-theme="dark"]) .del__her { background: var(--ds-color-bg-hover); }
 .del__tom { padding: var(--ds-space-xl) var(--ds-space-lg); text-align: center; color: var(--ds-color-text-tertiary); }
 
 .del__styr, .del__info, .kortene { max-width: 560px; margin-left: auto; margin-right: auto; }

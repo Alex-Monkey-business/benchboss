@@ -355,7 +355,6 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
       <div class="ds-empty">
         <Spot name="stats" class="ds-empty__illo" play="auto" />
         <h3 class="ds-empty__title">Ingen kamper spilt i {{ viewingSeason?.name || 'sesongen' }}</h3>
-        <p class="ds-empty__description">Kommer etter første kamp.</p>
         <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="$router.push('/kamper')">Se kampprogrammet</button>
       </div>
     </div>

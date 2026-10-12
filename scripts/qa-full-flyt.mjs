@@ -26,6 +26,23 @@ async function token(epost){
   return new URLSearchParams(frag).get('access_token')
 }
 
+// ---------- Svarer fotball.no? ----------
+// Veiviseren henter klubb, lag og kamper derfra. Avviser fotball.no maskinen
+// (de blokkerer etter mange kjøringer), er det ikke appen som feiler. Da
+// hoppes testen over, med beskjed, i stedet for å stoppe pushen.
+{
+  const svar = await fetch('https://www.fotball.no/SearchPage/Search', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded; charset=UTF-8' },
+    body: new URLSearchParams({ q: KLUBB }),
+    signal: AbortSignal.timeout(20000)
+  }).then(r => r.status, e => e.name)
+  if (svar !== 200) {
+    console.log(`\x1b[33mHOPPER OVER oppstartsflyten: fotball.no svarer ${svar}. Kjør den igjen når de svarer.\x1b[0m`)
+    process.exit(0)
+  }
+}
+
 // ---------- 0. Rydd bort en tidligere kjøring ----------
 // Rydd på KLUBB, ikke på kullnavn: en tidligere kjøring kan ha lagd et kull
 // med et annet navn, og da nekter FK-en på clubs å slette klubben.

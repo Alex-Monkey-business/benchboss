@@ -212,13 +212,10 @@ function coachNamesForMatch(matchId) {
         class="ds-anim-fade-up ds-anim-delay-2"
       />
 
-      <!-- Del inn: grupper eller lag når som helst. Bare for trenere. -->
+      <!-- Del inn. Bare for trenere. -->
       <RouterLink v-if="isCoach && !onboardingActive" to="/del-inn" class="hjem-delinn ds-anim-fade-up ds-anim-delay-2">
         <svg class="hjem-delinn__ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="8" r="3" /><circle cx="17" cy="8" r="3" /><path d="M2 20c0-3 2.2-5 5-5s5 2 5 5" /><path d="M12 20c0-3 2.2-5 5-5s5 2 5 5" /></svg>
-        <span class="hjem-delinn__tekst">
-          <span class="hjem-delinn__tittel">Del inn</span>
-          <span class="hjem-delinn__lead">Grupper eller lag, når som helst</span>
-        </span>
+        <span class="hjem-delinn__tittel">Del inn</span>
         <svg class="hjem-delinn__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
       </RouterLink>
 
@@ -290,7 +287,7 @@ function coachNamesForMatch(matchId) {
       <div v-if="showEmpty" class="ds-empty ds-anim-fade-up ds-anim-delay-1">
         <Spot name="empty" class="ds-empty__illo" />
         <h3 class="ds-empty__title">Ingenting på planen</h3>
-        <p class="ds-empty__description">Ingen kamper eller treninger fremover — nyt friheten.</p>
+        <p class="ds-empty__description">Ingen kamper eller treninger fremover.</p>
       </div>
     </div>
   </div>
@@ -342,9 +339,7 @@ function coachNamesForMatch(matchId) {
 .hjem-delinn:active { background: var(--ds-color-accent-hover, var(--ds-color-accent)); }
 .hjem-delinn__ikon { flex: none; width: 24px; height: 24px; }
 .hjem-delinn__pil { flex: none; width: 20px; height: 20px; }
-.hjem-delinn__tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.hjem-delinn__tittel { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); }
-.hjem-delinn__lead { font-size: var(--ds-text-sm); }
+.hjem-delinn__tittel { flex: 1; min-width: 0; font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); }
 
 .hjem-hero {
   padding-top: var(--ds-space-xl);

@@ -12,7 +12,6 @@ const { canPromptInstall, promptInstall } = usePwaInstall()
       <img src="/icons/icon-192.png" alt="" class="install-card__icon" />
       <span class="install-card__body">
         <span class="install-card__title">Legg BenchBoss på hjemskjermen</span>
-        <span class="install-card__lead">Eget app-ikon, åpner i fullskjerm</span>
       </span>
       <span class="install-card__cta">Legg til</span>
     </button>
@@ -66,10 +65,6 @@ const { canPromptInstall, promptInstall } = usePwaInstall()
   line-height: 1.25;
 }
 
-.install-card__lead {
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-secondary);
-}
 
 .install-card__cta {
   flex-shrink: 0;

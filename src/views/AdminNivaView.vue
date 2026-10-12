@@ -60,7 +60,7 @@ async function pick(player, level) {
 
     <header class="niva__head">
       <h1 class="niva__title">Nivå</h1>
-      <p class="niva__lead">Brukes til å fordele grupper på differensierte øvelser. Bare trenere ser dette.</p>
+      <p class="niva__lead">Bare trenere ser dette.</p>
     </header>
 
     <p v-if="!ready" class="niva__muted">Henter spillere …</p>
@@ -98,7 +98,6 @@ async function pick(player, level) {
           </li>
         </TransitionGroup>
       </section>
-      <p class="niva__note">Trykk på valgt nivå igjen for å fjerne det.</p>
     </template>
   </div>
 </template>

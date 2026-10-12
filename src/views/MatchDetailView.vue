@@ -1672,7 +1672,6 @@ function focusSummaryGroup() {
         </div>
 
         <template v-else>
-          <p class="scorer-form__hint">Ett trykk per mål.</p>
           <div class="scorer-picker">
             <template v-for="team in ['gronn', 'rod', 'hvit', 'other']" :key="team">
               <div

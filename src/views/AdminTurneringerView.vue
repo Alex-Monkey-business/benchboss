@@ -330,7 +330,6 @@ const sorterteKamper = computed(() =>
             <p class="turn-slipp__tittel">{{ leser ? 'Leser filen …' : 'Har du kampoppsettet i et regneark?' }}</p>
             <p class="turn-slipp__hint">Dra fila hit, eller tap for å velge. .xlsx, .xls og .csv.</p>
           </div>
-          <p class="turn-muted">Eller legg dem inn én og én med «Legg til kamp».</p>
           <input ref="filInput" type="file" accept=".xlsx,.xls,.csv" style="display:none" @change="onFilValgt" />
           </template>
 
@@ -398,7 +397,6 @@ const sorterteKamper = computed(() =>
         <button v-if="nyCup.teams.length < 4" type="button" class="turn-legg-til" @click="leggTilLagFelt">
           Legg til lag
         </button>
-        <p class="turn-hint">Ett lag er nok.</p>
       </div>
 
       <div class="sheet-actions">

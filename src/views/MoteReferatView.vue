@@ -94,9 +94,6 @@ function dateLabel(iso) {
       </div>
     </section>
 
-    <footer class="referat__footer">
-      <p>Referatet står som det ble skrevet. Endres noe, kommer det i neste møte.</p>
-    </footer>
   </div>
 </template>
 
@@ -233,16 +230,5 @@ function dateLabel(iso) {
 .punkt__link svg { width: 13px; height: 13px; flex-shrink: 0; }
 .punkt__link:hover { color: var(--ds-color-text-primary); }
 
-.referat__footer {
-  padding-top: var(--ds-space-xl);
-  border-top: 1px solid var(--ds-color-border-light);
-}
 
-.referat__footer p {
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-tertiary);
-  font-style: italic;
-  margin: 0;
-  letter-spacing: -0.005em;
-}
 </style>
