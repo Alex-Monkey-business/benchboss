@@ -21,7 +21,7 @@ import MatchPlayingTime from '../components/MatchPlayingTime.vue'
 import TeamCrest from '../components/TeamCrest.vue'
 import { useKlubbmerke } from '../composables/useKlubbmerke'
 import { relativeDateLabel, isPast, trimAbbrevDots } from '../lib/dateLabels'
-import { matchCta } from '../lib/matchCta'
+import { matchCta, harOppstilling } from '../lib/matchCta'
 import { teamSlugFromName, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, isPlayed, teamLabel, isOurs } from '../lib/matchMeta'
 import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 import { meldEvent } from '../lib/sporing'
@@ -615,8 +615,7 @@ const hasResult = computed(() => {
 // her ville blitt en andre sannhet om samme kamp.
 const hasLineup = computed(() => {
   if (mmSession.value?.match_id !== match.value?.id) return false
-  const l = mmSession.value?.lineup
-  return !!l && Object.keys(l).length > 0
+  return harOppstilling(mmSession.value?.lineup)
 })
 
 const matchModeCta = computed(() => matchCta({

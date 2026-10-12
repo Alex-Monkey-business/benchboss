@@ -46,3 +46,12 @@ export function matchCta({ status, hasLineup, hasResult, matchDate, matchTime, n
     ? { label: 'Se laget', tone: 'quiet', icon: 'grid' }
     : { label: 'Sett opp lag', tone: 'prep', icon: 'grid' }
 }
+
+// Er det plassert minst én spiller? lineup er { slotId: playerId, plan: [...] }.
+// `plan` (bytteplanen) lagres sammen med oppstillinga, og autolagringen skriver
+// { plan: [] } bare av at noen åpner oppsettet. Å telle nøkler sa da «satt» om
+// en tom bane.
+export function harOppstilling(lineup) {
+  if (!lineup) return false
+  return Object.entries(lineup).some(([k, v]) => k !== 'plan' && !!v)
+}

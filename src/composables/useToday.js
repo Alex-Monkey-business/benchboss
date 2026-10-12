@@ -10,6 +10,7 @@ import { useCoaches } from './useCoaches'
 import { useExpenses } from './useExpenses'
 import { useCups } from './useCups'
 import { useCupMatches } from './useCupMatches'
+import { harOppstilling } from '../lib/matchCta'
 import { useTrainingWeek } from './useTrainingWeek'
 import { useSeasonTeams } from './useSeasonTeams'
 import { useMatchMode } from './useMatchMode'
@@ -181,7 +182,7 @@ export function useToday() {
       // null betyr «ikke vår jobb» — kortene hopper over punktet. Samme svar
       // for bortekamp og for et kull som ikke skaffer dommer selv.
       referee: home && usesReferees.value ? !!(match.referee || '').trim() : null,
-      lineup: !!s && Object.keys(s.lineup || {}).length > 0,
+      lineup: harOppstilling(s?.lineup),
       status: s?.status || null
     }
   }
