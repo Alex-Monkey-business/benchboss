@@ -106,6 +106,11 @@ const rene = g => g.every(x => !(x.nivaer.includes('A') && x.nivaer.includes('C'
   const tre = delInn({ spillere: sp, trenere: ['iver', 'alex', 'trond'] })
   ok('Kristian tas bort: 3 grupper, én trener i hver', tre.antall === 3 && tre.enheter.every(e => e.trenere.length === 1) && tre.info === 'Én trener i hver', tre.info)
 
+  const enTr = delInn({ spillere: sp, trenere: ['iver'] })
+  ok('trenerne er valgfrie: én trener gir fortsatt 3 grupper', enTr.antall === 3 && enTr.info === '2 uten trener', `${enTr.antall} · ${enTr.info}`)
+  const ab = delInn({ spillere: kull(7, 7, 0), trenere: fire })
+  ok('bare A og B er med: 2 grupper uansett trenere', ab.antall === 2, ab.enheter.map(e => e.navn).join(' / '))
+
   const ac = delInn({ spillere: kull(7, 0, 5), trenere: ['t1', 't2', 't3'] })
   ok('7 A, 0 B, 5 C i Del inn: A og C aldri sammen', ac.enheter.every(e => !(e.nivaer.includes('A') && e.nivaer.includes('C'))), ac.enheter.map(e => e.navn).join(' '))
   const to = delInn({ spillere: sp, trenere: fire, antall: 2 })
@@ -167,7 +172,9 @@ const rene = g => g.every(x => !(x.nivaer.includes('A') && x.nivaer.includes('C'
     const ids = g.enheter.flatMap(e => e.spillere)
     if (ids.length !== sp.length || new Set(ids).size !== sp.length) brudd1('alle én gang (grupper)', `${sp.length} → ${ids.length}`)
     if (g.antall > 1 && g.enheter.some(e => e.nivaer.includes('A') && e.nivaer.includes('C'))) brudd1('aldri A og C', g.enheter.map(e => e.navn).join('/'))
-    if (!valgt && g.enheter.some(e => !e.trenere.length)) brudd1('ingen gruppe uten trener', `${tr.length} trenere, ${g.antall} grupper`)
+    const nv = new Set(sp.map(x => x.niva)).size
+    if (!valgt && g.antall !== Math.min(nv, sp.length)) brudd1('antallet følger nivåene, ikke trenerne', `${nv} nivåer, ${tr.length} trenere → ${g.antall}`)
+    if (tr.length >= g.antall && g.enheter.some(e => !e.trenere.length)) brudd1('ingen gruppe uten trener når det er nok', `${tr.length} trenere, ${g.antall} grupper`)
     if (!valgt && g.antall > 3) brudd1('aldri flere enn tre uten valg', String(g.antall))
     if (g.enheter.some(e => !e.spillere.length)) brudd1('ingen tomme grupper', g.enheter.map(e => e.spillere.length).join())
     const tl = g.enheter.map(e => e.trenere.length)

@@ -371,6 +371,13 @@ try {
   await vent(800)
   ok('Del inn uten trening i dag: hele kullet', new RegExp(`^${antall} spillere`).test((await p.locator('.del__her').innerText()).trim()), await p.locator('.del__her').innerText())
   ok('og ingen «Bruk som dagens …»', await p.locator('.del__bruk').count() === 0)
+  ok('ingen trenere valgt: telleren nevner ikke trenere', !/trener/.test(await p.locator('.del__her').innerText()), await p.locator('.del__her').innerText())
+  ok('tre grupper uten trenere, ingen «Ingen trener»', await p.locator('.kort').count() === 3 && !(await p.locator('.kortene').first().innerText()).includes('Ingen trener'), (await p.locator('.kort__tittel').allInnerTexts()).join(' / '))
+  await p.locator('.del__her').click()
+  await p.locator('.oppg__grid').last().locator('button').first().click()
+  await p.getByRole('button', { name: 'Ferdig' }).click()
+  await vent(400)
+  ok('én trener valgt: fortsatt tre grupper, treneren står på én', await p.locator('.kort').count() === 3 && /2 uten trener/.test(await p.locator('.del__info').innerText()), await p.locator('.del__info').innerText())
 } finally {
   ok('ingen sidefeil', feil.length === 0, feil.join(' | '))
   sql(`delete from training_runs where cohort_id='${KULL}' and title like 'QA-%'; delete from training_sessions where id='${DAG}'; delete from player_levels where cohort_id='${KULL}'; update training_exercises set per_gruppe=${FOR} where id='${DIFF}'`)

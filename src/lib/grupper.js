@@ -474,24 +474,27 @@ export function plasser(niva, gjenger, lag) {
 // grupper og mix på lag. antall: valgt med − og +; uten det regnes det ut.
 // spillere: [{ id, niva }], trenere: [id] — riggeren er allerede tatt ut.
 //
+// Trenerne er valgfrie her. Antallet følger spillerne (én gruppe per nivå
+// som er med, tre uten nivåer), og trenerne legges på etterpå hvis noen er
+// valgt. Det er bare treningsflyten som lar trenerne bestemme antallet.
+//
 // Returnerer { form, type, antall, standard, enheter, baner, info }:
 //   enheter: [{ id, navn, nivaer, spillere: [id], trenere: [id] }]
 //   baner (bare lag): [{ lag: [indeks, indeks], trenere: [id], pluss }]
 //     pluss: laget som er én færre og får en trener med seg, ellers null.
 export function standardType(form) { return form === 'lag' ? 'mix' : 'diff' }
 
-export function standardAntall(form, n, trenere = 0, drill = null) {
+export function standardAntall(form, n, drill = null, nivaer = 0) {
   if (!n) return 0
   if (form === 'lag') return antallLag(drill || { type: 'mix' }, n)
-  return Math.max(1, Math.min(n, 3, trenere || 3))
+  return Math.max(1, Math.min(n, nivaer || 3))
 }
 
 export function delInn({ spillere = [], trenere = [], form = 'grupper', type = null, antall = null, runde = 0, seed = 1, drill = null } = {}) {
   type = type || standardType(form)
   const n = spillere.length
-  const standard = form === 'grupper' && type === 'diff'
-    ? lagGjenger(spillere, trenere, runde, seed).length
-    : standardAntall(form, n, trenere.length, drill)
+  const nivaer = type === 'diff' ? new Set(spillere.filter(s => s.niva in RANG).map(s => s.niva)).size : 0
+  const standard = standardAntall(form, n, drill, nivaer)
   const N = Math.max(form === 'lag' ? Math.min(2, n) : 1, Math.min(antall || standard, n))
   const ut = { form, type, antall: N, standard, enheter: [], baner: [], info: '' }
   if (!n) return ut

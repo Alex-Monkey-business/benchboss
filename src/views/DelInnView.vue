@@ -65,7 +65,9 @@ const navnPa = ids => {
 const spillerValg = ref({})
 const trenerValg = ref({})
 const baseSpillere = computed(() => new Set(dagensRun.value ? dagensRun.value.spillere : players.value.map(p => p.id)))
-const baseTrenere = computed(() => new Set(dagensRun.value ? dagensRun.value.trenere.filter(id => id !== rigger.value) : coaches.value.map(c => c.id)))
+// Trenerne er valgfrie: på treningsdagen er det de som er telt opp, ellers
+// ingen. Antall grupper følger spillerne uansett.
+const baseTrenere = computed(() => new Set(dagensRun.value ? dagensRun.value.trenere.filter(id => id !== rigger.value) : []))
 const erHer = id => (id in spillerValg.value ? spillerValg.value[id] : baseSpillere.value.has(id))
 const trenerHer = id => (id in trenerValg.value ? trenerValg.value[id] : baseTrenere.value.has(id))
 const sortert = computed(() => [...players.value].sort((a, b) => a.name.localeCompare(b.name, 'no')))
@@ -188,7 +190,7 @@ function tilbake() {
       </button>
       <span class="del__title">Del inn</span>
       <button v-if="isCoach" type="button" class="del__her" @click="visOppmote = true">
-        <strong>{{ her.length }}</strong> {{ her.length === 1 ? 'spiller' : 'spillere' }} · <strong>{{ trenere.length }}</strong> {{ trenere.length === 1 ? 'trener' : 'trenere' }}
+        <strong>{{ her.length }}</strong> {{ her.length === 1 ? 'spiller' : 'spillere' }}<template v-if="trenere.length"> · <strong>{{ trenere.length }}</strong> {{ trenere.length === 1 ? 'trener' : 'trenere' }}</template>
       </button>
     </header>
 
@@ -218,11 +220,11 @@ function tilbake() {
       <p v-if="!her.length" class="del__tom">Ingen er med. Trykk på antallet øverst for å velge hvem.</p>
 
       <div v-else-if="form === 'grupper'" class="kortene">
-        <div v-for="e in resultat.enheter" :key="e.id" class="kort">
+        <div v-for="(e, i) in resultat.enheter" :key="e.id" class="kort">
           <div class="kort__hode">
             <span v-if="resultat.type === 'diff' && e.nivaer.length" class="kort__niva" :aria-label="`Nivå ${e.navn}`">{{ e.nivaer.join('') }}</span>
             <span class="kort__tittel">
-              <template v-if="resultat.type === 'diff'">{{ navnPa(e.trenere) || 'Ingen trener' }}</template>
+              <template v-if="resultat.type === 'diff'">{{ navnPa(e.trenere) || `Gruppe ${i + 1}` }}</template>
               <template v-else>{{ e.navn }}<span v-if="e.trenere.length" class="kort__trener"> · {{ navnPa(e.trenere) }}</span></template>
             </span>
             <span class="kort__ant">{{ e.spillere.length }}</span>
