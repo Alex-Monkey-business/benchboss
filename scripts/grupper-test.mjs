@@ -25,6 +25,14 @@ async function inntil(fn, ms = 12000) {
   ok('4 trenere: C to, B én, A én', f[2].length === 2 && f[1].length === 1 && f[0].length === 1, JSON.stringify(f))
   const tre = fordelTrenere(abc, ['a', 'b'], 0)
   ok('2 trenere: A går uten', tre[0].length === 0 && tre[1].length === 1 && tre[2].length === 1, JSON.stringify(tre))
+  const fem = fordelTrenere(abc, ['a', 'b', 'c', 'd', 'e'], 0).map(g => g.length)
+  ok('5 trenere: aldri tre på C', JSON.stringify(fem) === '[1,2,2]', JSON.stringify(fem))
+  let skjev = 0
+  for (let n = 1; n <= 9; n++) for (let r = 0; r < 5; r++) {
+    const l = fordelTrenere(abc, [...'abcdefghi'].slice(0, n), r).map(g => g.length)
+    if (n >= 3 && Math.max(...l) - Math.min(...l) > 1) skjev++
+  }
+  ok('ingen gruppe har to trenere mer enn en annen (1–9 trenere)', skjev === 0, skjev)
   const r0 = fordelTrenere(abc, ['a', 'b', 'c', 'd'], 0), r1 = fordelTrenere(abc, ['a', 'b', 'c', 'd'], 1)
   ok('neste trening står trenerne et annet sted', JSON.stringify(r0) !== JSON.stringify(r1))
 }

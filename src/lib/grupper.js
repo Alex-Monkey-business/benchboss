@@ -188,8 +188,10 @@ function flertallsniva(ids, nivaAv) {
 // de er mer selvgående. Grupper uten nivå (mix) får én hver.
 //
 // Plassene fylles i rekkefølge: én trener til hver gruppe, svakeste nivå
-// først; så den andre treneren til C; resten fordeles fra svakest og opp. Er
-// det færre trenere enn grupper, er det A som går uten.
+// først; så den andre treneren til C. Resten går til gruppa med færrest
+// trenere, svakeste nivå først, så ingen gruppe får to flere enn en annen
+// (aldri tre på C mens A og B har én). Er det færre trenere enn grupper, er
+// det A som går uten.
 //
 // Innenfor en økt står hver trener på samme plass. Fra trening til trening
 // roterer rekkefølgen (runde = antall tidligere økter), så over tid møter
@@ -208,7 +210,13 @@ export function fordelTrenere(grupper, trenere, runde = 0) {
     .sort((a, b) => a.p - b.p || a.i - b.i)
   const plasser = rekke.map(g => g.i)
   for (const g of rekke) for (let k = 1; k < g.behov; k++) plasser.push(g.i)
-  for (let j = 0; plasser.length < n; j++) plasser.push(rekke[j % rekke.length].i)
+  const tall = ut.map(() => 0)
+  plasser.forEach(i => tall[i]++)
+  while (plasser.length < n) {
+    const g = rekke.reduce((a, b) => (tall[b.i] < tall[a.i] ? b : a))
+    plasser.push(g.i)
+    tall[g.i]++
+  }
   rotert.forEach((t, k) => ut[plasser[k]].push(t))
   return ut
 }

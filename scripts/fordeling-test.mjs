@@ -150,7 +150,7 @@ const rene = g => g.every(x => !(x.nivaer.includes('A') && x.nivaer.includes('C'
   ok('3 spillere: to lag på én bane', fa.antall === 2 && fa.baner.length === 1 && fa.info === '1 bane, 1–2 på hvert lag', fa.info)
   ok('antall over spillere kappes', delInn({ spillere: kull(1, 1, 0), antall: 6 }).antall === 2)
 }
-// Tusen tilfeldige oppmøter med kullets form (27 spillere, 9/9/9, opptil fem
+// Tusen tilfeldige oppmøter med kullets form (27 spillere, 9/9/9, opptil sju
 // trenere). Reglene skal holde hver gang, ikke bare i testcasene.
 {
   let a = 7
@@ -161,7 +161,7 @@ const rene = g => g.every(x => !(x.nivaer.includes('A') && x.nivaer.includes('C'
   for (let k = 0; k < 1000; k++) {
     const sp = alle.filter(() => rnd() > 0.3 * rnd() * 2)
     if (sp.length < 2) continue
-    const tr = ['t1', 't2', 't3', 't4', 't5'].slice(0, 1 + Math.floor(rnd() * 5))
+    const tr = ['t1', 't2', 't3', 't4', 't5', 't6', 't7'].slice(0, 1 + Math.floor(rnd() * 7))
     const valgt = rnd() < 0.5 ? null : 1 + Math.floor(rnd() * 6)
     const g = delInn({ spillere: sp, trenere: tr, antall: valgt, seed: k })
     const ids = g.enheter.flatMap(e => e.spillere)
@@ -170,6 +170,8 @@ const rene = g => g.every(x => !(x.nivaer.includes('A') && x.nivaer.includes('C'
     if (!valgt && g.enheter.some(e => !e.trenere.length)) brudd1('ingen gruppe uten trener', `${tr.length} trenere, ${g.antall} grupper`)
     if (!valgt && g.antall > 3) brudd1('aldri flere enn tre uten valg', String(g.antall))
     if (g.enheter.some(e => !e.spillere.length)) brudd1('ingen tomme grupper', g.enheter.map(e => e.spillere.length).join())
+    const tl = g.enheter.map(e => e.trenere.length)
+    if (tr.length >= g.antall && Math.max(...tl) - Math.min(...tl) > 1) brudd1('aldri to trenere mer enn en annen gruppe', `${tr.length} trenere: ${tl.join('/')}`)
     const brukt = g.enheter.flatMap(e => e.trenere)
     if (new Set(brukt).size !== brukt.length) brudd1('ingen trener i to grupper', brukt.join())
     const l = delInn({ spillere: sp, trenere: tr, form: 'lag', antall: rnd() < 0.5 ? null : 2 + Math.floor(rnd() * 5), seed: k })
