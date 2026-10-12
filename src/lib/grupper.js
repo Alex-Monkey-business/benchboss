@@ -266,8 +266,9 @@ export function gjengNavn(g) {
 // spillere: [{ id, niva }], trenere: [id] — riggeren er allerede tatt ut.
 // runde: trenerrotasjonen fra trening til trening.
 // Returnerer [{ id, nivaer, spillere: [id], trenere: [id] }], A først.
-// antall: valgt i Del inn. Uten det styrer trenerne: én gjeng per trener,
-// aldri flere enn nivåene (tre).
+// antall: valgt med − og +. Uten det styrer spillerne: én gjeng per nivå som
+// er med, tre jevne uten nivåer. Trenerne legges på etterpå; er de færre enn
+// gjengene, går A uten.
 export function lagGjenger(spillere, trenere = [], runde = 0, seed = 1, antall = null) {
   if (!spillere.length) return []
   const rng = frøRng(seed)
@@ -275,10 +276,11 @@ export function lagGjenger(spillere, trenere = [], runde = 0, seed = 1, antall =
   let gjenger = NIVAER
     .map(n => ({ nivaer: [n], spillere: stokk(spillere.filter(s => nivaTil(s) === n).map(s => s.id), rng) }))
     .filter(g => g.spillere.length)
-  const k = antall ? Math.min(antall, spillere.length) : trenere.length
+  const kjente = new Set(spillere.filter(s => s.niva in RANG).map(s => s.niva)).size
+  const k = Math.min(antall || kjente || 3, spillere.length)
 
-  // Færre trenere enn nivåer: slå sammen naboer, aldri A med C — med mindre
-  // det bare er én trener. Ingen gruppe uten trener; heller større grupper.
+  // Færre grupper valgt enn nivåer: slå sammen naboer, aldri A med C — med
+  // mindre det bare er én gruppe.
   while (k && gjenger.length > k) {
     let best = -1
     for (let i = 0; i < gjenger.length - 1; i++) {
@@ -295,11 +297,11 @@ export function lagGjenger(spillere, trenere = [], runde = 0, seed = 1, antall =
   // gjengene (fordelTrenere). Trenger en øvelse mindre grupper, som Y, deles
   // det inne i gjengen (iGjengene).
   //
-  // Velger treneren flere i Del inn, deles gjengene innenfor nivået. De
+  // Velger treneren flere, eller har ingen nivå, deles gjengene innenfor nivået. De
   // ekstra delene går en om gangen dit det er flest per del, og hver gjeng
   // deles i like store biter som står ved siden av hverandre, så naboreglene
   // holder.
-  if (antall && gjenger.length < k) {
+  if (gjenger.length < k) {
     const deler = gjenger.map(() => 1)
     for (let e = gjenger.length; e < k; e++) {
       let best = -1

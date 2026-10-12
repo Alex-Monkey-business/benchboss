@@ -57,10 +57,10 @@ try {
   await p.waitForURL(new RegExp(`/trening/okt/${DAG}$`), { timeout: 5000 })
   ok('kortet går rett til opptellingen', await p.locator('.oppg__navn').first().waitFor({ timeout: 10000 }).then(() => true, () => false))
 
-  // Del inn uten lagret oppmøte i dag: hele kullet, ingen «Bruk som».
+  // Del inn uten lagret oppmøte i dag: hele kullet, og knappen starter økta.
   await p.goto(`${APP}/del-inn`)
   await p.locator('.kort').first().waitFor({ timeout: 15000 })
-  ok('ikke telt opp: ingen «Bruk som dagens …»', await p.locator('.del__bruk').count() === 0)
+  ok('ikke telt opp: «Start dagens trening med disse»', /Start dagens trening med disse/.test(await p.locator('.del__fot .del__bruk').innerText().catch(() => '')))
 
   // Ingen med: melding, ingen krasj, knappene står.
   await p.locator('.del__her').click()
@@ -82,11 +82,34 @@ try {
   ok('to med: to lag på én bane', await p.locator('.bane').count() === 1 && await p.locator('.kort').count() === 2)
   ok('to med: + er sperret', await p.locator('.steg__knapp[aria-label="Flere"]').isDisabled())
 
-  // Lagre oppmøtet, så Bruk som med dobbelttrykk: ett bytte, én melding.
-  await p.goto(`${APP}/trening/okt/${DAG}`)
-  await p.locator('.okt__start').click()
-  await p.locator('.rad').first().waitFor({ timeout: 10000 })
+  // Start økta fra Del inn: to borte, tre lag, dobbelttrykk. Oppmøtet og
+  // lagene lagres slik de sto, gruppene lages som i opptellingen.
+  await p.goto(`${APP}/del-inn`)
+  await p.locator('.kort').first().waitFor({ timeout: 15000 })
+  const alle = Number((await p.locator('.del__her').innerText()).match(/\d+/)[0])
+  await p.locator('.del__her').click()
+  await p.locator('.ds-sheet .oppg__grid').first().locator('.oppg__navn').nth(0).click()
+  await p.locator('.ds-sheet .oppg__grid').first().locator('.oppg__navn').nth(1).click()
+  await p.locator('.ds-sheet .del__bruk', { hasText: 'Ferdig' }).click()
+  await vent(300)
+  await p.locator('.seg__knapp', { hasText: 'Lag' }).click()
+  while (Number(await p.locator('.steg__tall').innerText()) > 3) await p.locator('.steg__knapp[aria-label="Færre"]').click()
+  while (Number(await p.locator('.steg__tall').innerText()) < 3) await p.locator('.steg__knapp[aria-label="Flere"]').click()
+  const vist = (await p.locator('.kort .kort__navn').allInnerTexts()).map(t => t.split(' · ').length).sort().join()
+  await p.locator('.del__fot .del__bruk').dblclick()
+  await p.waitForURL(new RegExp(`/trening/okt/${DAG}#lag$`), { timeout: 10000 })
+  ok('Start fra Del inn lander i kjøreplanen ved lagene', true, p.url())
+  await inntil(() => sql(`select count(*) from training_runs where session_id='${DAG}'`) === '1')
   const RUN = sql(`select id from training_runs where session_id='${DAG}'`)
+  ok('én økt lagret, også med dobbelttrykk', !!RUN && !RUN.includes('\n'))
+  ok('oppmøtet er dem som var med i Del inn', Number(sql(`select count(*) from training_run_players where run_id='${RUN}'`)) === alle - 2)
+  ok('ingen trenere valgt: ingen trenere lagret', sql(`select count(*) from training_run_coaches where run_id='${RUN}'`) === '0')
+  const lagret = sql(`select string_agg(jsonb_array_length(l)::text, ',' order by jsonb_array_length(l)) from training_runs, jsonb_array_elements(state->'_lag'->'3') l where id='${RUN}'`)
+  ok('lagene er de som sto i Del inn', lagret === vist, `${lagret} / ${vist}`)
+  ok('mix-øvelsen har 3 lag', sql(`select count(*) from training_runs, jsonb_each(state->'_antall') a where id='${RUN}' and a.value::int = 3`) === '1')
+  ok('gruppene er laget som i opptellingen', sql(`select jsonb_array_length(state->'_gjenger') from training_runs where id='${RUN}'`) === '3')
+  await p.locator('.rad').first().waitFor({ timeout: 10000 })
+  ok('kjøreplanen viser 3 lag', /3 lag/.test(await p.locator('#lag').innerText()), (await p.locator('#lag').innerText()).slice(0, 80))
   await p.goto(`${APP}/`)
   await inntil(async () => /her · planen er klar/.test(await p.locator('.today-training').innerText()))
   ok('Hjem etter oppmøtet: «N her · planen er klar»', /\d+ her · planen er klar/.test(await p.locator('.today-training').innerText()))

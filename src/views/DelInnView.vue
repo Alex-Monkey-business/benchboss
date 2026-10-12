@@ -7,8 +7,10 @@
 //
 // Hvem som er med: dagens oppmøte hvis det er lagret, ellers hele kullet.
 // Endringer her er bare på denne telefonen. Ingenting lagres, med mindre det
-// er trening i dag og du trykker «Bruk som dagens grupper/lag». Da byttes den
-// ene delen av planen, hos alle trenerne, og kan angres.
+// er trening i dag. Er oppmøtet ikke telt ennå, starter «Start dagens
+// trening med disse» økta med dem som er med og denne inndelingen. Er det
+// telt, bytter «Bruk som dagens grupper/lag» den ene delen av planen, hos alle
+// trenerne, og kan angres.
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
@@ -16,10 +18,10 @@ import { useExercises, resolveDrills } from '../composables/useExercises'
 import { usePlayers } from '../composables/usePlayers'
 import { usePlayerLevels } from '../composables/usePlayerLevels'
 import { useCoaches } from '../composables/useCoaches'
-import { useTreningsOkt, hentDagensOppmote } from '../composables/useTreningsOkt'
+import { useTreningsOkt, hentDagensOppmote, erTreningsdag } from '../composables/useTreningsOkt'
 import { useToast } from '../composables/useToast'
 import { useAuth } from '../stores/auth'
-import { delInn, kortnavn, ovelseNokkel } from '../lib/grupper'
+import { delInn, kortnavn, ovelseNokkel, lagGjenger, trekkLag, antallLag } from '../lib/grupper'
 import { meldEvent } from '../lib/sporing'
 import OppmoteGrid from '../components/OppmoteGrid.vue'
 import Sheet from '../components/Sheet.vue'
@@ -89,7 +91,7 @@ function sett(endring) {
   valg.value = { ...valg.value, [form.value]: { ...v.value, ...endring } }
 }
 const forsteMix = computed(() => drills.value.find(d => d.type === 'mix') || null)
-const resultat = computed(() => delInn({
+const innData = computed(() => ({
   spillere: her.value,
   trenere: trenere.value,
   form: form.value,
@@ -99,6 +101,7 @@ const resultat = computed(() => delInn({
   seed: v.value.seed + (dagensRun.value?.state?._runde || 0),
   drill: form.value === 'lag' ? forsteMix.value : null
 }))
+const resultat = computed(() => delInn(innData.value))
 const min = computed(() => (form.value === 'lag' ? 2 : 1))
 const maks = computed(() => Math.max(min.value, Math.min(6, form.value === 'lag' ? Math.floor(her.value.length / 2) : her.value.length)))
 function velgType(t) { sett({ type: t, antall: null }) }
@@ -108,15 +111,38 @@ function trekkPaNytt() {
   meldEvent('del_inn_trukket', { form: form.value })
 }
 
-// ── Bruk som dagens … ───────────────────────────────────────────────────────
-// Bare når det er trening i dag og oppmøtet er lagret. Den ene delen byttes;
-// den andre står urørt. Ingen dialog — «Angre» i meldingen etterpå.
+// ── Til dagens trening ──────────────────────────────────────────────────────
+// Er oppmøtet telt, byttes den ene delen av planen; den andre står urørt.
+// Ingen dialog — «Angre» i meldingen etterpå. Er det ikke telt ennå, starter
+// knappen økta med dem som er med her og denne inndelingen.
 const kanBruke = computed(() => !!dagensRun.value && !!her.value.length)
-const knappTekst = computed(() => (form.value === 'lag' ? 'Bruk som dagens lag' : 'Bruk som dagens grupper'))
+const kanStarte = computed(() => !dagensRun.value && !!session.value && erTreningsdag(session.value) && !!her.value.length)
+const knappTekst = computed(() => (kanStarte.value
+  ? 'Start dagens trening med disse'
+  : form.value === 'lag' ? 'Bruk som dagens lag' : 'Bruk som dagens grupper'))
+
+// Del inn-gruppene slik kjøreplanen lagrer dem.
+function somGjenger(res) {
+  const teller = {}
+  return res.enheter.map(e => {
+    const nivaer = res.type === 'diff' ? e.nivaer : []
+    const k = nivaer.join('') || 'G'
+    teller[k] = (teller[k] || 0) + 1
+    return { id: k + teller[k], nivaer, spillere: e.spillere, trenere: e.trenere }
+  })
+}
+// Antall lag på hver mix-øvelse satt til det valgte.
+function antallPaMix(fra, n) {
+  const antall = { ...(fra || {}) }
+  drills.value.forEach((d, i) => { if (d.type === 'mix') antall[ovelseNokkel(i, d)] = n })
+  return antall
+}
+
 // Ett trykk er ett bytte: et dobbelttrykk skal ikke gi to meldinger og
 // to steg i historikken.
 let bruker = false
 async function bruk() {
+  if (kanStarte.value) return start()
   const r = dagensRun.value
   if (!r || bruker) return
   bruker = true
@@ -127,22 +153,13 @@ async function bruk() {
   const forrige = { _endret: st._endret ?? null }
   if (hva === 'grupper') {
     forrige._gjenger = st._gjenger ?? null
-    const teller = {}
-    const gjenger = res.enheter.map(e => {
-      const nivaer = res.type === 'diff' ? e.nivaer : []
-      const k = nivaer.join('') || 'G'
-      teller[k] = (teller[k] || 0) + 1
-      return { id: k + teller[k], nivaer, spillere: e.spillere, trenere: e.trenere }
-    })
-    await okt.settInngrep('_gjenger', gjenger)
+    await okt.settInngrep('_gjenger', somGjenger(res))
   } else {
     forrige._lag = st._lag ?? null
     forrige._antall = st._antall ?? null
     const n = res.antall
-    const antall = { ...(st._antall || {}) }
-    drills.value.forEach((d, i) => { if (d.type === 'mix') antall[ovelseNokkel(i, d)] = n })
     await okt.settInngrep('_lag', { ...(st._lag || {}), [n]: res.enheter.map(e => e.spillere) })
-    await okt.settInngrep('_antall', antall)
+    await okt.settInngrep('_antall', antallPaMix(st._antall, n))
   }
   await okt.settInngrep('_endret', endret)
   meldEvent('del_inn_brukt', { form: hva, type: res.type, antall: res.antall })
@@ -158,6 +175,39 @@ async function bruk() {
       }
     }
   })
+}
+
+// Oppmøtet lagres med dem som er med her. Den delen du ser, er din
+// inndeling; den andre lages som i opptellingen. Trenerrotasjonen er først
+// kjent når økta lagres, så gruppene regnes på nytt med den.
+async function start() {
+  const s = session.value
+  if (!s || bruker) return
+  bruker = true
+  const hva = form.value
+  const sp = her.value.map(p => p.id)
+  const tr = [...trenere.value]
+  const harDiff = drills.value.some(d => d.type === 'diff')
+  const mix = drills.value.filter(d => d.type === 'mix')
+  const plan = runde => {
+    const res = delInn({ ...innData.value, runde, seed: v.value.seed + runde })
+    const ut = {}
+    if (hva === 'grupper') {
+      ut._gjenger = somGjenger(res)
+      const tall = [...new Set(mix.map(d => antallLag(d, sp.length)))]
+      if (tall.length) ut._lag = Object.fromEntries(tall.map(n => [n, trekkLag(her.value, n, runde + 1)]))
+    } else {
+      if (harDiff) ut._gjenger = lagGjenger(her.value, tr, runde, runde + 1)
+      ut._lag = { [res.antall]: res.enheter.map(e => e.spillere) }
+      ut._antall = antallPaMix(null, res.antall)
+    }
+    return ut
+  }
+  const ok = await okt.start(s, sp, tr, null, plan)
+  bruker = false
+  if (!ok) { toast.show('Fikk ikke lagret oppmøtet. Prøv igjen.', 'error'); return }
+  meldEvent('del_inn_startet', { form: hva, spillere: sp.length, trenere: tr.length })
+  await router.push(`/trening/okt/${s.id}#${hva}`)
 }
 
 let stopp = null
@@ -252,7 +302,7 @@ function tilbake() {
         </div>
       </div>
 
-      <div v-if="kanBruke" class="del__fot">
+      <div v-if="kanBruke || kanStarte" class="del__fot">
         <div class="del__fot-inn">
           <button type="button" class="del__bruk" @click="bruk">{{ knappTekst }}</button>
         </div>
