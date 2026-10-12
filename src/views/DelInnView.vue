@@ -251,22 +251,22 @@ function tilbake() {
 
     <template v-else>
       <div class="del__styr">
-        <div class="seg" role="group" aria-label="Grupper eller lag">
-          <button type="button" class="seg__knapp" :aria-pressed="form === 'grupper' ? 'true' : 'false'" @click="form = 'grupper'">Grupper</button>
-          <button type="button" class="seg__knapp" :aria-pressed="form === 'lag' ? 'true' : 'false'" @click="form = 'lag'">Lag</button>
+        <div class="del__rad">
+          <div class="ds-pills" role="group" aria-label="Grupper eller lag">
+            <button type="button" :class="['ds-pill', 'seg__knapp', { 'ds-pill--active': form === 'grupper' }]" :aria-pressed="form === 'grupper' ? 'true' : 'false'" @click="form = 'grupper'">Grupper</button>
+            <button type="button" :class="['ds-pill', 'seg__knapp', { 'ds-pill--active': form === 'lag' }]" :aria-pressed="form === 'lag' ? 'true' : 'false'" @click="form = 'lag'">Lag</button>
+          </div>
+          <div class="ds-pills" role="group" aria-label="Nivå">
+            <button type="button" :class="['ds-pill', 'seg__knapp', { 'ds-pill--active': v.type === 'diff' }]" :aria-pressed="v.type === 'diff' ? 'true' : 'false'" @click="velgType('diff')">Diff</button>
+            <button type="button" :class="['ds-pill', 'seg__knapp', { 'ds-pill--active': v.type === 'mix' }]" :aria-pressed="v.type === 'mix' ? 'true' : 'false'" @click="velgType('mix')">Mix</button>
+          </div>
         </div>
         <div class="del__rad">
-          <div class="seg seg--liten" role="group" aria-label="Nivå">
-            <button type="button" class="seg__knapp" :aria-pressed="v.type === 'diff' ? 'true' : 'false'" @click="velgType('diff')">Diff</button>
-            <button type="button" class="seg__knapp" :aria-pressed="v.type === 'mix' ? 'true' : 'false'" @click="velgType('mix')">Mix</button>
-          </div>
           <Steg :verdi="resultat.antall" :min="min" :maks="maks" :navn="form === 'lag' ? 'Antall lag' : 'Antall grupper'" @endre="velgAntall" />
+          <button v-if="form === 'lag'" type="button" class="del__trekk" @click="trekkPaNytt">Trekk på nytt</button>
+          <span v-else-if="resultat.info" class="del__info">{{ resultat.info }}</span>
         </div>
-      </div>
-
-      <div v-if="resultat.info || form === 'lag'" class="del__info">
-        <span>{{ resultat.info }}</span>
-        <button v-if="form === 'lag'" type="button" class="del__trekk" @click="trekkPaNytt">Trekk på nytt</button>
+        <p v-if="form === 'lag' && resultat.info" class="del__info del__info--under">{{ resultat.info }}</p>
       </div>
 
       <p v-if="!her.length" class="del__tom">Ingen er med.</p>
@@ -370,46 +370,16 @@ function tilbake() {
 :global([data-theme="dark"]) .del__her { background: var(--ds-color-bg-hover); }
 .del__tom { padding: var(--ds-space-xl) var(--ds-space-lg); text-align: center; color: var(--ds-color-text-tertiary); }
 
-.del__styr, .del__info, .kortene { max-width: 560px; margin-left: auto; margin-right: auto; }
+.del__styr, .kortene { max-width: 560px; margin-left: auto; margin-right: auto; }
 .del__styr {
   padding: var(--ds-space-xs) var(--ds-space-lg) var(--ds-space-md);
   border-bottom: 1px solid var(--ds-color-border-light, var(--ds-color-border));
 }
-.del__rad { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md); margin-top: var(--ds-space-md); }
+.del__rad { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md); }
+.del__rad + .del__rad { margin-top: var(--ds-space-md); }
 
-.seg {
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 4px;
-  padding: 4px;
-  border-radius: var(--ds-radius-lg);
-  background: var(--ds-color-bg-subtle, var(--ds-color-bg-elevated));
-}
-.seg__knapp {
-  min-height: 44px; padding: 0 16px;
-  border: 0; border-radius: var(--ds-radius-md, 10px);
-  background: transparent;
-  font-size: var(--ds-text-md); font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.seg__knapp[aria-pressed="true"] {
-  background: var(--ds-color-bg-elevated);
-  color: var(--ds-color-text-primary);
-  font-weight: var(--ds-weight-semibold);
-  box-shadow: var(--ds-shadow-sm, 0 1px 2px rgba(15, 15, 15, .08));
-}
-/* Mørkt: det hevede feltet er mørkere enn sporet, så den valgte fanen
-   druknet. Lysere flate gjør valget tydelig. */
-:global([data-theme="dark"]) .seg__knapp[aria-pressed="true"] { background: var(--ds-color-bg-hover); }
-.seg--liten { display: inline-grid; }
-.seg--liten .seg__knapp { min-height: 40px; font-size: var(--ds-text-sm); }
-
-.del__info {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md);
-  min-height: 44px;
-  padding: var(--ds-space-sm) var(--ds-space-lg) 0;
-  font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
-}
+.del__info { flex: 1; min-width: 0; text-align: right; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+.del__info--under { margin: var(--ds-space-sm) 0 0; text-align: left; }
 .del__trekk {
   flex: none; min-height: 44px; padding: 0 4px;
   border: 0; background: none;

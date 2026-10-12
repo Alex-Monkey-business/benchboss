@@ -25,21 +25,21 @@ const til = v => { if (v >= props.min && v <= props.maks) emit('endre', v) }
 <style scoped>
 .steg {
   display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px;
-  border-radius: var(--ds-radius-lg);
+  padding: 3px;
+  border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-subtle, var(--ds-color-bg-elevated));
 }
 .steg__knapp {
   display: grid; place-items: center;
-  width: 40px; height: 40px;
-  border: 0; border-radius: var(--ds-radius-md, 10px);
+  width: 36px; height: 36px;
+  border: 0; border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
   color: var(--ds-color-text-primary);
   box-shadow: var(--ds-shadow-sm, 0 1px 2px rgba(15, 15, 15, .08));
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.steg__knapp svg { width: 18px; height: 18px; }
+.steg__knapp svg { width: 16px; height: 16px; }
 :global([data-theme="dark"]) .steg__knapp:not(:disabled) { background: var(--ds-color-bg-hover); }
 .steg__knapp:disabled { color: var(--ds-color-text-tertiary); box-shadow: none; opacity: .5; cursor: default; }
 .steg__tall {
