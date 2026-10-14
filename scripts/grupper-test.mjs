@@ -37,6 +37,11 @@ async function inntil(fn, ms = 12000) {
   ok('neste trening står trenerne et annet sted', JSON.stringify(r0) !== JSON.stringify(r1))
 }
 
+// En kamp i dag tar toppen på Hjem, og da vises ikke treningskortet. Dagens
+// kamper flyttes et år fram mens testen går, og tilbake etterpå.
+const KAMPER = sql(`select string_agg(id::text, ',') from matches where cohort_id='${KULL}' and match_date=current_date`)
+const kampIder = KAMPER ? `('${KAMPER.split(',').join("','")}')` : null
+if (kampIder) sql(`update matches set match_date = match_date + 365 where id in ${kampIder}`)
 sql(`delete from player_levels where cohort_id='${KULL}'`)
 sql(`insert into player_levels (player_id, level) select id, (array['A','B','C'])[1 + (row_number() over (order by name))::int % 3] from players where cohort_id='${KULL}' order by name offset 2`)
 sql(`delete from training_runs where cohort_id='${KULL}' and title like 'QA-%'`)
@@ -381,6 +386,7 @@ try {
 } finally {
   ok('ingen sidefeil', feil.length === 0, feil.join(' | '))
   sql(`delete from training_runs where cohort_id='${KULL}' and title like 'QA-%'; delete from training_sessions where id='${DAG}'; delete from player_levels where cohort_id='${KULL}'; update training_exercises set per_gruppe=${FOR} where id='${DIFF}'`)
+  if (kampIder) sql(`update matches set match_date = match_date - 365 where id in ${kampIder}`)
   await b.close()
 }
 process.exit(feilet ? 1 : 0)

@@ -30,6 +30,11 @@ const DAG = sql(`insert into training_sessions (cohort_id, title, weekday, posit
 const flyttet = sql(`select string_agg(id::text, ',') from training_sessions where cohort_id='${KULL}' and weekday=${UKEDAG} and id <> '${DAG}'`)
 if (flyttet) sql(`update training_sessions set weekday=${UKEDAG % 7 + 1} where id in ('${flyttet.split(',').join("','")}')`)
 
+// En kamp i dag tar toppen på Hjem, og da vises ikke treningskortet. Dagens
+// kamper flyttes et år fram mens testen går, og tilbake etterpå.
+const KAMPER = sql(`select string_agg(id::text, ',') from matches where cohort_id='${KULL}' and match_date=current_date`)
+const kampIder = KAMPER ? `('${KAMPER.split(',').join("','")}')` : null
+if (kampIder) sql(`update matches set match_date = match_date + 365 where id in ${kampIder}`)
 const b = await chromium.launch()
 const feil = []
 async function logginn(epost, viewport = { width: 390, height: 844 }) {
@@ -179,6 +184,7 @@ try {
   sql(`delete from training_runs where session_id='${DAG}'; delete from training_sessions where id='${DAG}'`)
   if (flyttet) sql(`update training_sessions set weekday=${UKEDAG} where id in ('${flyttet.split(',').join("','")}')`)
   if (!hadde) sql(`delete from player_levels where player_id in (select id from players where cohort_id='${KULL}')`)
+  if (kampIder) sql(`update matches set match_date = match_date - 365 where id in ${kampIder}`)
   await b.close()
 }
 console.log(feilet ? `${feilet} feil` : 'Alt grønt')
