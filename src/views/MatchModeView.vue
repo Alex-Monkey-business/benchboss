@@ -22,10 +22,10 @@ const { getMatch, updateMatch, fetchMatchPlayers, fetchMatchAbsences } = useMatc
 const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals()
 const { players, fetchPlayers } = usePlayers()
 const {
-  session, stints, currentClock, isRunning,
+  session, stints, currentClock, isRunning, now, serverOffset,
   startClockTick, stopClockTick,
   fetchSession, fetchStints,
-  saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, undoSubstitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
+  saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, startedEarlier, substitute, undoSubstitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
   isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer,
   remote, syncState, changeScore
 } = useMatchMode()
@@ -600,6 +600,9 @@ const FORSLAG_GAP = 180
 
 const forslag = computed(() => {
   if (phase.value !== 'live') return null
+  // Full tid: det er ingen flere bytter å foreslå.
+  const s = session.value
+  if (s?.status === 'paused' && (s.clock_base_seconds || 0) >= (s.period_count || 2) * (s.period_minutes || 30) * 60) return null
   // Planen først: første par der inn fortsatt står på benken og ut på banen.
   for (const p of planen.value) {
     const inn = bench.value.find(b => b.id === p.inn)
@@ -892,12 +895,74 @@ const clockBtnLabel = computed(() => {
   if (atHalfBreak.value) return `Start ${period.value + 1}. omgang`
   return isRunning.value ? 'Pause' : 'Fortsett'
 })
-async function clockAction() {
+
+// Klokka står, og kampen er ikke over. 14. okt sto den på halvtid i ti
+// minutter etter at ballen rullet, fordi «står» og «går» så nesten like ut fra
+// sidelinja. Mens klokka står, tar pausen derfor over toppen: navnet, hvor lenge
+// den har stått, og én stor knapp.
+const fullTid = computed(() => (session.value?.clock_base_seconds || 0) >= periodCount.value * halfSeconds.value)
+const klokkaStar = computed(() => session.value?.status === 'paused' && !fullTid.value)
+// Full tid får samme flate: neste handling er å avslutte, ikke «Fortsett».
+const visPause = computed(() => session.value?.status === 'paused')
+// Bare klokkehandlinger rører sesjonens updated_at, så den er pausens start.
+const pauseSiden = computed(() => {
+  const t = Date.parse(session.value?.updated_at || '')
+  return klokkaStar.value && t ? Math.max(0, (now.value + serverOffset.value - t) / 1000) : 0
+})
+
+// «Startet dere før du trykket?» Kommer etter en lang pause, og flytter
+// starten bakover — klokka, og alt som er ført siden trykket, følger med.
+const SEN_START = 8 * 60       // en halvtid kan vare 8 min uten at vi spør
+const VANLIG_PAUSE = 8 * 60    // gjetningen: alt over 8 min var spill
+const senStart = ref(null)     // { maks: minutter, valgt: minutter, base }
+const senStartKlokke = computed(() => currentClock.value + (senStart.value?.valgt || 0) * 60)
+function senStartSteg(d) {
+  const s = senStart.value
+  if (s) s.valgt = Math.min(s.maks, Math.max(1, s.valgt + d))
+}
+async function flyttStarten() {
+  const s = senStart.value
+  const ny = fmt(senStartKlokke.value)
+  senStart.value = null
+  if (!s) return
   try {
-    if (atHalfBreak.value) await startNextHalf(matchId)
+    await startedEarlier(matchId, s.valgt * 60)
+    showToast(`Klokka er satt til ${ny}`, 'success')
+  } catch (e) { reportError(e) }
+}
+// Spørsmålet gjelder starten. Står klokka igjen, eller er omgangen et
+// kvarter i gang, er det for sent å spørre.
+watch([() => session.value?.status, currentClock], ([st, c]) => {
+  if (senStart.value && (st !== 'running' || c - senStart.value.base > 15 * 60)) senStart.value = null
+})
+
+// En klokkehandling som feiler, skal ikke forsvinne med en toast mens
+// telefonen ligger i lomma. Meldingen står til den er løst.
+const klokkeFeil = ref(null)
+watch(() => session.value?.status, () => { klokkeFeil.value = null })
+
+async function clockAction() {
+  const hva = atHalfBreak.value ? `${period.value + 1}. omgang startet ikke`
+    : isRunning.value ? 'Klokka stoppet ikke' : 'Klokka startet ikke'
+  const pause = pauseSiden.value
+  const base = session.value?.clock_base_seconds || 0
+  const nesteOmgang = atHalfBreak.value
+  klokkeFeil.value = null
+  try {
+    if (nesteOmgang) await startNextHalf(matchId)
     else if (isRunning.value) await pauseClock(matchId)
     else await resumeClock(matchId)
-  } catch (e) { reportError(e) }
+    if (nesteOmgang && pause >= SEN_START) {
+      // Aldri lenger tilbake enn klokka sto, og aldri forbi slutten av omgangen.
+      const igjen = (period.value * halfSeconds.value - currentClock.value) / 60
+      const maks = Math.max(1, Math.floor(Math.min((pause - 60) / 60, igjen - 1, 30)))
+      senStart.value = { maks, valgt: Math.min(maks, Math.max(1, Math.round((pause - VANLIG_PAUSE) / 60))), base }
+    }
+  } catch (e) {
+    if (e?.konflikt) return reportError(e)
+    const nett = !navigator.onLine || /fetch|network/i.test(e?.message || '')
+    klokkeFeil.value = `${hva}${nett ? ' — ingen nett' : ''}. Prøv igjen.`
+  }
 }
 
 // Auto-pause når klokka når omgangsslutt. Guard mot dobbel-trigging.
@@ -1148,7 +1213,7 @@ const summary = computed(() =>
     </div>
 
     <!-- ── LIVE ─────────────────────────────────────────────── -->
-    <div v-else-if="phase === 'live'" class="mm__live">
+    <div v-else-if="phase === 'live'" class="mm__live" :class="{ 'mm__live--sporsmal': senStart }">
       <div class="mm__cockpit-top">
       <div class="mm__clockrow">
         <button class="mm__back" @click="router.back()" aria-label="Tilbake">
@@ -1156,11 +1221,41 @@ const summary = computed(() =>
         </button>
         <div class="mm__clockwrap">
           <div class="mm__clock" :class="{ 'mm__clock--paused': !isRunning }">{{ fmt(currentClock) }}</div>
-          <div class="mm__phase" :class="{ 'mm__phase--break': atHalfBreak }">{{ phaseLabel }}</div>
+          <div v-if="!visPause" class="mm__phase">{{ phaseLabel }}</div>
         </div>
         <div class="mm__controls">
-          <button type="button" class="mm__ctrl" :class="{ 'mm__ctrl--go': atHalfBreak }" @click="clockAction">{{ clockBtnLabel }}</button>
+          <button v-if="!visPause" type="button" class="mm__ctrl" @click="clockAction">{{ clockBtnLabel }}</button>
           <button type="button" class="mm__ctrl mm__ctrl--end" @click="showFinish = true">Avslutt</button>
+        </div>
+      </div>
+
+      <div v-if="klokkeFeil" class="mm__klokkefeil" role="alert">
+        <span>{{ klokkeFeil }}</span>
+        <button type="button" class="mm__klokkefeil-knapp" @click="clockAction">Prøv igjen</button>
+      </div>
+
+      <div v-if="visPause" class="mm__pause" :class="{ 'mm__pause--slutt': fullTid }">
+        <div class="mm__pause-topp">
+          <span class="mm__pause-navn">{{ phaseLabel }}</span>
+          <span v-if="klokkaStar" class="mm__pause-tid">Stått i {{ fmt(pauseSiden) }}</span>
+        </div>
+        <button v-if="fullTid" type="button" class="mm__pause-start" @click="showFinish = true">Avslutt kamp</button>
+        <button v-else type="button" class="mm__pause-start" @click="clockAction">{{ clockBtnLabel }}</button>
+      </div>
+
+      <div v-if="senStart" class="mm__senstart">
+        <div class="mm__senstart-sporsmal">Glemte du å starte klokka?</div>
+        <div class="mm__senstart-rad">
+          <button type="button" class="mm__senstart-steg" :disabled="senStart.valgt <= 1" aria-label="Ett minutt mindre" @click="senStartSteg(-1)">−</button>
+          <div class="mm__senstart-verdi">
+            <strong>For {{ senStart.valgt }} min siden</strong>
+            <span>Klokka settes til {{ fmt(senStartKlokke) }}</span>
+          </div>
+          <button type="button" class="mm__senstart-steg" :disabled="senStart.valgt >= senStart.maks" aria-label="Ett minutt mer" @click="senStartSteg(1)">+</button>
+        </div>
+        <div class="mm__senstart-knapper">
+          <button type="button" class="mm__senstart-nei" @click="senStart = null">Nei, nå</button>
+          <button type="button" class="mm__senstart-ja" @click="flyttStarten">Sett klokka</button>
         </div>
       </div>
 
@@ -1938,8 +2033,90 @@ const summary = computed(() =>
 }
 .mm__clockwrap { display: flex; flex-direction: column; }
 .mm__phase { font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-tertiary); margin-top: 2px; }
-.mm__phase--break { color: var(--ds-color-warning); }
-.mm__ctrl--go { border-color: var(--ds-color-accent); background: var(--ds-color-accent); color: var(--ds-color-accent-text); }
+
+/* Klokka står: pausen tar over toppen. Varselfarge på flaten, så den ikke
+   kan forveksles med en kamp som går. */
+.mm__pause {
+  margin-top: var(--ds-space-sm);
+  padding: var(--ds-space-md);
+  border: 1.5px solid var(--ds-color-warning-border, var(--ds-color-warning));
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-warning-light);
+}
+.mm__pause-topp { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-sm); margin-bottom: var(--ds-space-sm); }
+.mm__pause-navn { font-family: var(--ds-font-heading); font-size: var(--ds-text-xl, 1.25rem); font-weight: var(--ds-weight-bold); color: var(--ds-color-warning-text); }
+.mm__pause-tid { font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium); color: var(--ds-color-warning-text); font-variant-numeric: tabular-nums; }
+.mm__pause-start {
+  display: block; width: 100%; padding: 16px;
+  border: none; border-radius: var(--ds-radius-md);
+  background: var(--ds-color-accent); color: var(--ds-color-accent-text);
+  font-family: var(--ds-font-body); font-size: var(--ds-text-lg); font-weight: var(--ds-weight-bold);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.mm__pause-start:active { transform: scale(0.99); }
+.mm__pause--slutt { border-color: var(--ds-color-border); background: var(--ds-color-bg-elevated); }
+.mm__pause--slutt .mm__pause-navn { color: var(--ds-color-text-primary); }
+/* Lav skjerm: banen trenger høyden mer enn flatene trenger luft. */
+@media (max-height: 680px) {
+  .mm__pause, .mm__senstart { padding: var(--ds-space-sm) var(--ds-space-md); }
+  .mm__senstart-sporsmal { font-size: var(--ds-text-sm); }
+}
+/* Minste skjermer: mens kortet står (sekunder), låner det resultatets plass. */
+@media (max-height: 600px) {
+  .mm__live--sporsmal .mm__score, .mm__live--sporsmal .mm__scorers { display: none; }
+  .mm__pause-topp { margin-bottom: 6px; }
+  .mm__pause-start { padding: 12px; }
+  .mm__senstart-rad { margin: 6px 0; }
+  .mm__senstart-steg { width: 40px; height: 40px; }
+  .mm__senstart-knapper button { padding: 10px; }
+}
+
+.mm__klokkefeil {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-sm);
+  padding: 10px 10px 10px var(--ds-space-md);
+  border: 1.5px solid var(--ds-color-error);
+  border-radius: var(--ds-radius-md);
+  background: var(--ds-color-error-light);
+  color: var(--ds-color-error-text);
+  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold);
+}
+.mm__klokkefeil-knapp {
+  flex: none; padding: 8px 12px;
+  border: none; border-radius: var(--ds-radius-sm, 8px);
+  background: var(--ds-color-error); color: #fff;
+  font-family: var(--ds-font-body); font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold);
+  cursor: pointer;
+}
+
+.mm__senstart {
+  margin-top: var(--ds-space-sm);
+  padding: var(--ds-space-md);
+  border: 1.5px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-bg-elevated);
+}
+.mm__senstart-sporsmal { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
+.mm__senstart-rad { display: flex; align-items: center; gap: var(--ds-space-sm); margin: var(--ds-space-sm) 0; }
+.mm__senstart-steg {
+  flex: none; width: 44px; height: 44px;
+  border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-md);
+  background: var(--ds-color-bg); color: var(--ds-color-text-primary);
+  font-size: 22px; line-height: 1; cursor: pointer;
+}
+.mm__senstart-steg:disabled { opacity: .35; cursor: default; }
+.mm__senstart-verdi { flex: 1; min-width: 0; display: flex; flex-direction: column; align-items: center; }
+.mm__senstart-verdi strong { white-space: nowrap; font-family: var(--ds-font-heading); font-size: var(--ds-text-lg); font-variant-numeric: tabular-nums; color: var(--ds-color-text-primary); }
+.mm__senstart-verdi span { font-size: var(--ds-text-xs); color: var(--ds-color-text-secondary); font-variant-numeric: tabular-nums; }
+.mm__senstart-knapper { display: flex; gap: var(--ds-space-sm); }
+.mm__senstart-knapper button {
+  flex: 1; padding: 12px;
+  border-radius: var(--ds-radius-md);
+  font-family: var(--ds-font-body); font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold);
+  cursor: pointer;
+}
+.mm__senstart-nei { border: 1.5px solid var(--ds-color-border); background: var(--ds-color-bg); color: var(--ds-color-text-primary); }
+.mm__senstart-ja { border: none; background: var(--ds-color-accent); color: var(--ds-color-accent-text); }
 .mm__clock { font-family: var(--ds-font-heading); font-variant-numeric: tabular-nums; font-size: 3.25rem; font-weight: var(--ds-weight-bold); line-height: 1; color: var(--ds-color-text-primary); letter-spacing: -0.02em; }
 .mm__clock--paused { color: var(--ds-color-text-tertiary); }
 .mm__controls { display: flex; gap: var(--ds-space-sm); }

@@ -133,7 +133,7 @@ function toggle() {
   color: var(--ds-color-text-muted, var(--ds-color-text-secondary));
   font-weight: 400;
   font-style: normal;
-  opacity: 0.7;
+  opacity: 0.8;
 }
 
 /* Rik summary: høyrejustert chip-rad i headeren (lese-modus). Innholdet er

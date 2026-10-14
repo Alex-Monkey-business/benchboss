@@ -330,7 +330,7 @@ export function useMatchMode() {
     const frozen = computeClock(session.value, Date.now())
     if (isSupabaseConfigured) {
       return optimistisk(matchId,
-        () => { session.value = { ...session.value, status: 'paused', clock_base_seconds: frozen, running_since: null } },
+        () => { session.value = { ...session.value, status: 'paused', clock_base_seconds: frozen, running_since: null, updated_at: new Date(Date.now() + serverOffset.value).toISOString() } },
         'mm_klokkehandling', { p_match: matchId, p_handling: 'pause', p_forventet: 'running' })
     }
     await writeSession(matchId, {
@@ -356,7 +356,7 @@ export function useMatchMode() {
     if (session.value?.status !== 'running') return
     if (isSupabaseConfigured) {
       return optimistisk(matchId,
-        () => { session.value = { ...session.value, status: 'paused', clock_base_seconds: seconds, running_since: null } },
+        () => { session.value = { ...session.value, status: 'paused', clock_base_seconds: seconds, running_since: null, updated_at: new Date(Date.now() + serverOffset.value).toISOString() } },
         'mm_klokkehandling', { p_match: matchId, p_handling: 'omgang_slutt', p_forventet: 'running', p_sekunder: seconds })
     }
     await writeSession(matchId, { status: 'paused', clock_base_seconds: seconds, running_since: null })
@@ -374,6 +374,24 @@ export function useMatchMode() {
       running_since: nowIso(),
       period: (session.value?.period || 1) + 1
     })
+  }
+
+  // «Startet dere tidligere?» — flytt starten på omgangen som går N sekunder
+  // bakover. Serveren flytter også bytter og mål som er ført etter trykket.
+  async function startedEarlier(matchId, seconds) {
+    if (session.value?.status !== 'running' || !(seconds > 0)) return
+    if (isSupabaseConfigured) {
+      return optimistisk(matchId,
+        () => { session.value = { ...session.value, running_since: new Date(Date.parse(session.value.running_since) - seconds * 1000).toISOString() } },
+        'mm_klokkehandling', { p_match: matchId, p_handling: 'tidligere_start', p_forventet: 'running', p_sekunder: Math.round(seconds) })
+    }
+    const base = session.value.clock_base_seconds || 0
+    stints.value = stints.value.map(x => x.match_id !== matchId ? x : {
+      ...x,
+      on_clock: x.on_clock > base ? x.on_clock + seconds : x.on_clock,
+      off_clock: x.off_clock != null && x.off_clock > base ? x.off_clock + seconds : x.off_clock
+    })
+    await writeSession(matchId, { running_since: new Date(Date.parse(session.value.running_since) - seconds * 1000).toISOString() })
   }
 
   // Bytte: lukk utgående spillers stint, åpne ny for innbytter
@@ -633,9 +651,10 @@ export function useMatchMode() {
   return {
     remote, syncState, changeScore,
     session, stints, statusByMatch, currentClock, isRunning,
+    now, serverOffset,
     startClockTick, stopClockTick,
     fetchSession, fetchSessionStatuses, fetchStints, fetchAllStints,
-    saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, substitute, undoSubstitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
+    saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, startedEarlier, substitute, undoSubstitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
     matchStints, isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer,
     adjustPlayingTime, undoAdjustment, movableSeconds
   }
