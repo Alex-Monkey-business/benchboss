@@ -528,6 +528,66 @@ function varme(id) {
 const TONE_SPAN = 300
 function kulde(id) { return Math.min(1, Math.max(0, (fairShare.value - timeFor(id)) / TONE_SPAN)) }
 
+// ── Liste: hvem står for tur ─────────────────────────────────────────────────
+//
+// Banen viser hvor de står. Lista viser hvem som står for tur: banen og benken
+// side om side, sortert på det treneren velger. «Siden bytte»: lengst ute
+// øverst på banen, lengst på benken øverst på benken. «Totalt»: mest spilt
+// øverst på banen, minst spilt øverst på benken. Tallet det sorteres på er det
+// store. Rekkefølgen flytter seg bare ved bytter — alle klokker går like fort.
+// Begge valg huskes på telefonen.
+const VISNING_KEY = 'bb_mm_visning'
+const SORT_KEY = 'bb_mm_sort'
+function lesValg(key, lovlige, standard) {
+  try { const v = localStorage.getItem(key); return lovlige.includes(v) ? v : standard } catch { return standard }
+}
+const visning = ref(lesValg(VISNING_KEY, ['bane', 'liste'], 'bane'))
+const sortering = ref(lesValg(SORT_KEY, ['naa', 'tot'], 'naa'))
+watch(visning, v => {
+  try { localStorage.setItem(VISNING_KEY, v) } catch { /* ok */ }
+  valgtPaBanen.value = null; armedBenchId.value = null; resetDrag()
+})
+watch(sortering, v => { try { localStorage.setItem(SORT_KEY, v) } catch { /* ok */ } })
+
+// Hvor lenge har hen sittet siden sist hen gikk av? Aldri vært inne: hele kampen.
+function sittet(id) {
+  let sist = 0
+  for (const x of stints.value) {
+    if (x.match_id === session.value?.match_id && x.player_id === id && x.off_clock != null && x.off_clock > sist) sist = x.off_clock
+  }
+  return Math.max(0, currentClock.value - sist)
+}
+function andel(id) { return currentClock.value ? Math.min(1, timeFor(id) / currentClock.value) : 0 }
+const etterNavn = (a, b) => a.name.localeCompare(b.name, 'no')
+const listeBanen = computed(() => {
+  const rader = squad.value
+    .filter(p => isOnField(p.id) && roleOf(p.id) !== 'keeper')
+    .map(p => ({ ...p, naa: strekk(p.id), tot: timeFor(p.id) }))
+  const k = sortering.value
+  return rader.sort((a, b) => b[k] - a[k] || etterNavn(a, b))
+})
+const listeKeeper = computed(() =>
+  squad.value.filter(p => isOnField(p.id) && roleOf(p.id) === 'keeper')
+    .map(p => ({ ...p, naa: strekk(p.id), tot: timeFor(p.id) })))
+const listeBenken = computed(() => {
+  const rader = bench.value.map(p => ({ ...p, naa: sittet(p.id), tot: p.sec }))
+  return sortering.value === 'naa'
+    ? rader.sort((a, b) => b.naa - a.naa || etterNavn(a, b))
+    : rader.sort((a, b) => a.tot - b.tot || etterNavn(a, b))
+})
+
+// I lista er ett trykk på banen et valg, ikke et plassbytte: plassene vises ikke.
+function trykkListeBanen(id) {
+  if (armedBenchId.value) {
+    const inId = armedBenchId.value
+    armedBenchId.value = null
+    gjorBytte(id, inId)
+    return
+  }
+  angre.value = null
+  valgtPaBanen.value = valgtPaBanen.value === id ? null : id
+}
+
 // ── Forslaget ────────────────────────────────────────────────────────────────
 //
 // Appen vet hvem som har minst tid på benken og hvem som har mest på banen.
@@ -1128,7 +1188,78 @@ const summary = computed(() =>
       </div>
       </div>
 
-      <div class="mm__pitch-area">
+      <div class="mm__visning">
+        <div class="ds-pills" role="group" aria-label="Visning">
+          <button type="button" class="ds-pill" :class="{ 'ds-pill--active': visning === 'bane' }" :aria-pressed="visning === 'bane'" @click="visning = 'bane'">Bane</button>
+          <button type="button" class="ds-pill" :class="{ 'ds-pill--active': visning === 'liste' }" :aria-pressed="visning === 'liste'" @click="visning = 'liste'">Liste</button>
+        </div>
+        <div v-if="visning === 'liste'" class="ds-pills" role="group" aria-label="Sortering">
+          <button type="button" class="ds-pill" :class="{ 'ds-pill--active': sortering === 'naa' }" :aria-pressed="sortering === 'naa'" @click="sortering = 'naa'">Siden bytte</button>
+          <button type="button" class="ds-pill" :class="{ 'ds-pill--active': sortering === 'tot' }" :aria-pressed="sortering === 'tot'" @click="sortering = 'tot'">Totalt</button>
+        </div>
+      </div>
+
+      <div v-if="visning === 'liste'" class="mm__liste">
+        <div class="mm__lkol">
+          <div class="mm__lhode">På banen <span>{{ sortering === 'naa' ? 'lengst ute' : 'mest spilt' }}</span></div>
+          <button
+            v-for="(p, i) in listeBanen"
+            :key="p.id"
+            type="button"
+            class="mm__lrad"
+            :class="{
+              'mm__lrad--valgt': valgtPaBanen === p.id,
+              'mm__lrad--tur': i === 0 && !valgtPaBanen && !armedBenchId,
+              'mm__lrad--varm': sortering === 'naa' && varme(p.id) > .12
+            }"
+            :style="{ '--h': varme(p.id) }"
+            :aria-pressed="valgtPaBanen === p.id"
+            @click="trykkListeBanen(p.id)"
+          >
+            <span class="mm__lnavn">{{ kort(p.name) }}</span>
+            <span class="mm__lstor">{{ fmt(sortering === 'naa' ? p.naa : p.tot) }}</span>
+            <span class="mm__lliten">{{ sortering === 'naa' ? `totalt ${fmt(p.tot)}` : `ute ${fmt(p.naa)}` }}</span>
+            <span class="mm__lbar" aria-hidden="true"><i :style="{ width: andel(p.id) * 100 + '%' }"></i></span>
+          </button>
+          <template v-if="listeKeeper.length">
+            <div class="mm__lskille">Keeper</div>
+            <button
+              v-for="p in listeKeeper"
+              :key="p.id"
+              type="button"
+              class="mm__lrad mm__lrad--keeper"
+              :class="{ 'mm__lrad--valgt': valgtPaBanen === p.id }"
+              :aria-pressed="valgtPaBanen === p.id"
+              @click="trykkListeBanen(p.id)"
+            >
+              <span class="mm__lnavn">{{ kort(p.name) }}</span>
+              <span class="mm__lstor">{{ fmt(sortering === 'naa' ? p.naa : p.tot) }}</span>
+              <span class="mm__lliten">{{ sortering === 'naa' ? `totalt ${fmt(p.tot)}` : `ute ${fmt(p.naa)}` }}</span>
+              <span class="mm__lbar" aria-hidden="true"><i :style="{ width: andel(p.id) * 100 + '%' }"></i></span>
+            </button>
+          </template>
+        </div>
+        <div class="mm__lkol">
+          <div class="mm__lhode">Benken <span>{{ sortering === 'naa' ? 'sittet lengst' : 'minst spilt' }}</span></div>
+          <button
+            v-for="(p, i) in listeBenken"
+            :key="p.id"
+            type="button"
+            class="mm__lrad"
+            :class="{ 'mm__lrad--valgt': armedBenchId === p.id, 'mm__lrad--tur': i === 0 && !armedBenchId }"
+            :aria-pressed="armedBenchId === p.id"
+            @click="trykkBenk(p.id)"
+          >
+            <span class="mm__lnavn">{{ kort(p.name) }}</span>
+            <span class="mm__lstor">{{ fmt(sortering === 'naa' ? p.naa : p.tot) }}</span>
+            <span class="mm__lliten">{{ sortering === 'naa' ? `totalt ${fmt(p.tot)}` : `sittet ${fmt(p.naa)}` }}</span>
+            <span class="mm__lbar" aria-hidden="true"><i :style="{ width: andel(p.id) * 100 + '%' }"></i></span>
+          </button>
+          <div v-if="!listeBenken.length" class="mm__empty mm__empty--inline">Ingen på benken</div>
+        </div>
+      </div>
+
+      <div v-else class="mm__pitch-area">
       <div ref="pitchEl" class="pitch pitch--live">
         <div class="pitch__turf" aria-hidden="true"><span></span><span></span><span></span><span></span><span></span><span></span></div>
         <div class="pitch__lines" aria-hidden="true">
@@ -1200,7 +1331,7 @@ const summary = computed(() =>
         <!-- Forslaget: ett trykk gjør byttet appen ville gjort. Skjules mens et
              manuelt bytte er i gang, så det ikke konkurrerer om oppmerksomheten. -->
         <button
-          v-else-if="forslag"
+          v-else-if="forslag && visning === 'bane'"
           type="button"
           class="mm__forslag"
           @click="utforForslag"
@@ -1210,7 +1341,7 @@ const summary = computed(() =>
           <span class="mm__forslag-tekst">{{ kort(forslag.inn.name) }} inn for {{ kort(forslag.ut.name) }}</span>
         </button>
         </div>
-        <div class="mm__bench mm__bench--bar">
+        <div v-if="visning === 'bane'" class="mm__bench mm__bench--bar">
         <button
           v-for="p in benkVist"
           :key="p.id"
@@ -1379,6 +1510,66 @@ const summary = computed(() =>
   box-sizing: border-box;
 }
 .mm__cockpit-top { flex: none; }
+
+/* Bane eller liste. Lav rad: hver pixel her er banehøyde. */
+.mm__visning {
+  flex: none;
+  display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-sm);
+}
+.mm__visning .ds-pill { padding: 5px 12px; }
+
+/* Lista: banen og benken side om side. Raden er ett trykk, som drakta. */
+.mm__liste {
+  flex: 1 1 auto; min-height: 0;
+  overflow-y: auto; overscroll-behavior: contain;
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-content: start;
+  padding: var(--ds-space-sm) 0;
+}
+.mm__lkol { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.mm__lhode {
+  display: flex; justify-content: space-between; gap: 6px;
+  padding: 0 4px 2px;
+  font-size: var(--ds-text-xs, 12px); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-secondary);
+  white-space: nowrap;
+}
+.mm__lhode span { font-weight: var(--ds-weight-regular, 400); color: var(--ds-color-text-tertiary); overflow: hidden; text-overflow: ellipsis; }
+.mm__lrad {
+  display: grid; grid-template-columns: minmax(0, 1fr) auto; align-items: center; column-gap: 6px;
+  min-height: 52px; padding: 7px 10px 0;
+  border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-bg-elevated); color: var(--ds-color-text-primary);
+  text-align: left; cursor: pointer; overflow: hidden;
+  -webkit-tap-highlight-color: transparent;
+  transition: background .15s ease, border-color .15s ease, transform .1s ease;
+}
+.mm__lrad:active { transform: scale(0.98); }
+.mm__lnavn { grid-column: 1; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm__lliten { grid-column: 1; grid-row: 2; font-size: var(--ds-text-xs, 12px); color: var(--ds-color-text-secondary); font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mm__lstor { grid-column: 2; grid-row: 1 / 3; font-family: var(--ds-font-numeric); font-size: 1.25rem; font-weight: var(--ds-weight-bold); font-variant-numeric: tabular-nums; }
+.mm__lbar { grid-column: 1 / 3; height: 3px; margin: 6px -10px 0; background: var(--ds-color-border-light, var(--ds-color-border)); }
+.mm__lbar i { display: block; height: 100%; background: var(--ds-color-accent); opacity: .45; }
+/* Den som står for tur: ring, ikke fylt flate — valget er fortsatt ditt. */
+.mm__lrad--tur { border-color: var(--ds-color-accent); box-shadow: inset 0 0 0 1px var(--ds-color-accent); }
+.mm__lrad--valgt { border-color: var(--ds-color-accent); background: var(--ds-color-accent); color: var(--ds-color-accent-text); }
+.mm__lrad--valgt .mm__lliten { color: inherit; opacity: .8; }
+.mm__lrad--valgt .mm__lbar { background: rgba(255,255,255,.25); }
+.mm__lrad--valgt .mm__lbar i { background: currentColor; opacity: .8; }
+/* Lenge uten pause: samme trapp som pillen under drakta, gul → rød. */
+.mm__lrad--varm:not(.mm__lrad--valgt) .mm__lstor {
+  color: color-mix(in srgb, #E5484D calc(max(0, (var(--h, 0) - .5) * 2) * 100%), #B26A00);
+}
+.mm__lrad--keeper { border-style: dashed; background: transparent; }
+/* Smal kolonne (320-telefoner): navnet får hele linja, tallene deler den under.
+   Navnet er det du leser; det skal aldri klippes for at tallet skal få plass. */
+.mm__lkol { container-type: inline-size; }
+@container (max-width: 150px) {
+  .mm__lrad { grid-template-columns: minmax(0, 1fr) auto; align-items: baseline; }
+  .mm__lnavn { grid-column: 1 / 3; }
+  .mm__lstor { grid-column: 2; grid-row: 2; font-size: 1.0625rem; }
+  .mm__lhode span { display: none; }
+}
+.mm__lskille { padding: 6px 4px 0; font-size: var(--ds-text-xs, 12px); color: var(--ds-color-text-tertiary); }
 .mm__pitch-area {
   flex: 1 1 auto;
   min-height: 0;

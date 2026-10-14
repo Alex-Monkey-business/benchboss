@@ -85,6 +85,7 @@ QA_APP="$QA_APP" node scripts/klubbdeling-test.mjs || status=1
 QA_APP="$QA_APP" node scripts/qa-full-flyt.mjs || status=1
 QA_APP="$QA_APP" node scripts/kampmodus-to-trenere-test.mjs || status=1
 QA_APP="$QA_APP" node scripts/kampmodus-trykk-test.mjs || status=1
+QA_APP="$QA_APP" node scripts/kampmodus-liste-test.mjs || status=1
 QA_APP="$QA_APP" node scripts/grupper-test.mjs || status=1
 QA_APP="$QA_APP" node scripts/del-inn-qa.mjs || status=1
 QA_APP="$QA_APP" node scripts/native-qa.mjs || status=1
