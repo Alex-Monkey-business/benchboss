@@ -126,11 +126,10 @@ try {
   ok('Like store: maks én i forskjell', await inntil(async () => { const t = (await storrelser(alex)).split(',').map(Number); return Math.max(...t) - Math.min(...t) <= 1 }), await storrelser(alex))
   ok('Iver ser Like store', await inntil(async () => (await storrelser(iver)) === (await storrelser(alex))))
 
-  // Hjem viser at det er delt inn.
+  // Hjem: bare «Del inn», ingen «delt …»-linje (Alex, 16. nov).
   await iver.goto(`${APP}/`)
-  ok('Hjem: Iver ser at Alex delte sist', await inntil(async () => /delt \d\d[.:]\d\d av Alex/.test(await iver.locator('.hjem-delinn').innerText())), await iver.locator('.hjem-delinn').innerText().catch(() => ''))
-  await alex.goto(`${APP}/`)
-  ok('Hjem: Alex ser «av deg»', await inntil(async () => /delt \d\d[.:]\d\d av deg/.test(await alex.locator('.hjem-delinn').innerText())), await alex.locator('.hjem-delinn').innerText().catch(() => ''))
+  await iver.locator('.hjem-delinn').waitFor({ timeout: 15000 })
+  ok('Hjem: Del inn-knappen sier bare «Del inn»', (await iver.locator('.hjem-delinn').innerText()).trim() === 'Del inn', await iver.locator('.hjem-delinn').innerText())
 
   // Start på nytt (Mer-menyen) nullstiller hos begge.
   await alex.goto(`${APP}/del-inn`)

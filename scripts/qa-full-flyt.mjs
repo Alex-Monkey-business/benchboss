@@ -201,7 +201,16 @@ const feilLinje=await p.locator('.kig__status--feil').innerText().catch(()=>'')
 if (feilLinje) ok('IMPORTEN FEILET', false, feilLinje)
 await p.locator('.kig__tittel', {hasText:'Klart.'}).waitFor({timeout:60000})
 const ferdigTekst=await p.locator('.kig__lead').innerText()
-ok('lag og kamper er hentet', /\d+ lag og \d+ kamper/.test(ferdigTekst), ferdigTekst.replace(/\s+/g,' ').slice(0,80))
+// Mellom sesongene har FIKS ingen serie for kullet (nov 2026: høsten ferdig,
+// vinterserien ikke lagt inn). Da kan ingen kamper hentes, og det er FIKS,
+// ikke appen. Appen skal si det rett ut — det sjekker vi i stedet.
+const fiksTom = /Ingen serie i FIKS/.test(ferdigTekst)
+if (fiksTom) {
+  console.log('  FIKS har ingen serie for kullet nå — hopper over kamp-sjekkene')
+  ok('appen sier at FIKS ikke har serie', /lag\. Ingen serie i FIKS/.test(ferdigTekst.replace(/\s+/g,' ')), ferdigTekst.replace(/\s+/g,' ').slice(0,80))
+} else {
+  ok('lag og kamper er hentet', /\d+ lag og \d+ kamper/.test(ferdigTekst), ferdigTekst.replace(/\s+/g,' ').slice(0,80))
+}
 ok('alle lagene i årskullet er opprettet', Number(sql(`select count(*) from teams where cohort_id='${kullId}'`))===lagKort, `${sql(`select count(*) from teams where cohort_id='${kullId}'`)} av ${lagKort}`)
 ok('treneren er bare lagleder for det valgte laget', Number(sql(`select count(distinct team_id) from team_coaches where cohort_id='${kullId}'`))<=1, sql(`select count(distinct team_id) from team_coaches where cohort_id='${kullId}'`))
 await p.getByRole('button',{name:'Til Hjem'}).click()
@@ -277,7 +286,7 @@ const ar=sql(`select coalesce(birth_year::text,'null') from cohorts where id='${
 const fmt=sql(`select players_on_pitch::text from cohorts where id='${kullId}'`)
 console.log(`\n  lag ${t} · kamper ${m} · spillere ${sp} · lag-trener ${tc} · kamper m/trener ${mc} · årgang ${ar} · spillform ${fmt}er`)
 ok('lag opprettet', t>0)
-ok('terminlista importert', m>0, `${m} kamper`)
+if (!fiksTom) ok('terminlista importert', m>0, `${m} kamper`)
 ok('årgangen er lagret på kullet', ar===String(ARGANG), ar)
 ok('spillformen følger årgangen', fmt==='7', fmt+'er')  // 10 år ⇒ 7er etter NFF
 ok('Sten er trener på alle lagene', tc===t, `${tc}/${t}`)

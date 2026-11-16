@@ -24,7 +24,6 @@ import { useOnboarding } from '../composables/useOnboarding'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import { dagLink } from '../lib/trainingLinks'
 import { hentDagensOppmote } from '../composables/useTreningsOkt'
-import { useDelInn } from '../composables/useDelInn'
 
 const {
   loading, refresh, followDay, today, greeting,
@@ -91,25 +90,6 @@ const ready = ref(false)
 // Appen står åpen over natta på telefonen: «i dag» flytter seg ved midnatt,
 // og Hjem hentes på nytt når appen kommer fram igjen.
 followDay()
-
-// Dagens Del inn, delt: har en trener delt inn, står det på knappen hos alle.
-const delInn = useDelInn()
-let stoppDelInn = null
-watch(isCoach, c => {
-  stoppDelInn?.(); stoppDelInn = null
-  if (c) stoppDelInn = delInn.folg()
-}, { immediate: true })
-onUnmounted(() => stoppDelInn?.())
-const delInnLinje = computed(() => {
-  const d = delInn.dag.value
-  if (!d?.endret_at) return ''
-  const kl = new Date(d.endret_at).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
-  const hva = d.valg?.form === 'lag' ? 'Lag' : 'Grupper'
-  const hvem = d.endret_av && d.endret_av === coach.value?.id
-    ? 'deg'
-    : (coaches.value.find(c => c.id === d.endret_av)?.name?.split(' ')[0] || d.endret_navn?.split(' ')[0])
-  return hvem ? `${hva} · delt ${kl} av ${hvem}` : `${hva} · delt ${kl}`
-})
 
 const { endringer: terminlisteEndringer, sjekkNarLedig } = useTerminlisteVarsel()
 
@@ -241,7 +221,6 @@ function coachNamesForMatch(matchId) {
         <svg class="hjem-delinn__ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="8" r="3" /><circle cx="17" cy="8" r="3" /><path d="M2 20c0-3 2.2-5 5-5s5 2 5 5" /><path d="M12 20c0-3 2.2-5 5-5s5 2 5 5" /></svg>
         <span class="hjem-delinn__tekst">
           <span class="hjem-delinn__tittel">Del inn</span>
-          <span v-if="delInnLinje" class="hjem-delinn__linje">{{ delInnLinje }}</span>
         </span>
         <svg class="hjem-delinn__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
       </RouterLink>
