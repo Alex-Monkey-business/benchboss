@@ -111,7 +111,7 @@ async function oppdaterFraFiks() {
   try {
     const flyttet = await applyChanges(synk.value?.endret || [])
     const lagt = await leggTilNye(synk.value?.nye || [], viewingSeason.value?.id)
-    await fetchMatches()
+    if (viewingSeason.value) await fetchMatches(viewingSeason.value.id)
     nullstillVarsel()
     synk.value = null
     const deler = []

@@ -1,6 +1,6 @@
 // Aggregator for hjem-skjermen («I dag») — komponerer eksisterende singletons
 // og avleder dagens hendelser, prep-status og påminnelser.
-import { ref, computed } from 'vue'
+import { ref, computed, onScopeDispose } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { useAuth } from '../stores/auth'
 import { useFeatures } from './useFeatures'
@@ -27,8 +27,17 @@ import { registerReset } from '../stores/dataReset'
 // den holder én singleton-session og knekker når to Halsen-lag spiller samme dag.
 const prepSessions = ref([])
 const loading = ref(false)
+// Skjelettet er for første henting, ikke for «ingen kamper». En ny sesong uten
+// kamper ga matches.length === 0 hver gang, og da sto skjelettet ved hvert besøk.
+const fetchedOnce = ref(false)
 
-registerReset(() => { prepSessions.value = []; loading.value = false })
+// Klokka Hjem regner ut fra. localISODate() alene er ikke reaktiv: sto appen
+// åpen over midnatt, eller ble den hentet fram fra bakgrunnen neste morgen,
+// viste «I dag» gårsdagen til noe annet tilfeldigvis endret seg.
+const now = ref(new Date())
+const todayIso = computed(() => localISODate(now.value))
+
+registerReset(() => { prepSessions.value = []; loading.value = false; fetchedOnce.value = false })
 
 export function useToday() {
   const { coach, preferredTeam, preferredCupTeam, activeCohort } = useAuth()
@@ -97,7 +106,7 @@ export function useToday() {
   })
 
   const greeting = computed(() => {
-    const h = new Date().getHours()
+    const h = now.value.getHours()
     const word = h < 10 ? 'God morgen' : h < 17 ? 'God dag' : 'God kveld'
     const first = (coach.value?.name || '').split(' ')[0]
     return first ? `${word}, ${first}` : word
@@ -106,7 +115,7 @@ export function useToday() {
   // Hero-kortet er MIN kamp. Klubbens andre kamper i dag hører hjemme under
   // «Andre lag» — de skal ikke være det første og største du ser.
   const todayMatches = computed(() => {
-    const today = localISODate()
+    const today = todayIso.value
     return myMatches.value
       .filter(m => m.match_date === today)
       .sort((a, b) => (a.match_time || '').localeCompare(b.match_time || ''))
@@ -116,7 +125,7 @@ export function useToday() {
   // noe som allerede står som kort. Snevret vi denne inn sammen med hero-kortet,
   // ville påminnelser om andre lags kamper plutselig dukket opp igjen.
   const todayOurMatches = computed(() => {
-    const today = localISODate()
+    const today = todayIso.value
     return ourMatches.value.filter(m => m.match_date === today)
   })
 
@@ -140,7 +149,7 @@ export function useToday() {
   })
 
   const todayCupMatches = computed(() => {
-    const today = localISODate()
+    const today = todayIso.value
     return myCupMatches.value
       .filter(m => m.match_date === today)
       .sort((a, b) => (a.match_time || '').localeCompare(b.match_time || ''))
@@ -150,7 +159,7 @@ export function useToday() {
   const cupCoversToday = computed(() => {
     const cup = activeCup.value
     if (cup?.status !== 'active' || !cup.start_date || !cup.end_date) return false
-    const today = localISODate()
+    const today = todayIso.value
     return cup.start_date <= today && today <= cup.end_date
   })
 
@@ -162,7 +171,7 @@ export function useToday() {
     // Spiller mitt lag kamp i dag, er det kampen som fortjener toppen. Treninga
     // er rytme; kampen er dagen. Samme prioritering som cup gjør over.
     if (todayMatches.value.length) return null
-    const wd = isoWeekday()
+    const wd = isoWeekday(now.value)
     return treningsdager.value.find(d => d.weekday === wd) || null
   })
 
@@ -195,6 +204,7 @@ export function useToday() {
   })
 
   const reminders = computed(() => buildReminders({
+    today: todayIso.value,
     matches: matches.value,
     coachId: coach.value?.id,
     getCoachesForMatch,
@@ -220,7 +230,7 @@ export function useToday() {
   // Neste forekomst av en ukedag etter i dag. Ingen sluttdato å klippe mot
   // lenger: uka løper til noen endrer den, så det finnes alltid en neste.
   function nesteDatoFor(weekday) {
-    const d = new Date(localISODate() + 'T12:00:00')
+    const d = new Date(todayIso.value + 'T12:00:00')
     for (let i = 0; i < 7; i++) {
       d.setDate(d.getDate() + 1)
       if (isoWeekday(d) === weekday) return localISODate(d)
@@ -243,7 +253,7 @@ export function useToday() {
   const KICKOFF_WINDOW_DAYS = 21
 
   const seasonKickoff = computed(() => {
-    const today = localISODate()
+    const today = todayIso.value
     const dates = matches.value
       .filter(m => isOurMatch(m) && m.match_date)
       .map(m => m.match_date)
@@ -251,7 +261,7 @@ export function useToday() {
     const first = dates[0]
     if (!first || first <= today) return null
 
-    const days = daysUntil(first)
+    const days = daysUntil(first, now.value)
     if (days > KICKOFF_WINDOW_DAYS) return null
 
     return { season: activeSeason.value?.name || '', date: first, days }
@@ -270,6 +280,7 @@ export function useToday() {
   // Med serie står regelen over: cup-widgeten er inngangen, og en aktiv cup
   // demper treninger på cup-dagene i stedet for å ramse dem opp.
   const weekAhead = computed(() => buildWeekAhead({
+    today: todayIso.value,
     days: treningsdager.value,
     matches: myMatches.value,
     cupMatches: cupFirst.value ? myCupMatches.value : [],
@@ -282,7 +293,7 @@ export function useToday() {
   // hovedsaken på Hjem. NextMatchCard tar allerede imot `type: 'cup'` og sier
   // «Neste cupkamp» — kortet var forberedt, ingen har bare gitt det noe.
   const nextMatch = computed(() => {
-    const today = localISODate()
+    const today = todayIso.value
     const byDateTime = (a, b) => a.match_date.localeCompare(b.match_date) || (a.match_time || '').localeCompare(b.match_time || '')
 
     const league = myMatches.value.filter(m => m.match_date > today).sort(byDateTime)[0]
@@ -333,7 +344,7 @@ export function useToday() {
   )
 
   const otherTeamsNext = computed(() => {
-    const today = localISODate()
+    const today = todayIso.value
     const byDateTime = (a, b) => a.match_date.localeCompare(b.match_date) || (a.match_time || '').localeCompare(b.match_time || '')
 
     // Mine egne lag er dekket av uka og neste-kamp-kortet.
@@ -381,8 +392,41 @@ export function useToday() {
   }
 
   async function refresh() {
-    loading.value = matches.value.length === 0
+    now.value = new Date()
+    loading.value = !fetchedOnce.value
+    try {
+      await hent()
+      fetchedOnce.value = true
+    } finally {
+      loading.value = false
+    }
+  }
 
+  // Hjem følger dagen: henter på nytt når appen kommer fram igjen, og flytter
+  // «i dag» ved midnatt. Kalles fra setup — lytterne ryddes når siden forsvinner.
+  function followDay() {
+    if (typeof document === 'undefined') return
+    let timer = null
+    const planMidnatt = () => {
+      clearTimeout(timer)
+      const d = new Date()
+      const neste = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1, 0, 0, 5)
+      timer = setTimeout(() => { now.value = new Date(); planMidnatt() }, neste - d)
+    }
+    const synlig = () => {
+      if (document.visibilityState !== 'visible') return
+      planMidnatt()
+      refresh().catch(e => console.error('[useToday] refresh ved retur feilet', e))
+    }
+    planMidnatt()
+    document.addEventListener('visibilitychange', synlig)
+    onScopeDispose(() => {
+      document.removeEventListener('visibilitychange', synlig)
+      clearTimeout(timer)
+    })
+  }
+
+  async function hent() {
     // Kampene avhenger av sesongen, og dét ga en ekstra rundtur hver gang.
     // Men sesongen ligger i cachen fra sist. Da går kampene i SAMME bølge som
     // sesongene, og bare hvis den aktive sesongen viser seg å være en annen,
@@ -422,11 +466,10 @@ export function useToday() {
       fetchExpenses(matches.value.map(m => m.id)),
       fetchPrepSessions(prepIds)
     ])
-    loading.value = false
   }
 
   return {
-    loading, refresh, greeting,
+    loading, refresh, followDay, today: todayIso, greeting,
     todayMatches, todayCupMatches, todayTraining,
     prepFor, reminders, nextTraining, nextMatch, otherTeamsNext, weekAhead, seasonKickoff
   }

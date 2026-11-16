@@ -36,7 +36,8 @@ const status = computed(() => {
   const past = isPast(m.match_date)
   if (played.value && !hasResult(m)) return { label: 'Resultat mangler', tone: 'muted' }
   if (usesReferees.value && isHome.value && !played.value && soon && !m.referee) return { label: 'Dommer mangler', tone: 'warn' }
-  if (usesReferees.value && isHome.value && past && !props.expense) return { label: 'Utlegg mangler', tone: 'muted' }
+  const treningskamp = m.kind === 'treningskamp' || m.division === 'Treningskamp'
+  if (usesReferees.value && isHome.value && past && !props.expense && !treningskamp) return { label: 'Utlegg mangler', tone: 'muted' }
   return null
 })
 
@@ -50,7 +51,15 @@ const referee = computed(() =>
   usesReferees.value && isHome.value && props.match.referee ? props.match.referee : ''
 )
 
-const showFoot = computed(() => !!status.value || !!referee.value || props.coaches.length > 0)
+// Treningskamp og vinterserie som merke. Før kolonnen `kind` sto typen i
+// avdelingsfeltet.
+const TYPENAVN = { treningskamp: 'Treningskamp', vinterserie: 'Vinterserie' }
+const typeNavn = computed(() => {
+  const m = props.match
+  if (m.kind) return TYPENAVN[m.kind] || ''
+  return Object.values(TYPENAVN).includes(m.division) ? m.division : ''
+})
+const showFoot = computed(() => !!typeNavn.value || !!status.value || !!referee.value || props.coaches.length > 0)
 </script>
 
 <template>
@@ -69,6 +78,7 @@ const showFoot = computed(() => !!status.value || !!referee.value || props.coach
 
     <span v-if="showFoot" class="mrow__foot">
       <span class="mrow__left">
+        <span v-if="typeNavn" class="ds-tag ds-tag--quiet">{{ typeNavn }}</span>
         <span v-if="referee" class="mrow__referee">Dommer: {{ referee }}</span>
         <span v-if="status" class="mrow__state" :class="`mrow__state--${status.tone}`">{{ status.label }}</span>
       </span>
@@ -89,7 +99,9 @@ const showFoot = computed(() => !!status.value || !!referee.value || props.coach
   align-items: center;
   column-gap: var(--ds-space-md);
   padding: var(--ds-space-md);
-  background: var(--ds-color-bg-subtle);
+  background: var(--ds-color-bg-elevated);
+  border: 1px solid var(--ds-color-border-light, var(--ds-color-border));
+  box-shadow: var(--ds-shadow-xs);
   border-radius: var(--ds-radius-lg);
   text-decoration: none;
   color: inherit;

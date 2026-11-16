@@ -24,18 +24,18 @@ function skjul(reminder) {
 </script>
 
 <template>
-  <div class="reminder-list">
+  <div class="ds-rows">
     <div
       v-for="r in reminders"
       :key="r.key || r.kind + r.matchId"
-      class="reminder-row"
+      class="ds-row reminder-row"
       :class="`reminder-row--${r.tone || 'urgent'}`"
     >
       <button type="button" class="reminder" @click="open(r)">
         <span class="reminder__dot" aria-hidden="true"></span>
-        <span class="reminder__body">
-          <span class="reminder__title">{{ r.title }}</span>
-          <span class="reminder__sub">{{ r.body }}</span>
+        <span class="ds-row__body">
+          <span class="ds-row__title reminder__title">{{ r.title }}</span>
+          <span class="ds-row__sub reminder__sub">{{ r.body }}</span>
         </span>
       </button>
       <button
@@ -52,58 +52,49 @@ function skjul(reminder) {
 </template>
 
 <style scoped>
-.reminder-list {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-sm);
-}
-
-/* Raden er kortet; navigasjon + skjul-knapp ligger inni. */
+/* Radformen bor i designsystemet (.ds-row). Her: raden er beholderen, og
+   navigasjon + skjul-knapp ligger inni — derfor ingen padding på selve raden. */
 .reminder-row {
-  display: flex;
   align-items: stretch;
-  border: 1px solid;
-  border-radius: var(--ds-radius-lg);
+  gap: 0;
+  padding: 0;
   overflow: hidden;
-  transition:
-    transform var(--ds-duration-fast) var(--ds-ease-out),
-    border-color var(--ds-duration-fast) var(--ds-ease-out);
 }
 
-.reminder-row:active {
+.reminder-row:has(.reminder:active) {
   transform: scale(0.99);
 }
 
 /* Tidskritisk: varm, høy vekt. */
 .reminder-row--urgent {
-  border-color: rgba(185, 96, 63, 0.22);
+  border-color: color-mix(in srgb, var(--ds-color-warm) 24%, transparent);
   background: var(--ds-color-warm-bg);
+  box-shadow: none;
 }
 
 /* Sekundært (referat/utlegg): dempet, nøytral — skriker ikke. */
 .reminder-row--soft {
   border-color: var(--ds-color-border-light);
-  background: var(--ds-color-bg-elevated);
 }
 
 @media (hover: hover) and (pointer: fine) {
-  .reminder-row--urgent:hover { border-color: rgba(185, 96, 63, 0.4); }
+  .reminder-row--urgent:hover { border-color: color-mix(in srgb, var(--ds-color-warm) 45%, transparent); }
   .reminder-row--soft:hover { border-color: var(--ds-color-border); }
 }
 
 .reminder {
   flex: 1;
   min-width: 0;
-  display: grid;
-  grid-template-columns: auto 1fr;
+  display: flex;
   align-items: center;
   gap: 12px;
-  padding: 14px var(--ds-space-md);
+  padding: 12px var(--ds-space-md);
   background: transparent;
   border: none;
   text-align: left;
   cursor: pointer;
   font-family: var(--ds-font-body);
+  color: inherit;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -116,27 +107,11 @@ function skjul(reminder) {
 
 .reminder-row--urgent .reminder__dot {
   background: var(--ds-color-warm);
-  box-shadow: 0 0 0 4px rgba(185, 96, 63, 0.16);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--ds-color-warm) 18%, transparent);
 }
 
 .reminder-row--soft .reminder__dot {
   background: var(--ds-color-text-tertiary);
-}
-
-.reminder__body {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-/* Full tekst skal alltid være lesbar — bryt linjer, ikke klipp med ellipsis. */
-.reminder__title {
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-primary);
-  letter-spacing: -0.005em;
-  line-height: 1.35;
 }
 
 .reminder-row--soft .reminder__title {
@@ -144,13 +119,7 @@ function skjul(reminder) {
   color: var(--ds-color-text-secondary);
 }
 
-.reminder__sub {
-  font-size: var(--ds-text-xs);
-  line-height: 1.4;
-}
-
 .reminder-row--urgent .reminder__sub { color: var(--ds-color-warm-text); }
-.reminder-row--soft .reminder__sub { color: var(--ds-color-text-tertiary); }
 
 /* Ingen chevron: hele kortet er trykkflata, og på radene som kan skjules
    sto chevron og kryss side om side — to handlinger på én rad. */
@@ -159,12 +128,8 @@ function skjul(reminder) {
   flex-shrink: 0;
   display: grid;
   place-items: center;
-  width: 44px;
+  width: 48px;
   border: none;
-  /* Streken hjalp da alle påminnelser var fylte. På en dempet, hvit rad blir
-     den en løs linje midt i kortet — luft skiller like godt. */
-  border-left: none;
-  margin-right: 2px;
   background: transparent;
   color: var(--ds-color-text-tertiary);
   cursor: pointer;
@@ -172,13 +137,13 @@ function skjul(reminder) {
   -webkit-tap-highlight-color: transparent;
 }
 
-.reminder__dismiss svg { width: 16px; height: 16px; }
+.reminder__dismiss svg { width: 18px; height: 18px; }
 .reminder__dismiss:active { transform: scale(0.92); }
 
 @media (hover: hover) and (pointer: fine) {
   .reminder__dismiss:hover {
     color: var(--ds-color-text-secondary);
-    background: rgba(0, 0, 0, 0.03);
+    background: color-mix(in srgb, var(--ds-color-text-primary) 5%, transparent);
   }
 }
 </style>

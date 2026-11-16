@@ -38,7 +38,7 @@ const linje = computed(() => {
     :data-accent="session.accent || 'warm'"
   >
     <div class="today-training__content">
-      <span class="today-training__kicker">Trening i dag</span>
+      <span class="ds-eyebrow today-training__kicker">Trening i dag</span>
       <span class="today-training__tekst">
         <span class="today-training__tittel">{{ tittel }}</span>
         <span class="today-training__linje">{{ linje }}</span>
@@ -71,10 +71,6 @@ const linje = computed(() => {
 }
 
 .today-training__kicker {
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--accent-text, var(--ds-color-text-secondary));
 }
 

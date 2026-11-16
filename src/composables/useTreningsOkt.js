@@ -110,14 +110,6 @@ export function useTreningsOkt() {
       }
     },
 
-    // Hvem som var rigger sist — standard for neste økt.
-    async sisteRigger() {
-      if (!isSupabaseConfigured) return null
-      const { data } = await scoped(supabase.from('training_runs').select('state'))
-        .order('dato', { ascending: false }).order('started_at', { ascending: false }).limit(5)
-      return (data || []).map(r => r.state?._rigger).find(Boolean) || null
-    },
-
     // Lagre oppmøtet med dem som er her. Har en annen trener lagret først,
     // gjelder det oppmøtet — vi skriver ikke over det.
     // plan(runde) lager fordelingen — gjengene og lagene — som lagres på

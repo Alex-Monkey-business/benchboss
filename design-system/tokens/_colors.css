@@ -8,15 +8,21 @@
    ============================================ */
 
 :root {
-  /* ---- Background ---- */
-  --ds-color-bg:              #FFFFFF;
+  /* ---- Background ----
+     Siden er svakt tonet, kortene hvite. Begge var #FFFFFF, og da skilte
+     kortene seg bare med en hårstrek. Nå bærer flaten forskjellen. */
+  --ds-color-bg:              #F5F8F6;
   --ds-color-bg-elevated:     #FFFFFF;
-  --ds-color-bg-subtle:       #F1F6F3;
-  --ds-color-bg-hover:        #E7EFEB;
-  --ds-color-bg-sunken:       #DFE9E3;
+  --ds-color-bg-subtle:       #EDF3EF;
+  --ds-color-bg-hover:        #E5EEE9;
+  --ds-color-bg-sunken:       #DCE7E1;
+  /* Alias. Brukt i flere filer uten å være definert. */
+  --ds-color-surface:         var(--ds-color-bg-elevated);
+  /* Merkefargen som ikke snur i mørkt — for tegninger som er like i begge. */
+  --ds-color-brand:           #034F46;
 
   /* ---- Border ---- */
-  --ds-color-border:          #D5E1DA;
+  --ds-color-border:          #DCE6E0;
   --ds-color-border-strong:   #9BB5A7;
   --ds-color-border-light:    #E8EFEA;
   --ds-color-border-focus:    #034F46;
@@ -24,7 +30,8 @@
   /* ---- Text ---- */
   --ds-color-text-primary:    #034F46;
   --ds-color-text-secondary:  #3A544B;
-  --ds-color-text-tertiary:   #5F7469;
+  /* Mørknet fra #5F7469: den falt under 4,5:1 på bg-subtle. */
+  --ds-color-text-tertiary:   #566B60;
   --ds-color-text-inverse:    #FFFFFF;
 
   /* ---- Accent ---- */
@@ -124,15 +131,15 @@
 [data-theme="dark"] {
   /* ---- Background ---- */
   --ds-color-bg:              #0C201B;
-  --ds-color-bg-elevated:     #142E26;
-  --ds-color-bg-subtle:       #1B392E;
-  --ds-color-bg-hover:        #244638;
+  --ds-color-bg-elevated:     #16332A;
+  --ds-color-bg-subtle:       #1D3D31;
+  --ds-color-bg-hover:        #26483A;
   --ds-color-bg-sunken:       #081812;
 
   /* ---- Border ---- */
-  --ds-color-border:          #2B483B;
+  --ds-color-border:          #31503F;
   --ds-color-border-strong:   #506D5E;
-  --ds-color-border-light:    #274539;
+  --ds-color-border-light:    #2A473A;
   --ds-color-border-focus:    #EDF5EF;
 
   /* ---- Dekorfarger ---- */
@@ -150,13 +157,13 @@
   /* ---- Diff/Mix ---- */
   --ds-badge-bg:                #28493C;
   --ds-badge-text:              #B5B4AE;
-  --ds-badge-border:            #2B483B;
+  --ds-badge-border:            #31503F;
 
 
   /* ---- Text ---- */
   --ds-color-text-primary:    #EDF5EF;
   --ds-color-text-secondary:  #B5CBBE;
-  --ds-color-text-tertiary:   #8EAD9C;
+  --ds-color-text-tertiary:   #98B6A5;
   --ds-color-text-inverse:    #04261F;
 
   /* ---- Accent (brand teal, lifted for dark) ---- */

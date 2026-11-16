@@ -142,7 +142,7 @@ try {
   }
 
   // Kjøreplanen og arkene: oppmøtet registreres lokalt og slettes etterpå.
-  // Midlertidige nivåer, så gjengene får bokstaver.
+  // Midlertidige nivåer, så gruppene i Del inn får bokstaver.
   const hadde = Number(sql(`select count(*) from player_levels pl join players p on p.id = pl.player_id where p.cohort_id='${KULL}'`))
   if (!hadde) sql(`insert into player_levels (player_id, level) select id, (array['A','B','C'])[1 + (row_number() over (order by name))::int % 3] from players where cohort_id='${KULL}'`)
   try {
@@ -154,18 +154,6 @@ try {
     await mal('ark-ovelse', false)
     await p.locator('.fot__knapp', { hasText: 'Lukk' }).click()
     await vent(400)
-    await p.locator('.fase__endre').first().click()
-    await p.locator('.brikke').first().click()
-    await mal('endre-grupper', false)
-    await p.locator('.okt__back').click()
-    await p.locator('.rad').first().waitFor()
-    await p.locator('.fase__endre').nth(1).click().catch(() => {})
-    if (/\/endre\/lag/.test(p.url())) {
-      await p.locator('.brikke').first().waitFor()
-      await mal('endre-lag', false)
-      await p.locator('.okt__back').click()
-      await p.locator('.rad').first().waitFor()
-    }
     await p.locator('.okt__her').click()
     await mal('ark-oppmote', false)
     await p.locator('.fot__knapp', { hasText: 'Ferdig' }).click()
@@ -179,14 +167,14 @@ try {
     await p.locator('.hjem-delinn').click()
     await p.locator('.kort').first().waitFor()
     await mal('del-inn-grupper', false)
-    await p.locator('.seg__knapp', { hasText: 'Lag' }).click()
+    await p.getByRole('tab', { name: 'Lag' }).click()
     await mal('del-inn-lag', false)
-    await p.locator('.seg__knapp', { hasText: 'Mix' }).first().click().catch(() => {})
+    await p.locator('.ds-pill', { hasText: 'Mix' }).first().click().catch(() => {})
     await p.locator('.del__her').click()
     await p.locator('.ds-sheet .oppg__navn').first().waitFor()
     await mal('del-inn-oppmote', false)
   } finally {
-    sql(`delete from training_runs where session_id='${dag}' and dato = current_date`)
+    sql(`delete from training_runs where session_id='${dag}' and dato = current_date; delete from del_inn where cohort_id='${KULL}' and dato = current_date`)
     if (!hadde) sql(`delete from player_levels where player_id in (select id from players where cohort_id='${KULL}')`)
   }
 } finally {

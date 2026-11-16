@@ -1,5 +1,5 @@
-// Del inn og Endre i kantene: dobbelttrykk, ingen med, omlasting midt i
-// Endre, en dag uten trening, og PC-bredde. Mot lokal base.
+// Del inn i kantene: ingen med, første trykk starter økta, gamle Endre-lenker,
+// en dag uten trening, og PC-bredde. Mot lokal base.
 //   QA_APP=http://localhost:5179 node scripts/del-inn-qa.mjs
 import { chromium } from 'playwright'
 import { execSync } from 'node:child_process'
@@ -35,6 +35,7 @@ if (flyttet) sql(`update training_sessions set weekday=${UKEDAG % 7 + 1} where i
 const KAMPER = sql(`select string_agg(id::text, ',') from matches where cohort_id='${KULL}' and match_date=current_date`)
 const kampIder = KAMPER ? `('${KAMPER.split(',').join("','")}')` : null
 if (kampIder) sql(`update matches set match_date = match_date + 365 where id in ${kampIder}`)
+sql(`delete from del_inn where cohort_id='${KULL}'`)
 const b = await chromium.launch()
 const feil = []
 async function logginn(epost, viewport = { width: 390, height: 844 }) {
@@ -62,12 +63,13 @@ try {
   await p.waitForURL(new RegExp(`/trening/okt/${DAG}$`), { timeout: 5000 })
   ok('kortet går rett til opptellingen', await p.locator('.oppg__navn').first().waitFor({ timeout: 10000 }).then(() => true, () => false))
 
-  // Del inn uten lagret oppmøte i dag: hele kullet, og knappen starter økta.
+  // Del inn uten lagret oppmøte i dag: hele kullet, ingen startknapp, ingenting lagret ennå.
   await p.goto(`${APP}/del-inn`)
   await p.locator('.kort').first().waitFor({ timeout: 15000 })
-  ok('ikke telt opp: «Start dagens trening med disse»', /Start dagens trening med disse/.test(await p.locator('.del__fot .del__bruk').innerText().catch(() => '')))
+  ok('ikke telt opp: ingen «Start dagens trening med disse»', await p.getByText(/Start dagens trening|Bruk som dagens/).count() === 0)
+  ok('ikke telt opp: ingen økt lagret ennå', sql(`select count(*) from training_runs where session_id='${DAG}'`) === '0')
 
-  // Ingen med: melding, ingen krasj, knappene står.
+  // Ingen med: melding, ingen krasj, knappene står. Første trykk lagrer oppmøtet på økta.
   await p.locator('.del__her').click()
   await p.locator('.ds-sheet .oppg__navn').first().waitFor()
   const n = await p.locator('.ds-sheet .oppg__grid').first().locator('.oppg__navn').count()
@@ -75,7 +77,7 @@ try {
   await p.locator('.ds-sheet .del__bruk', { hasText: 'Ferdig' }).click()
   await vent(300)
   ok('ingen med: sier hva du gjør', /Ingen er med/.test(await p.locator('.del').innerText()) && await p.locator('.kort').count() === 0)
-  await p.locator('.seg__knapp', { hasText: 'Lag' }).click()
+  await p.getByRole('tab', { name: 'Lag' }).click()
   await p.locator('.steg__knapp[aria-label="Flere"]').click({ force: true })
   ok('ingen med på Lag: fortsatt ingen krasj', /Ingen er med/.test(await p.locator('.del').innerText()))
   // To med: to lag, én bane.
@@ -87,74 +89,45 @@ try {
   ok('to med: to lag på én bane', await p.locator('.bane').count() === 1 && await p.locator('.kort').count() === 2)
   ok('to med: + er sperret', await p.locator('.steg__knapp[aria-label="Flere"]').isDisabled())
 
-  // Start økta fra Del inn: to borte, tre lag, dobbelttrykk. Oppmøtet og
-  // lagene lagres slik de sto, gruppene lages som i opptellingen.
-  await p.goto(`${APP}/del-inn`)
-  await p.locator('.kort').first().waitFor({ timeout: 15000 })
-  const alle = Number((await p.locator('.del__her').innerText()).match(/\d+/)[0])
-  await p.locator('.del__her').click()
-  await p.locator('.ds-sheet .oppg__grid').first().locator('.oppg__navn').nth(0).click()
-  await p.locator('.ds-sheet .oppg__grid').first().locator('.oppg__navn').nth(1).click()
-  await p.locator('.ds-sheet .del__bruk', { hasText: 'Ferdig' }).click()
-  await vent(300)
-  await p.locator('.seg__knapp', { hasText: 'Lag' }).click()
-  while (Number(await p.locator('.steg__tall').innerText()) > 3) await p.locator('.steg__knapp[aria-label="Færre"]').click()
-  while (Number(await p.locator('.steg__tall').innerText()) < 3) await p.locator('.steg__knapp[aria-label="Flere"]').click()
-  const vist = (await p.locator('.kort .kort__navn').allInnerTexts()).map(t => t.split(' · ').length).sort().join()
-  await p.locator('.del__fot .del__bruk').dblclick()
-  await p.waitForURL(new RegExp(`/trening/okt/${DAG}#lag$`), { timeout: 10000 })
-  ok('Start fra Del inn lander i kjøreplanen ved lagene', true, p.url())
-  await inntil(() => sql(`select count(*) from training_runs where session_id='${DAG}'`) === '1')
+  // Oppmøtet fra Del inn står på dagens økt: én økt, også etter mange raske trykk.
+  ok('første trykk i Del inn startet økta', await inntil(() => sql(`select count(*) from training_runs where session_id='${DAG}'`) === '1'))
   const RUN = sql(`select id from training_runs where session_id='${DAG}'`)
-  ok('én økt lagret, også med dobbelttrykk', !!RUN && !RUN.includes('\n'))
-  ok('oppmøtet er dem som var med i Del inn', Number(sql(`select count(*) from training_run_players where run_id='${RUN}'`)) === alle - 2)
+  ok('én økt lagret, ikke én per trykk', !!RUN && !RUN.includes('\n'))
+  ok('oppmøtet er de to som er med i Del inn', await inntil(() => sql(`select count(*) from training_run_players where run_id='${RUN}'`) === '2'))
   ok('ingen trenere valgt: ingen trenere lagret', sql(`select count(*) from training_run_coaches where run_id='${RUN}'`) === '0')
-  const lagret = sql(`select string_agg(jsonb_array_length(l)::text, ',' order by jsonb_array_length(l)) from training_runs, jsonb_array_elements(state->'_lag'->'3') l where id='${RUN}'`)
-  ok('lagene er de som sto i Del inn', lagret === vist, `${lagret} / ${vist}`)
-  ok('mix-øvelsen har 3 lag', sql(`select count(*) from training_runs, jsonb_each(state->'_antall') a where id='${RUN}' and a.value::int = 3`) === '1')
-  ok('gruppene er laget som i opptellingen', sql(`select jsonb_array_length(state->'_gjenger') from training_runs where id='${RUN}'`) === '3')
-  await p.locator('.rad').first().waitFor({ timeout: 10000 })
-  ok('kjøreplanen viser 3 lag', /3 lag/.test(await p.locator('#lag').innerText()), (await p.locator('#lag').innerText()).slice(0, 80))
+  ok('ingen gjenger eller lag lagret på økta', sql(`select state ?| array['_gjenger','_lag','_antall','_rigger'] from training_runs where id='${RUN}'`) === 'f')
+  await p.reload()
+  await p.locator('.kort').first().waitFor({ timeout: 15000 })
+  ok('omlasting: Del inn står med de samme to', /^2 spillere/.test((await p.locator('.del__her').innerText()).trim()), await p.locator('.del__her').innerText())
   await p.goto(`${APP}/`)
   await inntil(async () => /her · planen er klar/.test(await p.locator('.today-training').innerText()))
   ok('Hjem etter oppmøtet: «N her · planen er klar»', /\d+ her · planen er klar/.test(await p.locator('.today-training').innerText()))
-  await p.locator('.hjem-delinn').click()
-  await p.locator('.del__bruk').waitFor({ timeout: 15000 })
-  await p.locator('.del__bruk').dblclick()
-  await p.waitForURL(/#grupper$/, { timeout: 5000 })
-  await vent(800)
-  ok('dobbelttrykk gir én melding', await p.locator('.ds-toast').count() === 1, String(await p.locator('.ds-toast').count()))
+  await p.goto(`${APP}/trening/okt/${DAG}`)
+  await p.locator('.plan__delinn').waitFor({ timeout: 15000 })
+  ok('kjøreplanen lenker til Del inn med de to', /2 spillere/.test(await p.locator('.plan__delinn').innerText()), await p.locator('.plan__delinn').innerText())
+  await p.locator('.plan__delinn').click()
+  await p.waitForURL(/\/del-inn$/, { timeout: 5000 })
   await p.goBack()
-  await vent(600)
-  ok('tilbake etter bytte går til Del inn, ikke et dødt steg', /\/del-inn$/.test(p.url()), p.url())
+  await p.waitForURL(new RegExp(`/trening/okt/${DAG}$`), { timeout: 5000 }).catch(() => {})
+  ok('tilbake fra Del inn går til kjøreplanen', new RegExp(`/trening/okt/${DAG}$`).test(p.url()), p.url())
 
-  // Omlasting midt i Endre: siden står, med samme grupper.
-  await p.goto(`${APP}/trening/okt/${DAG}/endre/grupper`)
-  await p.locator('.brikke').first().waitFor({ timeout: 15000 })
-  const for1 = await p.locator('.brikke').allInnerTexts()
-  await p.reload()
-  await p.locator('.brikke').first().waitFor({ timeout: 15000 })
-  ok('omlasting i Endre: samme grupper', JSON.stringify(await p.locator('.brikke').allInnerTexts()) === JSON.stringify(for1))
-  // − og + i Endre grupper, og tilbake til trenernes antall.
-  const start = Number(await p.locator('.steg__tall').innerText())
-  await p.locator('.steg__knapp[aria-label="Flere"]').click()
-  ok('+ i Endre: én gruppe til', await inntil(async () => (await p.locator('.endre-gr').count()) === start + 1))
-  ok('og står på økta', await inntil(() => Number(sql(`select jsonb_array_length(state->'_gjenger') from training_runs where id='${RUN}'`)) === start + 1))
-  await p.locator('.steg__knapp[aria-label="Færre"]').click()
-  ok('− tilbake', await inntil(async () => (await p.locator('.endre-gr').count()) === start))
-  // Ugyldig lag-antall i adressen: ingen krasj.
-  await p.goto(`${APP}/trening/okt/${DAG}/endre/lag/99`)
-  await vent(2500)
-  ok('ugyldig lagantall i adressen: ingen krasj', feil.length === 0, feil.slice(0, 2).join(' | '))
+  // Gamle Endre-lenker sendes til Del inn, også med rare tall i adressen.
+  for (const sti of ['endre/grupper', 'endre/lag/3', 'endre/lag/99']) {
+    await p.goto(`${APP}/trening/okt/${DAG}/${sti}`)
+    await p.waitForURL(/\/del-inn$/, { timeout: 5000 }).catch(() => {})
+    ok(`/${sti} sendes til Del inn`, /\/del-inn$/.test(p.url()), p.url())
+  }
+  await p.locator('.kort').first().waitFor({ timeout: 15000 })
+  ok('ingen krasj etter omdirigeringen', feil.length === 0, feil.slice(0, 2).join(' | '))
 
-  // PC-bredde: Del inn og Endre står i en smal kolonne, uten sideveis scroll.
+  // PC-bredde: Del inn står i en smal kolonne, uten sideveis scroll.
   const pc = await logginn('alexander.samnoy@gmail.com', { width: 1280, height: 860 })
   // Hjem: Del inn er like bred som de andre kortene.
   await pc.goto(`${APP}/`)
   await pc.locator('.hjem-delinn').waitFor({ timeout: 15000 })
   const [dw, kw] = await Promise.all([pc.locator('.hjem-delinn').evaluate(e => e.getBoundingClientRect().width), pc.locator('.hjem-stack > .ds-card').first().evaluate(e => e.getBoundingClientRect().width)])
   ok('PC: Del inn på Hjem er like bred som kortene', Math.abs(dw - kw) < 1, `${dw} / ${kw}`)
-  for (const [navn, sti, sel] of [['Del inn', '/del-inn', '.kort'], ['Endre', `/trening/okt/${DAG}/endre/grupper`, '.endre-gr']]) {
+  for (const [navn, sti, sel] of [['Del inn', '/del-inn', '.kort']]) {
     await pc.goto(`${APP}${sti}`)
     await pc.locator(sel).first().waitFor({ timeout: 15000 })
     await vent(400)
@@ -164,24 +137,20 @@ try {
     await pc.screenshot({ path: `${OUT}/pc-${navn.replace(' ', '-').toLowerCase()}.png` })
   }
 
-  // En dag uten trening: Endre på en plan som bare står på telefonen.
+  // En dag uten trening: planen står bare på telefonen, uten Del inn-lenke.
   sql(`delete from training_runs where session_id='${DAG}'`)
   sql(`update training_sessions set weekday=${UKEDAG % 7 + 1} where id='${DAG}'`)
   await p.goto(`${APP}/trening/okt/${DAG}`)
   await p.locator('.okt__start').click()
   await p.locator('.rad').first().waitFor({ timeout: 10000 })
-  await p.locator('.fase__endre').first().click()
-  await p.locator('.brikke').first().waitFor()
-  await p.locator('.steg__knapp[aria-label="Flere"]').click()
-  await vent(300)
-  ok('ikke treningsdag: Endre virker på planen', (await p.locator('.endre-gr').count()) >= 2)
+  ok('ikke treningsdag: kjøreplanen vises uten Del inn-lenke', await p.locator('.plan__lokal').count() === 1 && await p.locator('.plan__delinn').count() === 0)
   ok('og ingenting lagres', sql(`select count(*) from training_runs where session_id='${DAG}'`) === '0')
   await p.reload()
   await p.waitForURL(new RegExp(`/trening/okt/${DAG}$`), { timeout: 10000 })
-  ok('omlasting uten lagret plan: tilbake til opptellingen', await p.locator('.oppg__navn').first().isVisible())
+  ok('omlasting uten lagret plan: tilbake til opptellingen', await p.locator('.oppg__navn').first().waitFor({ timeout: 10000 }).then(() => true, () => false))
 } finally {
   ok('ingen sidefeil eller Vue-advarsler', feil.length === 0, [...new Set(feil)].slice(0, 3).join(' | '))
-  sql(`delete from training_runs where session_id='${DAG}'; delete from training_sessions where id='${DAG}'`)
+  sql(`delete from training_runs where session_id='${DAG}'; delete from training_sessions where id='${DAG}'; delete from del_inn where cohort_id='${KULL}'`)
   if (flyttet) sql(`update training_sessions set weekday=${UKEDAG} where id in ('${flyttet.split(',').join("','")}')`)
   if (!hadde) sql(`delete from player_levels where player_id in (select id from players where cohort_id='${KULL}')`)
   if (kampIder) sql(`update matches set match_date = match_date - 365 where id in ${kampIder}`)

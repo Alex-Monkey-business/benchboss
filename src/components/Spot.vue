@@ -183,7 +183,8 @@ onBeforeUnmount(() => {
   height: 25%;
   left: 44%;
   top: 61%;
-  color: #034f46;
+  /* Tegningen er lik i begge tema, så symbolet bruker merkefargen som ikke snur. */
+  color: var(--ds-color-brand);
   transform-origin: center;
 }
 

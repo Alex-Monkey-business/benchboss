@@ -21,6 +21,14 @@ const { coaches, fetchCoaches } = useCoaches()
 const { days: treningsdager, fetchWeek } = useTrainingWeek()
 const { activeCup, fetchCups } = useCups()
 
+// Treningskamp og vinterserie vises som merke på kortet. Før kolonnen `kind`
+// fantes, sto typen i avdelingsfeltet.
+const TYPENAVN = { treningskamp: 'Treningskamp', vinterserie: 'Vinterserie' }
+function typeLabel(m) {
+  if (m.kind) return TYPENAVN[m.kind] || ''
+  return Object.values(TYPENAVN).includes(m.division) ? m.division : ''
+}
+
 const { teamFilter } = useTeamFilter()
 const timeFilter = ref('upcoming')
 const loading = ref(matches.value.length === 0)
@@ -184,6 +192,7 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
                     :class="`match-card__team-tag--${color}`"
                   >{{ teamLabel(color) }}</span>
                   <span class="match-card__venue-tag">{{ isHomeMatch(m) ? 'Hjemme' : 'Borte' }}</span>
+                  <span v-if="typeLabel(m)" class="match-card__venue-tag">{{ typeLabel(m) }}</span>
                 </span>
               </div>
               <div class="match-card__teams">
@@ -204,6 +213,7 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
         </div>
       </template>
     </div>
+
   </div>
 </template>
 

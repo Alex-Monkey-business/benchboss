@@ -4,6 +4,38 @@
    subtle tinted bg. No uppercase shouting.
    ============================================ */
 
+/* ---- Tag (lagmerke, hjemme/borte) ----
+   Liten, fast høyde. Erstatter tre lokale kopier av lag-lappen. */
+.ds-tag {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 22px;
+  padding: 0 8px;
+  border-radius: var(--ds-radius-full);
+  font-family: var(--ds-font-body);
+  font-size: 0.75rem;
+  font-weight: var(--ds-weight-semibold);
+  line-height: 1;
+  letter-spacing: 0.01em;
+  white-space: nowrap;
+  flex-shrink: 0;
+  /* Nøytral grunnform: lag uten egen lagfarge (andre kull enn Halsen). */
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-secondary);
+  border: 1px solid transparent;
+}
+
+.ds-tag--gronn { background: var(--ds-team-gronn-bg); color: var(--ds-team-gronn); }
+.ds-tag--rod   { background: var(--ds-team-rod-bg);   color: var(--ds-team-rod); }
+.ds-tag--hvit  { background: var(--ds-team-hvit-bg);  color: var(--ds-team-hvit); border-color: var(--ds-team-hvit-border); }
+
+/* Hjemme/borte: opplysning, ikke identitet — svakere enn laget. */
+.ds-tag--quiet {
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-tertiary);
+}
+
 /* ---- Badge (inline label) ---- */
 .ds-badge {
   display: inline-block;

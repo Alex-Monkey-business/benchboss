@@ -80,7 +80,7 @@ function toggle() {
 
 .disclosure--open {
   border-color: var(--ds-color-border);
-  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.03), 0 4px 12px rgba(0, 0, 0, 0.04);
+  box-shadow: var(--ds-shadow-sm);
 }
 
 .disclosure__header {
@@ -107,7 +107,7 @@ function toggle() {
 
 @media (hover: hover) and (pointer: fine) {
   .disclosure__header:hover {
-    background: rgba(0, 0, 0, 0.02);
+    background: color-mix(in srgb, var(--ds-color-text-primary) 4%, transparent);
   }
 }
 

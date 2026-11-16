@@ -136,6 +136,8 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
       !excluded.has(m.id) &&
       m.match_date < today &&
       !getExpenseForMatch(m.id) &&
+      // Treningskamp: ingen dommerregning, altså ikke noe utlegg å føre.
+      m.kind !== 'treningskamp' && m.division !== 'Treningskamp' &&
       mine(m)
     )
     .sort((a, b) => b.match_date.localeCompare(a.match_date))

@@ -67,14 +67,14 @@ try {
   ok('tilbake lukker øvelsesarket', !(await arkApent()))
   ok('og blir på økta', sti() === `/trening/okt/${DAG}` && await p.locator('.rad').count() > 0, sti())
 
-  // Endre gruppene er en egen side: tilbake går til kjøreplanen.
-  await p.locator('.fase__endre').first().click()
-  await p.locator('.brikke').first().waitFor()
+  // Del inn er en egen side: tilbake går til kjøreplanen.
+  await p.locator('.plan__delinn').click()
+  await p.waitForURL(/\/del-inn$/, { timeout: 5000 })
+  await p.locator('.kort').first().waitFor({ timeout: 15000 })
   await vent(400)
-  await p.locator('.brikke').first().click()
   await tilbake()
   await p.locator('.rad').first().waitFor({ timeout: 5000 }).catch(() => {})
-  ok('tilbake fra Endre går til kjøreplanen', sti() === `/trening/okt/${DAG}` && await p.locator('.rad').count() > 0, sti())
+  ok('tilbake fra Del inn går til kjøreplanen', sti() === `/trening/okt/${DAG}` && await p.locator('.rad').count() > 0, sti())
 
   // Lukket med krysset: neste tilbake går rett til dagen, ingen døde steg.
   await p.locator('.rad').first().click()

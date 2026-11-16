@@ -32,7 +32,7 @@ const linje = computed(() => antall.value ? `${antall.value} ${antall.value === 
     :data-accent="session.accent || 'warm'"
   >
     <div class="next-training__top">
-      <span class="next-training__kicker">Neste trening</span>
+      <span class="ds-eyebrow next-training__kicker">Neste trening</span>
       <span class="next-training__when">{{ when }}</span>
     </div>
 
@@ -72,10 +72,6 @@ const linje = computed(() => antall.value ? `${antall.value} ${antall.value === 
 }
 
 .next-training__kicker {
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--accent-text);
 }
 

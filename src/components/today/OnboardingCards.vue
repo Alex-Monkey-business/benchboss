@@ -307,7 +307,7 @@ async function sendInvite() {
 
 <template>
   <section class="onb">
-    <h2 class="onb__kicker">Kom i gang med {{ cohortName }}</h2>
+    <h2 class="ds-eyebrow onb__kicker">Kom i gang med {{ cohortName }}</h2>
 
     <!-- 1. Lag -->
     <button v-if="!teamsDone" type="button" class="ds-card ds-card--interactive onb-card" @click="teamsOpen = true">
@@ -517,11 +517,6 @@ async function sendInvite() {
 
 .onb__kicker {
   margin: 0 0 var(--ds-space-xs);
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--ds-color-text-tertiary);
 }
 

@@ -31,17 +31,17 @@ const pill = computed(() => {
 </script>
 
 <template>
-  <router-link v-if="compact" to="/cup" class="cup-row">
-    <span class="cup-row__kicker">Cup</span>
-    <span class="cup-row__body">
-      <span class="cup-row__title">{{ cup.name }}</span>
-      <span v-if="dateRange || cup.venue" class="cup-row__sub">{{ dateRange }}<template v-if="dateRange && cup.venue"> · </template>{{ cup.venue }}</span>
+  <router-link v-if="compact" to="/cup" class="ds-row">
+    <span class="ds-row__lead ds-eyebrow">Cup</span>
+    <span class="ds-row__body">
+      <span class="ds-row__title">{{ cup.name }}</span>
+      <span v-if="dateRange || cup.venue" class="ds-row__sub">{{ dateRange }}<template v-if="dateRange && cup.venue"> · </template>{{ cup.venue }}</span>
     </span>
-    <svg class="cup-row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    <svg class="ds-row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
   </router-link>
   <router-link v-else to="/cup" class="ds-card ds-card--interactive cup-entry">
     <div class="cup-entry__top">
-      <span class="cup-entry__kicker">Cup</span>
+      <span class="ds-eyebrow">Cup</span>
       <span v-if="pill" class="cup-entry__when">{{ pill }}</span>
     </div>
     <span class="cup-entry__name">{{ cup.name }}</span>
@@ -50,57 +50,7 @@ const pill = computed(() => {
 </template>
 
 <style scoped>
-/* Samme rad som «Denne uka» og «Andre lag» — én form for alt som er en rad. */
-.cup-row {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-md);
-  padding: 14px var(--ds-space-md);
-  background: var(--ds-color-bg-elevated);
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-lg);
-  text-decoration: none;
-  color: inherit;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.cup-row:active { transform: scale(0.99); }
-
-.cup-row__kicker {
-  flex-shrink: 0;
-  width: 72px;
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ds-color-text-tertiary);
-}
-
-.cup-row__body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-.cup-row__title {
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-primary);
-}
-
-.cup-row__sub {
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-tertiary);
-}
-
-.cup-row__chevron {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  color: var(--ds-color-text-tertiary);
-}
+/* Kompakt: samme rad som «Denne uka» og «Andre lag» — .ds-row i designsystemet. */
 
 .cup-entry {
   display: flex;
@@ -116,15 +66,6 @@ const pill = computed(() => {
   justify-content: space-between;
   gap: var(--ds-space-sm);
   margin-bottom: 2px;
-}
-
-.cup-entry__kicker {
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ds-color-text-tertiary);
-  white-space: nowrap;
 }
 
 .cup-entry__when {

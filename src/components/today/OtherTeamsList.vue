@@ -30,109 +30,45 @@ function sub(item) {
 </script>
 
 <template>
-  <div class="other-teams">
+  <div class="ds-rows">
     <router-link
       v-for="item in items"
       :key="item.color"
       :to="item.to"
-      class="other-row"
+      class="ds-row other-row"
     >
       <span class="other-row__tags">
         <span
           v-for="c in tags(item)"
           :key="c"
-          class="other-row__tag"
-          :class="`other-row__tag--${c}`"
+          class="ds-tag"
+          :class="`ds-tag--${c}`"
         >{{ teamLabel(c) }}</span>
       </span>
-      <span class="other-row__body">
-        <span class="other-row__title">{{ line(item) }}</span>
-        <span class="other-row__sub">{{ sub(item) }}</span>
+      <span class="ds-row__body">
+        <span class="ds-row__title other-row__title">{{ line(item) }}</span>
+        <span class="ds-row__sub">{{ sub(item) }}</span>
       </span>
-      <svg class="other-row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      <svg class="ds-row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </router-link>
   </div>
 </template>
 
 <style scoped>
-.other-teams {
-  display: flex;
-  flex-direction: column;
-  gap: var(--ds-space-sm);
-}
-
-.other-row {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-md);
-  padding: 14px var(--ds-space-md);
-  background: var(--ds-color-bg-elevated);
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-lg);
-  text-decoration: none;
-  color: inherit;
-  -webkit-tap-highlight-color: transparent;
-  transition:
-    border-color var(--ds-duration-fast) var(--ds-ease-out),
-    transform var(--ds-duration-fast) var(--ds-ease-out);
-}
-
-.other-row:active { transform: scale(0.99); }
-
-@media (hover: hover) and (pointer: fine) {
-  .other-row:hover { border-color: var(--ds-color-border-strong); }
-}
+/* Radformen og lappene bor i designsystemet (.ds-row, .ds-tag). */
 
 /* To merkelapper når to Halsen-lag møtes — én kamp, begge lagene navngitt. */
 .other-row__tags {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  align-items: stretch;
+  gap: 4px;
   flex-shrink: 0;
+  min-width: 52px;
 }
 
-.other-row__tag {
-  flex-shrink: 0;
-  min-width: 44px;
-  text-align: center;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: var(--ds-radius-full);
-  letter-spacing: 0.02em;
-  /* Nøytral grunnform for lag uten egen lagfarge (andre kull enn Halsen). */
-  background: var(--ds-color-bg-subtle);
-  color: var(--ds-color-text-secondary);
-}
-
-.other-row__tag--gronn { background: var(--ds-team-gronn-bg); color: var(--ds-team-gronn); }
-.other-row__tag--rod   { background: var(--ds-team-rod-bg);   color: var(--ds-team-rod); }
-.other-row__tag--hvit  { background: var(--ds-team-hvit-bg);  color: var(--ds-team-hvit); border: 1px solid var(--ds-team-hvit-border); }
-
-.other-row__body {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-}
-
-/* Motstandernavnet brytes, det klippes ikke — det er hele poenget med rada. */
+/* Andre lag er bevisst lettere enn egne: samme rad, dempet tittel. */
 .other-row__title {
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-semibold);
   color: var(--ds-color-text-secondary);
-}
-
-.other-row__sub {
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-tertiary);
-}
-
-.other-row__chevron {
-  width: 16px;
-  height: 16px;
-  flex-shrink: 0;
-  color: var(--ds-color-text-tertiary);
 }
 </style>

@@ -252,9 +252,14 @@ async function bootstrap() {
   if (state.profile && state.memberships.length) finishReady()
 
   try {
-    const { data } = await supabase.auth.getSession()
+    const { data, error } = await supabase.auth.getSession()
     if (data?.session?.user) {
       await loadMember(data.session.user)
+    } else if (error) {
+      // Utløpt token som ikke kunne fornyes (typisk uten nett): sesjonen er
+      // ikke nødvendigvis borte. Å tømme cachen her logget treneren ut bare
+      // av å åpne appen i en kjeller uten dekning. Behold alt, merk offline.
+      state.offline = true
     } else if (state.profile) {
       // Cachen påsto innlogget, men sesjonen er borte.
       state.profile = null
@@ -448,6 +453,7 @@ export function useAuth() {
     ready: computed(() => state.ready),
     isLegacySession: computed(() => !!state.legacy),
     sessionLost: computed(() => state.sessionLost),
+    sessionHeld: computed(() => state.holdSession),
     setSessionHold,
     setActiveCohort,
     signInWithGoogle,

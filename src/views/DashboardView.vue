@@ -12,6 +12,7 @@ import MatchCard from '../components/MatchCard.vue'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import TeamFilter from '../components/TeamFilter.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
+import NyKampSheet from '../components/NyKampSheet.vue'
 import { useStaggerOnce } from '../composables/useStaggerOnce'
 import { relativeDateLabel, isToday, localISODate } from '../lib/dateLabels'
 import { teamColorsForMatch, isOurs, isOurMatch as isOurMatchMeta } from '../lib/matchMeta'
@@ -19,7 +20,11 @@ import { teamColorsForMatch, isOurs, isOurMatch as isOurMatchMeta } from '../lib
 
 const playStagger = useStaggerOnce('dashboard-matches')
 
-const { coach } = useAuth()
+const { coach, isCoach, isPlatformAdmin } = useAuth()
+// Treningskamper og vinterserie står ikke i FIKS: de legges inn her, der
+// trenerne ser kampene sine.
+const kanLeggeTil = computed(() => isCoach.value || isPlatformAdmin.value)
+const visNyKamp = ref(false)
 const { viewingSeason, fetchSeasons } = useSeasons()
 const { matches, fetchMatches, getCoachesForMatch } = useMatches()
 const { expenses, fetchExpenses, getExpenseForMatch } = useExpenses()
@@ -185,8 +190,17 @@ function getCoachesForMatchList(matchId) {
 
 <template>
   <div class="desktop-container">
-    <div class="page-header ds-anim-fade-up">
+    <div class="page-header kamper-header ds-anim-fade-up">
       <SeasonPicker variant="title" />
+      <button
+        v-if="kanLeggeTil && viewingSeason"
+        type="button"
+        class="ds-btn ds-btn--secondary kamper-header__ny"
+        @click="visNyKamp = true"
+      >
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        Kamp
+      </button>
     </div>
 
     <div class="time-tabs ds-anim-fade-up ds-anim-delay-1" role="tablist">
@@ -269,10 +283,19 @@ function getCoachesForMatchList(matchId) {
         </div>
       </section>
     </div>
+    <NyKampSheet :show="visNyKamp" :season-id="viewingSeason?.id || null" @close="visNyKamp = false" />
   </div>
 </template>
 
 <style scoped>
+.kamper-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--ds-space-md); }
+.kamper-header > :first-child { min-width: 0; flex: 1; }
+.kamper-header__ny {
+  flex-shrink: 0; min-height: 44px; padding: 0 var(--ds-space-lg); gap: 6px;
+  border-radius: var(--ds-radius-full);
+}
+.kamper-header__ny svg { width: 16px; height: 16px; }
+
 /* Hver kamp lever for seg selv i sin egen myke gruppe. Dagen er en liten
    tittel over, ikke en boks rundt. */
 .daygroup { margin-bottom: var(--ds-space-md); }

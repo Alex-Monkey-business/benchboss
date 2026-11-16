@@ -237,19 +237,15 @@ const routes = [
     name: 'trening-dag',
     component: () => import('./views/TreningsukeView.vue')
   },
-  // Økta på feltet: hvem er her, og gruppene fordelt. Trener-only; skjermen
+  // Økta på feltet: hvem er her, og kjøreplanen. Trener-only; skjermen
   // sier selv fra til andre.
   {
     path: '/trening/okt/:id',
     name: 'okt',
     component: () => import('./views/OktView.vue')
   },
-  // Endre gruppene eller lagene i kjøreplanen: Del inn, låst til planen.
-  {
-    path: '/trening/okt/:id/endre/:hva(grupper|lag)/:n?',
-    name: 'okt-endre',
-    component: () => import('./views/OktView.vue')
-  },
+  // Endre lå her før inndelingen flyttet til Del inn. Gamle lenker går dit.
+  { path: '/trening/okt/:id/endre/:rest(.*)*', redirect: '/del-inn' },
   { path: '/trening/okt/:id/del', redirect: '/del-inn' },
   // Del inn: grupper eller lag når som helst, fra Hjem. Trener-only.
   {

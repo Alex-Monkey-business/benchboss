@@ -153,11 +153,14 @@ export function useMatchMode() {
       }
       return session.value
     }
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('match_sessions')
       .select('*')
       .eq('match_id', matchId)
       .maybeSingle()
+    // Feilet hentingen (nett), vet vi ingenting nytt. Å sette null her gjorde
+    // en kamp i gang om til «ikke startet» på skjermen — behold det vi har.
+    if (error) return session.value
     session.value = data || null
     husk(matchId, data?.status)
     return session.value
@@ -528,9 +531,13 @@ export function useMatchMode() {
     }
     // blindskriving: nullstiller en kamp. Er den aldri startet, finnes verken
     // perioder eller økt, og null rader er nøyaktig det svaret vi vil ha.
-    await supabase.from('match_stints').delete().eq('match_id', matchId)
+    // Men en FEIL er ikke null rader: kast den, så skjermen ikke melder
+    // «Nullstilt» for en kamp som fortsatt står i basen.
+    const stintsRes = await supabase.from('match_stints').delete().eq('match_id', matchId)
+    if (stintsRes.error) throw stintsRes.error
     // blindskriving: se linjen over.
-    await supabase.from('match_sessions').delete().eq('match_id', matchId)
+    const sesjonRes = await supabase.from('match_sessions').delete().eq('match_id', matchId)
+    if (sesjonRes.error) throw sesjonRes.error
     stints.value = stints.value.filter(s => s.match_id !== matchId)
     if (session.value?.match_id === matchId) session.value = null
   }

@@ -56,8 +56,18 @@ export function useSeasons() {
     }
 
     seasons.value = rows
+    const forrigeAktiv = activeSeason.value?.id
     activeSeason.value = rows.find(s => s.status === 'active') || rows[0] || null
-    if (!viewingSeason.value) viewingSeason.value = activeSeason.value
+    // viewingSeason ble sådd fra cachen. Er den sesongen slettet, eller har
+    // en ny sesong blitt aktiv siden sist (vinteren startet), ville appen ellers
+    // fortsatt vise den gamle — og nye kamper havnet i feil sesong.
+    // Bare ved ny id: et nytt objekt med samme id trigger hentingen i hver
+    // skjerm som følger viewingSeason.
+    const finnes = viewingSeason.value && rows.some(s => s.id === viewingSeason.value.id)
+    const nyAktiv = forrigeAktiv !== activeSeason.value?.id
+    if ((!finnes || nyAktiv) && viewingSeason.value?.id !== activeSeason.value?.id) {
+      viewingSeason.value = activeSeason.value
+    }
     loaded.value = true
     status.value = STATUS.OK
   }

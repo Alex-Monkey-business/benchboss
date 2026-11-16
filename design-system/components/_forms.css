@@ -59,7 +59,7 @@
 .ds-input:focus {
   outline: none;
   border-color: var(--ds-color-accent);
-  box-shadow: 0 0 0 3px rgba(10, 10, 10, 0.10);
+  box-shadow: var(--ds-shadow-focus);
 }
 
 .ds-input:disabled {

@@ -100,12 +100,12 @@ function onCta() {
         <span
           v-for="color in teamColors"
           :key="color"
-          class="today-match__team-tag"
-          :class="`today-match__team-tag--${color}`"
+          class="ds-tag"
+          :class="`ds-tag--${color}`"
         >{{ teamLabel(color) }}</span>
-        <span class="today-match__venue">{{ home ? 'Hjemme' : 'Borte' }}</span>
+        <span class="ds-tag ds-tag--quiet">{{ home ? 'Hjemme' : 'Borte' }}</span>
       </span>
-      <span class="today-match__kicker" :class="{ 'today-match__kicker--done': done }">{{ kicker }}</span>
+      <span class="ds-eyebrow today-match__kicker" :class="{ 'today-match__kicker--done': done }">{{ kicker }}</span>
     </div>
 
     <div class="today-match__main">
@@ -152,8 +152,8 @@ function onCta() {
 .today-match[data-lag] { border-color: transparent; }
 .today-match[data-lag="gronn"] { background: var(--ds-team-gronn-bg); }
 .today-match[data-lag="rod"]   { background: var(--ds-team-rod-bg); }
-.today-match[data-lag] .today-match__team-tag,
-.today-match[data-lag] .today-match__venue { background: var(--ds-color-bg-elevated); }
+/* Lappene løftes til kortflaten, ellers forsvinner «Grønn» i den grønne flaten. */
+.today-match[data-lag] .ds-tag { background: var(--ds-color-bg-elevated); }
 
 .today-match {
   display: flex;
@@ -195,40 +195,10 @@ function onCta() {
 .today-match__tags {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-}
-
-.today-match__team-tag {
-  display: inline-block;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: var(--ds-radius-full);
-  letter-spacing: 0.02em;
-  /* Nøytral grunnform for lag uten egen lagfarge (andre kull enn Halsen). */
-  background: var(--ds-color-bg-subtle);
-  color: var(--ds-color-text-secondary);
-}
-
-.today-match__team-tag--gronn { background: var(--ds-team-gronn-bg); color: var(--ds-team-gronn); }
-.today-match__team-tag--rod   { background: var(--ds-team-rod-bg);   color: var(--ds-team-rod); }
-.today-match__team-tag--hvit  { background: var(--ds-team-hvit-bg);  color: var(--ds-team-hvit); border: 1px solid var(--ds-team-hvit-border); }
-
-.today-match__venue {
-  font-size: 0.6875rem;
-  font-weight: 500;
-  padding: 1px 6px;
-  border-radius: var(--ds-radius-sm);
-  background: var(--ds-color-bg-subtle);
-  color: var(--ds-color-text-tertiary);
-  letter-spacing: 0.02em;
+  gap: 6px;
 }
 
 .today-match__kicker {
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--ds-color-warm);
 }
 

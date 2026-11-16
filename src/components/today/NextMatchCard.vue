@@ -97,12 +97,12 @@ const detailLine = computed(() => {
         <span
           v-for="color in event.teams || []"
           :key="color"
-          class="next-match__team-tag"
-          :class="`next-match__team-tag--${color}`"
+          class="ds-tag"
+          :class="`ds-tag--${color}`"
         >{{ teamLabel(color) }}</span>
-        <span v-if="event.teamName" class="next-match__team-tag next-match__team-tag--cup">{{ event.teamName }}</span>
-        <span v-if="event.type !== 'cup'" class="next-match__venue">{{ event.isHome ? 'Hjemme' : 'Borte' }}</span>
-        <span class="next-match__kicker">{{ event.type === 'cup' ? 'Neste cupkamp' : 'Neste kamp' }}</span>
+        <span v-if="event.teamName" class="ds-tag">{{ event.teamName }}</span>
+        <span v-if="event.type !== 'cup'" class="ds-tag ds-tag--quiet">{{ event.isHome ? 'Hjemme' : 'Borte' }}</span>
+        <span class="ds-eyebrow next-match__kicker">{{ event.type === 'cup' ? 'Neste cupkamp' : 'Neste kamp' }}</span>
       </span>
     </div>
 
@@ -153,8 +153,7 @@ const detailLine = computed(() => {
 
 /* Merkelappene står på kortets egen flate: de løftes til hvitt, ellers
    forsvinner «Grønn»-lappen i den grønne flaten. */
-.next-match:is([data-lag="gronn"], [data-lag="rod"]) .next-match__team-tag,
-.next-match:is([data-lag="gronn"], [data-lag="rod"]) .next-match__venue { background: var(--ds-color-bg-elevated); }
+.next-match:is([data-lag="gronn"], [data-lag="rod"]) .ds-tag { background: var(--ds-color-bg-elevated); }
 
 /* Lesedelen er lenka. Trykkeffekten flyttet hit fra kortet, som nå er en ren
    beholder — ellers ville hele kortet krympet når man trykket knappen. */
@@ -252,30 +251,7 @@ const detailLine = computed(() => {
   min-width: 0;
 }
 
-.next-match__team-tag {
-  display: inline-block;
-  font-size: 0.6875rem;
-  font-weight: 600;
-  padding: 1px 6px;
-  border-radius: var(--ds-radius-full);
-  letter-spacing: 0.02em;
-  white-space: nowrap;
-  /* Nøytral grunnform. Bare Halsens tre lag har egne lagfarger; «Blå» i et
-     annet kull sto ellers som naken tekst uten pille. */
-  background: var(--ds-color-bg-subtle);
-  color: var(--ds-color-text-secondary);
-}
-
-.next-match__team-tag--gronn { background: var(--ds-team-gronn-bg); color: var(--ds-team-gronn); }
-.next-match__team-tag--rod   { background: var(--ds-team-rod-bg);   color: var(--ds-team-rod); }
-.next-match__team-tag--hvit  { background: var(--ds-team-hvit-bg);  color: var(--ds-team-hvit); border: 1px solid var(--ds-team-hvit-border); }
-.next-match__team-tag--cup   { background: var(--ds-color-bg-subtle); color: var(--ds-color-text-secondary); }
-
 .next-match__kicker {
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--ds-color-text-secondary);
   white-space: nowrap;
 }
@@ -291,17 +267,6 @@ const detailLine = computed(() => {
 .next-match__detail {
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
-}
-
-/* Identisk med kampdag-kortets venue-merkelapp — samme opplysning, samme form. */
-.next-match__venue {
-  font-size: 0.6875rem;
-  font-weight: 500;
-  padding: 1px 6px;
-  border-radius: var(--ds-radius-sm);
-  background: var(--ds-color-bg-subtle);
-  color: var(--ds-color-text-tertiary);
-  letter-spacing: 0.02em;
 }
 
 /* Det som står igjen. Prikk + tekst — samme språk som påminnelsene i «Å ordne»,
@@ -331,7 +296,7 @@ const detailLine = computed(() => {
   border-radius: 50%;
   flex-shrink: 0;
   background: var(--ds-color-warm);
-  box-shadow: 0 0 0 3px rgba(185, 96, 63, 0.16);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ds-color-warm) 18%, transparent);
 }
 
 /* Smal skjerm: kortene med bildekolonne har bare ~200px til teksten når

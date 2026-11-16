@@ -67,17 +67,27 @@ const showReset = ref(false)
 const showScorer = ref(false)
 
 let wakeLock = null
+// Usant etter unmount. Forlater treneren skjermen mens oppstarten venter på
+// nettet, skal ikke resten kjøre: da ble intervallet, wake lock, lytterne og
+// sesjonsholdet satt opp ETTER at onUnmounted hadde ryddet — og ble hengende.
+let alive = true
 
 onMounted(async () => {
   await fetchPlayers()
+  if (!alive) return
   match.value = await getMatch(matchId)
+  if (!alive) return
   if (match.value) {
     matchPlayerIds.value = await fetchMatchPlayers(matchId)
+    if (!alive) return
     matchAbsenceIds.value = await fetchMatchAbsences(matchId)
+    if (!alive) return
     // Ett kall gir sesjon, perioder, scorere, resultat og serverens klokke.
     // Uten Supabase (demo) går det som før.
     const st = await syncState(matchId).catch(() => null)
+    if (!alive) return
     if (!st) await Promise.all([fetchSession(matchId), fetchStints(matchId), fetchMatchGoals(matchId)])
+    if (!alive) return
     // Kampen var allerede ferdig da du kom hit: send til kampsida. Match mode
     // er klokka og byttene — når kampen er historie er det feil modus, og
     // «Start på nytt» ligger ett feiltrykk unna en spilletid som er fasit.
@@ -99,6 +109,7 @@ onMounted(async () => {
   window.addEventListener('touchmove', preventScrollWhileDragging, { passive: false })
 })
 onUnmounted(() => {
+  alive = false
   navHidden.value = false
   flushLineupSave()
   clearTimeout(pressTimer)
@@ -354,6 +365,12 @@ const unassigned = computed(() => squad.value.filter(p => !assignedIds.value.has
 function playerInSlot(slotId) { return playerById(assignments.value[slotId]) }
 const lineupComplete = computed(() => FORMATION.every(s => assignments.value[s.id]))
 watch(lineupComplete, v => { if (!v) { planModus.value = false; planArm.value = null } })
+// Fravær i 9er: åtte spillere er en kamp, ikke en feil. Når hele troppen står
+// på banen og det fortsatt er tomme plasser, kan dere starte likevel — med en
+// beskjed om det, ikke en sperre.
+const tommePlasser = computed(() => FORMATION.filter(s => !assignments.value[s.id]).length)
+const kanStarte = computed(() =>
+  lineupComplete.value || (!unassigned.value.length && tommePlasser.value < FORMATION.length))
 
 // Benken slik den vises: med en plass valgt, de som passer der først.
 const benkOppsett = computed(() => {
@@ -441,8 +458,10 @@ function fyllResten() {
 
 
 async function handleStart() {
-  if (!lineupComplete.value) return
-  const lineup = FORMATION.map(s => ({ playerId: assignments.value[s.id], role: s.role, position: s.id }))
+  if (!kanStarte.value) return
+  // Tomme plasser sendes ikke: en periode uten spiller ville ødelagt spilletida.
+  const lineup = FORMATION.filter(s => assignments.value[s.id])
+    .map(s => ({ playerId: assignments.value[s.id], role: s.role, position: s.id }))
   clearTimeout(lineupTimer)
   lineupDirty = false
   try {
@@ -510,8 +529,9 @@ function armBench(id) { armedBenchId.value = armedBenchId.value === id ? null : 
 //
 // På benken teller avstanden under rettferdig andel (klokke × plasser /
 // tropp): jo lenger under, jo grønnere. Fem minutter under er full grønn.
+// Er troppen mindre enn formasjonen (fravær), er rettferdig andel hele kampen.
 const fairShare = computed(() =>
-  squad.value.length ? (currentClock.value * FORMATION.length) / squad.value.length : 0)
+  squad.value.length ? (currentClock.value * Math.min(FORMATION.length, squad.value.length)) / squad.value.length : 0)
 const TRAPP = [[0, 0], [7 * 60, .5], [15 * 60, .75], [20 * 60, 1]]   // [sekunder i strekk, h]
 function strekk(id) {
   const s = stints.value.find(x => x.match_id === session.value?.match_id && x.player_id === id && x.off_clock == null)
@@ -1205,9 +1225,10 @@ const summary = computed(() =>
 
         <!-- Hovedknappen gjør alltid noe: fyller laget til det er fullt, så
              starter den kampen. Er troppen for liten, sier den hvor mange. -->
-        <button v-if="lineupComplete" type="button" class="mm__start" @click="handleStart">Start kamp</button>
+        <p v-if="kanStarte && tommePlasser" class="mm__start-note">{{ tommePlasser === 1 ? '1 plass står tom' : `${tommePlasser} plasser står tomme` }}. Dere kan starte likevel.</p>
+        <button v-if="kanStarte" type="button" class="mm__start" @click="handleStart">Start kamp</button>
         <button v-else type="button" class="mm__start" :disabled="!unassigned.length" @click="fyllResten">
-          {{ unassigned.length ? 'Fyll resten' : `Mangler ${FORMATION.length - Object.keys(assignments).length} spillere` }}
+          {{ unassigned.length ? 'Fyll resten' : `Mangler ${tommePlasser} spillere` }}
         </button>
       </div>
     </div>
@@ -2017,6 +2038,8 @@ const summary = computed(() =>
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .mm__start:disabled { opacity: .45; cursor: default; }
+.mm__start-note { margin: var(--ds-space-md) 0 0; text-align: center; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+.mm__start-note + .mm__start { margin-top: var(--ds-space-sm); }
 
 /* ── Klokke / kontroller ── */
 /* Fastlåst under topplinja (34px knapp + 2×md padding + 1px border) så

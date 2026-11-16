@@ -13,7 +13,7 @@ const kull = (a, b, c) => [
 const vis = g => g.map(x => `${gjengNavn(x)}:${x.spillere.length}/${x.trenere.length}`).join(' ')
 const rene = g => g.every(x => !(x.nivaer.includes('A') && x.nivaer.includes('C')))
 
-// 1. 21 spillere (6/9/6), 5 trenere: rigger tas ut før, så 4 til gjengene.
+// 1. 21 spillere (6/9/6), 4 trenere til gjengene.
 {
   const g = lagGjenger(kull(6, 9, 6), ['t1', 't2', 't3', 't4'])
   ok('21 (6/9/6), 4 trenere: tre rene gjenger', g.length === 3 && g.every(x => x.nivaer.length === 1), vis(g))

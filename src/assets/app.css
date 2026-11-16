@@ -66,15 +66,16 @@
   flex-direction: column;
   align-items: center;
   gap: 2px;
-  padding: var(--ds-space-xs) var(--ds-space-md);
+  padding: var(--ds-space-2xs) var(--ds-space-sm);
   border: none;
   background: none;
   cursor: pointer;
   color: var(--ds-color-text-tertiary);
   font-family: var(--ds-font-body);
-  font-size: 11px;
+  font-size: 12px;
   font-weight: var(--ds-weight-medium);
-  letter-spacing: var(--ds-tracking-wide);
+  letter-spacing: 0.01em;
+  line-height: 1.2;
   transition:
     color var(--ds-duration-normal) var(--ds-ease-out),
     transform var(--ds-duration-fast) var(--ds-ease-out);
@@ -90,18 +91,28 @@
 .bottom-nav__item svg {
   width: 22px;
   height: 22px;
-  transition: transform var(--ds-duration-normal) var(--ds-ease-pop);
 }
 
+/* Pillen bak ikonet. Den ligger alltid der, gjennomsiktig, så den aktive
+   fanen bare fyller den — ingenting hopper. */
 .bottom-nav__icon-wrap {
   position: relative;
   display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 56px;
+  /* Høyden holder hele menyen på ~64px. OktView legger en fast fot på 65px
+     over den; høyere meny ville gått inn under foten. */
+  height: 28px;
+  border-radius: var(--ds-radius-full);
+  background: transparent;
+  transition: background-color var(--ds-duration-normal) var(--ds-ease-out);
 }
 
 .bottom-nav__badge {
   position: absolute;
-  top: -2px;
-  right: -3px;
+  top: 2px;
+  right: 14px;
   width: 8px;
   height: 8px;
   border-radius: 50%;
@@ -111,34 +122,17 @@
 
 .bottom-nav__item--active {
   color: var(--ds-color-accent);
+  font-weight: var(--ds-weight-semibold);
 }
 
-.bottom-nav__item--active svg {
-  transform: scale(1.06);
+/* Tonet fra aksenten, så den fungerer i begge tema: accent-light i mørkt
+   ligger nesten oppå bg-elevated og forsvant. */
+.bottom-nav__item--active .bottom-nav__icon-wrap {
+  background: color-mix(in srgb, var(--ds-color-accent) 16%, var(--ds-color-bg-elevated));
 }
 
-/* Active indicator dot — functional, not playful */
-.bottom-nav__item::after {
-  content: '';
-  position: absolute;
-  bottom: 0;
-  left: 50%;
-  width: 4px;
-  height: 4px;
-  border-radius: 50%;
-  background: var(--ds-color-accent);
-  transform-origin: bottom center;
-  transform: translateX(-50%) scale(0.6);
-  opacity: 0;
-  transition:
-    transform 180ms var(--ds-ease-out),
-    opacity 160ms var(--ds-ease-out);
-  pointer-events: none;
-}
-
-.bottom-nav__item--active::after {
-  transform: translateX(-50%) scale(1);
-  opacity: 1;
+.bottom-nav__item--active .bottom-nav__badge {
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--ds-color-accent) 16%, var(--ds-color-bg-elevated));
 }
 
 /* Logg ut — sekundær handling, dempet så den ikke konkurrerer med målene */
@@ -154,8 +148,7 @@
 
 @media (prefers-reduced-motion: reduce) {
   .bottom-nav__item,
-  .bottom-nav__item svg,
-  .bottom-nav__item::after {
+  .bottom-nav__icon-wrap {
     transition: none;
   }
 }
@@ -267,11 +260,12 @@
   flex-shrink: 0;
 }
 
-.team-dot--gronn { background: var(--ds-color-success); }
-.team-dot--rod { background: var(--ds-color-error); }
+/* Lagfargene, ikke status: grønn betyr Halsen Grønn, ikke «ok». */
+.team-dot--gronn { background: var(--ds-team-gronn); }
+.team-dot--rod { background: var(--ds-team-rod); }
 .team-dot--hvit {
-  background: var(--ds-color-bg-elevated);
-  border: 1.5px solid var(--ds-color-border-light);
+  background: var(--ds-team-hvit-bg);
+  border: 1.5px solid var(--ds-team-hvit-border);
 }
 
 /* ---- Expense Indicator ---- */
@@ -1205,6 +1199,19 @@
 
   .bottom-nav__item--active:hover {
     background: var(--ds-color-accent-light);
+  }
+
+  /* Her er hele fanen pillen; ikonpillen inni går bort. */
+  .bottom-nav__icon-wrap,
+  .bottom-nav__item--active .bottom-nav__icon-wrap {
+    width: auto;
+    height: auto;
+    background: transparent;
+  }
+
+  .bottom-nav__badge {
+    top: -2px;
+    right: -3px;
   }
 
   /* Desktop content container */

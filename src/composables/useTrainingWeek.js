@@ -158,7 +158,9 @@ export function useTrainingWeek() {
       .insert(withCohort(data))
       .select()
       .single()
-    if (!error && row) days.value = [...days.value, row].sort(iUkerekkefølge)
+    // Feil kastes: skjermen skal ikke melde «lagt til» for en dag som ikke finnes.
+    if (error) throw error
+    if (row) days.value = [...days.value, row].sort(iUkerekkefølge)
     return row
   }
 
@@ -179,7 +181,9 @@ export function useTrainingWeek() {
       .eq('id', id)
       .select()
       .single()
-    if (!error && data) {
+    // Kastes, så en øvelse som ikke ble lagret ikke ser lagret ut.
+    if (error) throw error
+    if (data) {
       const i = days.value.findIndex(s => s.id === id)
       if (i > -1) days.value[i] = data
       days.value = [...days.value].sort(iUkerekkefølge)
@@ -200,7 +204,10 @@ export function useTrainingWeek() {
       .delete()
       .eq('id', id)
       .select('id')
-    if (!error && data?.length) days.value = days.value.filter(s => s.id !== id)
+    if (error) throw error
+    // Null rader er også en feil her (RLS): dagen står fortsatt i basen.
+    if (!data?.length) throw new Error('Dagen ble ikke slettet')
+    days.value = days.value.filter(s => s.id !== id)
   }
 
   return { days, loading, status, supportsDuration, fetchWeek: dedupe(fetchWeek, 'fetchWeek'), createDay, updateDay, removeDay }

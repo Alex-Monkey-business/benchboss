@@ -97,15 +97,15 @@ const pendingCount = computed(() => {
       :class="['bottom-nav__item', { 'bottom-nav__item--active': isActive(tab), 'bottom-nav__item--quiet': tab.action === 'logout' }]"
       @click="tab.action && onTabClick(tab)"
     >
+      <!-- Ikonet står i en pille; den aktive fanen fyller pillen. -->
+      <span class="bottom-nav__icon-wrap">
       <!-- Hjem (hus) -->
-      <span v-if="tab.name === 'hjem'" class="bottom-nav__icon-wrap">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M3 10.5 12 3l9 7.5"/>
-          <path d="M5.5 9.5V21h13V9.5"/>
-          <path d="M9.5 21v-6h5v6"/>
-        </svg>
-        <span v-if="pendingCount > 0" class="bottom-nav__badge" aria-label="venter på handling"></span>
-      </span>
+      <svg v-if="tab.name === 'hjem'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M3 10.5 12 3l9 7.5"/>
+        <path d="M5.5 9.5V21h13V9.5"/>
+        <path d="M9.5 21v-6h5v6"/>
+      </svg>
+      <span v-if="tab.name === 'hjem' && pendingCount > 0" class="bottom-nav__badge" aria-label="venter på handling"></span>
       <!-- Kamper (serie) -->
       <svg v-if="tab.name === 'matches' || tab.name === 'serie'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
         <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -146,6 +146,7 @@ const pendingCount = computed(() => {
         <polyline points="16 17 21 12 16 7"/>
         <line x1="21" y1="12" x2="9" y2="12"/>
       </svg>
+      </span>
       <span>{{ tab.label }}</span>
     </component>
   </nav>

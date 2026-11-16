@@ -12,8 +12,11 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Skeleton from '../components/Skeleton.vue'
 import AnimatedNumber from '../components/AnimatedNumber.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
+import { PLAYERS_ON_PITCH_OPTIONS } from '../lib/formations'
+import { periodsFor } from '../lib/spillform'
+import { useKullFormat } from '../composables/useKullFormat'
 
-const { coach: currentCoach, activeCohort, isAdmin, isPlatformAdmin, refreshMember } = useAuth()
+const { coach: currentCoach, activeCohort, isAdmin, isCoach, isPlatformAdmin, refreshMember } = useAuth()
 const { usesReferees } = useFeatures()
 const clubShort = computed(() => activeCohort.value?.club_name?.split(' ')[0] || 'Klubben')
 const { seasons, viewingSeason, fetchSeasons, settleSeason } = useSeasons()
@@ -67,6 +70,63 @@ async function settDommere(pa) {
   if (error || !data?.length) { showToast('Kunne ikke lagre', 'error'); return }
   await refreshMember()
   showToast(pa ? 'Dommere er på' : 'Dommere er av', 'success')
+}
+
+// Spillform og kamplengde. Satt på kullet, lest av kampmodus. Enhver trener
+// kan endre den (bb_cohort_set_format); før migrasjonen er kjørt går det bare
+// for admin, og da sier vi det i stedet for å late som det ble lagret.
+const kanEndreFormat = computed(() => isCoach.value || isPlatformAdmin.value)
+const { lagreFormat } = useKullFormat()
+const format = ref({ players_on_pitch: 7, period_count: 2, period_minutes: 30 })
+const lagrerFormat = ref(false)
+
+function formatFraKullet() {
+  const c = activeCohort.value
+  format.value = {
+    players_on_pitch: c?.players_on_pitch || 7,
+    period_count: c?.period_count || 2,
+    period_minutes: c?.period_minutes || 30
+  }
+}
+watch(() => [activeCohort.value?.id, activeCohort.value?.players_on_pitch, activeCohort.value?.period_count, activeCohort.value?.period_minutes], formatFraKullet, { immediate: true })
+
+const formatEndret = computed(() => {
+  const c = activeCohort.value
+  if (!c) return false
+  return format.value.players_on_pitch !== (c.players_on_pitch || 7)
+    || format.value.period_count !== (c.period_count || 2)
+    || format.value.period_minutes !== (c.period_minutes || 30)
+})
+
+const totaltMinutter = computed(() => format.value.period_count * format.value.period_minutes)
+
+// Ny spillform tar med seg NFF-lengden for den. Justeres etterpå om kretsen
+// eller turneringen sier noe annet.
+function velgSpillform(n) {
+  const [period_count, period_minutes] = periodsFor(n)
+  format.value = { players_on_pitch: n, period_count, period_minutes }
+}
+
+function endreOmganger(d) {
+  const v = format.value.period_count + d
+  if (v >= 1 && v <= 4) format.value = { ...format.value, period_count: v }
+}
+
+function endreMinutter(d) {
+  const v = format.value.period_minutes + d
+  if (v >= 5 && v <= 45) format.value = { ...format.value, period_minutes: v }
+}
+
+async function lagreSpillform() {
+  if (!formatEndret.value || lagrerFormat.value) return
+  lagrerFormat.value = true
+  const res = await lagreFormat(format.value)
+  lagrerFormat.value = false
+  if (!res.ok) {
+    showToast(res.kunAdmin ? 'Bare admin kan endre dette ennå' : 'Kunne ikke lagre', 'error')
+    return
+  }
+  showToast(`${format.value.players_on_pitch}er, ${format.value.period_count} × ${format.value.period_minutes} min`, 'success')
 }
 
 // My own owed-by-the-club balance for the active season
@@ -223,6 +283,53 @@ async function handleExport() {
           </div>
         </div>
       </div>
+      <div v-if="kanEndreFormat && activeCohort" class="px-lg mb-lg format">
+        <h3 class="dommere__tittel">Spillform og kamplengde</h3>
+        <div class="ds-pills format__pills" role="group" aria-label="Spillere på banen">
+          <button
+            v-for="n in PLAYERS_ON_PITCH_OPTIONS"
+            :key="n"
+            type="button"
+            :class="['ds-pill', { 'ds-pill--active': format.players_on_pitch === n }]"
+            :aria-pressed="format.players_on_pitch === n ? 'true' : 'false'"
+            :disabled="lagrerFormat"
+            @click="velgSpillform(n)"
+          >{{ n }}er</button>
+        </div>
+
+        <div class="format__lengde">
+          <div class="format__steg" role="group" aria-label="Omganger">
+            <button type="button" class="format__knapp" aria-label="Færre omganger" :disabled="format.period_count <= 1 || lagrerFormat" @click="endreOmganger(-1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+            </button>
+            <span class="format__tall"><b>{{ format.period_count }}</b> omg.</span>
+            <button type="button" class="format__knapp" aria-label="Flere omganger" :disabled="format.period_count >= 4 || lagrerFormat" @click="endreOmganger(1)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+            </button>
+          </div>
+          <span class="format__ganger" aria-hidden="true">×</span>
+          <div class="format__steg" role="group" aria-label="Minutter per omgang">
+            <button type="button" class="format__knapp" aria-label="Fem minutter mindre" :disabled="format.period_minutes <= 5 || lagrerFormat" @click="endreMinutter(-5)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+            </button>
+            <span class="format__tall"><b>{{ format.period_minutes }}</b> min</span>
+            <button type="button" class="format__knapp" aria-label="Fem minutter mer" :disabled="format.period_minutes >= 45 || lagrerFormat" @click="endreMinutter(5)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+            </button>
+          </div>
+        </div>
+
+        <p class="dommere__hint">
+          {{ totaltMinutter }} minutter i alt. Gjelder kampmodus og nye kamper. Kamper som er i gang beholder sin lengde.
+        </p>
+
+        <div v-if="formatEndret" class="format__handling">
+          <button type="button" class="ds-btn ds-btn--secondary" :disabled="lagrerFormat" @click="formatFraKullet">Angre</button>
+          <button type="button" class="ds-btn ds-btn--primary" :disabled="lagrerFormat" @click="lagreSpillform">
+            {{ lagrerFormat ? 'Lagrer…' : 'Lagre' }}
+          </button>
+        </div>
+      </div>
       <div v-if="kanStyreKullet" class="px-lg mb-lg dommere">
         <h3 class="dommere__tittel">Dommere</h3>
         <div class="segment" role="radiogroup" aria-label="Skaffer laget dommer selv?">
@@ -267,6 +374,73 @@ async function handleExport() {
 .settlement-row--null .settlement-amount { font-weight: var(--ds-weight-regular); color: var(--ds-color-text-tertiary); }
 
 .dommere { margin-top: var(--ds-space-xl); }
+.format { margin-top: var(--ds-space-xl); }
+.format + .dommere { margin-top: var(--ds-space-lg); }
+
+.format__pills .ds-pill {
+  min-width: 52px;
+  min-height: 38px;
+  justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.format__lengde {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: var(--ds-space-md);
+}
+
+.format__steg {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-subtle);
+}
+
+.format__knapp {
+  display: grid;
+  place-items: center;
+  width: 44px;
+  height: 44px;
+  border: 0;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-primary);
+  box-shadow: var(--ds-shadow-xs);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.format__knapp svg { width: 16px; height: 16px; }
+.format__knapp:disabled { color: var(--ds-color-text-tertiary); box-shadow: none; opacity: .5; cursor: default; }
+
+.format__tall {
+  min-width: 52px;
+  white-space: nowrap;
+  text-align: center;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+.format__tall b {
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-bold);
+  color: var(--ds-color-text-primary);
+}
+
+.format__ganger {
+  color: var(--ds-color-text-tertiary);
+  font-size: var(--ds-text-md);
+}
+
+.format__handling {
+  display: flex;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-md);
+}
+.format__handling .ds-btn { flex: 1; min-height: 48px; }
 
 .dommere__tittel {
   margin: 0 0 var(--ds-space-sm);

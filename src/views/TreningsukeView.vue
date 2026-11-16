@@ -315,13 +315,21 @@ watch(openDayId, () => {
 })
 
 // Serialisert kø per dag: to raske trykk skal ikke overskrive hverandre.
+// Gir true/false, aldri en feil: en feilet lagring skal si fra, ikke stoppe
+// køen for dagen og ikke la neste trykk henge på et avvist løfte.
 const queues = new Map()
 function queueDrills(sessionId, mutate) {
   const current = dager.value.find(s => s.id === sessionId)
-  const prev = queues.get(sessionId) || Promise.resolve()
-  const next = prev.then(() => {
+  const prev = queues.get(sessionId) || Promise.resolve(true)
+  const next = prev.then(async () => {
     const live = dager.value.find(s => s.id === sessionId) || current
-    return updateDay(sessionId, { drills: mutate([...(live?.drills || [])]) })
+    try {
+      await updateDay(sessionId, { drills: mutate([...(live?.drills || [])]) })
+      return true
+    } catch {
+      showToast('Ikke lagret. Sjekk nettet og prøv igjen.', 'error')
+      return false
+    }
   })
   queues.set(sessionId, next)
   return next
@@ -366,17 +374,19 @@ async function flyttTilDag(mal) {
   const drill = s?.drills?.[i]
   if (!drill || !mal) return
   rad.value = null
-  await queueDrills(s.id, ds => ds.filter((_, idx) => idx !== i))
-  await queueDrills(mal.id, ds => [...ds, drill])
+  // Legg til først, fjern etterpå. Omvendt ble øvelsen borte for godt om
+  // lagringen i måldagen feilet.
+  if (!(await queueDrills(mal.id, ds => [...ds, drill]))) return
+  if (!(await queueDrills(s.id, ds => ds.filter((_, idx) => idx !== i)))) return
   showToast(`Flyttet til ${mal.title.toLowerCase()}`, 'success')
 }
 
 // Fjerne fra dagen er ikke sletting — øvelsen blir liggende i banken.
-function removeDrill(s, i) {
+async function removeDrill(s, i) {
   const d = s.drills?.[i]
   if (!d) return
   rad.value = null
-  queueDrills(s.id, ds => ds.filter((_, idx) => idx !== i))
+  if (!(await queueDrills(s.id, ds => ds.filter((_, idx) => idx !== i)))) return
   showToast(d.exercise_id ? 'Fjernet — ligger i banken' : 'Fjernet', 'success')
 }
 
@@ -400,14 +410,14 @@ function startBytte() {
   pickerFor.value = r.sessionId
 }
 
-function byttUt(ex) {
+async function byttUt(ex) {
   const b = bytteFor.value
   const s = dager.value.find(d => d.id === b?.sessionId)
   if (!s) return
   const gammel = drillsFor(s)[b.i]
   bytteFor.value = null
   pickerFor.value = null
-  queueDrills(s.id, ds => ds.map((d, idx) => (idx === b.i ? { ...exerciseToDrill(ex), minutes: d.minutes ?? null } : d)))
+  if (!(await queueDrills(s.id, ds => ds.map((d, idx) => (idx === b.i ? { ...exerciseToDrill(ex), minutes: d.minutes ?? null } : d))))) return
   showToast(gammel ? `«${gammel.text}» byttet ut med «${ex.name}»` : `«${ex.name}» lagt inn`, 'success')
 }
 
@@ -453,7 +463,7 @@ async function createFromPicker(f) {
   const row = await createExercise(payload)
   if (!row) return
   if (bytteFor.value) { byttUt(row); return }
-  await queueDrills(s.id, ds => [...ds, exerciseToDrill(row)])
+  if (!(await queueDrills(s.id, ds => [...ds, exerciseToDrill(row)]))) return
   showToast(`«${row.name}» lagt til`, 'success')
 }
 
@@ -504,22 +514,35 @@ async function saveDay() {
     // Uten ukedag beholder vi navnet raden allerede har, i stedet for å blanke det.
     title: f.weekday ? WEEKDAY_LABELS[f.weekday - 1] : f.fallbackTitle
   }
-  if (f.id) {
-    await updateDay(f.id, payload)
-  } else {
-    await createDay({
-      ...payload,
-      accent: accentForPosition(dager.value.length),
-      position: dager.value.length
-    })
+  // Skjemaet blir stående om lagringen feiler, så det du skrev ikke er borte.
+  try {
+    if (f.id) {
+      await updateDay(f.id, payload)
+    } else {
+      await createDay({
+        ...payload,
+        accent: accentForPosition(dager.value.length),
+        position: dager.value.length
+      })
+    }
+  } catch {
+    showToast('Dagen ble ikke lagret. Prøv igjen.', 'error')
+    return
+  } finally {
+    savingDay.value = false
   }
-  savingDay.value = false
   dayForm.value = null
 }
 
 const deleteDayId = ref(null)
 async function confirmDeleteDay() {
-  await removeDay(deleteDayId.value)
+  try {
+    await removeDay(deleteDayId.value)
+  } catch {
+    deleteDayId.value = null
+    showToast('Dagen ble ikke slettet. Prøv igjen.', 'error')
+    return
+  }
   deleteDayId.value = null
   dayForm.value = null
   // Dagen du sto på finnes ikke lenger: tilbake til uka.
@@ -550,14 +573,21 @@ async function confirmPaste() {
       })
       drills.push(ex ? exerciseToDrill(ex) : d)
     }
-    await createDay({
-      title: s.title,
-      weekday: s.weekday,
-      focus: s.focus || null,
-      accent: accentForPosition(base + i),
-      drills,
-      position: base + i
-    })
+    try {
+      await createDay({
+        title: s.title,
+        weekday: s.weekday,
+        focus: s.focus || null,
+        accent: accentForPosition(base + i),
+        drills,
+        position: base + i
+      })
+    } catch {
+      // Teksten blir stående, så planen kan limes inn på nytt.
+      savingPaste.value = false
+      showToast(i ? `${i} av ${parsed.sessions.length} dager ble lagt til. Resten ble ikke lagret.` : 'Planen ble ikke lagret. Prøv igjen.', 'error')
+      return
+    }
   }
   savingPaste.value = false
   showPaste.value = false

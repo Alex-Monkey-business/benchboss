@@ -269,15 +269,23 @@ export function gjengNavn(g) {
 // antall: valgt med − og +. Uten det styrer spillerne: én gjeng per nivå som
 // er med, tre jevne uten nivåer. Trenerne legges på etterpå; er de færre enn
 // gjengene, går A uten.
-export function lagGjenger(spillere, trenere = [], runde = 0, seed = 1, antall = null) {
+// toleranse: hvor stort avvik mellom største og minste gjeng som tåles før
+// spillere flyttes til nabonivået. Infinity = rent nivå, ingen flyttes.
+export function lagGjenger(spillere, trenere = [], runde = 0, seed = 1, antall = null, toleranse = 3) {
   if (!spillere.length) return []
   const rng = frøRng(seed)
   const nivaAv = Object.fromEntries(spillere.map(s => [s.id, nivaTil(s)]))
-  let gjenger = NIVAER
-    .map(n => ({ nivaer: [n], spillere: stokk(spillere.filter(s => nivaTil(s) === n).map(s => s.id), rng) }))
-    .filter(g => g.spillere.length)
   const kjente = new Set(spillere.filter(s => s.niva in RANG).map(s => s.niva)).size
-  const k = Math.min(antall || kjente || 3, spillere.length)
+  // Under to kjente nivåer styrer ikke nivåene: alle i én gjeng som deles
+  // jevnt. Ellers ble én gjest med nivå en egen gruppe i et kull uten nivåer.
+  let gjenger = kjente < 2
+    ? [{ nivaer: ['B'], spillere: stokk(spillere.map(s => s.id), rng) }]
+    : NIVAER
+      .map(n => ({ nivaer: [n], spillere: stokk(spillere.filter(s => nivaTil(s) === n).map(s => s.id), rng) }))
+      .filter(g => g.spillere.length)
+  // Ett kjent nivå sier ingenting om hvor mange grupper: én gjest med nivå i
+  // et kull uten nivåer ga før én gruppe med alle. Da gjelder tre.
+  const k = Math.min(antall || (kjente >= 2 ? kjente : 3), spillere.length)
 
   // Færre grupper valgt enn nivåer: slå sammen naboer, aldri A med C — med
   // mindre det bare er én gruppe.
@@ -324,11 +332,12 @@ export function lagGjenger(spillere, trenere = [], runde = 0, seed = 1, antall =
     })
   }
 
-  // Avviket mellom største og minste gjeng kan være tre. Er det mer, flyttes
-  // én spiller om gangen til en nabogjeng — aldri A inn hos C eller omvendt.
-  for (let vakt = 0; vakt < 60; vakt++) {
+  // Avviket mellom største og minste gjeng kan være tre (toleranse). Er det
+  // mer, flyttes én spiller om gangen til en nabogjeng — aldri A inn hos C
+  // eller omvendt.
+  for (let vakt = 0; vakt < 60 && Number.isFinite(toleranse); vakt++) {
     const str = gjenger.map(g => g.spillere.length)
-    if (Math.max(...str) - Math.min(...str) <= 3) break
+    if (Math.max(...str) - Math.min(...str) <= toleranse) break
     const fra = str.indexOf(Math.max(...str))
     const naboer = [fra - 1, fra + 1].filter(j => j >= 0 && j < gjenger.length && str[j] < str[fra] - 1)
     let flyttet = false
@@ -489,10 +498,14 @@ export function standardType(form) { return form === 'lag' ? 'mix' : 'diff' }
 export function standardAntall(form, n, drill = null, nivaer = 0) {
   if (!n) return 0
   if (form === 'lag') return antallLag(drill || { type: 'mix' }, n)
-  return Math.max(1, Math.min(n, nivaer || 3))
+  return Math.max(1, Math.min(n, nivaer >= 2 ? nivaer : 3))
 }
 
-export function delInn({ spillere = [], trenere = [], form = 'grupper', type = null, antall = null, runde = 0, seed = 1, drill = null } = {}) {
+// balanse (bare grupper på nivå): 'niva' = rent nivå, gruppene kan bli ulikt
+// store. 'antall' = nivå først, så jevnet ut til maks én i forskjell.
+// Uten: den gamle regelen, maks tre i forskjell.
+const TOLERANSE = { niva: Infinity, antall: 1 }
+export function delInn({ spillere = [], trenere = [], form = 'grupper', type = null, antall = null, runde = 0, seed = 1, drill = null, balanse = null } = {}) {
   type = type || standardType(form)
   const n = spillere.length
   const nivaer = type === 'diff' ? new Set(spillere.filter(s => s.niva in RANG).map(s => s.niva)).size : 0
@@ -507,7 +520,7 @@ export function delInn({ spillere = [], trenere = [], form = 'grupper', type = n
   const nivaAv = Object.fromEntries(spillere.map(s => [s.id, nivaTil(s)]))
   const somDel = ids => ({ nivaer: NIVAER.filter(v => ids.some(id => nivaAv[id] === v)), spillere: ids, trenere: [] })
   const deler = form === 'grupper' && type === 'diff'
-    ? lagGjenger(spillere, trenere, runde, seed, N)
+    ? lagGjenger(spillere, trenere, runde, seed, N, TOLERANSE[balanse] ?? 3)
     : lagGrupper(spillere, N, type, seed).map(somDel)
 
   if (form === 'grupper') {

@@ -1,7 +1,7 @@
 <script setup>
 import { useKlubbmerke } from '../composables/useKlubbmerke'
 import Spot from '../components/Spot.vue'
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useToday } from '../composables/useToday'
 import { useMatches } from '../composables/useMatches'
@@ -24,9 +24,10 @@ import { useOnboarding } from '../composables/useOnboarding'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import { dagLink } from '../lib/trainingLinks'
 import { hentDagensOppmote } from '../composables/useTreningsOkt'
+import { useDelInn } from '../composables/useDelInn'
 
 const {
-  loading, refresh, greeting,
+  loading, refresh, followDay, today, greeting,
   todayMatches, todayCupMatches, todayTraining,
   prepFor, reminders, nextTraining, nextMatch, otherTeamsNext, weekAhead
 } = useToday()
@@ -53,7 +54,7 @@ const { cupFirst } = useCupFirst()
 // Før gjettet reconcileWithCoaches seg fram på navn når trener-id-en var
 // ukjent, og bommet stille — man fikk et annet lags kamper og alt så riktig ut.
 // Nå står det her i stedet.
-const { identityIncomplete, isCoach } = useAuth()
+const { identityIncomplete, isCoach, coach } = useAuth()
 
 // Dagens trening for trenere: rett til opptellingen eller kjøreplanen, med
 // oppmøtet i linja. null = ikke telt opp ennå.
@@ -87,6 +88,29 @@ const ingenCup = computed(() =>
 
 const ready = ref(false)
 
+// Appen står åpen over natta på telefonen: «i dag» flytter seg ved midnatt,
+// og Hjem hentes på nytt når appen kommer fram igjen.
+followDay()
+
+// Dagens Del inn, delt: har en trener delt inn, står det på knappen hos alle.
+const delInn = useDelInn()
+let stoppDelInn = null
+watch(isCoach, c => {
+  stoppDelInn?.(); stoppDelInn = null
+  if (c) stoppDelInn = delInn.folg()
+}, { immediate: true })
+onUnmounted(() => stoppDelInn?.())
+const delInnLinje = computed(() => {
+  const d = delInn.dag.value
+  if (!d?.endret_at) return ''
+  const kl = new Date(d.endret_at).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+  const hva = d.valg?.form === 'lag' ? 'Lag' : 'Grupper'
+  const hvem = d.endret_av && d.endret_av === coach.value?.id
+    ? 'deg'
+    : (coaches.value.find(c => c.id === d.endret_av)?.name?.split(' ')[0] || d.endret_navn?.split(' ')[0])
+  return hvem ? `${hva} · delt ${kl} av ${hvem}` : `${hva} · delt ${kl}`
+})
+
 const { endringer: terminlisteEndringer, sjekkNarLedig } = useTerminlisteVarsel()
 
 onMounted(async () => {
@@ -98,7 +122,7 @@ onMounted(async () => {
 })
 
 const dateLine = computed(() => {
-  const s = new Date().toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' })
+  const s = new Date(today.value + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' })
   return s.charAt(0).toUpperCase() + s.slice(1)
 })
 
@@ -215,7 +239,10 @@ function coachNamesForMatch(matchId) {
       <!-- Del inn. Bare for trenere. -->
       <RouterLink v-if="isCoach && !onboardingActive" to="/del-inn" class="hjem-delinn ds-anim-fade-up ds-anim-delay-2">
         <svg class="hjem-delinn__ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="8" r="3" /><circle cx="17" cy="8" r="3" /><path d="M2 20c0-3 2.2-5 5-5s5 2 5 5" /><path d="M12 20c0-3 2.2-5 5-5s5 2 5 5" /></svg>
-        <span class="hjem-delinn__tittel">Del inn</span>
+        <span class="hjem-delinn__tekst">
+          <span class="hjem-delinn__tittel">Del inn</span>
+          <span v-if="delInnLinje" class="hjem-delinn__linje">{{ delInnLinje }}</span>
+        </span>
         <svg class="hjem-delinn__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
       </RouterLink>
 
@@ -324,22 +351,50 @@ function coachNamesForMatch(matchId) {
   font-size: var(--ds-text-sm);
 }
 
+/* Del inn brukes hver trening og skal være lett å treffe — men en hel
+   aksentflate konkurrerte med knappen på neste kamp. Nå et løftet kort med
+   en aksentflis: like stort trykkmål, én aksent på skjermen i stedet for to. */
 .hjem-delinn {
   display: flex;
   align-items: center;
   gap: var(--ds-space-md);
-  min-height: 72px;
-  padding: var(--ds-space-md) var(--ds-space-lg);
+  min-height: 80px;
+  padding: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-md) var(--ds-space-md);
   border-radius: var(--ds-radius-lg);
-  background: var(--ds-color-accent);
-  color: var(--ds-color-accent-text);
+  background: var(--ds-color-bg-elevated);
+  border: var(--ds-border-width) solid var(--ds-color-border);
+  box-shadow: var(--ds-shadow-sm);
+  color: var(--ds-color-text-primary);
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
+  transition:
+    transform var(--ds-duration-fast) var(--ds-ease-out),
+    border-color var(--ds-duration-fast) var(--ds-ease-out),
+    box-shadow var(--ds-duration-fast) var(--ds-ease-out);
 }
-.hjem-delinn:active { background: var(--ds-color-accent-hover, var(--ds-color-accent)); }
-.hjem-delinn__ikon { flex: none; width: 24px; height: 24px; }
-.hjem-delinn__pil { flex: none; width: 20px; height: 20px; }
-.hjem-delinn__tittel { flex: 1; min-width: 0; font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); }
+.hjem-delinn:active { transform: scale(0.99); }
+@media (hover: hover) and (pointer: fine) {
+  .hjem-delinn:hover { border-color: var(--ds-color-border-strong); box-shadow: var(--ds-shadow-md); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hjem-delinn { transition: none; }
+  .hjem-delinn:active { transform: none; }
+}
+/* Flisa: selve ikonet, med polstring og fyll — ingen ekstra markup. */
+.hjem-delinn__ikon {
+  flex: none;
+  box-sizing: border-box;
+  width: 48px;
+  height: 48px;
+  padding: 12px;
+  border-radius: 14px;
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+}
+.hjem-delinn__pil { flex: none; width: 20px; height: 20px; color: var(--ds-color-text-tertiary); }
+.hjem-delinn__tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hjem-delinn__tittel { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); line-height: 1.3; }
+.hjem-delinn__linje { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; }
 
 .hjem-hero {
   padding-top: var(--ds-space-xl);
@@ -362,15 +417,22 @@ function coachNamesForMatch(matchId) {
   color: var(--ds-color-text-tertiary);
 }
 
+/* Rytme: tett innenfor en gruppe (kortene øverst, radene i en seksjon),
+   luft før hver ny seksjon. Før var alt 16 + 8, og seksjonene klistret seg
+   til kortet over. */
 .hjem-stack {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-md);
+  gap: 12px;
   padding-bottom: var(--ds-space-2xl);
 }
 
+.hjem-stack > section:not(:first-child) {
+  margin-top: 20px;
+}
+
 .hjem-section-kicker {
-  margin: var(--ds-space-sm) 0 var(--ds-space-sm);
+  margin: 0 0 12px;
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);

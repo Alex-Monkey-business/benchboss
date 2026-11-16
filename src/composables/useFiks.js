@@ -3,6 +3,7 @@ import { supabase, isSupabaseConfigured } from '../supabase'
 import { useAuth } from '../stores/auth'
 import { useSeasonTeams } from './useSeasonTeams'
 import { useMatches } from './useMatches'
+import { useSeasons } from './useSeasons'
 import {
   FIKS_BASE, CLUB_SEARCH_URL, clubSearchBody, parseClubSearch, usableClub,
   parseClubTeams, parseTerminliste, diffTerminliste, parKamper, ageClass,
@@ -57,6 +58,7 @@ export function useFiks() {
   const { activeCohort, refreshMember, coach, isPlatformAdmin } = useAuth()
   const { seasonTeams, reloadTeams, invalidateTeamCoaches } = useSeasonTeams()
   const { matches, bulkAddMatches, backfillDefaultCoaches } = useMatches()
+  const { activeSeason } = useSeasons()
 
   const searching = ref(false)
   const working = ref(false)
@@ -550,12 +552,17 @@ export function useFiks() {
 
   // Kamper fotball.no har som vi ikke har.
   //
-  // Sesongen tas fra kampen som ligger NÆRMEST I TID, ikke fra den man ser
-  // på: Halsen har vinter, vår og høst i samme kull, og en ny februarkamp
-  // som havner i høstsesongen er verre enn ingen kamp.
+  // Kommende kamper hører til den AKTIVE sesongen. Før tok de sesongen fra
+  // kampen nærmest i tid — men i en splitter ny vintersesong uten kamper er
+  // nærmeste kamp fra høsten, og hele vinteren havnet der. Kamper bakover i
+  // tid tar fortsatt sesongen fra nabokampen: Halsen har vinter, vår og høst
+  // i samme kull, og en februarkamp i høstsesongen er verre enn ingen kamp.
+  // Uten aktiv sesong gjelder nærmeste kamp for alt, som før.
   async function leggTilNye(nye, fallbackSeason = null) {
     const cohort = activeCohort.value
     if (!nye?.length || !cohort?.id || !isSupabaseConfigured) return 0
+    const aktiv = activeSeason.value?.status === 'active' ? activeSeason.value.id : null
+    const idag = localISODate(new Date())
 
     const { data: kjente } = await supabase
       .from('matches')
@@ -564,6 +571,7 @@ export function useFiks() {
       .not('season_id', 'is', null)
 
     const sesongFor = dato => {
+      if (aktiv && dato >= idag) return aktiv
       let best = fallbackSeason
       let minst = Infinity
       for (const m of kjente || []) {

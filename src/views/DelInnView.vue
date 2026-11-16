@@ -1,17 +1,18 @@
 <script setup>
-// DEL INN — grupper eller lag på sekunder, når som helst.
+// DEL INN — grupper eller lag på sekunder, delt mellom trenerne.
 //
-// Fritt verktøy fra Hjem: kampoppvarming, cup, eller når planen ikke passer.
-// Samme motor som kjøreplanen (lib/grupper → delInn), så det som vises her er
-// det samme kjøreplanen ville laget.
+// Én trener teller opp og deler inn; de andre ser det samme på sin telefon
+// innen noen sekunder (useDelInn, én rad per kull per dag). Gruppene regnes
+// ut på hver telefon med samme motor (lib/grupper → delInn), av de samme
+// valgene, så alle ser det samme.
 //
-// Hvem som er med: dagens oppmøte hvis det er lagret, ellers hele kullet.
-// Endringer her er bare på denne telefonen. Ingenting lagres, med mindre det
-// er trening i dag. Er oppmøtet ikke telt ennå, starter «Start dagens
-// trening med disse» økta med dem som er med og denne inndelingen. Er det
-// telt, bytter «Bruk som dagens grupper/lag» den ene delen av planen, hos alle
-// trenerne, og kan angres.
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+// Hvem som er med:
+//   - Trening i dag: oppmøtet på økta. Første trykk lagrer oppmøtet, så
+//     statistikken teller som før.
+//   - Andre dager: listen står i Del inn-raden. Ikke telt = hele kullet.
+//   - Gjester (spillere fra andre lag) står alltid i Del inn-raden, med navn
+//     og nivå. De er med i fordelingen, ikke i lagets oppmøtestatistikk.
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
 import { useExercises, resolveDrills } from '../composables/useExercises'
@@ -19,9 +20,10 @@ import { usePlayers } from '../composables/usePlayers'
 import { usePlayerLevels } from '../composables/usePlayerLevels'
 import { useCoaches } from '../composables/useCoaches'
 import { useTreningsOkt, hentDagensOppmote, erTreningsdag } from '../composables/useTreningsOkt'
+import { useDelInn } from '../composables/useDelInn'
 import { useToast } from '../composables/useToast'
 import { useAuth } from '../stores/auth'
-import { delInn, kortnavn, ovelseNokkel, lagGjenger, trekkLag, antallLag } from '../lib/grupper'
+import { delInn, kortnavn } from '../lib/grupper'
 import { meldEvent } from '../lib/sporing'
 import OppmoteGrid from '../components/OppmoteGrid.vue'
 import Sheet from '../components/Sheet.vue'
@@ -36,6 +38,7 @@ const { fetchPlayerLevels, levelFor } = usePlayerLevels()
 const { coaches, fetchCoaches } = useCoaches()
 const okt = useTreningsOkt()
 const run = okt.run
+const delt = useDelInn()
 const toast = useToast()
 
 // Dagens trening: den med dagens ukedag. Har flere den, vinner den som har
@@ -44,17 +47,20 @@ const idag = (() => { const d = new Date().getDay(); return d === 0 ? 7 : d })()
 const lagretIdag = ref(null) // null = ikke hentet ennå
 const session = computed(() => {
   if (!lagretIdag.value) return null
-  const dagens = days.value.filter(s => s.weekday === idag)
+  const dagens = days.value.filter(s => s.weekday === idag && erTreningsdag(s))
   return dagens.find(s => s.id in lagretIdag.value) || dagens[0] || null
 })
 const drills = computed(() => (session.value ? resolveDrills(session.value.drills, exercises.value) : []))
 const dagensRun = computed(() => (run.value && !run.value.lokal && session.value && run.value.session_id === session.value.id ? run.value : null))
-// Klar når vi vet hvem som er med: ellers blinker hele kullet før dagens
-// oppmøte kommer.
-const klar = computed(() => !!players.value.length && !!lagretIdag.value && (!session.value || okt.lastet.value))
-const rigger = computed(() => dagensRun.value?.state?._rigger || null)
+const dag = computed(() => delt.dag.value)
+const klar = computed(() => !!players.value.length && !!lagretIdag.value && delt.lastet.value && (!session.value || okt.lastet.value))
 
-const navn = computed(() => kortnavn(players.value))
+const gjester = computed(() => dag.value?.gjester || [])
+const gjestIder = computed(() => new Set(gjester.value.map(g => g.id)))
+const navn = computed(() => ({
+  ...kortnavn(players.value),
+  ...Object.fromEntries(gjester.value.map(g => [g.id, g.navn]))
+}))
 const trenerNavn = computed(() => kortnavn(coaches.value))
 const navnPa = ids => {
   const n = ids.map(id => trenerNavn.value[id]).filter(Boolean)
@@ -62,161 +68,175 @@ const navnPa = ids => {
 }
 
 // ── Hvem er med ─────────────────────────────────────────────────────────────
-// Utgangspunktet er dagens oppmøte (uten riggeren), ellers alle. Det du
-// trykker her, legger seg oppå og gjelder bare denne telefonen.
-const spillerValg = ref({})
-const trenerValg = ref({})
-const baseSpillere = computed(() => new Set(dagensRun.value ? dagensRun.value.spillere : players.value.map(p => p.id)))
-// Trenerne er valgfrie: på treningsdagen er det de som er telt opp, ellers
-// ingen. Antall grupper følger spillerne uansett.
-const baseTrenere = computed(() => new Set(dagensRun.value ? dagensRun.value.trenere.filter(id => id !== rigger.value) : []))
-const erHer = id => (id in spillerValg.value ? spillerValg.value[id] : baseSpillere.value.has(id))
-const trenerHer = id => (id in trenerValg.value ? trenerValg.value[id] : baseTrenere.value.has(id))
-const sortert = computed(() => [...players.value].sort((a, b) => a.name.localeCompare(b.name, 'no')))
-const her = computed(() => players.value.filter(p => erHer(p.id)).map(p => ({ id: p.id, niva: levelFor(p.id) })))
-const trenere = computed(() => coaches.value.filter(c => trenerHer(c.id)).map(c => c.id))
-const visOppmote = ref(false)
-function vekslSpiller(id) { spillerValg.value = { ...spillerValg.value, [id]: !erHer(id) } }
-function vekslTrener(id) { trenerValg.value = { ...trenerValg.value, [id]: !trenerHer(id) } }
-
-// ── Valgene ─────────────────────────────────────────────────────────────────
-// Hver fane husker sitt: type, antall (null = regnet ut) og frø.
-const form = ref('grupper')
-const valg = ref({
-  grupper: { type: 'diff', antall: null, seed: 1 },
-  lag: { type: 'mix', antall: null, seed: 1 }
+// Trykk som ikke er lagret ennå, ligger oppå til lagringen er ferdig, så
+// brikken skifter med en gang.
+const ventSp = ref({})
+const ventTr = ref({})
+const baseSpillere = computed(() => {
+  if (dagensRun.value) return new Set(dagensRun.value.spillere)
+  if (!session.value && dag.value?.spillere) return new Set(dag.value.spillere)
+  return new Set(players.value.map(p => p.id))
 })
-const v = computed(() => valg.value[form.value])
-function sett(endring) {
-  valg.value = { ...valg.value, [form.value]: { ...v.value, ...endring } }
+const baseTrenere = computed(() => {
+  if (dagensRun.value) return new Set(dagensRun.value.trenere)
+  if (!session.value && dag.value?.trenere) return new Set(dag.value.trenere)
+  return new Set()
+})
+const erHer = id => (id in ventSp.value ? ventSp.value[id] : baseSpillere.value.has(id))
+const trenerHer = id => (id in ventTr.value ? ventTr.value[id] : baseTrenere.value.has(id))
+const sortert = computed(() => [...players.value].sort((a, b) => a.name.localeCompare(b.name, 'no')))
+// Sortert på id: rekkefølgen styrer trekningen, og den skal være lik på alle
+// telefonene uansett hvordan lista kom fra serveren.
+const her = computed(() => [
+  ...players.value.filter(p => erHer(p.id)).map(p => ({ id: p.id, niva: levelFor(p.id) })),
+  ...gjester.value.map(g => ({ id: g.id, niva: g.niva || null }))
+].sort((a, b) => (a.id < b.id ? -1 : 1)))
+const trenere = computed(() => coaches.value.filter(c => trenerHer(c.id)).map(c => c.id).sort())
+const visOppmote = ref(false)
+
+// Trening i dag uten lagret oppmøte: første trykk lagrer det, med alle
+// spillerne og de trenerne som er krysset av.
+let starter = null
+async function sikreOkt() {
+  if (dagensRun.value) return true
+  if (!starter) {
+    const sp = players.value.map(p => p.id)
+    const tr = coaches.value.filter(c => baseTrenere.value.has(c.id)).map(c => c.id)
+    starter = okt.start(session.value, sp, tr).finally(() => { starter = null })
+  }
+  return starter
 }
+
+async function vekslSpiller(id) {
+  const til = !erHer(id)
+  ventSp.value = { ...ventSp.value, [id]: til }
+  try {
+    if (session.value) {
+      if (await sikreOkt()) await okt.settSpiller(id, til)
+      else toast.show('Fikk ikke lagret oppmøtet. Prøv igjen.', 'error')
+    } else {
+      const liste = players.value.map(p => p.id).filter(x => erHer(x))
+      await delt.lagre({ spillere: liste }, coach.value)
+    }
+  } finally {
+    const { [id]: _, ...rest } = ventSp.value
+    ventSp.value = rest
+  }
+}
+async function vekslTrener(id) {
+  const til = !trenerHer(id)
+  ventTr.value = { ...ventTr.value, [id]: til }
+  try {
+    if (session.value) {
+      if (await sikreOkt()) await okt.settTrener(id, til)
+    } else {
+      const liste = coaches.value.map(c => c.id).filter(x => trenerHer(x))
+      await delt.lagre({ trenere: liste }, coach.value)
+    }
+  } finally {
+    const { [id]: _, ...rest } = ventTr.value
+    ventTr.value = rest
+  }
+}
+
+// ── Gjester ─────────────────────────────────────────────────────────────────
+// En spiller fra et annet lag, bare for i dag. Navn og nivå; uten nivå havner
+// gjesten i midten (B), som en spiller uten nivå.
+const nyGjest = ref({ navn: '', niva: 'B' })
+const leggerTilGjest = ref(false)
+async function leggTilGjest() {
+  const navnet = nyGjest.value.navn.trim()
+  if (!navnet) return
+  const id = `gjest-${Date.now().toString(36)}${Math.random().toString(36).slice(2, 6)}`
+  const niva = nyGjest.value.niva
+  // Skjemaet lukkes med en gang; lagringen går i bakgrunnen.
+  nyGjest.value = { navn: '', niva }
+  leggerTilGjest.value = false
+  meldEvent('del_inn_gjest_lagt_til', { niva })
+  await delt.lagre({ gjester: [...gjester.value, { id, navn: navnet, niva }] }, coach.value)
+}
+async function fjernGjest(id) {
+  await delt.lagre({ gjester: gjester.value.filter(g => g.id !== id) }, coach.value)
+}
+
+// ── Valgene, delt ───────────────────────────────────────────────────────────
+// Hver fane husker sitt: type, antall (null = regnet ut) og frø.
+const STANDARD = {
+  form: 'grupper',
+  grupper: { type: 'diff', antall: null, seed: 1, balanse: 'antall' },
+  lag: { type: 'mix', antall: null, seed: 1 }
+}
+const valg = computed(() => {
+  const d = dag.value?.valg || {}
+  return {
+    form: d.form || STANDARD.form,
+    grupper: { ...STANDARD.grupper, ...(d.grupper || {}) },
+    lag: { ...STANDARD.lag, ...(d.lag || {}) }
+  }
+})
+const form = computed(() => valg.value.form)
+const v = computed(() => valg.value[form.value])
+function settValg(endring) {
+  delt.lagre({ valg: { ...valg.value, ...endring } }, coach.value)
+}
+function sett(endring) {
+  settValg({ [form.value]: { ...v.value, ...endring } })
+}
+function velgForm(f) { if (f !== form.value) settValg({ form: f }) }
 const forsteMix = computed(() => drills.value.find(d => d.type === 'mix') || null)
-const innData = computed(() => ({
+const runde = computed(() => dagensRun.value?.state?._runde || 0)
+const resultat = computed(() => delInn({
   spillere: her.value,
   trenere: trenere.value,
   form: form.value,
   type: v.value.type,
   antall: v.value.antall,
-  runde: dagensRun.value?.state?._runde || 0,
-  seed: v.value.seed + (dagensRun.value?.state?._runde || 0),
-  drill: form.value === 'lag' ? forsteMix.value : null
+  runde: runde.value,
+  seed: v.value.seed + runde.value,
+  drill: form.value === 'lag' ? forsteMix.value : null,
+  balanse: v.value.balanse || null
 }))
-const resultat = computed(() => delInn(innData.value))
+function velgBalanse(b) { if (b !== v.value.balanse) sett({ balanse: b }) }
 const min = computed(() => (form.value === 'lag' ? 2 : 1))
 const maks = computed(() => Math.max(min.value, Math.min(6, form.value === 'lag' ? Math.floor(her.value.length / 2) : her.value.length)))
-function velgType(t) { sett({ type: t, antall: null }) }
+function velgType(t) { if (t !== v.value.type) sett({ type: t, antall: null }) }
 function velgAntall(n) { sett({ antall: n }) }
 function trekkPaNytt() {
   sett({ seed: v.value.seed + 1 })
   meldEvent('del_inn_trukket', { form: form.value })
 }
 
-// ── Til dagens trening ──────────────────────────────────────────────────────
-// Er oppmøtet telt, byttes den ene delen av planen; den andre står urørt.
-// Ingen dialog — «Angre» i meldingen etterpå. Er det ikke telt ennå, starter
-// knappen økta med dem som er med her og denne inndelingen.
-const kanBruke = computed(() => !!dagensRun.value && !!her.value.length)
-const kanStarte = computed(() => !dagensRun.value && !!session.value && erTreningsdag(session.value) && !!her.value.length)
-const knappTekst = computed(() => (kanStarte.value
-  ? 'Start dagens trening med disse'
-  : form.value === 'lag' ? 'Bruk som dagens lag' : 'Bruk som dagens grupper'))
+// «Endret 17:05 av Alex», eller «av deg».
+const endretTekst = computed(() => {
+  const d = dag.value
+  if (!d?.endret_at) return ''
+  const kl = new Date(d.endret_at).toLocaleTimeString('nb-NO', { hour: '2-digit', minute: '2-digit' })
+  const hvem = d.endret_av && d.endret_av === coach.value?.id ? 'deg' : (trenerNavn.value[d.endret_av] || d.endret_navn)
+  return hvem ? `Endret ${kl} av ${hvem}` : `Endret ${kl}`
+})
 
-// Del inn-gruppene slik kjøreplanen lagrer dem.
-function somGjenger(res) {
-  const teller = {}
-  return res.enheter.map(e => {
-    const nivaer = res.type === 'diff' ? e.nivaer : []
-    const k = nivaer.join('') || 'G'
-    teller[k] = (teller[k] || 0) + 1
-    return { id: k + teller[k], nivaer, spillere: e.spillere, trenere: e.trenere }
-  })
-}
-// Antall lag på hver mix-øvelse satt til det valgte.
-function antallPaMix(fra, n) {
-  const antall = { ...(fra || {}) }
-  drills.value.forEach((d, i) => { if (d.type === 'mix') antall[ovelseNokkel(i, d)] = n })
-  return antall
+// Byttet en annen trener noe mens du ser på? Si fra, kort.
+watch(() => dag.value?.endret_at, (ny, gammel) => {
+  const d = dag.value
+  if (!gammel || !ny || !d || d.endret_av === coach.value?.id) return
+  const hvem = trenerNavn.value[d.endret_av] || d.endret_navn
+  if (hvem) toast.show(`${hvem} endret inndelingen`, 'info', 2500)
+})
+
+async function nullstill() {
+  await delt.nullstill()
+  meldEvent('del_inn_nullstilt')
 }
 
-// Ett trykk er ett bytte: et dobbelttrykk skal ikke gi to meldinger og
-// to steg i historikken.
-let bruker = false
-async function bruk() {
-  if (kanStarte.value) return start()
-  const r = dagensRun.value
-  if (!r || bruker) return
-  bruker = true
-  const st = r.state || {}
-  const hva = form.value
-  const res = resultat.value
-  const endret = { ...(st._endret || {}), [hva]: { tid: new Date().toISOString(), av: coach.value?.id || null, navn: coach.value?.name || null } }
-  const forrige = { _endret: st._endret ?? null }
-  if (hva === 'grupper') {
-    forrige._gjenger = st._gjenger ?? null
-    await okt.settInngrep('_gjenger', somGjenger(res))
-  } else {
-    forrige._lag = st._lag ?? null
-    forrige._antall = st._antall ?? null
-    const n = res.antall
-    await okt.settInngrep('_lag', { ...(st._lag || {}), [n]: res.enheter.map(e => e.spillere) })
-    await okt.settInngrep('_antall', antallPaMix(st._antall, n))
-  }
-  await okt.settInngrep('_endret', endret)
-  meldEvent('del_inn_brukt', { form: hva, type: res.type, antall: res.antall })
-  await router.push(`/trening/okt/${r.session_id}#${hva}`)
-  bruker = false
-  toast.show(hva === 'lag' ? 'Dagens lag er byttet' : 'Dagens grupper er byttet', 'success', 6000, {
-    action: {
-      label: 'Angre',
-      handler: async () => {
-        if (run.value?.id !== r.id) return
-        for (const [k, val] of Object.entries(forrige)) await okt.settInngrep(k, val)
-        meldEvent('del_inn_angret', { form: hva })
-      }
-    }
-  })
-}
-
-// Oppmøtet lagres med dem som er med her. Den delen du ser, er din
-// inndeling; den andre lages som i opptellingen. Trenerrotasjonen er først
-// kjent når økta lagres, så gruppene regnes på nytt med den.
-async function start() {
-  const s = session.value
-  if (!s || bruker) return
-  bruker = true
-  const hva = form.value
-  const sp = her.value.map(p => p.id)
-  const tr = [...trenere.value]
-  const harDiff = drills.value.some(d => d.type === 'diff')
-  const mix = drills.value.filter(d => d.type === 'mix')
-  const plan = runde => {
-    const res = delInn({ ...innData.value, runde, seed: v.value.seed + runde })
-    const ut = {}
-    if (hva === 'grupper') {
-      ut._gjenger = somGjenger(res)
-      const tall = [...new Set(mix.map(d => antallLag(d, sp.length)))]
-      if (tall.length) ut._lag = Object.fromEntries(tall.map(n => [n, trekkLag(her.value, n, runde + 1)]))
-    } else {
-      if (harDiff) ut._gjenger = lagGjenger(her.value, tr, runde, runde + 1)
-      ut._lag = { [res.antall]: res.enheter.map(e => e.spillere) }
-      ut._antall = antallPaMix(null, res.antall)
-    }
-    return ut
-  }
-  const ok = await okt.start(s, sp, tr, null, plan)
-  bruker = false
-  if (!ok) { toast.show('Fikk ikke lagret oppmøtet. Prøv igjen.', 'error'); return }
-  meldEvent('del_inn_startet', { form: hva, spillere: sp.length, trenere: tr.length })
-  await router.push(`/trening/okt/${s.id}#${hva}`)
-}
-
-let stopp = null
+let stoppOkt = null
+let stoppDelt = null
 watch(session, s => {
-  stopp?.()
-  stopp = s ? okt.folg(s) : null
+  stoppOkt?.()
+  stoppOkt = s ? okt.folg(s) : null
 }, { immediate: true })
 onMounted(() => {
   hentDagensOppmote().then(m => { lagretIdag.value = m || {} })
+  stoppDelt = delt.folg()
   fetchWeek()
   fetchExercises()
   fetchPlayers()
@@ -224,7 +244,9 @@ onMounted(() => {
   fetchCoaches()
   meldEvent('del_inn_apnet')
 })
-onUnmounted(() => stopp?.())
+onUnmounted(() => { stoppOkt?.(); stoppDelt?.() })
+
+const sorterNavn = ids => ids.filter(id => navn.value[id]).sort((a, b) => navn.value[a].localeCompare(navn.value[b], 'no'))
 
 function tilbake() {
   if (window.history.state?.back) router.back()
@@ -239,7 +261,7 @@ function tilbake() {
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
       </button>
       <span class="del__title">Del inn</span>
-      <button v-if="isCoach" type="button" class="del__her" @click="visOppmote = true">
+      <button v-if="isCoach && klar" type="button" class="del__her" @click="visOppmote = true">
         <svg class="del__her-ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="9" cy="8" r="3.2" /><path d="M3 20c0-3.3 2.7-6 6-6s6 2.7 6 6" /><path d="M16 4.5a3.2 3.2 0 0 1 0 6.3" /><path d="M18 14.3c1.8.8 3 2.6 3 4.7" /></svg>
         <span><strong>{{ her.length }}</strong> {{ her.length === 1 ? 'spiller' : 'spillere' }}<template v-if="trenere.length"> · <strong>{{ trenere.length }}</strong> {{ trenere.length === 1 ? 'trener' : 'trenere' }}</template></span>
         <svg class="del__her-pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
@@ -251,23 +273,37 @@ function tilbake() {
 
     <template v-else>
       <div class="del__styr">
+        <div class="del__fane" role="tablist" aria-label="Grupper eller lag">
+          <button type="button" role="tab" :class="['del__fane-knapp', { 'del__fane-knapp--aktiv': form === 'grupper' }]" :aria-selected="form === 'grupper' ? 'true' : 'false'" @click="velgForm('grupper')">Grupper</button>
+          <button type="button" role="tab" :class="['del__fane-knapp', { 'del__fane-knapp--aktiv': form === 'lag' }]" :aria-selected="form === 'lag' ? 'true' : 'false'" @click="velgForm('lag')">Lag</button>
+        </div>
         <div class="del__rad">
-          <div class="ds-pills" role="group" aria-label="Grupper eller lag">
-            <button type="button" :class="['ds-pill', 'seg__knapp', { 'ds-pill--active': form === 'grupper' }]" :aria-pressed="form === 'grupper' ? 'true' : 'false'" @click="form = 'grupper'">Grupper</button>
-            <button type="button" :class="['ds-pill', 'seg__knapp', { 'ds-pill--active': form === 'lag' }]" :aria-pressed="form === 'lag' ? 'true' : 'false'" @click="form = 'lag'">Lag</button>
-          </div>
           <div class="ds-pills" role="group" aria-label="Nivå">
-            <button type="button" :class="['ds-pill', 'seg__knapp', { 'ds-pill--active': v.type === 'diff' }]" :aria-pressed="v.type === 'diff' ? 'true' : 'false'" @click="velgType('diff')">Diff</button>
-            <button type="button" :class="['ds-pill', 'seg__knapp', { 'ds-pill--active': v.type === 'mix' }]" :aria-pressed="v.type === 'mix' ? 'true' : 'false'" @click="velgType('mix')">Mix</button>
+            <button type="button" :class="['ds-pill', { 'ds-pill--active': v.type === 'diff' }]" :aria-pressed="v.type === 'diff' ? 'true' : 'false'" @click="velgType('diff')">Diff</button>
+            <button type="button" :class="['ds-pill', { 'ds-pill--active': v.type === 'mix' }]" :aria-pressed="v.type === 'mix' ? 'true' : 'false'" @click="velgType('mix')">Mix</button>
           </div>
-        </div>
-        <div class="del__rad">
           <Steg :verdi="resultat.antall" :min="min" :maks="maks" :navn="form === 'lag' ? 'Antall lag' : 'Antall grupper'" @endre="velgAntall" />
-          <button v-if="form === 'lag'" type="button" class="del__trekk" @click="trekkPaNytt">Trekk på nytt</button>
-          <span v-else-if="resultat.info" class="del__info">{{ resultat.info }}</span>
         </div>
-        <p v-if="form === 'lag' && resultat.info" class="del__info del__info--under">{{ resultat.info }}</p>
+        <div v-if="form === 'grupper' && v.type === 'diff'" class="del__balanse" role="group" aria-label="Hvordan nivågruppene deles">
+          <button type="button" :class="['del__balanse-knapp', { 'del__balanse-knapp--aktiv': v.balanse === 'niva' }]" :aria-pressed="v.balanse === 'niva' ? 'true' : 'false'" @click="velgBalanse('niva')">
+            <strong>Rent nivå</strong>
+            <span>Kan bli ulikt store</span>
+          </button>
+          <button type="button" :class="['del__balanse-knapp', { 'del__balanse-knapp--aktiv': v.balanse === 'antall' }]" :aria-pressed="v.balanse === 'antall' ? 'true' : 'false'" @click="velgBalanse('antall')">
+            <strong>Like store</strong>
+            <span>Nivå først, så jevnet ut</span>
+          </button>
+        </div>
+        <div v-if="resultat.info || form === 'lag'" class="del__rad del__rad--info">
+          <span class="del__info">{{ resultat.info }}</span>
+          <button v-if="form === 'lag'" type="button" class="del__trekk" @click="trekkPaNytt">Trekk på nytt</button>
+        </div>
       </div>
+
+      <p class="del__delt" aria-live="polite">
+        <span class="del__delt-prikk" aria-hidden="true" />
+        <span>{{ endretTekst || 'Trenerne ser det samme som deg' }}</span>
+      </p>
 
       <p v-if="!her.length" class="del__tom">Ingen er med.</p>
 
@@ -281,7 +317,7 @@ function tilbake() {
             </span>
             <span class="kort__ant">{{ e.spillere.length }}</span>
           </div>
-          <p class="kort__navn">{{ e.spillere.map(id => navn[id]).join(' · ') }}</p>
+          <p class="kort__navn"><span v-for="(id, ni) in sorterNavn(e.spillere)" :key="id">{{ ni ? ' · ' : '' }}{{ navn[id] }}<span v-if="gjestIder.has(id)" class="kort__gjest"> gjest</span></span></p>
         </div>
       </div>
 
@@ -292,27 +328,26 @@ function tilbake() {
             <span v-if="b.trenere.length">{{ navnPa(b.trenere) }}</span>
           </p>
           <div class="kortene">
-            <div v-for="li in b.lag" :key="li" class="kort">
+            <div v-for="li in b.lag" :key="li" class="kort" :data-farge="resultat.enheter[li].navn">
               <div class="kort__hode">
+                <span class="kort__vest" aria-hidden="true" />
                 <span class="kort__tittel">{{ resultat.enheter[li].navn }}</span>
                 <span v-if="b.pluss === li" class="kort__pluss">+ trener</span>
                 <span class="kort__ant">{{ resultat.enheter[li].spillere.length }}</span>
               </div>
-              <p class="kort__navn">{{ resultat.enheter[li].spillere.map(id => navn[id]).join(' · ') }}</p>
+              <p class="kort__navn"><span v-for="(id, ni) in sorterNavn(resultat.enheter[li].spillere)" :key="id">{{ ni ? ' · ' : '' }}{{ navn[id] }}<span v-if="gjestIder.has(id)" class="kort__gjest"> gjest</span></span></p>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-if="kanBruke || kanStarte" class="del__fot">
-        <div class="del__fot-inn">
-          <button type="button" class="del__bruk" @click="bruk">{{ knappTekst }}</button>
-        </div>
+      <div v-if="dag" class="del__slutt">
+        <button type="button" class="del__nullstill" @click="nullstill">Start på nytt</button>
       </div>
     </template>
 
     <Sheet :show="visOppmote" title="Hvem mangler?" tall @close="visOppmote = false">
-      <p class="del__teller"><strong>{{ her.length }}</strong> av {{ players.length }}</p>
+      <p class="del__teller"><strong>{{ her.length }}</strong> av {{ players.length + gjester.length }}</p>
       <OppmoteGrid
         :spillere="sortert"
         :trenere="coaches"
@@ -324,6 +359,33 @@ function tilbake() {
         @spiller="vekslSpiller"
         @trener="vekslTrener"
       />
+
+      <section class="gjest">
+        <h3 class="gjest__tittel">Gjester</h3>
+        <p v-if="!gjester.length && !leggerTilGjest" class="gjest__hint">Spillere fra andre lag som er med i dag.</p>
+        <div v-if="gjester.length" class="gjest__liste">
+          <span v-for="g in gjester" :key="g.id" class="gjest__brikke">
+            <span class="gjest__niva">{{ g.niva || '–' }}</span>
+            {{ g.navn }}
+            <button type="button" class="gjest__fjern" :aria-label="`Fjern ${g.navn}`" @click="fjernGjest(g.id)">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>
+            </button>
+          </span>
+        </div>
+        <form v-if="leggerTilGjest" class="gjest__ny" @submit.prevent="leggTilGjest">
+          <input v-model="nyGjest.navn" class="ds-input" type="text" placeholder="Navn" aria-label="Navn på gjesten" autocomplete="off" enterkeyhint="done" autofocus />
+          <div class="gjest__rad">
+            <div class="ds-pills" role="group" aria-label="Nivå">
+              <button v-for="n in ['A', 'B', 'C']" :key="n" type="button" :class="['ds-pill', { 'ds-pill--active': nyGjest.niva === n }]" :aria-pressed="nyGjest.niva === n ? 'true' : 'false'" @click="nyGjest.niva = n">{{ n }}</button>
+            </div>
+            <button type="submit" class="ds-btn ds-btn--primary gjest__legg" :disabled="!nyGjest.navn.trim()">Legg til</button>
+          </div>
+        </form>
+        <button v-else type="button" class="gjest__apne" @click="leggerTilGjest = true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          Legg til gjest
+        </button>
+      </section>
       <template #footer>
         <button type="button" class="del__bruk" @click="visOppmote = false">Ferdig</button>
       </template>
@@ -335,7 +397,7 @@ function tilbake() {
 .del {
   min-height: 100vh;
   background: var(--ds-color-bg);
-  padding-bottom: calc(180px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(110px + env(safe-area-inset-bottom, 0px));
 }
 .del__bar {
   display: flex; align-items: center; gap: var(--ds-space-sm);
@@ -376,7 +438,56 @@ function tilbake() {
   border-bottom: 1px solid var(--ds-color-border-light, var(--ds-color-border));
 }
 .del__rad { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md); }
-.del__rad + .del__rad { margin-top: var(--ds-space-md); }
+.del__rad + .del__rad, .del__fane + .del__rad { margin-top: var(--ds-space-md); }
+.del__rad--info { min-height: 44px; margin-top: var(--ds-space-sm) !important; }
+.del__rad--info .del__info { text-align: left; }
+
+/* Grupper | Lag: faner i full bredde, som en segmentert bryter. */
+.del__fane {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  padding: 4px;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-subtle, var(--ds-color-bg-elevated));
+}
+.del__fane-knapp {
+  min-height: 44px;
+  border: 0; border-radius: var(--ds-radius-full);
+  background: transparent;
+  font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  transition: background-color .15s ease, color .15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+.del__fane-knapp--aktiv {
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-primary);
+  box-shadow: var(--ds-shadow-sm);
+}
+:global([data-theme="dark"]) .del__fane-knapp--aktiv { background: color-mix(in srgb, var(--ds-color-text-primary) 16%, var(--ds-color-bg-subtle)); }
+/* Diff | Mix like høye som − 3 + ved siden av. */
+.del__rad .ds-pill { min-height: 44px; padding: 0 18px; font-size: var(--ds-text-md); }
+
+/* Delt: at de andre trenerne ser det samme, og hvem som endret sist. */
+.del__delt {
+  max-width: 560px; margin: var(--ds-space-md) auto 0; padding: 0 var(--ds-space-lg);
+  display: flex; align-items: center; gap: 8px;
+  font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
+}
+.del__delt-prikk {
+  flex: none; width: 8px; height: 8px; border-radius: 50%;
+  background: var(--ds-color-success, var(--ds-color-accent));
+}
+
+.del__slutt { max-width: 560px; margin: var(--ds-space-xl) auto 0; padding: 0 var(--ds-space-lg); text-align: center; }
+.del__nullstill {
+  min-height: 44px; padding: 0 var(--ds-space-md);
+  border: 0; background: none;
+  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-secondary);
+  text-decoration: underline; text-underline-offset: 3px;
+  cursor: pointer;
+}
 
 .del__info { flex: 1; min-width: 0; text-align: right; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 .del__info--under { margin: var(--ds-space-sm) 0 0; text-align: left; }
@@ -389,7 +500,7 @@ function tilbake() {
   cursor: pointer;
 }
 
-.kortene { display: flex; flex-direction: column; gap: var(--ds-space-sm); padding: var(--ds-space-sm) var(--ds-space-lg) 0; }
+.kortene { display: flex; flex-direction: column; gap: var(--ds-space-sm); padding: var(--ds-space-md) var(--ds-space-lg) 0; }
 .bane .kortene { padding: 0; }
 .bane + .bane { margin-top: var(--ds-space-md); }
 .bane__hode {
@@ -401,9 +512,19 @@ function tilbake() {
 .kort {
   padding: var(--ds-space-md) var(--ds-space-lg);
   border-radius: var(--ds-radius-lg);
-  background: var(--ds-color-bg-subtle, var(--ds-color-bg-elevated));
+  background: var(--ds-color-bg-elevated);
+  border: 1px solid var(--ds-color-border-light, var(--ds-color-border));
+  box-shadow: var(--ds-shadow-xs, none);
 }
 .kort__hode { display: flex; align-items: center; gap: var(--ds-space-md); }
+/* Vestfargen som en prikk ved lagnavnet: lettere å finne «sitt» lag. */
+.kort__vest { flex: none; width: 14px; height: 14px; border-radius: 50%; background: var(--vest, var(--ds-color-text-tertiary)); box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .12); }
+.kort[data-farge="Gul"] { --vest: #F2C200; }
+.kort[data-farge="Rød"] { --vest: #D64545; }
+.kort[data-farge="Blå"] { --vest: #2F6FDB; }
+.kort[data-farge="Grønn"] { --vest: #2E9E5B; }
+.kort[data-farge="Oransje"] { --vest: #F07F1A; }
+.kort[data-farge="Hvit"] { --vest: #FFFFFF; }
 .kort__niva {
   flex: none; display: grid; place-items: center;
   min-width: 32px; height: 28px; padding: 0 8px;
@@ -423,16 +544,6 @@ function tilbake() {
 .kort__ant { margin-left: auto; flex: none; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); font-variant-numeric: tabular-nums; }
 .kort__navn { margin: var(--ds-space-sm) 0 0; font-size: var(--ds-text-md); line-height: 1.6; color: var(--ds-color-text-primary); }
 
-.del__fot {
-  position: fixed; left: 0; right: 0;
-  bottom: calc(65px + env(safe-area-inset-bottom, 0px));
-  z-index: calc(var(--ds-z-sticky) - 1);
-  padding: var(--ds-space-md) var(--ds-space-lg);
-  background: var(--ds-color-bg);
-  border-top: 1px solid var(--ds-color-border-light, var(--ds-color-border));
-}
-.del__fot-inn { max-width: 560px; margin: 0 auto; }
-@media (min-width: 768px) { .del__fot { bottom: 0; } }
 .del__bruk {
   display: block; width: 100%;
   min-height: var(--ds-btn-h-lg);
@@ -443,4 +554,53 @@ function tilbake() {
 }
 .del__teller { margin: 0 0 var(--ds-space-lg); font-size: var(--ds-text-md); color: var(--ds-color-text-secondary); font-variant-numeric: tabular-nums; }
 .del__teller strong { margin-right: 4px; font-size: var(--ds-text-xl); color: var(--ds-color-text-primary); }
+.del__balanse { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ds-space-sm); margin-top: var(--ds-space-md); }
+.del__balanse-knapp {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  min-height: 56px; padding: 10px 14px;
+  border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-bg-elevated);
+  text-align: left; cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.del__balanse-knapp strong { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
+.del__balanse-knapp span { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+.del__balanse-knapp--aktiv { border-color: var(--ds-color-accent); box-shadow: inset 0 0 0 1px var(--ds-color-accent); }
+
+.kort__gjest { font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-tertiary); }
+
+.gjest { margin-top: var(--ds-space-xl); padding-top: var(--ds-space-lg); border-top: 1px solid var(--ds-color-border-light, var(--ds-color-border)); }
+.gjest__tittel { margin: 0 0 var(--ds-space-sm); font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
+.gjest__hint { margin: 0 0 var(--ds-space-md); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+.gjest__liste { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); margin-bottom: var(--ds-space-md); }
+.gjest__brikke {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 44px; padding: 0 4px 0 6px;
+  border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-elevated);
+  font-size: var(--ds-text-md); color: var(--ds-color-text-primary);
+}
+.gjest__niva {
+  display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
+  background: var(--ds-color-bg-subtle); font-size: var(--ds-text-sm); font-weight: var(--ds-weight-bold);
+}
+.gjest__fjern {
+  display: grid; place-items: center; width: 36px; height: 36px;
+  border: 0; border-radius: 50%; background: transparent;
+  color: var(--ds-color-text-secondary); cursor: pointer;
+}
+.gjest__fjern svg { width: 16px; height: 16px; }
+.gjest__ny { display: flex; flex-direction: column; gap: var(--ds-space-sm); }
+.gjest__rad { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md); }
+.gjest__rad .ds-pill { min-height: 44px; min-width: 48px; font-size: var(--ds-text-md); }
+.gjest__legg { min-height: 44px; }
+.gjest__apne {
+  display: inline-flex; align-items: center; gap: 8px;
+  min-height: 44px; padding: 0 var(--ds-space-lg);
+  border: 1.5px dashed var(--ds-color-border); border-radius: var(--ds-radius-full);
+  background: transparent;
+  font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary);
+  cursor: pointer;
+}
+.gjest__apne svg { width: 16px; height: 16px; }
 </style>

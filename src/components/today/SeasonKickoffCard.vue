@@ -25,7 +25,7 @@ const dateLine = computed(() => {
 <template>
   <section class="ds-card kickoff">
     <div class="kickoff__top">
-      <span class="kickoff__kicker">{{ kickoff.season || 'Ny sesong' }}</span>
+      <span class="ds-eyebrow kickoff__kicker">{{ kickoff.season || 'Ny sesong' }}</span>
       <span class="kickoff__when">{{ pill }}</span>
     </div>
     <span class="kickoff__title">Sesongen er snart i gang</span>
@@ -50,10 +50,6 @@ const dateLine = computed(() => {
 }
 
 .kickoff__kicker {
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
   color: var(--ds-color-text-tertiary);
   white-space: nowrap;
   overflow: hidden;

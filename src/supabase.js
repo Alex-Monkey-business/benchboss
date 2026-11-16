@@ -45,8 +45,13 @@ function lagKlient(url, key) {
   })
 
   async function accessToken() {
-    const { data } = await auth.getSession()
-    return data?.session?.access_token ?? key
+    const { data, error } = await auth.getSession()
+    if (data?.session?.access_token) return data.session.access_token
+    // Fornyelsen feilet (typisk uten nett). Å falle tilbake til anon-nøkkelen
+    // ga tomme lister fra RLS — som så overskrev cachen. La forespørselen
+    // feile i stedet, så kalleren beholder det den har.
+    if (error) throw error
+    return key
   }
 
   // Samme som supabase-js' fetchWithAuth: apikey alltid, Authorization med

@@ -15,7 +15,7 @@ const DAG = sql(`select id from training_sessions where cohort_id='${KULL}' orde
 const VD = sql(`select coalesce(weekday::text,'null') from training_sessions where id='${DAG}'`)
 sql(`update training_sessions set weekday=${UKEDAG} where id='${DAG}'`)
 sql(`delete from training_runs where session_id='${DAG}'`)
-// Nivåer så gjengene blir ekte: annenhver tredjedel A, B, C.
+// Nivåer så gruppene i Del inn blir ekte: annenhver tredjedel A, B, C.
 const HADDE_NIVA = sql(`select count(*) from player_levels where cohort_id='${KULL}'`) !== '0'
 if (!HADDE_NIVA) sql(`insert into player_levels (player_id, cohort_id, level) select id, cohort_id, (array['A','B','B','C'])[1 + (row_number() over (order by name))::int % 4] from players where cohort_id='${KULL}'`)
 const b = await chromium.launch()
@@ -48,10 +48,10 @@ try {
     await p.locator('.rad').nth(1).click(); await bilde('ovelse')
     await p.keyboard.press('Escape'); await vent(400)
   })
-  await steg('endre', async () => {
-    await p.locator('.fase__endre').first().click(); await vent(500)
-    await p.locator('.brikke').nth(2).click(); await bilde('endre-gjengene')
-    await p.keyboard.press('Escape'); await vent(400)
+  await steg('del-inn', async () => {
+    await p.locator('.plan__delinn').click(); await p.locator('.kort').first().waitFor(); await vent(500)
+    await bilde('del-inn')
+    await p.goBack(); await p.locator('.rad').first().waitFor(); await vent(400)
   })
   await steg('kom-for-sent', async () => {
     await p.locator('.okt__her').click(); await vent(500)
