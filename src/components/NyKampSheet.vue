@@ -14,7 +14,7 @@ const emit = defineEmits(['close'])
 
 const { seasonTeams } = useSeasonTeams()
 const { preferredTeam } = useAuth()
-const { leggTilKamp, vartLagNavn } = useNyKamp()
+const { leggTilKamp } = useNyKamp()
 const { show: showToast } = useToast()
 
 const lagSlug = ref('')
@@ -24,6 +24,12 @@ const dato = ref('')
 const tid = ref('')
 const type = ref('treningskamp')
 const lagrer = ref(false)
+
+// Lokal dato, ikke UTC: rett etter midnatt ville toISOString gitt gårsdagen.
+function iDag() {
+  const d = new Date()
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
 
 const lag = computed(() => seasonTeams.value.find(t => t.slug === lagSlug.value) || null)
 
@@ -35,16 +41,11 @@ watch(() => props.show, apen => {
     lagSlug.value = slugs.includes(preferredTeam.value) ? preferredTeam.value : (slugs[0] || '')
   }
   motstander.value = ''
-  dato.value = ''
+  dato.value = iDag()
   tid.value = ''
   hjemme.value = true
 })
 
-const vart = computed(() => vartLagNavn(lag.value))
-const forhand = computed(() => {
-  const m = motstander.value.trim() || 'Motstander'
-  return hjemme.value ? `${vart.value} – ${m}` : `${m} – ${vart.value}`
-})
 
 const klar = computed(() => !!(props.seasonId && motstander.value.trim() && dato.value && !lagrer.value))
 
@@ -108,11 +109,11 @@ async function lagre() {
       <div class="ds-form-row nk__tid">
         <div class="nk__felt">
           <label class="ds-label" for="nk-dato">Dato</label>
-          <input id="nk-dato" v-model="dato" type="date" class="ds-input" />
+          <input id="nk-dato" v-model="dato" type="date" lang="nb-NO" class="ds-input" />
         </div>
         <div class="nk__felt">
           <label class="ds-label ds-label--optional" for="nk-tid">Tid</label>
-          <input id="nk-tid" v-model="tid" type="time" class="ds-input" />
+          <input id="nk-tid" v-model="tid" type="time" lang="nb-NO" class="ds-input" />
         </div>
       </div>
 
@@ -130,14 +131,9 @@ async function lagre() {
         </div>
       </div>
 
-      <p class="nk__forhand" aria-live="polite">{{ forhand }}</p>
-
-      <div class="nk__knapper">
-        <button type="button" class="ds-btn ds-btn--secondary" @click="emit('close')">Avbryt</button>
-        <button type="button" class="ds-btn ds-btn--primary" :disabled="!klar" @click="lagre">
-          {{ lagrer ? 'Lagrer…' : 'Legg til kamp' }}
-        </button>
-      </div>
+      <button type="button" class="ds-btn ds-btn--primary nk__lagre" :disabled="!klar" @click="lagre">
+        {{ lagrer ? 'Lagrer…' : 'Legg til kamp' }}
+      </button>
     </div>
   </Sheet>
 </template>
@@ -165,24 +161,8 @@ async function lagre() {
 
 .nk__felt .ds-input { min-height: 48px; }
 
-.nk__forhand {
-  margin: 0;
-  padding: var(--ds-space-md) var(--ds-space-lg);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-color-bg-subtle);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  overflow-wrap: anywhere;
-}
-
-.nk__knapper {
-  display: flex;
-  gap: var(--ds-space-sm);
-}
-
-.nk__knapper .ds-btn {
-  flex: 1;
+.nk__lagre {
+  width: 100%;
   min-height: 48px;
 }
 </style>

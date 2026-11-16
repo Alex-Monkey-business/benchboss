@@ -58,7 +58,7 @@ try {
     await p.locator('.del__hoved', { hasText: 'Del inn' }).click(); await p.locator('.kort').first().waitFor()
     await bilde('del-inn-grupper', true)
     await p.getByRole('tab', { name: 'Lag' }).click(); await bilde('del-inn-lag', true)
-    await p.locator('[aria-label="Mer"]').click(); await bilde('del-inn-mer')
+    await p.locator('.del__bar [aria-label="Start på nytt"]').click(); await bilde('del-inn-start-pa-nytt')
     await p.keyboard.press('Escape'); await vent(400)
     await p.goBack(); await p.locator('.rad').first().waitFor(); await vent(400)
   })

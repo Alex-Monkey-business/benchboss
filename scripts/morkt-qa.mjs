@@ -164,7 +164,7 @@ try {
     await p.locator('.oppg__navn').first().waitFor()
     // To borte og en gjest, så alle brikketypene er med.
     await p.locator('.oppg__grid').first().locator('.oppg__navn').nth(0).click()
-    await p.locator('.oppg__grid').nth(1).locator('.oppg__navn').nth(0).click()
+    await p.locator('.oppg__grid').first().locator('.oppg__navn').nth(1).click()
     await p.locator('.gjest__apne').click()
     await p.locator('.ds-sheet', { hasText: 'Ny gjest' }).waitFor()
     await p.getByLabel('Navn på gjesten').fill('Gjest')
@@ -182,8 +182,8 @@ try {
     await mal('del-inn-grupper', false)
     await p.getByRole('tab', { name: 'Lag' }).click()
     await mal('del-inn-lag', false)
-    await p.locator('[aria-label="Mer"]').click()
-    await p.locator('.meny__rad').first().waitFor()
+    await p.locator('.del__bar [aria-label="Start på nytt"]').click()
+    await p.locator('.ds-sheet .del__hoved--fare').waitFor()
     await mal('del-inn-mer', false)
   } finally {
     sql(`delete from training_runs where cohort_id='${KULL}' and dato = current_date; delete from del_inn where cohort_id='${KULL}' and dato = current_date`)

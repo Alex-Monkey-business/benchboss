@@ -563,6 +563,10 @@ export function useFiks() {
     if (!nye?.length || !cohort?.id || !isSupabaseConfigured) return 0
     const aktiv = activeSeason.value?.status === 'active' ? activeSeason.value.id : null
     const idag = localISODate(new Date())
+    // Sesongen har ingen sluttdato. Vårkamper som publiseres mens vinteren er
+    // aktiv, skal ikke havne i vinteren: bare de neste 90 dagene går til den
+    // aktive sesongen, resten følger nabokampen som før.
+    const grense = localISODate(new Date(Date.now() + 90 * 864e5))
 
     const { data: kjente } = await supabase
       .from('matches')
@@ -571,7 +575,7 @@ export function useFiks() {
       .not('season_id', 'is', null)
 
     const sesongFor = dato => {
-      if (aktiv && dato >= idag) return aktiv
+      if (aktiv && dato >= idag && dato <= grense) return aktiv
       let best = fallbackSeason
       let minst = Infinity
       for (const m of kjente || []) {

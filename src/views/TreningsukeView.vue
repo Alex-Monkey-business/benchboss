@@ -630,12 +630,8 @@ onMounted(async () => {
     </div>
 
     <template v-else>
-      <!-- «Hver uke» er ikke pynt. Uten den leses tre navngitte dager som tre
-           enkelttreninger som skjer én gang — og da er det uklart hvorfor de
-           ikke har datoer. Ett ord sier hele modellen. -->
       <header v-if="!dagId" class="uke__head">
         <h1 class="uke__title">Trening</h1>
-        <p class="uke__rytme">Hver uke</p>
       </header>
       <nav v-else class="dagside__bar">
         <router-link to="/trening" class="dagside__tilbake" aria-label="Tilbake til uka">
@@ -1049,7 +1045,7 @@ Torsdag
 
 .uke__skeleton { display: flex; flex-direction: column; gap: var(--ds-space-md); }
 
-.uke__head { margin-bottom: 2px; }
+.uke__head { margin-bottom: var(--ds-space-xl); }
 
 /* Sidetittel i en fane: sans, som Hjem, Kamper og Statistikk. Serifen er
    innholdets stemme (håndboka, referatene, navnene), ikke navigasjonens. */
@@ -1063,13 +1059,6 @@ Torsdag
   font-variation-settings: normal;
   font-feature-settings: normal;
   margin: 0;
-}
-
-.uke__rytme {
-  margin: 2px 0 var(--ds-space-xl);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
 }
 
 /* ---- Dagen ---- */

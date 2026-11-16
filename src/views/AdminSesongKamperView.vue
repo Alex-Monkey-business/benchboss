@@ -386,7 +386,7 @@ function formatMatchDate(dateStr) {
     </div>
 
     <div class="page-header">
-      <h1 class="page-header__title">Sesong & kampprogram</h1>
+      <h1 class="page-header__title">Sesong og kampprogram</h1>
     </div>
 
     <!-- ═══ SESONG ═══ -->

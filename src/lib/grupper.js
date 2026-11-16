@@ -338,10 +338,28 @@ export function lagGjenger(spillere, trenere = [], runde = 0, seed = 1, antall =
   for (let vakt = 0; vakt < 60 && Number.isFinite(toleranse); vakt++) {
     const str = gjenger.map(g => g.spillere.length)
     if (Math.max(...str) - Math.min(...str) <= toleranse) break
-    const fra = str.indexOf(Math.max(...str))
-    const naboer = [fra - 1, fra + 1].filter(j => j >= 0 && j < gjenger.length && str[j] < str[fra] - 1)
+    // Alle gjenger med flest spillere er mulige kilder. En nabo som er minst
+    // to mindre tar imot; finnes ingen slik, kan en nabo som er én mindre ta
+    // imot, så flyttingen går videre i kjede (6/5/4 → 5/6/4 → 5/5/5).
+    const maks = Math.max(...str), min = Math.min(...str)
+    const kilder = str.map((n, i) => (n === maks ? i : -1)).filter(i => i >= 0)
+    const par = []
+    for (const fra of kilder) {
+      for (const j of [fra - 1, fra + 1]) {
+        if (j < 0 || j >= gjenger.length) continue
+        if (str[j] < str[fra] - 1) par.push([fra, j, 0])
+        else if (str[j] === str[fra] - 1) par.push([fra, j, 1])
+      }
+    }
+    // Også en mellomste gjeng kan sende videre mot den minste.
+    for (let i = 0; i < gjenger.length; i++) {
+      for (const j of [i - 1, i + 1]) {
+        if (j >= 0 && j < gjenger.length && str[j] === min && str[i] >= min + 2 && !par.some(([a, b]) => a === i && b === j)) par.push([i, j, 0])
+      }
+    }
+    par.sort((a, b) => a[2] - b[2] || str[a[1]] - str[b[1]])
     let flyttet = false
-    for (const til of naboer.sort((a, b) => str[a] - str[b])) {
+    for (const [fra, til] of par) {
       const mal = new Set(gjenger[til].spillere.map(id => nivaAv[id]))
       // Den som står nærmest nabonivået: sist i lista mot C, først mot A.
       const kandidater = til > fra ? [...gjenger[fra].spillere].reverse() : gjenger[fra].spillere

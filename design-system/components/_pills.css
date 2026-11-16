@@ -61,10 +61,13 @@
   color: var(--ds-color-text-primary);
 }
 
+/* Valgt = aksentfylt. Hvit-på-sporet forsvant i mørk modus, der den løftede
+   flaten er mørkere enn sporet. Samme uttrykk som Del inn sin Diff/Mix. */
 .ds-pill--active,
-.ds-pill[aria-selected="true"] {
-  background: var(--ds-color-bg-elevated);
-  color: var(--ds-color-text-primary);
+.ds-pill[aria-selected="true"],
+.ds-pill--active:hover {
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
   font-weight: var(--ds-weight-semibold);
 }
 
@@ -77,7 +80,8 @@
 }
 
 .ds-pill--active .ds-pill__count {
-  color: var(--ds-color-text-secondary);
+  color: inherit;
+  font-weight: var(--ds-weight-regular, 400);
 }
 
 /* Pillen er 32 px høy for å se lett ut, men fingeren trenger ~44. Utvidelsen

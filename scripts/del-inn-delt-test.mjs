@@ -134,8 +134,8 @@ try {
   // Start på nytt (Mer-menyen) nullstiller hos begge.
   await alex.goto(`${APP}/del-inn`)
   await alex.locator('.del__oppsummering').waitFor({ timeout: 15000 })
-  await alex.getByRole('button', { name: 'Mer' }).click()
-  await alex.getByRole('button', { name: 'Start på nytt' }).click()
+  await alex.locator('.del__bar [aria-label="Start på nytt"]').click()
+  await alex.locator('.ds-sheet .del__hoved--fare').click()
   ok('Nullstilt: Alex er tilbake på steg 1', await inntil(async () => await alex.getByRole('heading', { name: 'Hvilken trening?' }).count() === 1))
   ok('Nullstilt i basen', await inntil(() => sql(`select count(*) from del_inn where cohort_id='${KULL}'`) === '0'))
 

@@ -34,6 +34,10 @@ const { fetchSessionStatuses } = useMatchMode()
 const teamFilter = ref('alle')
 const venueFilter = ref('alle')
 const timeFilter = ref('upcoming')
+// Står «Kommende» tom mens «Tidligere» har kamper, åpner vi der. Bare ved
+// første lasting, og aldri over en fane treneren har valgt selv.
+let fanenValgt = false
+function velgFane(f) { fanenValgt = true; timeFilter.value = f }
 // Skeleton only on the very first load. Data persists in module-level refs
 // across navigation, so subsequent visits render instantly.
 const loading = ref(matches.value.length === 0)
@@ -48,6 +52,9 @@ onMounted(async () => {
     await fetchExpenses(matches.value.map(m => m.id))
   }
   loading.value = false
+  if (!fanenValgt && upcomingMatches.value.length === 0 && pastMatches.value.length > 0) {
+    timeFilter.value = 'past'
+  }
 })
 
 watch(viewingSeason, async (s) => {
@@ -209,7 +216,7 @@ function getCoachesForMatchList(matchId) {
         role="tab"
         :aria-selected="timeFilter === 'upcoming'"
         :class="['time-tabs__option', { 'time-tabs__option--active': timeFilter === 'upcoming' }]"
-        @click="timeFilter = 'upcoming'"
+        @click="velgFane('upcoming')"
       >
         Kommende
         <span class="time-tabs__count">{{ upcomingMatches.length }}</span>
@@ -219,7 +226,7 @@ function getCoachesForMatchList(matchId) {
         role="tab"
         :aria-selected="timeFilter === 'past'"
         :class="['time-tabs__option', { 'time-tabs__option--active': timeFilter === 'past' }]"
-        @click="timeFilter = 'past'"
+        @click="velgFane('past')"
       >
         Tidligere
         <span class="time-tabs__count">{{ pastMatches.length }}</span>
@@ -264,9 +271,6 @@ function getCoachesForMatchList(matchId) {
           <h3 class="ds-empty__title">
             {{ timeFilter === 'past' ? 'Ingen tidligere kamper' : 'Ingen kommende kamper' }}
           </h3>
-          <p class="ds-empty__description">
-            {{ timeFilter === 'past' ? 'Spilte kamper vil dukke opp her etter hvert.' : 'Alle kommende kamper er ferdige eller filtrert vekk.' }}
-          </p>
         </div>
       </div>
 

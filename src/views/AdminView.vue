@@ -72,11 +72,11 @@ const links = computed(() => [
   // avsluttes. Raden blir stående uansett; bare navnet og innholdet endrer seg
   // når laget ikke skaffer dommer selv.
   { to: '/admin/dommerutlegg', label: usesReferees.value ? 'Sesongoppgjør' : 'Sesong', icon: usesReferees.value ? 'vipps' : 'calendar' },
-  { to: '/admin/sesong-kamper', label: 'Sesong & kampprogram', icon: 'calendar' },
+  { to: '/admin/sesong-kamper', label: 'Sesong og kampprogram', icon: 'calendar' },
   // Dommerlista har derimot ingen annen jobb.
   ...(usesReferees.value ? [{ to: '/admin/dommere', label: 'Dommere', icon: 'whistle' }] : []),
   { to: '/admin/referater', label: 'Møtereferater', icon: 'notes' },
-  { to: '/serie/tropp', label: 'Spillere & tropp', icon: 'jersey' },
+  { to: '/serie/tropp', label: 'Spillere og tropp', icon: 'jersey' },
   { to: '/admin/niva', label: 'Nivå', icon: 'levels' },
   { to: '/admin/turneringer', label: 'Turneringer', icon: 'trophy' }
 ])
@@ -456,6 +456,7 @@ const links = computed(() => [
 
 .theme-toggle--wrap .theme-toggle__option--active {
   background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-primary);
   box-shadow: inset 0 0 0 1px var(--ds-color-border-strong);
 }
 
@@ -482,10 +483,9 @@ const links = computed(() => [
 }
 
 .theme-toggle__option--active {
-  background: var(--ds-color-bg-elevated);
-  color: var(--ds-color-text-primary);
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
   font-weight: var(--ds-weight-semibold);
-  box-shadow: var(--ds-shadow-xs);
 }
 
 </style>

@@ -8,6 +8,7 @@
 // motor (lib/grupper → delInn), så alle ser det samme.
 //
 // Hvem som er med:
+//   - Bare spillerne. Trenerne er ikke med (Alex, 16. nov: støy).
 //   - Valgt trening: oppmøtet lagres på økta, så statistikken teller.
 //   - Ingen trening (kamp, cup): listen står i Del inn-raden.
 //   - Gjester står alltid i Del inn-raden. Med i fordelingen, ikke i
@@ -85,42 +86,37 @@ const navn = computed(() => ({
   ...Object.fromEntries(gjester.value.map(g => [g.id, g.navn]))
 }))
 const trenerNavn = computed(() => kortnavn(coaches.value))
-const navnPa = ids => {
-  const n = ids.map(id => trenerNavn.value[id]).filter(Boolean)
-  return n.length < 2 ? n.join('') : `${n.slice(0, -1).join(', ')} og ${n[n.length - 1]}`
-}
 
 // Trykk som ikke er lagret ennå ligger oppå, så brikken skifter med en gang.
 const ventSp = ref({})
-const ventTr = ref({})
 const baseSpillere = computed(() => {
   if (dagensRun.value) return new Set(dagensRun.value.spillere)
   if (!session.value && dag.value?.spillere) return new Set(dag.value.spillere)
   return new Set(players.value.map(p => p.id))
 })
-const baseTrenere = computed(() => {
-  if (dagensRun.value) return new Set(dagensRun.value.trenere)
-  if (!session.value && dag.value?.trenere) return new Set(dag.value.trenere)
-  return new Set(coaches.value.map(c => c.id))
-})
 const erHer = id => (id in ventSp.value ? ventSp.value[id] : baseSpillere.value.has(id))
-const trenerHer = id => (id in ventTr.value ? ventTr.value[id] : baseTrenere.value.has(id))
 const sortert = computed(() => [...players.value].sort((a, b) => a.name.localeCompare(b.name, 'no')))
 // Sortert på id: rekkefølgen styrer trekningen og skal være lik på alle telefonene.
 const her = computed(() => [
   ...players.value.filter(p => erHer(p.id)).map(p => ({ id: p.id, niva: levelFor(p.id) })),
   ...gjester.value.map(g => ({ id: g.id, niva: g.niva || null }))
 ].sort((a, b) => (a.id < b.id ? -1 : 1)))
-const trenere = computed(() => coaches.value.filter(c => trenerHer(c.id)).map(c => c.id).sort())
 
-// Valgt trening uten lagret oppmøte: første trykk lagrer det.
+const FEIL = 'Fikk ikke lagret. Prøv igjen.'
+const meldFeil = ok => { if (!ok) toast.show(FEIL, 'error') }
+const endre = async fn => meldFeil(await delt.endre(fn, coach.value))
+
+// Valgt trening uten lagret oppmøte: første trykk lagrer det. Byttet dere
+// trening, følger oppmøtet fra den forrige med.
 let starter = null
+let overfort = null
 async function sikreOkt() {
   if (dagensRun.value) return true
   if (!starter) {
-    const sp = players.value.map(p => p.id)
-    const tr = coaches.value.filter(c => baseTrenere.value.has(c.id)).map(c => c.id)
-    starter = okt.start(session.value, sp, tr, null, () => ({}), { tving: true }).finally(() => { starter = null })
+    const sp = overfort || players.value.map(p => p.id)
+    overfort = null
+    // Trenerne er ikke med i Del inn (Alex, 16. nov): bare spillerne telles.
+    starter = okt.start(session.value, sp, [], null, () => ({}), { tving: true }).finally(() => { starter = null })
   }
   return starter
 }
@@ -131,32 +127,21 @@ async function vekslSpiller(id) {
   try {
     if (session.value) {
       if (await sikreOkt()) await okt.settSpiller(id, til)
-      else toast.show('Fikk ikke lagret oppmøtet. Prøv igjen.', 'error')
+      else toast.show(FEIL, 'error')
     } else {
-      const liste = players.value.map(p => p.id).filter(x => erHer(x))
-      await delt.lagre({ spillere: liste }, coach.value)
+      // Bare dette ene fraværet, lagt oppå den ferske lista i basen.
+      const alle = players.value.map(p => p.id)
+      await endre(rad => {
+        const na = new Set(rad.spillere ?? alle)
+        til ? na.add(id) : na.delete(id)
+        return { spillere: alle.filter(x => na.has(x)) }
+      })
     }
   } finally {
     const { [id]: _, ...rest } = ventSp.value
     ventSp.value = rest
   }
 }
-async function vekslTrener(id) {
-  const til = !trenerHer(id)
-  ventTr.value = { ...ventTr.value, [id]: til }
-  try {
-    if (session.value) {
-      if (await sikreOkt()) await okt.settTrener(id, til)
-    } else {
-      const liste = coaches.value.map(c => c.id).filter(x => trenerHer(x))
-      await delt.lagre({ trenere: liste }, coach.value)
-    }
-  } finally {
-    const { [id]: _, ...rest } = ventTr.value
-    ventTr.value = rest
-  }
-}
-
 // Gjest: en spiller fra et annet lag, bare for i dag.
 const visGjest = ref(false)
 const nyGjest = ref({ navn: '', niva: 'B' })
@@ -168,10 +153,10 @@ async function leggTilGjest() {
   nyGjest.value = { navn: '', niva }
   visGjest.value = false
   meldEvent('del_inn_gjest_lagt_til', { niva })
-  await delt.lagre({ gjester: [...gjester.value, { id, navn: navnet, niva }] }, coach.value)
+  await endre(rad => ({ gjester: [...(rad.gjester || []), { id, navn: navnet, niva }] }))
 }
 async function fjernGjest(id) {
-  await delt.lagre({ gjester: gjester.value.filter(g => g.id !== id) }, coach.value)
+  await endre(rad => ({ gjester: (rad.gjester || []).filter(g => g.id !== id) }))
 }
 
 // ── Steg 3: inndeling ───────────────────────────────────────────────────────
@@ -191,18 +176,24 @@ const valg = computed(() => {
 })
 const form = computed(() => valg.value.form)
 const v = computed(() => valg.value[form.value])
+// Valgene flettes inn i den ferske raden: ett valg om gangen.
 function settValg(endring) {
-  delt.lagre({ valg: { ...valg.value, ...endring } }, coach.value)
+  return endre(rad => ({ valg: { ...(rad.valg || {}), ...endring } }))
 }
 function sett(endring) {
-  settValg({ [form.value]: { ...v.value, ...endring } })
+  const f = form.value
+  return endre(rad => {
+    const gml = { ...STANDARD[f], ...(rad.valg?.[f] || {}) }
+    const ny = typeof endring === 'function' ? endring(gml) : endring
+    return { valg: { ...(rad.valg || {}), [f]: { ...gml, ...ny } } }
+  })
 }
 function velgForm(f) { if (f !== form.value) settValg({ form: f }) }
 const forsteMix = computed(() => drills.value.find(d => d.type === 'mix') || null)
 const runde = computed(() => dagensRun.value?.state?._runde || 0)
 const resultat = computed(() => delInn({
   spillere: her.value,
-  trenere: trenere.value,
+  trenere: [],
   form: form.value,
   type: v.value.type,
   antall: v.value.antall,
@@ -218,15 +209,9 @@ const maks = computed(() => Math.max(min.value, Math.min(6, form.value === 'lag'
 function velgType(t) { if (t !== v.value.type) sett({ type: t, antall: null }) }
 function velgAntall(n) { sett({ antall: n }) }
 function trekkPaNytt() {
-  sett({ seed: v.value.seed + 1 })
+  sett(g => ({ seed: g.seed + 1 }))
   meldEvent('del_inn_trukket', { form: form.value })
 }
-const utenTrener = computed(() => {
-  // Lag har trenere per bane, ikke per lag.
-  if (!trenere.value.length || form.value === 'lag') return 0
-  return resultat.value.enheter.filter(e => !e.trenere.length).length
-})
-
 // Endret av en annen trener: én kort linje, og en toast når det skjer.
 const endretAvAnnen = computed(() => {
   const d = dag.value
@@ -256,17 +241,24 @@ watch(klar, k => {
   steg.value = dag.value || oppmoteIdag ? 'inndeling' : 'trening'
 }, { immediate: true })
 
-function nesteFraTrening() {
+async function nesteFraTrening() {
   const ny = valgtISteg1.value
   nyttValg.value = null
-  if (ny !== dag.value?.valg?.okt) settValg({ okt: ny })
+  if (ny !== valgtOkt.value || ny !== dag.value?.valg?.okt) {
+    // Byttet trening: dagens oppmøte flyttes, så det ikke teller to ganger.
+    if (ny !== valgtOkt.value && dagensRun.value) {
+      overfort = ny === INGEN ? null : [...dagensRun.value.spillere]
+      await okt.slett()
+    }
+    settValg({ okt: ny })
+  }
   meldEvent('del_inn_trening_valgt', { ingen: ny === INGEN })
   gaTil('oppmote')
 }
 // Alle er her: oppmøtet lagres likevel, så økta teller i statistikken.
 async function tilInndeling() {
   gaTil('inndeling')
-  if (session.value && !dagensRun.value) await sikreOkt()
+  if (session.value && !dagensRun.value) meldFeil(await sikreOkt())
 }
 function gaTil(s) {
   steg.value = s
@@ -318,8 +310,8 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
       <div v-if="steg" class="del__framdrift" aria-hidden="true">
         <span v-for="(s, i) in STEG" :key="s" :class="['del__strek', { 'del__strek--pa': i <= stegNr }]" />
       </div>
-      <button v-if="steg === 'inndeling' && dag" class="del__ikonknapp" aria-label="Mer" @click="visMeny = true">
-        <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><circle cx="5" cy="12" r="1.8" /><circle cx="12" cy="12" r="1.8" /><circle cx="19" cy="12" r="1.8" /></svg>
+      <button v-if="steg === 'inndeling' && dag" class="del__ikonknapp" aria-label="Start på nytt" @click="visMeny = true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7" /><polyline points="3 3 3 9 9 9" /></svg>
       </button>
       <span v-else class="del__ikonknapp del__ikonknapp--tom" />
     </header>
@@ -368,17 +360,15 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
       <p class="del__teller"><strong>{{ her.length }}</strong> av {{ players.length + gjester.length }}</p>
       <OppmoteGrid
         :spillere="sortert"
-        :trenere="coaches"
         :navn="navn"
-        :trener-navn="trenerNavn"
+        :trener-navn="{}"
         :er-her="erHer"
-        :trener-her="trenerHer"
+        :trener-her="() => false"
         :rigger-valg="false"
         @spiller="vekslSpiller"
-        @trener="vekslTrener"
       />
 
-      <h2 class="del__h2">Gjester</h2>
+      <h2 class="ds-eyebrow del__eyebrow">Gjester</h2>
       <div class="gjest">
         <span v-for="g in gjester" :key="g.id" class="gjest__brikke">
           <span class="gjest__niva">{{ g.niva || '–' }}</span>
@@ -403,7 +393,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
       <button type="button" class="del__oppsummering" @click="gaTil('oppmote')">
         <span class="del__opps-tekst">
           <strong>{{ oktNavn }}</strong>
-          <span>{{ her.length }} {{ her.length === 1 ? 'spiller' : 'spillere' }}<template v-if="trenere.length"> · {{ trenere.length }} {{ trenere.length === 1 ? 'trener' : 'trenere' }}</template></span>
+          <span>{{ her.length }} {{ her.length === 1 ? 'spiller' : 'spillere' }}</span>
         </span>
         <span class="del__endre">Endre</span>
       </button>
@@ -426,8 +416,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
         <span :class="['bryter', { 'bryter--pa': likeStore }]" aria-hidden="true"><span class="bryter__knott" /></span>
       </button>
 
-      <p v-if="endretAvAnnen || utenTrener" class="del__linje" aria-live="polite">
-        <span v-if="utenTrener">{{ utenTrener }} uten trener</span>
+      <p v-if="endretAvAnnen" class="del__linje" aria-live="polite">
         <span v-if="endretAvAnnen" class="del__delt">{{ endretAvAnnen }}</span>
       </p>
 
@@ -438,12 +427,11 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
           <div class="kort__hode">
             <span v-if="resultat.type === 'diff' && e.nivaer.length" class="kort__niva" :aria-label="`Nivå ${e.navn}`">{{ e.nivaer.join('') }}</span>
             <span class="kort__tittel">
-              <template v-if="resultat.type === 'diff'">{{ navnPa(e.trenere) || `Gruppe ${i + 1}` }}</template>
-              <template v-else>{{ e.navn }}<span v-if="e.trenere.length" class="kort__trener"> · {{ navnPa(e.trenere) }}</span></template>
+              {{ resultat.type === 'diff' ? `Gruppe ${i + 1}` : e.navn }}
             </span>
             <span class="kort__ant">{{ e.spillere.length }}</span>
           </div>
-          <p class="kort__navn"><span v-for="(id, ni) in sorterNavn(e.spillere)" :key="id">{{ ni ? ' · ' : '' }}{{ navn[id] }}<span v-if="gjestIder.has(id)" class="kort__gjest"> gjest</span></span></p>
+          <p class="kort__navn"><span v-for="(id, ni) in sorterNavn(e.spillere)" :key="id" class="kort__ett">{{ navn[id] }}<span v-if="gjestIder.has(id)" class="kort__gjest"> gjest</span><template v-if="ni < e.spillere.length - 1">&nbsp;·</template></span></p>
         </div>
       </div>
 
@@ -451,24 +439,22 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
         <div v-for="(b, bi) in resultat.baner" :key="bi" class="bane">
           <p class="bane__hode">
             <strong>Bane {{ bi + 1 }}</strong>
-            <span v-if="b.trenere.length">{{ navnPa(b.trenere) }}</span>
           </p>
           <div class="kortene">
             <div v-for="li in b.lag" :key="li" class="kort" :data-farge="resultat.enheter[li].navn">
               <div class="kort__hode">
                 <span class="kort__vest" aria-hidden="true" />
                 <span class="kort__tittel">{{ resultat.enheter[li].navn }}</span>
-                <span v-if="b.pluss === li" class="kort__pluss">+ trener</span>
                 <span class="kort__ant">{{ resultat.enheter[li].spillere.length }}</span>
               </div>
-              <p class="kort__navn"><span v-for="(id, ni) in sorterNavn(resultat.enheter[li].spillere)" :key="id">{{ ni ? ' · ' : '' }}{{ navn[id] }}<span v-if="gjestIder.has(id)" class="kort__gjest"> gjest</span></span></p>
+              <p class="kort__navn"><span v-for="(id, ni) in sorterNavn(resultat.enheter[li].spillere)" :key="id" class="kort__ett">{{ navn[id] }}<span v-if="gjestIder.has(id)" class="kort__gjest"> gjest</span><template v-if="ni < resultat.enheter[li].spillere.length - 1">&nbsp;·</template></span></p>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-if="form === 'lag' && her.length" class="del__fot"><div class="del__fot-inn">
-        <button type="button" class="del__sekundar" @click="trekkPaNytt">
+      <div v-if="her.length" class="del__fot"><div class="del__fot-inn">
+        <button type="button" class="del__hoved del__hoved--ikon" @click="trekkPaNytt">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 3 21 3 21 8" /><line x1="4" y1="20" x2="21" y2="3" /><polyline points="21 16 21 21 16 21" /><line x1="15" y1="15" x2="21" y2="21" /><line x1="4" y1="4" x2="9" y2="9" /></svg>
           Trekk på nytt
         </button>
@@ -478,6 +464,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
     <Sheet :show="visGjest" title="Ny gjest" @close="visGjest = false">
       <form class="gjest__ny" @submit.prevent="leggTilGjest">
         <input v-model="nyGjest.navn" class="ds-input gjest__input" type="text" placeholder="Navn" aria-label="Navn på gjesten" autocomplete="off" enterkeyhint="done" />
+        <p class="ds-eyebrow del__eyebrow del__eyebrow--tett">Nivå</p>
         <div class="del__seg del__seg--bred" role="group" aria-label="Nivå">
           <button v-for="n in ['A', 'B', 'C']" :key="n" type="button" :class="['del__seg-knapp', { 'del__seg-knapp--pa': nyGjest.niva === n }]" :aria-pressed="nyGjest.niva === n ? 'true' : 'false'" @click="nyGjest.niva = n">{{ n }}</button>
         </div>
@@ -487,9 +474,10 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
       </template>
     </Sheet>
 
-    <Sheet :show="visMeny" title="Del inn" @close="visMeny = false">
-      <button type="button" class="meny__rad" @click="gaTil('trening'); visMeny = false">Bytt trening</button>
-      <button type="button" class="meny__rad meny__rad--fare" @click="nullstill">Start på nytt</button>
+    <Sheet :show="visMeny" title="Start på nytt?" @close="visMeny = false">
+      <template #footer>
+        <button type="button" class="del__hoved del__hoved--fare" @click="nullstill">Start på nytt</button>
+      </template>
     </Sheet>
   </div>
 </template>
@@ -605,8 +593,8 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 .gjest__apne {
   display: inline-flex; align-items: center; gap: 8px;
   min-height: 44px; padding: 0 var(--ds-space-lg);
-  border: 1.5px dashed var(--ds-color-border); border-radius: var(--ds-radius-full);
-  background: transparent;
+  border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-elevated);
   font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary);
   cursor: pointer;
 }
@@ -722,6 +710,12 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 }
 .kort__ant { margin-left: auto; flex: none; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); font-variant-numeric: tabular-nums; }
 .kort__navn { margin: var(--ds-space-sm) 0 0; font-size: var(--ds-text-md); line-height: 1.6; color: var(--ds-color-text-primary); }
+.kort__ett { display: inline-block; white-space: nowrap; margin-right: .35em; }
+.del__eyebrow { margin: var(--ds-space-xl) 0 var(--ds-space-sm); }
+.del__eyebrow--tett { margin: 0 0 calc(-1 * var(--ds-space-sm)); }
+.del__hoved--ikon { display: flex; align-items: center; justify-content: center; gap: 8px; }
+.del__hoved--ikon svg { width: 18px; height: 18px; }
+.del__hoved--fare { background: var(--ds-color-error, #C0392B); color: #fff; }
 .kort__gjest { font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-tertiary); }
 
 .meny__rad {

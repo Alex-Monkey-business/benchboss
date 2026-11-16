@@ -91,7 +91,7 @@ try {
   ok('«I dag» står under dagens trening', /I dag/.test(await p.getByRole('radio', { name: /QA-kant/ }).innerText()))
   ok('«Uten trening» er et valg', await p.getByRole('radio', { name: /Uten trening/ }).count() === 1)
   ok('alle treningene står som valg', await p.locator('.valg__rad').count() === Number(sql(`select count(*) from training_sessions where cohort_id='${KULL}'`)) + 1)
-  ok('ingen Mer-knapp før noe er valgt', await p.locator('[aria-label="Mer"]').count() === 0)
+  ok('ingen «Start på nytt» før noe er valgt', await p.locator('.del__bar [aria-label="Start på nytt"]').count() === 0)
   await p.locator('.del__hoved', { hasText: 'Neste' }).click()
 
   // ── Steg 2: hvem er her ──
@@ -100,8 +100,7 @@ try {
   ok('steg 2: tilbakeknappen heter «Forrige steg»', await p.locator('.del__bar [aria-label="Forrige steg"]').count() === 1)
   ok('valget er delt: del_inn.valg.okt er treningen', await inntil(() => sql(`select valg->>'okt' from del_inn where cohort_id='${KULL}'`) === DAG))
   ok(`alle ${ANTALL} spillere er her fra start`, await teller(p) === `${ANTALL} av ${ANTALL}`, await teller(p))
-  const trPa = await trenerBrikker(p).evaluateAll(els => els.filter(e => e.getAttribute('aria-pressed') === 'true').length)
-  ok(`trenerne er også her fra start (${TRENERE})`, trPa === TRENERE, `${trPa} av ${await trenerBrikker(p).count()}`)
+  ok('ingen trenere i oppmøtet', await p.locator('.oppg__grid').count() === 1 && await p.getByRole('heading', { name: 'Trenere' }).count() === 0)
   ok('ingen hint-tekst over brikkene', await p.getByText('Trykk på dem som ikke er på trening').count() === 0)
   ok('ingen økt lagret før første trykk', runs() === '0')
 
@@ -118,20 +117,20 @@ try {
   await spillere(p).nth(0).click()
   await spillere(p).nth(1).click()
   ok('to med: oppmøtet er de to', await inntil(() => sql(`select count(*) from training_run_players where run_id='${RUN}'`) === '2'))
-  ok('trenerne er lagret som her', await inntil(() => sql(`select count(*) from training_run_coaches where run_id='${RUN}'`) === String(TRENERE)))
+  ok('ingen trenere lagret på økta', sql(`select count(*) from training_run_coaches where run_id='${RUN}'`) === '0')
   ok('ingen gjenger eller lag lagret på økta', sql(`select state ?| array['_gjenger','_lag','_antall','_rigger'] from training_runs where id='${RUN}'`) === 'f')
   await p.locator('.del__hoved', { hasText: 'Del inn' }).click()
 
   // ── Steg 3: inndeling ──
   await p.locator('.del__oppsummering').waitFor({ timeout: 5000 })
   const opps = (await p.locator('.del__oppsummering').innerText()).replace(/\s+/g, ' ')
-  ok('oppsummeringen: treningen, 2 spillere og trenerne', /QA-kant/.test(opps) && new RegExp(`2 spillere · ${TRENERE} trenere`).test(opps) && /Endre/.test(opps), opps)
+  ok('oppsummeringen: treningen og 2 spillere, ingen trenere', /QA-kant/.test(opps) && /2 spillere/.test(opps) && !/trener/.test(opps) && /Endre/.test(opps), opps)
   ok('steg 3: tilbakeknappen heter «Forrige steg»', await p.locator('.del__bar [aria-label="Forrige steg"]').count() === 1)
   await p.getByRole('tab', { name: 'Lag' }).click()
   await vent(300)
   ok('to med: to lag på én bane', await p.locator('.bane').count() === 1 && await p.locator('.kort').count() === 2)
   ok('to med: + er sperret', await p.locator('.steg__knapp[aria-label="Flere"]').isDisabled())
-  ok('Lag: «Trekk på nytt» nederst', await p.locator('.del__sekundar', { hasText: 'Trekk på nytt' }).count() === 1)
+  ok('Lag: «Trekk på nytt» nederst', await p.locator('.del__fot .del__hoved', { hasText: 'Trekk på nytt' }).count() === 1)
   ok('ingen gamle knapper (her-pille, Ferdig, Nullstill, Rent nivå)', await p.locator('.del__her, .del__bruk, .del__nullstill, .del__balanse, .del__trekk').count() === 0)
   // «Endre» går tilbake til steg 2, «Forrige steg» også.
   await p.locator('.del__oppsummering').click()
@@ -200,8 +199,8 @@ try {
 
   // ── Uten trening: Mer → Start på nytt → «Uten trening» ──
   await p.locator('.del__hoved', { hasText: 'Del inn' }).click()
-  await p.locator('[aria-label="Mer"]').click()
-  await p.locator('.ds-sheet .meny__rad', { hasText: 'Start på nytt' }).click()
+  await p.locator('.del__bar [aria-label="Start på nytt"]').click()
+  await p.locator('.ds-sheet .del__hoved--fare').click()
   await p.locator('.valg__rad').first().waitFor({ timeout: 5000 })
   ok('Start på nytt gir steg 1 og tømmer Del inn-raden', (await overskrift(p)) === 'Hvilken trening?' && await inntil(() => sql(`select count(*) from del_inn where cohort_id='${KULL}'`) === '0'))
   ok('Start på nytt sletter også dagens oppmøte på økta', runs() === '0')
@@ -213,13 +212,11 @@ try {
   await spillere(p).nth(0).click()
   ok('uten trening: listen lagres i Del inn-raden', await inntil(() => sql(`select cardinality(spillere) from del_inn where cohort_id='${KULL}'`) === String(ANTALL - 1)))
   ok('uten trening: valg.okt = ingen', sql(`select valg->>'okt' from del_inn where cohort_id='${KULL}'`) === 'ingen')
-  await trenerBrikker(p).nth(0).click()
-  ok('uten trening: trenerne lagres i Del inn-raden', await inntil(() => sql(`select cardinality(trenere) from del_inn where cohort_id='${KULL}'`) === String(TRENERE - 1)))
   ok('uten trening: ingen ny økt', runs() === '0')
   await p.locator('.del__hoved', { hasText: 'Del inn' }).click()
   await p.locator('.kort').first().waitFor()
   const opps2 = (await p.locator('.del__oppsummering').innerText()).replace(/\s+/g, ' ')
-  ok('oppsummeringen sier «Uten trening»', /Uten trening/.test(opps2) && new RegExp(`${ANTALL - 1} spillere · ${TRENERE - 1} trenere`).test(opps2), opps2)
+  ok('oppsummeringen sier «Uten trening»', /Uten trening/.test(opps2) && new RegExp(`${ANTALL - 1} spillere$`).test(opps2.replace(/\s*Endre\s*$/, '')), opps2)
   // Like store grupper-bryteren: på = antall, av = nivå. Delt.
   await p.getByRole('tab', { name: 'Grupper' }).click()
   await p.locator('.del__seg-knapp', { hasText: 'Diff' }).click()
@@ -229,10 +226,10 @@ try {
   ok('bryteren av: balanse = niva i Del inn-raden', (await bryter.getAttribute('aria-checked')) === 'false' && await inntil(() => sql(`select valg->'grupper'->>'balanse' from del_inn where cohort_id='${KULL}'`) === 'niva'))
   await p.locator('.del__seg-knapp', { hasText: 'Mix' }).click()
   ok('Mix: ingen bryter', await p.getByRole('switch').count() === 0)
-  // Bytt trening fra Mer-menyen.
-  await p.locator('[aria-label="Mer"]').click()
-  await p.locator('.ds-sheet .meny__rad', { hasText: 'Bytt trening' }).click()
-  ok('Bytt trening gir steg 1 med «Uten trening» valgt', (await overskrift(p)) === 'Hvilken trening?' && (await p.getByRole('radio', { name: /Uten trening/ }).getAttribute('aria-checked')) === 'true')
+  // Tilbake til steg 1 med «Forrige steg».
+  await p.locator('.del__bar [aria-label="Forrige steg"]').click()
+  await p.locator('.del__bar [aria-label="Forrige steg"]').click()
+  ok('Forrige steg gir steg 1 med «Uten trening» valgt', (await overskrift(p)) === 'Hvilken trening?' && (await p.getByRole('radio', { name: /Uten trening/ }).getAttribute('aria-checked')) === 'true')
 
   // PC-bredde: Del inn står i en smal kolonne, uten sideveis scroll.
   const pc = await logginn('alexander.samnoy@gmail.com', { width: 1280, height: 860 })

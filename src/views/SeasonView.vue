@@ -317,11 +317,8 @@ async function handleExport() {
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
             </button>
           </div>
+          <span class="format__sum">= {{ totaltMinutter }} min</span>
         </div>
-
-        <p class="dommere__hint">
-          {{ totaltMinutter }} minutter i alt. Gjelder kampmodus og nye kamper. Kamper som er i gang beholder sin lengde.
-        </p>
 
         <div v-if="formatEndret" class="format__handling">
           <button type="button" class="ds-btn ds-btn--secondary" :disabled="lagrerFormat" @click="formatFraKullet">Angre</button>
@@ -350,10 +347,6 @@ async function handleExport() {
             @click="settDommere(false)"
           >Trenger ikke</button>
         </div>
-        <p class="dommere__hint">
-          Av: dommerfeltet på kampen, dommerlista og utleggene her forsvinner. Det som alt er
-          registrert blir stående.
-        </p>
       </div>
     </template>
 
@@ -386,8 +379,9 @@ async function handleExport() {
 
 .format__lengde {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 6px;
+  gap: var(--ds-space-sm) 6px;
   margin-top: var(--ds-space-md);
 }
 
@@ -430,6 +424,14 @@ async function handleExport() {
   color: var(--ds-color-text-primary);
 }
 
+.format__sum {
+  margin-left: 4px;
+  white-space: nowrap;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
+  font-variant-numeric: tabular-nums;
+}
+
 .format__ganger {
   color: var(--ds-color-text-tertiary);
   font-size: var(--ds-text-md);
@@ -451,12 +453,6 @@ async function handleExport() {
   color: var(--ds-color-text-tertiary);
 }
 
-.dommere__hint {
-  margin: var(--ds-space-sm) 0 0;
-  font-size: var(--ds-text-sm);
-  line-height: var(--ds-leading-snug);
-  color: var(--ds-color-text-tertiary);
-}
 
 .segment {
   display: inline-flex;
@@ -482,10 +478,9 @@ async function handleExport() {
 }
 
 .segment__valg--aktiv {
-  background: var(--ds-color-bg-elevated);
-  color: var(--ds-color-text-primary);
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
   font-weight: var(--ds-weight-semibold);
-  box-shadow: var(--ds-shadow-xs);
 }
 
 .my-balance {

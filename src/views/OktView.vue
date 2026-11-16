@@ -419,7 +419,7 @@ function tilbake() {
 }
 .plan__delinn {
   display: flex; align-items: center; gap: var(--ds-space-md);
-  min-height: 72px; margin-bottom: var(--ds-space-lg);
+  min-height: 64px; margin: 0 var(--ds-space-lg) var(--ds-space-sm);
   padding: var(--ds-space-md) var(--ds-space-lg);
   border-radius: var(--ds-radius-lg);
   background: var(--ds-color-accent); color: var(--ds-color-accent-text);

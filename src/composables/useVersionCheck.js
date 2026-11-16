@@ -57,8 +57,12 @@ export function startVersionCheck(router) {
   started = true
   // Den utsatte oppdateringen tas ved neste navigasjon ut av kampmodus: en
   // full sidelast rett til målet, så ingen merker mer enn et vanlig sideskift.
-  router?.beforeEach(to => {
-    if (!ventendeReload || to.name === 'match-mode' || useAuth().sessionHeld.value) return true
+  router?.beforeEach((to, from) => {
+    if (!ventendeReload || to.name === 'match-mode') return true
+    // Kampmodus holder sesjonen til den er avmontert, som skjer ETTER denne
+    // vakten. Går vi ut av kampmodus nå, er det trygt.
+    const utAvKamp = from.name === 'match-mode'
+    if (!utAvKamp && useAuth().sessionHeld.value) return true
     window.location.assign(router.resolve(to.fullPath).href)
     return false
   })
