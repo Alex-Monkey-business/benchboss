@@ -393,7 +393,10 @@ export function useToday() {
 
   async function refresh() {
     now.value = new Date()
-    loading.value = !fetchedOnce.value
+    // Har vi kamper fra cachen, vises de med en gang — skjelettet er bare for
+    // en helt tom første start. Ventet vi på hentingen her, sto PWA-en med
+    // skjelett så lenge nettet eller innloggingen strevde.
+    loading.value = !fetchedOnce.value && matches.value.length === 0
     try {
       await hent()
       fetchedOnce.value = true

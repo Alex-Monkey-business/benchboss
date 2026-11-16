@@ -27,7 +27,6 @@ function velg(id) {
 
 <template>
   <div class="oppg">
-    <p class="oppg__hint">Trykk på dem som ikke er på trening.</p>
     <div class="oppg__grid">
       <button
         v-for="p in spillere"

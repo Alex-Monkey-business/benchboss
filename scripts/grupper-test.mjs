@@ -1,5 +1,6 @@
-// Oppmøtet: hvem mangler → kjøreplanen med øvelsene og lenke til Del inn,
-// oppmøtet delt live mellom trenerne, Del inn delt mellom trenerne, oppmøtet i statistikken, og ingenting for foreldre. Mot lokal base.
+// Treningen: kjøreplanen med øvelsene og lenke til Del inn, oppmøtet i Del
+// inn (trening → hvem er her → inndeling) delt live mellom trenerne, oppmøtet
+// i statistikken, og ingenting for foreldre. Mot lokal base.
 import { chromium } from 'playwright'
 import { execSync } from 'node:child_process'
 import { fordelTrenere } from '../src/lib/grupper.js'
@@ -44,7 +45,7 @@ const kampIder = KAMPER ? `('${KAMPER.split(',').join("','")}')` : null
 if (kampIder) sql(`update matches set match_date = match_date + 365 where id in ${kampIder}`)
 sql(`delete from player_levels where cohort_id='${KULL}'`)
 sql(`insert into player_levels (player_id, level) select id, (array['A','B','C'])[1 + (row_number() over (order by name))::int % 3] from players where cohort_id='${KULL}' order by name offset 2`)
-sql(`delete from training_runs where cohort_id='${KULL}' and title like 'QA-%'`)
+sql(`delete from training_runs where cohort_id='${KULL}' and (title like 'QA-%' or dato = current_date)`)
 sql(`delete from del_inn where cohort_id='${KULL}'`)
 const antall = Number(sql(`select count(*) from players where cohort_id='${KULL}'`))
 const trenere = Number(sql(`select count(*) from coaches where cohort_id='${KULL}'`))
@@ -75,15 +76,21 @@ const likt = (a, b) => Math.abs(a - b) <= 1
 
 try {
   const p = await logginn('alexander.samnoy@gmail.com')
-  // Trening fra menyen: uka lukket, og bare dagens kort har «Oppmøte».
+  const overskrift = (side = p) => side.locator('.del__h1').innerText().catch(() => '')
+  const spillerBrikker = (side = p) => side.locator('.oppg__grid').first().locator('.oppg__navn')
+  const trenerBrikker = (side = p) => side.locator('.oppg__grid').nth(1).locator('.oppg__navn')
+  const oppsummering = async (side = p) => (await side.locator('.del__oppsummering').innerText()).replace(/\s+/g, ' ')
+
+  // Trening fra menyen: uka lukket, og bare dagens kort har «Del inn».
   await p.goto(`${APP}/trening`)
   await p.locator('.dag').first().waitFor({ timeout: 15000 })
   await vent(600)
   ok('Trening fra menyen: alle dagene lukket', await p.locator('.dag--open').count() === 0)
-  const iDag = await p.locator('.dag', { hasText: 'QA-økt' }).locator('.dag__start').count()
+  const chip = p.locator('.dag', { hasText: 'QA-økt' }).locator('.dag__start')
+  ok('dagens trening har «Del inn» på det lukkede kortet', await chip.count() === 1 && (await chip.innerText()).trim() === 'Del inn')
+  ok('«Del inn» på kortet går til Del inn', (await chip.getAttribute('href')) === '/del-inn')
   const andre = await p.locator('.dag__start').count()
-  ok('dagens trening har «Oppmøte» på det lukkede kortet', iDag === 1)
-  const iDagEkte = Number(sql(`select count(*) from training_sessions where cohort_id='${KULL}' and weekday=${UKEDAG} and title <> 'QA-økt' and jsonb_array_length(drills) > 0`))
+  const iDagEkte = Number(sql(`select count(*) from training_sessions where cohort_id='${KULL}' and weekday=${UKEDAG} and title <> 'QA-økt'`))
   ok('bare dagens treninger har knappen', andre === 1 + iDagEkte, `${andre} (ekte i dag: ${iDagEkte})`)
   ok('uka har ingen åpne dager å skyve rundt', await p.locator('.dag__body').count() === 0)
   await p.locator('.dag', { hasText: 'QA-økt' }).locator('.dag__toggle').click()
@@ -98,7 +105,7 @@ try {
   await p.waitForURL(/\/trening\/dag\//, { timeout: 5000 }).catch(() => {})
   ok('gammel lenke (?dag=) sendes til dagsiden', p.url().endsWith(`/trening/dag/${DAG}`), p.url())
   await p.locator('.okt-start').waitFor({ timeout: 15000 })
-  ok('dagen har «Registrer oppmøte»', /Registrer oppmøte/.test(await p.locator('.okt-start').innerText()))
+  ok('dagen har «Kjøreplanen», ikke «Registrer oppmøte»', /Kjøreplanen/.test(await p.locator('.okt-start').innerText()) && !/Registrer oppmøte|her/.test(await p.locator('.okt-start').innerText()))
   await p.locator('.rigg-rad').click()
   await p.locator('.rigg__liste').waitFor({ timeout: 5000 })
   const rigg = await p.locator('.ds-sheet').innerText()
@@ -106,41 +113,13 @@ try {
   ok('diff med 4 per gruppe gir 7 stasjoner for 27', /7 stasjoner/.test(rigg))
   await p.keyboard.press('Escape')
   await vent(400)
-  await p.locator('.okt-start').click()
-  await p.locator('.oppg__navn').first().waitFor({ timeout: 15000 })
-  ok('«Hvem er her?» med hele kullet på', await p.locator('.oppg__grid').first().locator('.oppg__navn').count() === antall && await p.locator('.oppg__navn--borte').count() === 0)
-  await vent(600)
-  ok('ingen riggervalg i oppmøtet', await p.locator('.oppg__rigger').count() === 0 && await p.locator('.oppg__navn--rigger').count() === 0)
-  const startY = (await p.locator('.okt__start').boundingBox()).y
-  for (let k = 0; k < 6; k++) await p.locator('.oppg__grid').first().locator('.oppg__navn').nth(k * 3).click()
-  await p.locator('.oppg__grid').nth(1).locator('.oppg__navn').last().click()
-  ok('telleren viser 21 av 27', /21\s*av\s*27/.test(await p.locator('.oppm__teller').first().innerText()))
-  const linje = await p.locator('.oppm__linje').innerText()
-  ok('linja over knappen: oppmøtet lagres og deles', /Oppmøtet lagres og deles med de andre trenerne/.test(linje), linje)
-  const sluttY = (await p.locator('.okt__start').boundingBox()).y
-  ok('knappen står stille mens du trykker', likt(sluttY, startY), `${startY} → ${sluttY}`)
-  await p.screenshot({ path: `${OUT}/okt-oppmote.png` })
-  await p.locator('.okt__start').click()
-  await p.locator('.rad').first().waitFor({ timeout: 10000 })
-  const RUN = sql(`select id from training_runs where session_id='${DAG}'`)
-  ok('oppmøtet lagret med 21 spillere', sql(`select count(*) from training_run_players where run_id='${RUN}'`) === '21')
-  ok('oppmøtet gjelder i dag', sql(`select dato = current_date from training_runs where id='${RUN}'`) === 't')
-  ok('ingen gjenger, lag eller rigger lagret på økta', sql(`select state ?| array['_gjenger','_lag','_rigger','_antall'] from training_runs where id='${RUN}'`) === 'f')
-  await p.goto(`${APP}/trening/dag/${DAG}`)
-  await p.locator('.okt-start').waitFor({ timeout: 15000 })
-  await vent(800)
-  ok('dagen viser «Kjøreplanen · 21 her»', /Kjøreplanen[\s\S]*21 her/.test(await p.locator('.okt-start').innerText()), await p.locator('.okt-start').innerText())
-  await p.goto(`${APP}/trening/okt/${DAG}`)
-  await p.locator('.rad').first().waitFor({ timeout: 10000 })
-  ok(`og ${trenere - 1} trenere`, sql(`select count(*) from training_run_coaches where run_id='${RUN}'`) === String(trenere - 1))
-  ok('sesongen satt på økta', sql(`select season_id is not null from training_runs where id='${RUN}'`) === 't')
-  ok('økta har rotasjonsrunden lagret', /^\d+$/.test(sql(`select state->>'_runde' from training_runs where id='${RUN}'`)))
 
-  // Kjøreplanen: lenke til Del inn og øvelsene. Ingen gjenger eller lag her.
+  // Kjøreplanen: lenke til Del inn og øvelsene. Ingen opptelling her.
+  await p.locator('.okt-start').click()
+  await p.locator('.rad').first().waitFor({ timeout: 15000 })
   const delinn = p.locator('.plan__delinn')
   ok('kjøreplanen lenker til Del inn', await delinn.count() === 1 && (await delinn.getAttribute('href')) === '/del-inn')
-  ok('lenken viser 21 spillere og trenerne', new RegExp(`21 spillere · ${trenere - 1} trener`).test(await delinn.innerText()), await delinn.innerText())
-  ok('ingen gjenger, lag, baner eller Endre i kjøreplanen', await p.locator('.gjeng, .bane, .fase__endre, .plan__rigger').count() === 0)
+  ok('ingen opptelling, gjenger, lag, baner eller Endre i kjøreplanen', await p.locator('.oppg__navn, .okt__start, .okt__her, .okt__slett, .gjeng, .bane, .fase__endre, .plan__rigger').count() === 0)
   ok('én seksjon «Øvelsene» med 40 min', await p.locator('.fase').count() === 1 && /Øvelsene[\s\S]*40 min/.test(await p.locator('.fase').innerText()))
   ok('én rad per øvelse', await p.locator('.rad').count() === 2)
   const meta = await p.locator('.rad').first().locator('.rad__meta').innerText()
@@ -162,43 +141,39 @@ try {
   ok('arket har ikke valg for antall lag', await p.locator('.antall').count() === 0)
   await p.locator('.fot__knapp', { hasText: 'Lukk' }).click()
   await vent(400)
+  ok('kjøreplanen lagrer ikke oppmøte', sql(`select count(*) from training_runs where session_id='${DAG}'`) === '0')
 
-  // En annen trener ser samme oppmøte.
-  const iver = await logginn('iver.vestre@gmail.com')
-  await iver.goto(`${APP}/trening/okt/${DAG}`)
-  await iver.locator('.rad').first().waitFor({ timeout: 15000 })
-  ok('Iver lander rett i kjøreplanen', /21/.test(await iver.locator('.okt__her').innerText()))
-
-  // Iver melder en borte fra «her»-arket; jeg ser 20.
-  await iver.locator('.okt__her').click()
-  await iver.locator('.ds-sheet .oppg__grid').first().locator('.oppg__navn:not(.oppg__navn--borte)').first().click()
-  await iver.locator('.ds-sheet .fot__knapp', { hasText: 'Ferdig' }).click()
-  ok('Ivers «ikke her» når meg uten omlasting', await inntil(async () => /^20/.test((await p.locator('.okt__her').innerText()).trim())), await p.locator('.okt__her').innerText())
-  ok('og står i basen', sql(`select count(*) from training_run_players where run_id='${RUN}'`) === '20')
-
-  // Kom for sent: inn igjen, uten plasseringstekst.
-  await p.locator('.okt__her').click()
-  await p.locator('.oppg__navn--borte').first().click()
-  await vent(600)
-  ok('ingen tekst om gruppe eller lag for den som kom', await p.locator('.inn').count() === 0)
-  await p.locator('.fot__knapp', { hasText: 'Ferdig' }).click()
-  await vent(1500)
-  ok('kom for sent: 21 igjen', /^21/.test((await p.locator('.okt__her').innerText()).trim()))
-  ok('og 21 i basen', sql(`select count(*) from training_run_players where run_id='${RUN}'`) === '21')
-  ok('gammel Endre-lenke sendes til Del inn', await (async () => {
-    await p.goto(`${APP}/trening/okt/${DAG}/endre/grupper`)
-    await p.waitForURL(/\/del-inn$/, { timeout: 5000 }).catch(() => {})
-    return /\/del-inn$/.test(p.url())
-  })(), p.url())
-
-  // Del inn fra Hjem: samme motor, egne valg, delt mellom trenerne.
+  // ── Del inn fra Hjem: trening → hvem er her → inndeling ──
   await p.goto(`${APP}/`)
   await p.locator('.hjem-delinn').waitFor({ timeout: 15000 })
-  ok('dagens trening på Hjem går til kjøreplanen', (await p.locator('.today-training').getAttribute('href')) === `/trening/okt/${DAG}` || await p.locator(`a[href="/trening/okt/${DAG}"]`).count() >= 1)
+  ok('dagens trening på Hjem går til kjøreplanen', (await p.locator('.today-training').getAttribute('href')) === `/trening/okt/${DAG}`)
   await p.locator('.hjem-delinn').click()
   await p.waitForURL(/\/del-inn$/, { timeout: 5000 })
+  await p.locator('.valg__rad').first().waitFor({ timeout: 15000 })
+  ok('Del inn spør «Hvilken trening?» med dagens valgt', (await overskrift()) === 'Hvilken trening?' && (await p.getByRole('radio', { name: /QA-økt/ }).getAttribute('aria-checked')) === 'true')
+  await p.locator('.del__hoved', { hasText: 'Neste' }).click()
+  await p.locator('.oppg__navn').first().waitFor({ timeout: 15000 })
+  ok('«Hvem er her?» med hele kullet på', await spillerBrikker().count() === antall && await p.locator('.oppg__navn--borte').count() === 0)
+  await vent(600)
+  ok('ingen riggervalg i oppmøtet', await p.locator('.oppg__rigger').count() === 0 && await p.locator('.oppg__navn--rigger').count() === 0)
+  const startY = (await p.locator('.del__hoved').boundingBox()).y
+  for (let k = 0; k < 6; k++) await spillerBrikker().nth(k * 3).click()
+  await trenerBrikker().last().click()
+  ok('telleren viser 21 av 27', /21\s*av\s*27/.test(await p.locator('.del__teller').innerText()), await p.locator('.del__teller').innerText())
+  const sluttY = (await p.locator('.del__hoved').boundingBox()).y
+  ok('knappen står stille mens du trykker', likt(sluttY, startY), `${startY} → ${sluttY}`)
+  await p.screenshot({ path: `${OUT}/okt-oppmote.png` })
+  ok('oppmøtet lagres på økta', await inntil(() => sql(`select count(*) from training_runs where session_id='${DAG}'`) === '1'))
+  const RUN = sql(`select id from training_runs where session_id='${DAG}'`)
+  ok('oppmøtet lagret med 21 spillere', await inntil(() => sql(`select count(*) from training_run_players where run_id='${RUN}'`) === '21'))
+  ok(`og ${trenere - 1} trenere`, await inntil(() => sql(`select count(*) from training_run_coaches where run_id='${RUN}'`) === String(trenere - 1)))
+  ok('oppmøtet gjelder i dag', sql(`select dato = current_date from training_runs where id='${RUN}'`) === 't')
+  ok('ingen gjenger, lag eller rigger lagret på økta', sql(`select state ?| array['_gjenger','_lag','_rigger','_antall'] from training_runs where id='${RUN}'`) === 'f')
+  ok('sesongen satt på økta', sql(`select season_id is not null from training_runs where id='${RUN}'`) === 't')
+  ok('økta har rotasjonsrunden lagret', /^\d+$/.test(sql(`select state->>'_runde' from training_runs where id='${RUN}'`)))
+  await p.locator('.del__hoved', { hasText: 'Del inn' }).click()
   await p.locator('.kort').first().waitFor({ timeout: 15000 })
-  ok('Del inn bruker dagens oppmøte', /^21 spillere/.test((await p.locator('.del__her').innerText()).trim()), await p.locator('.del__her').innerText())
+  ok('oppsummeringen: 21 spillere og trenerne', new RegExp(`QA-økt.*21 spillere · ${trenere - 1} trenere`).test(await oppsummering()), await oppsummering())
   const kortNavn = async (side = p) => (await side.locator('.kort__navn').allInnerTexts()).map(t => t.split(' · '))
   let dk = await kortNavn()
   ok('Grupper: alle 21 én gang, ingen A og C sammen', dk.flat().length === 21 && new Set(dk.flat()).size === 21 && !(await p.locator('.kort__niva').allInnerTexts()).some(t => t.includes('A') && t.includes('C')))
@@ -208,32 +183,74 @@ try {
   await p.getByRole('tab', { name: 'Lag' }).click()
   await vent(200)
   ok('Lag-fanen: baner og vestfarger', await p.locator('.bane').count() >= 1 && /Gul/.test((await p.locator('.kort').allInnerTexts()).join(' ')))
-  ok('Lag-fanen: infolinja og Trekk på nytt', /baner?, /.test(await p.locator('.del__info').innerText()) && await p.locator('.del__trekk').count() === 1)
+  ok('Lag-fanen: «Trekk på nytt»', await p.locator('.del__sekundar', { hasText: 'Trekk på nytt' }).count() === 1)
   const forTrekk = JSON.stringify(await kortNavn())
-  await p.locator('.del__trekk').click()
+  await p.locator('.del__sekundar').click()
   await vent(200)
   ok('Trekk på nytt gir nye lag', JSON.stringify(await kortNavn()) !== forTrekk)
   ok('ingen «Bruk som dagens …» eller «Start dagens trening»', await p.getByText(/Bruk som dagens|Start dagens trening/).count() === 0)
   await p.getByRole('tab', { name: 'Grupper' }).click()
   await vent(200)
   ok('Grupper-fanen husker sitt antall', (await kortNavn()).length === dk.length - 1)
-  // Kristian tas bort: én trener mindre, og det lagres på dagens økt.
-  const trFor = Number((await p.locator('.del__her').innerText()).match(/(\d+) trener/)[1])
-  await p.locator('.del__her').click()
-  await p.locator('.ds-sheet .oppg__grid').nth(1).locator('.oppg__navn:not(.oppg__navn--borte)').first().click()
-  ok('ingen riggervalg i Del inn', await p.locator('.ds-sheet .oppg__rigger').count() === 0)
-  await p.locator('.ds-sheet .del__bruk', { hasText: 'Ferdig' }).click()
-  await vent(300)
-  ok('en trener tatt bort i Del inn', (await p.locator('.del__her').innerText()).includes(`${trFor - 1} trener`), await p.locator('.del__her').innerText())
-  ok('og det står på dagens økt', await inntil(() => sql(`select count(*) from training_run_coaches where run_id='${RUN}'`) === String(trenere - 2)))
-  await p.screenshot({ path: `${OUT}/del-inn.png` })
+
+  // Dagen og uka viser oppmøtet.
+  const d = await logginn('alexander.samnoy@gmail.com')
+  await d.goto(`${APP}/trening/dag/${DAG}`)
+  await d.locator('.okt-start').waitFor({ timeout: 15000 })
+  await inntil(async () => /21 her/.test(await d.locator('.okt-start').innerText()))
+  ok('dagen viser «Kjøreplanen · 21 her»', /Kjøreplanen[\s\S]*21 her/.test(await d.locator('.okt-start').innerText()), await d.locator('.okt-start').innerText())
+  await d.goto(`${APP}/trening`)
+  const chip2 = d.locator('.dag', { hasText: 'QA-økt' }).locator('.dag__start')
+  await chip2.waitFor({ timeout: 15000 })
+  await inntil(async () => /21 her/.test(await chip2.innerText()))
+  ok('uka viser «21 her» på dagens kort', (await chip2.innerText()).trim() === '21 her')
+  await d.context().close()
+
+  // En annen trener ser samme Del inn: rett på inndelingen, samme grupper.
   dk = await kortNavn()
+  const iver = await logginn('iver.vestre@gmail.com')
   await iver.goto(`${APP}/del-inn`)
   await iver.locator('.kort').first().waitFor({ timeout: 15000 })
+  ok('Iver lander rett på inndelingen', await iver.locator('.del__h1').count() === 0 && /21 spillere/.test(await oppsummering(iver)), await oppsummering(iver))
   ok('Iver ser de samme gruppene i Del inn', await inntil(async () => JSON.stringify(await kortNavn(iver)) === JSON.stringify(dk)), `${dk.length} grupper`)
+  ok('Iver ser at Alex endret sist', await inntil(async () => /endret \d{2}[:.]\d{2}/.test(await iver.locator('.del__delt').innerText().catch(() => ''))))
+
+  // Iver melder en borte; jeg ser 20 uten omlasting.
+  await iver.locator('.del__oppsummering').click()
+  await iver.locator('.oppg__navn').first().waitFor()
+  await spillerBrikker(iver).and(iver.locator(':not(.oppg__navn--borte)')).first().click()
+  ok('Ivers «ikke her» når meg uten omlasting', await inntil(async () => /20 spillere/.test(await oppsummering())), await oppsummering())
+  ok('og står i basen', await inntil(() => sql(`select count(*) from training_run_players where run_id='${RUN}'`) === '20'))
+
+  // Kom for sent: inn igjen.
+  await p.locator('.del__oppsummering').click()
+  await p.locator('.oppg__navn').first().waitFor()
+  await spillerBrikker().and(p.locator('.oppg__navn--borte')).first().click()
+  ok('kom for sent: 21 i basen', await inntil(() => sql(`select count(*) from training_run_players where run_id='${RUN}'`) === '21'))
+  ok('og Iver ser 21', await inntil(async () => /21\s*av/.test(await iver.locator('.del__teller').innerText())), await iver.locator('.del__teller').innerText())
+
+  // En trener til tas bort: det lagres på dagens økt.
+  await trenerBrikker().and(p.locator(':not(.oppg__navn--borte)')).first().click()
+  ok('ingen riggervalg i Del inn', await p.locator('.oppg__rigger').count() === 0)
+  ok('en trener til tatt bort står på dagens økt', await inntil(() => sql(`select count(*) from training_run_coaches where run_id='${RUN}'`) === String(trenere - 2)))
+  await p.locator('.del__hoved', { hasText: 'Del inn' }).click()
+  await p.locator('.kort').first().waitFor()
+  ok('oppsummeringen sier én trener færre', (await oppsummering()).includes(`${trenere - 2} trener`), await oppsummering())
+  await p.screenshot({ path: `${OUT}/del-inn.png` })
+  await iver.locator('.del__hoved', { hasText: 'Del inn' }).click()
+  await iver.locator('.kort').first().waitFor()
+  dk = await kortNavn()
+  ok('Iver ser fortsatt de samme gruppene', await inntil(async () => JSON.stringify(await kortNavn(iver)) === JSON.stringify(dk)), `${dk.length} grupper`)
 
   await p.evaluate(() => window.scrollTo(9999, 0))
   ok('ingen sideveis scroll på 360', await p.evaluate(() => window.scrollX) === 0)
+
+  // Gammel Endre-lenke sendes til Del inn.
+  ok('gammel Endre-lenke sendes til Del inn', await (async () => {
+    await p.goto(`${APP}/trening/okt/${DAG}/endre/grupper`)
+    await p.waitForURL(/\/del-inn$/, { timeout: 5000 }).catch(() => {})
+    return /\/del-inn$/.test(p.url())
+  })(), p.url())
 
   // Statistikken.
   await p.goto(`${APP}/statistikk`)
@@ -254,53 +271,46 @@ try {
   ok('forelder har ingen Del inn på Hjem', await forelder.locator('.hjem-delinn').count() === 0)
   await forelder.goto(`${APP}/del-inn`)
   await vent(2500)
-  ok('forelder sendes bort fra Del inn', !/\/del-inn/.test(forelder.url()) && await forelder.locator('.kort').count() === 0, forelder.url())
+  ok('forelder sendes bort fra Del inn', !/\/del-inn/.test(forelder.url()) && await forelder.locator('.kort, .oppg__navn').count() === 0, forelder.url())
   ok('forelder får null rader fra basen', await forelder.evaluate(async () => {
     const m = await import('/src/supabase.js')
-    const [a, b] = await Promise.all([m.supabase.from('training_runs').select('id'), m.supabase.from('training_run_players').select('player_id')])
-    return (a.data || []).length + (b.data || []).length
+    const [a, b, c] = await Promise.all([m.supabase.from('training_runs').select('id'), m.supabase.from('training_run_players').select('player_id'), m.supabase.from('del_inn').select('dato')])
+    return (a.data || []).length + (b.data || []).length + (c.data || []).length
   }) === 0)
 
-  // Nullstill: oppmøtet går, og det teller ikke i statistikken.
-  await p.goto(`${APP}/trening/okt/${DAG}`)
-  await p.locator('.okt__slett').click()
-  await p.getByRole('button', { name: 'Nullstill' }).last().click()
-  await vent(1200)
-  ok('nullstill fjerner oppmøtet', sql(`select count(*) from training_runs where session_id='${DAG}'`) === '0')
-  ok('nullstill gir «Hvem er her?» med alle på igjen', await p.locator('.oppg__navn').count() > 0 && await p.locator('.oppg__navn--borte').count() === 0)
-  await p.goto(`${APP}/trening/dag/${DAG}`)
-  await p.locator('.okt-start').waitFor({ timeout: 15000 })
-  await vent(800)
-  ok('dagen sier «Registrer oppmøte» igjen', /Registrer oppmøte/.test(await p.locator('.okt-start').innerText()))
-
   // Ikke treningsdag: kjøreplanen vises, ingenting lagres.
+  sql(`delete from training_runs where session_id='${DAG}'; delete from del_inn where cohort_id='${KULL}'`)
   sql(`update training_sessions set weekday=${UKEDAG % 7 + 1} where id='${DAG}'`)
   await p.goto(`${APP}/trening/okt/${DAG}`)
-  await p.locator('.okt__start').waitFor({ timeout: 15000 })
-  ok('andre dager sier at oppmøtet ikke lagres', /lagres ikke/.test(await p.locator('.oppm__linje').innerText()))
-  await p.locator('.okt__start').click()
-  await p.locator('.rad').first().waitFor({ timeout: 10000 })
+  await p.locator('.rad').first().waitFor({ timeout: 15000 })
   await vent(6000)
-  ok('kjøreplanen vises og står etter neste henting', await p.locator('.rad').count() === 2 && await p.locator('.plan__lokal').count() === 1)
+  ok('kjøreplanen vises og står etter neste henting', await p.locator('.rad').count() === 2 && await p.locator('.plan__delinn').count() === 1)
   ok('ingenting i basen', sql(`select count(*) from training_runs where session_id='${DAG}'`) === '0')
 
-  // Del inn en dag uten trening: hele kullet, med blanke valg.
-  sql(`delete from del_inn where cohort_id='${KULL}'`)
+  // Del inn uten trening: hele kullet og alle trenerne, med blanke valg.
   await p.goto(`${APP}/del-inn`)
+  await p.locator('.valg__rad').first().waitFor({ timeout: 15000 })
+  await p.getByRole('radio', { name: /Uten trening/ }).click()
+  await p.locator('.del__hoved', { hasText: 'Neste' }).click()
+  await p.locator('.oppg__navn').first().waitFor()
+  ok('uten trening: hele kullet', new RegExp(`^${antall}\\s*av\\s*${antall}`).test((await p.locator('.del__teller').innerText()).trim()), await p.locator('.del__teller').innerText())
+  await p.locator('.del__hoved', { hasText: 'Del inn' }).click()
   await p.locator('.kort').first().waitFor({ timeout: 15000 })
-  await vent(800)
-  ok('Del inn uten trening i dag: hele kullet', new RegExp(`^${antall} spillere`).test((await p.locator('.del__her').innerText()).trim()), await p.locator('.del__her').innerText())
+  ok('og alle trenerne', new RegExp(`Uten trening.*${antall} spillere · ${trenere} trenere`).test(await oppsummering()), await oppsummering())
   ok('og ingen «Bruk som dagens …»', await p.getByText(/Bruk som dagens|Start dagens trening/).count() === 0)
-  ok('ingen trenere valgt: telleren nevner ikke trenere', !/trener/.test(await p.locator('.del__her').innerText()), await p.locator('.del__her').innerText())
-  ok('tre grupper uten trenere, ingen «Ingen trener»', await p.locator('.kort').count() === 3 && !(await p.locator('.kortene').first().innerText()).includes('Ingen trener'), (await p.locator('.kort__tittel').allInnerTexts()).join(' / '))
-  await p.locator('.del__her').click()
-  await p.locator('.oppg__grid').last().locator('button').first().click()
-  await p.getByRole('button', { name: 'Ferdig' }).click()
+  ok('tre grupper, alle med trener', await p.locator('.kort').count() === 3 && await p.locator('.del__linje').count() === 0, (await p.locator('.kort__tittel').allInnerTexts()).join(' / '))
+  // Bare én trener igjen: fortsatt tre grupper, to uten trener.
+  await p.locator('.del__oppsummering').click()
+  await p.locator('.oppg__navn').first().waitFor()
+  for (let i = 1; i < trenere; i++) await trenerBrikker().nth(i).click()
+  await p.locator('.del__hoved', { hasText: 'Del inn' }).click()
+  await p.locator('.kort').first().waitFor()
   await vent(400)
-  ok('én trener valgt: fortsatt tre grupper, treneren står på én', await p.locator('.kort').count() === 3 && /2 uten trener/.test(await p.locator('.del__info').innerText()), await p.locator('.del__info').innerText())
+  ok('én trener: fortsatt tre grupper, treneren står på én', await p.locator('.kort').count() === 3 && /2 uten trener/.test(await p.locator('.del__linje').innerText().catch(() => '')), await p.locator('.del__linje').innerText().catch(() => ''))
+  ok('uten trening: ingen økt i basen', sql(`select count(*) from training_runs where cohort_id='${KULL}' and dato=current_date`) === '0')
 } finally {
   ok('ingen sidefeil', feil.length === 0, feil.join(' | '))
-  sql(`delete from training_runs where cohort_id='${KULL}' and title like 'QA-%'; delete from training_sessions where id='${DAG}'; delete from del_inn where cohort_id='${KULL}'; delete from player_levels where cohort_id='${KULL}'; update training_exercises set per_gruppe=${FOR} where id='${DIFF}'`)
+  sql(`delete from training_runs where cohort_id='${KULL}' and title like 'QA-%'; delete from training_runs where session_id='${DAG}'; delete from training_runs where cohort_id='${KULL}' and dato = current_date; delete from training_sessions where id='${DAG}'; delete from del_inn where cohort_id='${KULL}'; delete from player_levels where cohort_id='${KULL}'; update training_exercises set per_gruppe=${FOR} where id='${DIFF}'`)
   if (kampIder) sql(`update matches set match_date = match_date - 365 where id in ${kampIder}`)
   await b.close()
 }

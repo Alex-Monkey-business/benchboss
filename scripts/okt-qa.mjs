@@ -1,4 +1,5 @@
-// QA av treningsdagen og økta på åtte telefonbredder, med ekte fingersveip.
+// QA av treningsdagen, kjøreplanen og Del inn på åtte telefonbredder, med
+// ekte fingersveip.
 //
 // Det enkle testene ikke fanger: siden som scroller bak et ark, knapper som
 // renner ut av bunnen, tekst som sprenger bredden på 320 px, og en scroll-
@@ -126,27 +127,13 @@ try {
     await lukkArk()
     ok(`${w} dag: låsen slippes etter øvelsen`, !(await laast()))
 
-    // ── Hvem er her? ──
+    // ── Kjøreplanen: rett fra dagen, uten opptelling ──
     await p.evaluate(() => window.scrollTo(0, 0))
+    ok(`${w} dag: lenken heter «Kjøreplanen»`, /Kjøreplanen/.test(await p.locator('.okt-start').innerText()))
     await p.locator('.okt-start').click()
-    await p.locator('.oppg__navn').first().waitFor({ timeout: 10000 })
-    await vent(400)
-    ok(`${w} oppmøte: ingen sideveis scroll`, (await scrollX()) === 0)
-    await p.evaluate(() => window.scrollTo(0, 99999))
-    await vent(200)
-    const sist = await p.locator('.oppg__navn').last().boundingBox()
-    const knapp = await p.locator('.okt__start').boundingBox()
-    ok(`${w} oppmøte: siste navn ligger over startknappen`, sist.y + sist.height <= knapp.y + 1, `${Math.round(sist.y + sist.height)} / ${Math.round(knapp.y)}`)
-    const meny = await p.locator('.bottom-nav').boundingBox().catch(() => null)
-    if (meny) ok(`${w} oppmøte: startknappen ligger over menyen`, knapp.y + knapp.height <= meny.y + 1)
-    const kn = await kuttet('.oppg__navn, .okt__start')
-    ok(`${w} oppmøte: ingen kuttede navn`, !kn.length, kn.join(' | '))
-    await p.locator('.oppg__navn').nth(2).click()
-    await p.locator('.okt__start').click()
     await p.locator('.rad').first().waitFor({ timeout: 10000 })
     await vent(400)
-
-    // ── Kjøreplanen ──
+    ok(`${w} plan: ingen opptelling på kjøreplanen`, await p.locator('.oppg__navn, .okt__start, .okt__her').count() === 0)
     ok(`${w} plan: ingen sideveis scroll`, (await scrollX()) === 0)
     await strekk()
     ok(`${w} plan: lange navn holder seg innenfor`, !(await utenfor()).length, (await utenfor()).join(', '))
@@ -169,6 +156,7 @@ try {
       await lukkArk()
       ok(`${w} plan: låsen slippes etter øvelse ${i + 1}`, !(await laast()))
     }
+    ok(`${w} plan: kjøreplanen lagret ikke noe oppmøte`, sql(`select count(*) from training_runs where session_id='${DAG}'`) === '0')
 
     // Lenken til Del inn: hel, og tilbake går til kjøreplanen.
     await p.locator('.plan__delinn').scrollIntoViewIfNeeded()
@@ -181,27 +169,6 @@ try {
     await p.locator('.rad').first().waitFor()
     ok(`${w} plan: tilbake fra Del inn til kjøreplanen`, !(await laast()))
 
-    // Oppmøte-arket, og en som kommer for sent.
-    await p.locator('.okt__her').click()
-    await p.locator('.oppg__navn').first().waitFor()
-    await vent(500)
-    await arkSjekk('oppmøte-ark', w)
-    await p.locator('.oppg__navn--borte').first().click()
-    await vent(300)
-    await arkSjekk('kom for sent', w)
-    await sveip('.ds-sheet__body', -2000)
-    await lukkArk()
-    ok(`${w} oppmøte-ark lukket: sluppet`, !(await laast()))
-
-    // Nullstill-dialogen fra siden.
-    await p.locator('.okt__slett').scrollIntoViewIfNeeded()
-    await p.locator('.okt__slett').click()
-    await vent(300)
-    ok(`${w} nullstill-dialog: låst`, await laast())
-    await p.getByRole('button', { name: 'Avbryt' }).click()
-    await vent(300)
-    ok(`${w} økt: alt sluppet til slutt`, !(await laast()))
-
     // Navigér bort med arket åpent: låsen må slippes, ellers står hele appen fast.
     await p.locator('.rad').first().click()
     await p.locator('.ds-sheet__footer').waitFor()
@@ -211,20 +178,53 @@ try {
     await p.evaluate(() => window.scrollTo(0, 400))
     ok(`${w} tilbake med åpent ark: siden kan scrolles`, (await p.evaluate(() => window.scrollY)) > 0)
 
-    // Del inn: begge fanene, uten sideveis scroll eller kuttede knapper.
+    // ── Del inn, steg for steg ──
+    sql(`delete from del_inn where cohort_id='${KULL}' and dato = current_date; delete from training_runs where cohort_id='${KULL}' and dato = current_date`)
     await p.goto(`${APP}/del-inn`)
+    await p.locator('.valg__rad').first().waitFor({ timeout: 15000 })
+    await vent(300)
+    ok(`${w} del inn trening: ingen sideveis scroll`, (await scrollX()) === 0 && !(await utenfor()).length, (await utenfor()).join(' | '))
+    await strekk()
+    ok(`${w} del inn trening: lange navn holder seg innenfor`, !(await utenfor()).length, (await utenfor()).join(', '))
+    await tilbakestill()
+    const k1 = await kuttet('.valg__rad, .del__hoved')
+    ok(`${w} del inn trening: ingen kuttede rader`, !k1.length, k1.join(' | '))
+    await p.locator('.del__hoved', { hasText: 'Neste' }).click()
+
+    // Hvem er her: brikkene ligger over den faste knappen, knappen over menyen.
+    await p.locator('.oppg__navn').first().waitFor({ timeout: 10000 })
+    await vent(400)
+    ok(`${w} oppmøte: ingen sideveis scroll`, (await scrollX()) === 0 && !(await utenfor()).length, (await utenfor()).join(' | '))
+    await p.evaluate(() => window.scrollTo(0, 99999))
+    await vent(200)
+    const sist = await p.locator('.gjest__apne').boundingBox()
+    const fot = await p.locator('.del__fot').boundingBox()
+    ok(`${w} oppmøte: siste rad ligger over Del inn-knappen`, sist.y + sist.height <= fot.y + 1, `${Math.round(sist.y + sist.height)} / ${Math.round(fot.y)}`)
+    const meny = await p.locator('.bottom-nav').boundingBox().catch(() => null)
+    if (meny) ok(`${w} oppmøte: Del inn-knappen ligger over menyen`, fot.y + fot.height <= meny.y + 1)
+    const kn = await kuttet('.oppg__navn, .del__hoved, .gjest__apne')
+    ok(`${w} oppmøte: ingen kuttede navn`, !kn.length, kn.join(' | '))
+    await p.locator('.gjest__apne').click()
+    await p.locator('.ds-sheet', { hasText: 'Ny gjest' }).waitFor()
+    await vent(500)
+    await arkSjekk('ny gjest', w)
+    await lukkArk()
+    ok(`${w} ny gjest lukket: sluppet`, !(await laast()))
+    await p.locator('.del__hoved', { hasText: 'Del inn' }).click()
+
+    // Inndelingen: begge fanene, uten sideveis scroll eller kuttede knapper.
     await p.locator('.kort').first().waitFor({ timeout: 15000 })
     for (const fane of ['Grupper', 'Lag']) {
       await p.getByRole('tab', { name: fane }).click()
       await vent(200)
       ok(`${w} del inn ${fane}: ingen sideveis scroll`, (await scrollX()) === 0 && !(await utenfor()).length, (await utenfor()).join(' | '))
-      const kd = await kuttet('.del__fane-knapp, .steg__knapp, .del__trekk, .del__her, .del__nullstill')
+      const kd = await kuttet('.del__fane-knapp, .steg__knapp, .del__seg-knapp, .del__sekundar, .del__endre, .del__bryter')
       ok(`${w} del inn ${fane}: ingen kuttede knapper`, !kd.length, kd.join(' | '))
     }
-    await p.locator('.del__her').click()
-    await p.locator('.ds-sheet .oppg__navn').first().waitFor()
+    await p.locator('[aria-label="Mer"]').click()
+    await p.locator('.meny__rad').first().waitFor()
     await vent(400)
-    await arkSjekk('del inn oppmøte', w)
+    await arkSjekk('del inn mer', w)
     await lukkArk()
     ok(`${w} del inn: sluppet`, !(await laast()))
     if (w === 360) await p.screenshot({ path: `${OUT}/qa-360-del-inn.png` })
@@ -238,7 +238,7 @@ try {
   }
 } finally {
   ok('ingen sidefeil eller Vue-advarsler', feil.length === 0, [...new Set(feil)].slice(0, 4).join(' | '))
-  sql(`delete from training_runs where session_id='${DAG}'; update training_sessions set weekday=${VD} where id='${DAG}'; delete from player_levels where cohort_id='${KULL}'; delete from del_inn where cohort_id='${KULL}' and dato = current_date`)
+  sql(`delete from training_runs where session_id='${DAG}'; delete from training_runs where cohort_id='${KULL}' and dato = current_date; update training_sessions set weekday=${VD} where id='${DAG}'; delete from player_levels where cohort_id='${KULL}'; delete from del_inn where cohort_id='${KULL}' and dato = current_date`)
   await b.close()
 }
 console.log(feilet ? `${feilet} feil` : 'Alt grønt')

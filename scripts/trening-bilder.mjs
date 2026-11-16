@@ -1,4 +1,5 @@
-// Bilder av hele treningsflyten for øyekontroll. Mot lokal base.
+// Bilder av hele treningsflyten for øyekontroll: uka, dagen, kjøreplanen og
+// Del inn steg for steg. Mot lokal base.
 //   QA_APP=http://localhost:5179 UT=/tmp/bilder node scripts/trening-bilder.mjs
 import { chromium } from 'playwright'
 import { execSync } from 'node:child_process'
@@ -14,7 +15,7 @@ const UKEDAG = new Date().getDay() || 7
 const DAG = sql(`select id from training_sessions where cohort_id='${KULL}' order by jsonb_array_length(drills) desc, position limit 1`)
 const VD = sql(`select coalesce(weekday::text,'null') from training_sessions where id='${DAG}'`)
 sql(`update training_sessions set weekday=${UKEDAG} where id='${DAG}'`)
-sql(`delete from training_runs where session_id='${DAG}'`)
+sql(`delete from training_runs where session_id='${DAG}'; delete from del_inn where cohort_id='${KULL}' and dato = current_date`)
 // Nivåer så gruppene i Del inn blir ekte: annenhver tredjedel A, B, C.
 const HADDE_NIVA = sql(`select count(*) from player_levels where cohort_id='${KULL}'`) !== '0'
 if (!HADDE_NIVA) sql(`insert into player_levels (player_id, cohort_id, level) select id, cohort_id, (array['A','B','B','C'])[1 + (row_number() over (order by name))::int % 4] from players where cohort_id='${KULL}'`)
@@ -30,7 +31,8 @@ await p.waitForURL(u => !/\/auth|\/login/.test(u.pathname), { timeout: 20000 })
 await p.evaluate(k => localStorage.setItem('bb_active_cohort', k), KULL)
 let n = 0
 const bilde = async (navn, full = false) => { await vent(600); await p.screenshot({ path: `${UT}/${String(++n).padStart(2, '0')}-${navn}.png`, fullPage: full }) }
-const steg = async (navn, fn) => { try { await fn() } catch (e) { console.log('STEG FEILET', navn, e.message.split('\n')[0]) } }
+let brutt = 0
+const steg = async (navn, fn) => { try { await fn() } catch (e) { brutt++; console.log('STEG FEILET', navn, e.message.split('\n')[0]) } }
 try {
   await p.goto(`${APP}/trening`); await p.locator('.dag').first().waitFor({ timeout: 15000 })
   await bilde('uka', true)
@@ -38,33 +40,37 @@ try {
   await bilde('dagen', true)
   await steg('rigg', async () => { await p.locator('.rigg-rad').click(); await bilde('rigg-ark'); await p.keyboard.press('Escape') })
   await vent(400)
-  await p.goto(`${APP}/trening/okt/${DAG}`); await p.locator('.oppg__navn').first().waitFor()
-  await bilde('oppmote'); await bilde('oppmote-hel', true)
-  for (const i of [1, 4, 7]) await p.locator('.oppg__navn').nth(i).click()
-  await bilde('oppmote-tre-borte')
-  await p.locator(process.env.START || '.okt__start').click()
-  await p.locator('.rad').first().waitFor(); await bilde('plan'); await bilde('plan-hel', true)
+  await p.goto(`${APP}/trening/okt/${DAG}`); await p.locator('.rad').first().waitFor()
+  await bilde('plan'); await bilde('plan-hel', true)
   await steg('ovelse', async () => {
     await p.locator('.rad').nth(1).click(); await bilde('ovelse')
     await p.keyboard.press('Escape'); await vent(400)
   })
   await steg('del-inn', async () => {
-    await p.locator('.plan__delinn').click(); await p.locator('.kort').first().waitFor(); await vent(500)
-    await bilde('del-inn')
-    await p.goBack(); await p.locator('.rad').first().waitFor(); await vent(400)
-  })
-  await steg('kom-for-sent', async () => {
-    await p.locator('.okt__her').click(); await vent(500)
-    await p.locator('.oppg__navn--borte').first().click(); await bilde('kom-for-sent')
+    await p.locator('.plan__delinn').click(); await p.locator('.valg__rad').first().waitFor(); await vent(500)
+    await bilde('del-inn-trening')
+    await p.locator('.del__hoved', { hasText: 'Neste' }).click(); await p.locator('.oppg__navn').first().waitFor()
+    await bilde('del-inn-oppmote'); await bilde('del-inn-oppmote-hel', true)
+    for (const i of [1, 4, 7]) await p.locator('.oppg__grid').first().locator('.oppg__navn').nth(i).click()
+    await bilde('del-inn-tre-borte')
+    await p.locator('.gjest__apne').click(); await p.getByLabel('Navn på gjesten').fill('Gjest'); await bilde('del-inn-ny-gjest')
+    await p.locator('.ds-sheet .del__hoved', { hasText: 'Legg til' }).click(); await vent(400)
+    await p.locator('.del__hoved', { hasText: 'Del inn' }).click(); await p.locator('.kort').first().waitFor()
+    await bilde('del-inn-grupper', true)
+    await p.getByRole('tab', { name: 'Lag' }).click(); await bilde('del-inn-lag', true)
+    await p.locator('[aria-label="Mer"]').click(); await bilde('del-inn-mer')
     await p.keyboard.press('Escape'); await vent(400)
+    await p.goBack(); await p.locator('.rad').first().waitFor(); await vent(400)
   })
   await steg('ekstra', async () => { if (process.env.EKSTRA) await eval(process.env.EKSTRA) })
   await p.goto(`${APP}/trening/dag/${DAG}`); await p.locator('.steg__hode').first().waitFor(); await bilde('dagen-etter')
   await p.goto(`${APP}/statistikk`); await vent(1500); await bilde('statistikk', true)
 } finally {
   console.log('sidefeil:', feil.length ? feil.join(' | ') : 'ingen')
-  if (!process.env.BEHOLD) sql(`delete from training_runs where session_id='${DAG}'`)
+  if (!process.env.BEHOLD) sql(`delete from training_runs where session_id='${DAG}'; delete from training_runs where cohort_id='${KULL}' and dato = current_date; delete from del_inn where cohort_id='${KULL}' and dato = current_date`)
   sql(`update training_sessions set weekday=${VD} where id='${DAG}'`)
   if (!HADDE_NIVA) sql(`delete from player_levels where cohort_id='${KULL}'`)
   await b.close()
 }
+console.log(`${n} bilder i ${UT}`)
+process.exit(brutt || feil.length ? 1 : 0)

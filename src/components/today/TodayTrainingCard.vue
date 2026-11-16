@@ -24,9 +24,9 @@ function varighet(min) {
 const antall = computed(() => (props.session.drills || []).filter(d => d?.text).length)
 const tittel = computed(() => varighet(props.session.duration_min) || 'Trening')
 const linje = computed(() => {
-  if (props.oppmote != null) return `${props.oppmote} her · planen er klar`
+  if (props.oppmote != null) return `${props.oppmote} her`
   const ov = antall.value ? `${antall.value} ${antall.value === 1 ? 'øvelse' : 'øvelser'}` : 'Ingen øvelser ennå'
-  return props.oppmote === null ? `${ov} · ikke telt opp ennå` : ov
+  return ov
 })
 
 </script>

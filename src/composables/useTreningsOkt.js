@@ -114,9 +114,11 @@ export function useTreningsOkt() {
     // gjelder det oppmøtet — vi skriver ikke over det.
     // plan(runde) lager fordelingen — gjengene og lagene — som lagres på
     // økta sammen med oppmøtet. Trenerrotasjonen må være kjent først.
-    async start(session, spillere, trenere, rigger = null, plan = () => ({})) {
+    // tving: treningen er valgt med vilje (Del inn), så oppmøtet lagres selv
+    // om ukedagen ikke stemmer — økta er flyttet, eller dere kjører en annen.
+    async start(session, spillere, trenere, rigger = null, plan = () => ({}), { tving = false } = {}) {
       const dato = datoFor(session)
-      const lokal = !isSupabaseConfigured || !erTreningsdag(session)
+      const lokal = !isSupabaseConfigured || (!tving && !erTreningsdag(session))
       if (lokal) {
         const runde = isSupabaseConfigured ? await tidligereOkter(dato) : 0
         run.value = { id: 'lokal', lokal: true, session_id: session.id, dato, started_at: new Date().toISOString(), state: { _runde: runde, ...(rigger ? { _rigger: rigger } : {}), ...plan(runde) }, spillere: [...spillere], trenere: [...trenere] }

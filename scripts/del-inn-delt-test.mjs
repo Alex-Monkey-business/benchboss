@@ -42,36 +42,70 @@ async function logginn(epost) {
   await p.evaluate(k => localStorage.setItem('bb_active_cohort', k), KULL)
   return p
 }
-const antallHer = async p => Number((await p.locator('.del__her strong').first().innerText()).trim())
+const antallHer = async p => Number((await p.locator('.del__teller strong').first().innerText()).trim())
+const tilOppmote = async p => {
+  if (await p.getByRole('heading', { name: 'Hvem er her?' }).count()) return
+  if (await p.getByRole('heading', { name: 'Hvilken trening?' }).count()) {
+    await p.getByRole('button', { name: 'Neste' }).click()
+  } else {
+    await p.locator('.del__oppsummering').click()
+  }
+  await p.getByRole('heading', { name: 'Hvem er her?' }).waitFor()
+}
+const tilInndeling = async p => {
+  await tilOppmote(p)
+  await p.getByRole('button', { name: 'Del inn', exact: true }).click()
+  await p.locator('.del__oppsummering').waitFor()
+}
 
 try {
   const alex = await logginn('alexander.samnoy@gmail.com')
   const iver = await logginn('iver.vestre@gmail.com')
   await alex.goto(`${APP}/del-inn`)
-  await iver.goto(`${APP}/del-inn`)
-  await alex.locator('.del__her').waitFor({ timeout: 15000 })
-  await iver.locator('.del__her').waitFor({ timeout: 15000 })
+  await alex.getByRole('heading', { name: 'Hvilken trening?' }).waitFor({ timeout: 15000 })
+  ok('Steg 1: nærmeste trening er valgt', (await alex.locator('.valg__rad[aria-checked="true"]').count()) === 1)
+
+  // Alex velger «Uten trening»: listene står i Del inn-raden.
+  await alex.getByRole('radio', { name: /Uten trening/ }).click()
+  await tilOppmote(alex)
   const alle = await antallHer(alex)
-  ok('Ingen trening i dag: hele kullet er med', alle > 10, `${alle}`)
-  ok('Begge ser samme antall før noe er gjort', alle === await antallHer(iver))
+  ok('Uten trening: hele kullet er med', alle > 10, `${alle}`)
+  ok('Valget er delt', await inntil(() => sql(`select valg->>'okt' from del_inn where cohort_id='${KULL}' and dato=current_date`) === 'ingen'))
+
+  // Iver åpner: noen har begynt, så rett på inndelingen.
+  await iver.goto(`${APP}/del-inn`)
+  ok('Iver havner rett på inndelingen', await inntil(async () => await iver.locator('.del__oppsummering').count() === 1))
+  ok('Iver ser «Uten trening»', /Uten trening/.test(await iver.locator('.del__oppsummering').innerText()))
 
   // Alex trykker bort to spillere.
-  await alex.locator('.del__her').click()
-  const brikker = alex.locator('.ds-sheet .oppg button').filter({ hasNotText: /rigger/i })
+  const brikker = alex.locator('.oppg__grid').first().locator('button')
   await brikker.nth(0).click()
   await brikker.nth(1).click()
-  await alex.getByRole('button', { name: 'Ferdig' }).click()
   ok('Alex: to færre', await antallHer(alex) === alle - 2)
-  ok('Iver ser to færre innen noen sekunder', await inntil(async () => await antallHer(iver) === alle - 2), `${await antallHer(iver)}`)
+  const iverAntall = async () => Number((await iver.locator('.del__oppsummering').innerText()).match(/(\d+) spiller/)[1])
+  ok('Iver ser to færre innen noen sekunder', await inntil(async () => await iverAntall() === alle - 2), `${await iverAntall()}`)
   ok('Lagret i del_inn', Number(sql(`select coalesce(array_length(spillere,1),0) from del_inn where cohort_id='${KULL}' and dato=current_date`)) === alle - 2)
 
-  // Alex bytter til Lag og trekker på nytt.
+  // Gjest fra et annet lag: med i fordelingen hos begge.
+  await alex.getByRole('button', { name: 'Legg til gjest' }).click()
+  await alex.getByLabel('Navn på gjesten').fill('Gjestemann')
+  await alex.locator('.ds-sheet').getByRole('button', { name: 'A', exact: true }).click()
+  await alex.getByRole('button', { name: 'Legg til', exact: true }).click()
+  ok('Gjesten står i oppmøtet', await inntil(async () => await antallHer(alex) === alle - 1))
+  await alex.screenshot({ path: `${OUT}/del-inn-oppmote.png`, fullPage: true })
+  ok('Iver får gjesten med i tellingen', await inntil(async () => await iverAntall() === alle - 1))
+  ok('Gjesten står i en gruppe hos Iver, merket som gjest', await inntil(async () => /Gjestemann gjest/.test((await iver.locator('.kortene').innerText()).replace(/\s+/g, ' '))))
+  await alex.getByRole('button', { name: 'Fjern Gjestemann' }).click()
+  ok('Gjesten fjernet hos Iver', await inntil(async () => await iverAntall() === alle - 2))
+
+  // Alex går til inndelingen og bytter til Lag og trekker på nytt.
+  await alex.getByRole('button', { name: 'Del inn', exact: true }).click()
   await alex.getByRole('tab', { name: 'Lag' }).click()
   ok('Iver bytter til Lag', await inntil(async () => (await iver.getByRole('tab', { name: 'Lag' }).getAttribute('aria-selected')) === 'true'))
   await alex.getByRole('button', { name: 'Trekk på nytt' }).click()
   const lagA = async p => (await p.locator('.kort__navn').allInnerTexts()).join('|')
   ok('Samme lag på begge telefonene', await inntil(async () => (await lagA(alex)) === (await lagA(iver)) && (await lagA(alex)).length > 0))
-  ok('Iver ser hvem som endret', await inntil(async () => /av Alex/.test(await iver.locator('.del__delt').innerText())), await iver.locator('.del__delt').innerText())
+  ok('Iver ser hvem som endret', await inntil(async () => /Alex endret/.test(await iver.locator('.del__linje').innerText().catch(() => ''))))
   await iver.screenshot({ path: `${OUT}/del-inn-delt-iver.png`, fullPage: true })
 
   // Iver endrer antall — Alex følger.
@@ -81,63 +115,49 @@ try {
   const grupper = async p => p.locator('.kort').count()
   ok('Alex følger Ivers grupper', await inntil(async () => (await grupper(alex)) === (await grupper(iver)) && (await lagA(alex)) === (await lagA(iver))))
 
-  // Rent nivå / Like store: delt, og gir ulike gruppestørrelser når nivåene er skjeve.
+  // Like store grupper: av og på, delt.
   await iver.getByRole('button', { name: 'Diff' }).click()
-  await iver.getByRole('button', { name: /Rent nivå/ }).click()
+  const bryter = p => p.getByRole('switch', { name: /Like store grupper/ })
+  ok('Like store er på fra start', (await bryter(iver).getAttribute('aria-checked')) === 'true')
+  await bryter(iver).click()
+  ok('Alex får Like store av', await inntil(async () => (await bryter(alex).getAttribute('aria-checked')) === 'false'))
   const storrelser = async p => (await p.locator('.kort__ant').allInnerTexts()).join(',')
-  ok('Alex får Rent nivå', await inntil(async () => (await alex.getByRole('button', { name: /Rent nivå/ }).getAttribute('aria-pressed')) === 'true'))
-  const rent = await storrelser(alex)
-  await alex.getByRole('button', { name: /Like store/ }).click()
-  ok('Like store: maks én i forskjell', await inntil(async () => { const t = (await storrelser(alex)).split(',').map(Number); return Math.max(...t) - Math.min(...t) <= 1 }), `rent ${rent} → like ${await storrelser(alex)}`)
+  await bryter(alex).click()
+  ok('Like store: maks én i forskjell', await inntil(async () => { const t = (await storrelser(alex)).split(',').map(Number); return Math.max(...t) - Math.min(...t) <= 1 }), await storrelser(alex))
   ok('Iver ser Like store', await inntil(async () => (await storrelser(iver)) === (await storrelser(alex))))
-
-  // Gjest fra et annet lag: med i fordelingen hos begge.
-  const forGjest = await antallHer(iver)
-  await alex.locator('.del__her').click()
-  await alex.getByRole('button', { name: 'Legg til gjest' }).click()
-  await alex.getByLabel('Navn på gjesten').fill('Gjestemann')
-  await alex.locator('.gjest').getByRole('button', { name: 'A' }).click()
-  await alex.getByRole('button', { name: 'Legg til', exact: true }).click()
-  await alex.screenshot({ path: `${OUT}/del-inn-gjest-ark.png` })
-  await alex.getByRole('button', { name: 'Ferdig' }).click()
-  ok('Iver får gjesten med i tellingen', await inntil(async () => await antallHer(iver) === forGjest + 1), `${await antallHer(iver)}`)
-  ok('Gjesten står i en gruppe hos Iver, merket som gjest', await inntil(async () => /Gjestemann gjest/.test((await iver.locator('.kortene').innerText()).replace(/\s+/g, ' '))))
-  await iver.screenshot({ path: `${OUT}/del-inn-gjest.png`, fullPage: true })
-  await iver.locator('.del__her').click()
-  await iver.getByRole('button', { name: 'Fjern Gjestemann' }).click()
-  await iver.getByRole('button', { name: 'Ferdig' }).click()
-  ok('Gjesten fjernet hos Alex', await inntil(async () => await antallHer(alex) === forGjest))
 
   // Hjem viser at det er delt inn.
   await iver.goto(`${APP}/`)
-  ok('Hjem: Del inn viser «delt … av Iver» for Iver selv som «deg»', await inntil(async () => /delt \d\d[.:]\d\d av deg/.test(await iver.locator('.hjem-delinn').innerText())), await iver.locator('.hjem-delinn').innerText().catch(() => ''))
+  ok('Hjem: Iver ser at Alex delte sist', await inntil(async () => /delt \d\d[.:]\d\d av Alex/.test(await iver.locator('.hjem-delinn').innerText())), await iver.locator('.hjem-delinn').innerText().catch(() => ''))
   await alex.goto(`${APP}/`)
-  ok('Hjem: Alex ser at Iver delte inn', await inntil(async () => /av Iver/.test(await alex.locator('.hjem-delinn').innerText())), await alex.locator('.hjem-delinn').innerText().catch(() => ''))
-  await alex.screenshot({ path: `${OUT}/del-inn-delt-hjem.png` })
+  ok('Hjem: Alex ser «av deg»', await inntil(async () => /delt \d\d[.:]\d\d av deg/.test(await alex.locator('.hjem-delinn').innerText())), await alex.locator('.hjem-delinn').innerText().catch(() => ''))
 
-  // Start på nytt nullstiller hos begge.
+  // Start på nytt (Mer-menyen) nullstiller hos begge.
   await alex.goto(`${APP}/del-inn`)
-  await iver.goto(`${APP}/del-inn`)
+  await alex.locator('.del__oppsummering').waitFor({ timeout: 15000 })
+  await alex.getByRole('button', { name: 'Mer' }).click()
   await alex.getByRole('button', { name: 'Start på nytt' }).click()
-  ok('Nullstilt: hele kullet igjen hos Iver', await inntil(async () => await antallHer(iver) === alle))
+  ok('Nullstilt: Alex er tilbake på steg 1', await inntil(async () => await alex.getByRole('heading', { name: 'Hvilken trening?' }).count() === 1))
+  ok('Nullstilt i basen', await inntil(() => sql(`select count(*) from del_inn where cohort_id='${KULL}'`) === '0'))
 
-  // Trening i dag: første trykk lagrer oppmøtet på økta (statistikken).
+  // Valgt trening: oppmøtet lagres på økta (statistikken), selv på en annen ukedag.
   const DIFF = sql(`select id from training_exercises where type='diff' and club_id=(select club_id from cohorts where id='${KULL}') order by name limit 1`)
   qaDag = sql(`insert into training_sessions (cohort_id, title, weekday, position, drills) values ('${KULL}', 'QA-delt', ${UKEDAG}, 97, jsonb_build_array(jsonb_build_object('type','diff','text','QA diff','exercise_id','${DIFF}','minutes',20))) returning id`).split('\n')[0]
-  await alex.reload(); await iver.reload()
-  await alex.locator('.del__her').waitFor({ timeout: 15000 })
-  await alex.locator('.del__her').click()
-  await alex.locator('.ds-sheet .oppg button').nth(2).click()
-  await alex.getByRole('button', { name: 'Ferdig' }).click()
-  ok('Trening i dag: oppmøtet ble lagret på økta', await inntil(async () => Number(sql(`select count(*) from training_run_players rp join training_runs r on r.id=rp.run_id where r.session_id='${qaDag}' and r.dato=current_date`)) === alle - 1))
-  ok('Iver ser samme oppmøte', await inntil(async () => await antallHer(iver) === alle - 1), `${await antallHer(iver)}`)
+  await alex.reload()
+  await alex.getByRole('heading', { name: 'Hvilken trening?' }).waitFor({ timeout: 15000 })
+  ok('Dagens trening er valgt som nærmeste', /QA-delt/.test(await alex.locator('.valg__rad[aria-checked="true"]').innerText()))
+  await tilOppmote(alex)
+  await alex.locator('.oppg__grid').first().locator('button').nth(2).click()
+  ok('Trening: oppmøtet ble lagret på økta', await inntil(async () => Number(sql(`select count(*) from training_run_players rp join training_runs r on r.id=rp.run_id where r.session_id='${qaDag}' and r.dato=current_date`)) === alle - 1))
+  await iver.goto(`${APP}/del-inn`)
+  ok('Iver ser samme oppmøte', await inntil(async () => /QA-delt/.test(await iver.locator('.del__oppsummering').innerText()) && Number((await iver.locator('.del__oppsummering').innerText()).match(/(\d+) spiller/)[1]) === alle - 1), await iver.locator('.del__oppsummering').innerText().catch(() => ''))
 
-  // Kjøreplanen: ingen grupper eller lag, men en vei til Del inn.
+  // Kjøreplanen: ingen oppmøte, men en vei til Del inn.
   await alex.goto(`${APP}/trening/okt/${qaDag}`)
   await alex.locator('.plan').waitFor({ timeout: 15000 })
-  ok('Kjøreplanen har ingen gruppekort', await alex.locator('#grupper, #lag, .fase__endre').count() === 0)
+  ok('Kjøreplanen har ikke oppmøte', await alex.locator('.oppg__grid, .okt__start, .okt__her').count() === 0)
   ok('Kjøreplanen lenker til Del inn', await alex.locator('.plan__delinn').count() === 1)
-  await alex.screenshot({ path: `${OUT}/okt-uten-grupper.png`, fullPage: true })
+  await alex.screenshot({ path: `${OUT}/okt-uten-oppmote.png`, fullPage: true })
 } catch (e) {
   feilet++
   console.log('FEIL', e.message)

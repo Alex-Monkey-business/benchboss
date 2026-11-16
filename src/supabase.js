@@ -1,5 +1,5 @@
 import { PostgrestClient } from '@supabase/postgrest-js'
-import { GoTrueClient } from '@supabase/auth-js'
+import { GoTrueClient, isAuthRetryableFetchError } from '@supabase/auth-js'
 import { FunctionsClient } from '@supabase/functions-js'
 
 // En slank Supabase-klient: bare det appen bruker.
@@ -47,10 +47,13 @@ function lagKlient(url, key) {
   async function accessToken() {
     const { data, error } = await auth.getSession()
     if (data?.session?.access_token) return data.session.access_token
-    // Fornyelsen feilet (typisk uten nett). Å falle tilbake til anon-nøkkelen
-    // ga tomme lister fra RLS — som så overskrev cachen. La forespørselen
-    // feile i stedet, så kalleren beholder det den har.
-    if (error) throw error
+    // Fornyelsen feilet FORDI NETTET ER BORTE: anon-nøkkelen ville gitt tomme
+    // lister fra RLS, som så overskrev cachen. La forespørselen feile, så
+    // kalleren beholder det den har. Er sesjonen derimot ugyldig (utløpt
+    // refresh-token), er det ingenting å vente på — da går vi videre som før,
+    // og appen sender til innlogging. 16. nov hang PWA-en på lasteskjermen
+    // fordi denne kastet for alle feil.
+    if (erNettfeil(error)) throw error
     return key
   }
 
@@ -79,6 +82,13 @@ function lagKlient(url, key) {
       return new FunctionsClient(functionsUrl, { headers: {}, customFetch: fetchWithAuth })
     }
   }
+}
+
+// Nettverksfeil (ingen dekning) — ikke en ugyldig sesjon.
+export function erNettfeil(error) {
+  if (!error) return false
+  if (isAuthRetryableFetchError(error)) return true
+  return typeof navigator !== 'undefined' && navigator.onLine === false
 }
 
 export const supabase = supabaseUrl && supabaseKey ? lagKlient(supabaseUrl, supabaseKey) : null

@@ -682,23 +682,21 @@ onMounted(async () => {
           </span>
         </component>
 
-        <!-- Oppmøtet for dagens trening, uten å åpne kortet. De andre dagene
-             har ikke knappen: oppmøtet registreres samme dag. -->
+        <!-- Dagens trening: rett til Del inn (oppmøte og inndeling). -->
         <router-link
-          v-if="isCoach && openDayId !== s.id && drillsFor(s).length && (s.weekday === todayWeekday() || oppmoteIDag[s.id] != null)"
-          :to="`/trening/okt/${s.id}`"
+          v-if="isCoach && openDayId !== s.id && (s.weekday === todayWeekday() || oppmoteIDag[s.id] != null)"
+          to="/del-inn"
           class="dag__start"
-        >{{ oppmoteIDag[s.id] != null ? `${oppmoteIDag[s.id]} her` : 'Oppmøte' }}</router-link>
+        >{{ oppmoteIDag[s.id] != null ? `${oppmoteIDag[s.id]} her` : 'Del inn' }}</router-link>
 
         <div v-if="openDayId === s.id" class="dag__body">
-          <!-- Oppmøtet er hovedsaken på feltet: det gir grupper, trenere
-               og utstyr for dem som kom. -->
+          <!-- Kjøreplanen: øvelsene for økta. Oppmøtet tas i Del inn. -->
           <router-link
             v-if="isCoach && drillsFor(s).length && editDayId !== s.id"
             :to="`/trening/okt/${s.id}`"
             class="okt-start"
           >
-            <span class="okt-start__tittel">{{ oppmoteIDag[s.id] != null ? 'Kjøreplanen' : 'Registrer oppmøte' }}</span>
+            <span class="okt-start__tittel">Kjøreplanen</span>
             <span v-if="oppmoteIDag[s.id] != null" class="okt-start__her">{{ oppmoteIDag[s.id] }} her</span>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
           </router-link>

@@ -141,40 +141,52 @@ try {
     await mal(navn)
   }
 
-  // Kjøreplanen og arkene: oppmøtet registreres lokalt og slettes etterpå.
-  // Midlertidige nivåer, så gruppene i Del inn får bokstaver.
+  // Kjøreplanen og arkene, og Del inn steg for steg. Det som lagres i dag
+  // slettes etterpå. Midlertidige nivåer, så gruppene i Del inn får bokstaver.
   const hadde = Number(sql(`select count(*) from player_levels pl join players p on p.id = pl.player_id where p.cohort_id='${KULL}'`))
   if (!hadde) sql(`insert into player_levels (player_id, level) select id, (array['A','B','C'])[1 + (row_number() over (order by name))::int % 3] from players where cohort_id='${KULL}'`)
+  sql(`delete from training_runs where cohort_id='${KULL}' and dato = current_date; delete from del_inn where cohort_id='${KULL}' and dato = current_date`)
   try {
     await p.goto(`${APP}/trening/okt/${dag}`)
-    await p.locator('.okt__start').click()
-    await p.locator('.plan').waitFor()
+    await p.locator('.plan .rad').first().waitFor()
     await mal('kjoreplan')
     await p.locator('.rad').first().click()
     await mal('ark-ovelse', false)
     await p.locator('.fot__knapp', { hasText: 'Lukk' }).click()
     await vent(400)
-    await p.locator('.okt__her').click()
-    await mal('ark-oppmote', false)
-    await p.locator('.fot__knapp', { hasText: 'Ferdig' }).click()
-    await vent(400)
-    await p.locator('.okt__slett').click()
-    await mal('nullstill-dialog', false)
-    await p.getByRole('button', { name: 'Avbryt' }).click()
     await p.goto(`${APP}/`)
     await p.locator('.hjem-delinn').waitFor()
     await mal('hjem-del-inn', false)
     await p.locator('.hjem-delinn').click()
+    await p.locator('.valg__rad').first().waitFor()
+    await mal('del-inn-trening', false)
+    await p.locator('.del__hoved', { hasText: 'Neste' }).click()
+    await p.locator('.oppg__navn').first().waitFor()
+    // To borte og en gjest, så alle brikketypene er med.
+    await p.locator('.oppg__grid').first().locator('.oppg__navn').nth(0).click()
+    await p.locator('.oppg__grid').nth(1).locator('.oppg__navn').nth(0).click()
+    await p.locator('.gjest__apne').click()
+    await p.locator('.ds-sheet', { hasText: 'Ny gjest' }).waitFor()
+    await p.getByLabel('Navn på gjesten').fill('Gjest')
+    await mal('del-inn-ny-gjest', false)
+    await p.locator('.ds-sheet .del__hoved', { hasText: 'Legg til' }).click()
+    await p.locator('.gjest__brikke').waitFor()
+    await mal('del-inn-oppmote')
+    await p.locator('.del__hoved', { hasText: 'Del inn' }).click()
     await p.locator('.kort').first().waitFor()
+    // En annen trener endret sist: linja «<Navn> endret HH:MM» vises.
+    sql(`update del_inn set endret_av = (select c.id from coaches c where c.cohort_id='${KULL}' and c.id is distinct from del_inn.endret_av order by c.name limit 1), endret_at = now() where cohort_id='${KULL}' and dato = current_date`)
+    if (!(await p.locator('.del__delt').waitFor({ timeout: 10000 }).then(() => true, () => false))) { feil++; console.log('FEIL del-inn: «… endret HH:MM» vises ikke') }
+    // Toasten «… endret inndelingen» er ikke en del av siden: vent til den er borte.
+    await p.locator('.ds-toast').waitFor({ state: 'detached', timeout: 8000 }).catch(() => {})
     await mal('del-inn-grupper', false)
     await p.getByRole('tab', { name: 'Lag' }).click()
     await mal('del-inn-lag', false)
-    await p.locator('.ds-pill', { hasText: 'Mix' }).first().click().catch(() => {})
-    await p.locator('.del__her').click()
-    await p.locator('.ds-sheet .oppg__navn').first().waitFor()
-    await mal('del-inn-oppmote', false)
+    await p.locator('[aria-label="Mer"]').click()
+    await p.locator('.meny__rad').first().waitFor()
+    await mal('del-inn-mer', false)
   } finally {
-    sql(`delete from training_runs where session_id='${dag}' and dato = current_date; delete from del_inn where cohort_id='${KULL}' and dato = current_date`)
+    sql(`delete from training_runs where cohort_id='${KULL}' and dato = current_date; delete from del_inn where cohort_id='${KULL}' and dato = current_date`)
     if (!hadde) sql(`delete from player_levels where player_id in (select id from players where cohort_id='${KULL}')`)
   }
 } finally {

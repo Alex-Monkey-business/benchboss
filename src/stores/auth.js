@@ -1,5 +1,5 @@
 import { reactive, computed } from 'vue'
-import { supabase, isSupabaseConfigured, isGoogleEnabled } from '../supabase'
+import { supabase, isSupabaseConfigured, isGoogleEnabled, erNettfeil } from '../supabase'
 import { resetAllData } from './dataReset'
 import { clearPersisted } from '../lib/persist'
 import { readLegacyUser, clearLegacyUser, refreshLegacyFlag } from './legacyAuth'
@@ -255,10 +255,12 @@ async function bootstrap() {
     const { data, error } = await supabase.auth.getSession()
     if (data?.session?.user) {
       await loadMember(data.session.user)
-    } else if (error) {
-      // Utløpt token som ikke kunne fornyes (typisk uten nett): sesjonen er
-      // ikke nødvendigvis borte. Å tømme cachen her logget treneren ut bare
-      // av å åpne appen i en kjeller uten dekning. Behold alt, merk offline.
+    } else if (erNettfeil(error) && state.profile) {
+      // Token som ikke kunne fornyes FORDI NETTET ER BORTE: sesjonen er ikke
+      // nødvendigvis borte. Å tømme cachen her logget treneren ut bare av å
+      // åpne appen i en kjeller uten dekning. Behold alt, merk offline.
+      // Andre feil (ugyldig refresh-token) betyr at sesjonen ER borte — da
+      // ryddes det under, og appen sender til innlogging.
       state.offline = true
     } else if (state.profile) {
       // Cachen påsto innlogget, men sesjonen er borte.

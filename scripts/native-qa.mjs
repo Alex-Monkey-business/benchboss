@@ -1,4 +1,5 @@
-// Oppfører arkene seg som i en app? Tilbake-knappen lukker øverste lag først,
+// Oppfører arkene seg som i en app? Tilbake-knappen lukker øverste lag først
+// (øvelsesarket i kjøreplanen, «Ny gjest» og «Mer» i Del inn),
 // dra-ned glir ut uten å sprette, bakgrunnen blekner mens du drar, og
 // historikken får ingen døde steg. Mot lokal base, ekte touch via CDP.
 //
@@ -18,7 +19,7 @@ const UKEDAG = new Date().getDay() || 7
 const DAG = sql(`select id from training_sessions where cohort_id='${KULL}' order by jsonb_array_length(drills) desc, position limit 1`)
 const VD = sql(`select coalesce(weekday::text,'null') from training_sessions where id='${DAG}'`)
 sql(`update training_sessions set weekday=${UKEDAG} where id='${DAG}'`)
-sql(`delete from training_runs where session_id='${DAG}'`)
+sql(`delete from training_runs where session_id='${DAG}'; delete from del_inn where cohort_id='${KULL}' and dato = current_date`)
 
 const b = await chromium.launch()
 const r = await fetch(`${API}/auth/v1/admin/generate_link`, { method: 'POST', headers: { apikey: SVC, Authorization: `Bearer ${SVC}`, 'Content-Type': 'application/json' }, body: JSON.stringify({ type: 'magiclink', email: 'alexander.samnoy@gmail.com' }) })
@@ -54,8 +55,6 @@ try {
   await p.locator(`#dag-${DAG} .dag__toggle`).click()
   await p.waitForURL(/\/trening\/dag\//)
   await p.locator('.okt-start').click()
-  await p.locator('.oppg__navn').first().waitFor()
-  await p.locator('.okt__start').click()
   await p.locator('.rad').first().waitFor()
   await vent(400)
 
@@ -70,7 +69,7 @@ try {
   // Del inn er en egen side: tilbake går til kjøreplanen.
   await p.locator('.plan__delinn').click()
   await p.waitForURL(/\/del-inn$/, { timeout: 5000 })
-  await p.locator('.kort').first().waitFor({ timeout: 15000 })
+  await p.locator('.valg__rad').first().waitFor({ timeout: 15000 })
   await vent(400)
   await tilbake()
   await p.locator('.rad').first().waitFor({ timeout: 5000 }).catch(() => {})
@@ -88,22 +87,57 @@ try {
   await vent(400)
   await p.keyboard.press('Escape')
   await vent(500)
-
-  // Nullstill-dialog → tilbake. Oppmøte-ark → tilbake.
-  await p.locator('.okt__slett').click()
-  await vent(300)
-  await tilbake()
-  ok('tilbake lukker nullstill-dialogen, oppmøtet står', (await p.locator('.ds-dialog').count()) === 0 && await p.locator('.rad').count() > 0)
-  await p.locator('.okt__her').click()
-  await p.locator('.oppg__navn').first().waitFor()
-  await vent(400)
-  await tilbake()
-  ok('tilbake lukker oppmøte-arket', !(await arkApent()) && sti() === `/trening/okt/${DAG}`)
+  ok('Escape lukker', !(await arkApent()) && sti() === `/trening/okt/${DAG}`)
 
   await tilbake()
   ok('neste tilbake går rett til dagen (ingen døde steg)', sti() === `/trening/dag/${DAG}`, sti())
   await tilbake()
   ok('og så til uka', sti() === '/trening', sti())
+
+  // ── Del inn: arkene lukkes med tilbake, stegene står ──
+  sql(`delete from del_inn where cohort_id='${KULL}' and dato = current_date`)
+  await p.goto(`${APP}/trening`)
+  await p.locator(`#dag-${DAG} .dag__start`).click()
+  await p.waitForURL(/\/del-inn$/, { timeout: 5000 })
+  await p.locator('.valg__rad').first().waitFor({ timeout: 15000 })
+  await p.locator('.del__hoved', { hasText: 'Neste' }).click()
+  await p.locator('.oppg__navn').first().waitFor()
+  await p.locator('.gjest__apne').click()
+  await p.locator('.ds-sheet', { hasText: 'Ny gjest' }).waitFor()
+  await vent(400)
+  await tilbake()
+  ok('tilbake lukker «Ny gjest»', !(await arkApent()))
+  ok('og blir på «Hvem er her?»', sti() === '/del-inn' && (await p.locator('.del__h1').innerText()) === 'Hvem er her?', sti())
+  // Lukket med krysset: ingen dødt steg igjen i historikken.
+  await p.locator('.gjest__apne').click()
+  await p.locator('.ds-sheet', { hasText: 'Ny gjest' }).waitFor()
+  await vent(400)
+  await p.locator('.ds-sheet__close').click()
+  await vent(500)
+  ok('krysset lukker «Ny gjest»', !(await arkApent()))
+  // Legg til en gjest: arket lukkes av seg selv, uten dødt steg.
+  await p.locator('.gjest__apne').click()
+  await p.getByLabel('Navn på gjesten').fill('QA Gjest')
+  await p.locator('.ds-sheet .del__hoved', { hasText: 'Legg til' }).click()
+  await vent(500)
+  ok('«Legg til» lukker arket og gjesten står', !(await arkApent()) && await p.locator('.gjest__brikke', { hasText: 'QA Gjest' }).count() === 1)
+  await p.locator('.del__hoved', { hasText: 'Del inn' }).click()
+  await p.locator('.kort').first().waitFor()
+  await p.locator('[aria-label="Mer"]').click()
+  await p.locator('.meny__rad').first().waitFor()
+  await vent(400)
+  await tilbake()
+  ok('tilbake lukker Mer-arket', !(await arkApent()))
+  ok('og blir på inndelingen', sti() === '/del-inn' && await p.locator('.kort').count() > 0, sti())
+  // «Bytt trening» i Mer-arket: arket lukkes, steg 1 vises, ingen dødt steg.
+  await p.locator('[aria-label="Mer"]').click()
+  await p.locator('.meny__rad', { hasText: 'Bytt trening' }).click()
+  await vent(500)
+  ok('«Bytt trening» lukker arket og gir steg 1', !(await arkApent()) && (await p.locator('.del__h1').innerText()) === 'Hvilken trening?')
+  await p.locator('.del__bar [aria-label="Tilbake"]').click()
+  await p.waitForURL(u => u.pathname === '/trening', { timeout: 5000 }).catch(() => {})
+  ok('«Tilbake» på steg 1 går dit du kom fra', sti() === '/trening', sti())
+  ok('ingen scroll-lås etter Del inn', await p.evaluate(() => document.body.style.position === ''))
 
   // ── Dra ned ──
   await p.goto(`${APP}/trening/okt/${DAG}`)
@@ -180,7 +214,7 @@ try {
   ok('ingen scroll-lås hengende', await p.evaluate(() => document.body.style.position === ''))
 } finally {
   ok('ingen sidefeil', feil.length === 0, feil.slice(0, 3).join(' | '))
-  sql(`delete from training_runs where session_id='${DAG}'; update training_sessions set weekday=${VD} where id='${DAG}'`)
+  sql(`delete from training_runs where session_id='${DAG}'; delete from training_runs where cohort_id='${KULL}' and dato = current_date; delete from del_inn where cohort_id='${KULL}' and dato = current_date; update training_sessions set weekday=${VD} where id='${DAG}'`)
   await b.close()
 }
 console.log(feilet ? `${feilet} feil` : 'Alt grønt')
