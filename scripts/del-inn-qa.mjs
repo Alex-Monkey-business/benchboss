@@ -130,8 +130,8 @@ try {
   await vent(300)
   ok('to med: to lag på én bane', await p.locator('.bane').count() === 1 && await p.locator('.kort').count() === 2)
   ok('to med: + er sperret', await p.locator('.steg__knapp[aria-label="Flere"]').isDisabled())
-  ok('Lag: «Trekk på nytt» nederst', await p.locator('.del__fot .del__hoved', { hasText: 'Trekk på nytt' }).count() === 1)
-  ok('ingen gamle knapper (her-pille, Ferdig, Nullstill, Rent nivå)', await p.locator('.del__her, .del__bruk, .del__nullstill, .del__balanse, .del__trekk').count() === 0)
+  ok('Lag (Mix): «Trekk på nytt» under lagene, ingen fast knapp', await p.locator('.del__trekk').count() === 1 && await p.locator('.del__fot').count() === 0)
+  ok('ingen gamle knapper (her-pille, Ferdig, Nullstill, Rent nivå)', await p.locator('.del__her, .del__bruk, .del__nullstill, .del__balanse').count() === 0)
   // «Endre» går tilbake til steg 2, «Forrige steg» også.
   await p.locator('.del__oppsummering').click()
   ok('«Endre» går tilbake til «Hvem er her?»', (await overskrift(p)) === 'Hvem er her?')
@@ -226,6 +226,10 @@ try {
   ok('bryteren av: balanse = niva i Del inn-raden', (await bryter.getAttribute('aria-checked')) === 'false' && await inntil(() => sql(`select valg->'grupper'->>'balanse' from del_inn where cohort_id='${KULL}'`) === 'niva'))
   await p.locator('.del__seg-knapp', { hasText: 'Mix' }).click()
   ok('Mix: ingen bryter', await p.getByRole('switch').count() === 0)
+  ok('Mix: «Trekk på nytt» finnes', await p.locator('.del__trekk').count() === 1)
+  await p.locator('.del__seg-knapp', { hasText: 'Diff' }).click()
+  ok('Diff: ingen «Trekk på nytt»', await inntil(async () => await p.locator('.del__trekk').count() === 0))
+  await p.locator('.del__seg-knapp', { hasText: 'Mix' }).click()
   // Tilbake til steg 1 med «Forrige steg».
   await p.locator('.del__bar [aria-label="Forrige steg"]').click()
   await p.locator('.del__bar [aria-label="Forrige steg"]').click()

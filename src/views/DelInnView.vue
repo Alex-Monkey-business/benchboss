@@ -453,12 +453,12 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
         </div>
       </div>
 
-      <div v-if="her.length" class="del__fot"><div class="del__fot-inn">
-        <button type="button" class="del__hoved del__hoved--ikon" @click="trekkPaNytt">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 3 21 3 21 8" /><line x1="4" y1="20" x2="21" y2="3" /><polyline points="21 16 21 21 16 21" /><line x1="15" y1="15" x2="21" y2="21" /><line x1="4" y1="4" x2="9" y2="9" /></svg>
-          Trekk på nytt
-        </button>
-      </div></div>
+      <!-- Sjelden brukt: en rolig knapp under gruppene, ikke en hovedknapp.
+           Bare på Mix: på Diff bestemmer nivået gruppene. -->
+      <button v-if="her.length && v.type === 'mix'" type="button" class="del__trekk" @click="trekkPaNytt">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 3 21 3 21 8" /><line x1="4" y1="20" x2="21" y2="3" /><polyline points="21 16 21 21 16 21" /><line x1="15" y1="15" x2="21" y2="21" /><line x1="4" y1="4" x2="9" y2="9" /></svg>
+        Trekk på nytt
+      </button>
     </section>
 
     <Sheet :show="visGjest" title="Ny gjest" @close="visGjest = false">
@@ -713,8 +713,16 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 .kort__ett { display: inline-block; white-space: nowrap; margin-right: .35em; }
 .del__eyebrow { margin: var(--ds-space-xl) 0 var(--ds-space-sm); }
 .del__eyebrow--tett { margin: 0 0 calc(-1 * var(--ds-space-sm)); }
-.del__hoved--ikon { display: flex; align-items: center; justify-content: center; gap: 8px; }
-.del__hoved--ikon svg { width: 18px; height: 18px; }
+.del__trekk {
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  width: 100%; min-height: 48px; margin-top: var(--ds-space-md);
+  border: 0; background: transparent;
+  font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-secondary);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.del__trekk:active { color: var(--ds-color-text-primary); }
+.del__trekk svg { width: 18px; height: 18px; }
 .del__hoved--fare { background: var(--ds-color-error, #C0392B); color: #fff; }
 .kort__gjest { font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-tertiary); }
 
