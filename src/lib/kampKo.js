@@ -144,7 +144,9 @@ export function erForbigaende(e) {
   if (kode && kode !== '0') return false
   const status = Number(e.status || 0)
   if (status >= 500 || status === 408 || status === 429) return true
-  return /fetch|network|load failed|timeout|AuthRetryable|ERR_/i.test(`${e.name || ''} ${e.message || ''}`) || !status
+  // En feil uten kode og status er en programfeil, ikke nettet. Den blir ikke
+  // bedre av et nytt forsøk, og skal ikke stenge køen.
+  return /fetch|network|load failed|timeout|AuthRetryable|ERR_/i.test(`${e.name || ''} ${e.message || ''}`)
 }
 
 function varsle(post, svar, feil) {

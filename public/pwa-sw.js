@@ -80,7 +80,10 @@ async function fil(request) {
   const treff = await caches.match(request)
   if (treff) return treff
   const res = await fetch(request)
-  if (res.ok && res.type === 'basic') {
+  // Bare ekte filer. Netlify svarer index.html med 200 på en fil som er borte
+  // etter en ny versjon — den skal ikke lagres som om den var filen.
+  const type = res.headers.get('content-type') || ''
+  if (res.ok && res.type === 'basic' && !/text\/html/i.test(type)) {
     const kopi = res.clone()
     lesBygg()
       .then(liste => caches.open(FILER + liste[0]))
