@@ -4,17 +4,23 @@
 // Oppmøte og inndeling bor i Del inn (Alex, 16. nov): velg trening, hvem er
 // her, del inn. Her er bare planen, med en snarvei dit.
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
 import { useExercises, resolveDrills, EQUIPMENT_TAGS } from '../composables/useExercises'
+import { usePlayers } from '../composables/usePlayers'
+import { riggFor as riggTags, stasjonerFor } from '../lib/grupper'
+import Sheet from '../components/Sheet.vue'
 import { useAuth } from '../stores/auth'
 import { meldEvent } from '../lib/sporing'
 import OvelseRader from '../components/OvelseRader.vue'
 import OvelseArk from '../components/OvelseArk.vue'
 import BackLink from '../components/BackLink.vue'
+import { planLink } from '../lib/trainingLinks'
 
 const route = useRoute()
+const router = useRouter()
 const { isCoach } = useAuth()
+const { players, fetchPlayers } = usePlayers()
 const { days, fetchWeek, fetchSession } = useTrainingWeek()
 const { exercises, fetchExercises } = useExercises()
 
@@ -35,6 +41,17 @@ function metaFor(k) {
   if (ting.length) deler.push(ting.join(', '))
   return deler.join(' · ')
 }
+// Riggen: det som må stå klart før treninga, regnet for hele kullet. Den som
+// rigger vet ikke hvor mange som kommer, så stasjonene er for alle.
+const rigg = computed(() => {
+  const tags = riggTags(drills.value)
+  return {
+    utstyr: EQUIPMENT_TAGS.filter(t => tags.includes(t.value)).map(t => t.label),
+    stasjoner: drills.value.map(d => ({ navn: d.text, n: stasjonerFor(d, players.value.length) })).filter(x => x.n > 1)
+  }
+})
+const visRigg = ref(false)
+
 const minutter = computed(() => drills.value.reduce((s, d) => s + (d.minutes || 0), 0))
 
 const apen = ref(null)
@@ -44,6 +61,12 @@ function apne(i) {
 }
 
 onMounted(() => {
+  // Kjøreplanen er for trenerne. Andre får lesevisningen av dagen.
+  if (!isCoach.value) {
+    router.replace(planLink(route.params.id))
+    return
+  }
+  fetchPlayers()
   if (!days.value.some(s => s.id === route.params.id)) {
     fetchSession(route.params.id).then(r => { if (r && r.id === route.params.id) enkelt.value = r })
   }
@@ -51,7 +74,8 @@ onMounted(() => {
   fetchExercises()
 })
 
-const tilbakeTil = computed(() => (session.value ? `/trening/dag/${session.value.id}` : '/trening'))
+// Kjøreplanen er der en trening åpner, så tilbake er uka.
+const tilbakeTil = '/trening'
 </script>
 
 <template>
@@ -69,6 +93,16 @@ const tilbakeTil = computed(() => (session.value ? `/trening/dag/${session.value
         <span class="plan__delinn-tekst"><strong>Del inn</strong></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
       </RouterLink>
+      <button
+        v-if="rigg.utstyr.length || rigg.stasjoner.length"
+        type="button"
+        class="rigg-rad"
+        @click="visRigg = true"
+      >
+        <span class="rigg-rad__merke">Rigg</span>
+        <span class="rigg-rad__ting">{{ rigg.utstyr.join(', ') || `${rigg.stasjoner.length} øvelser med stasjoner` }}</span>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+      </button>
 
       <section class="fase">
         <div class="fase__hode">
@@ -77,7 +111,23 @@ const tilbakeTil = computed(() => (session.value ? `/trening/dag/${session.value
         </div>
         <OvelseRader :kort="kort" :meta="metaFor" @apne="apne" />
       </section>
+
+      <div class="plan__fot">
+        <RouterLink :to="planLink(session.id)" class="ds-btn ds-btn--secondary plan__planlegg">
+          {{ drills.length ? 'Planlegg treninga' : 'Legg til øvelser' }}
+        </RouterLink>
+      </div>
     </div>
+
+    <Sheet :show="visRigg" title="Rigg" @close="visRigg = false">
+      <p v-if="rigg.utstyr.length" class="rigg__utstyr">{{ rigg.utstyr.join(' · ') }}</p>
+      <ul v-if="rigg.stasjoner.length" class="rigg__liste">
+        <li v-for="(x, i) in rigg.stasjoner" :key="i">
+          <span class="rigg__navn">{{ x.navn }}</span>
+          <span class="rigg__n">{{ x.n }} stasjoner</span>
+        </li>
+      </ul>
+    </Sheet>
 
     <!-- Samme ark som uka og dagen. -->
     <OvelseArk
@@ -187,6 +237,34 @@ const tilbakeTil = computed(() => (session.value ? `/trening/dag/${session.value
 .okt__start:disabled { opacity: .45; cursor: default; }
 
 /* ── D2 Kjøreplanen ── */
+.rigg-rad {
+  display: flex; align-items: center; gap: var(--ds-space-md);
+  width: calc(100% - 2 * var(--ds-space-lg));
+  min-height: 52px;
+  margin: var(--ds-space-sm) var(--ds-space-lg) 0;
+  padding: 0 var(--ds-space-md);
+  border: 1px solid var(--ds-color-border);
+  border-radius: var(--ds-radius-lg);
+  background: var(--ds-color-bg-elevated);
+  color: inherit; font: inherit; text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.rigg-rad svg { width: 18px; height: 18px; flex: none; color: var(--ds-color-text-tertiary); }
+.rigg-rad__merke { flex: none; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
+.rigg-rad__ting { flex: 1; min-width: 0; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.rigg__utstyr { margin: 0 0 var(--ds-space-lg); font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); line-height: 1.5; }
+.rigg__liste { list-style: none; margin: 0; padding: 0; }
+.rigg__liste li {
+  display: flex; justify-content: space-between; gap: var(--ds-space-md);
+  padding: var(--ds-space-md) 0;
+  border-top: 1px solid var(--ds-color-border);
+  font-size: var(--ds-text-sm);
+}
+.rigg__navn { color: var(--ds-color-text-primary); min-width: 0; }
+.rigg__n { flex: none; font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); font-variant-numeric: tabular-nums; }
+.plan__fot { padding: 0 var(--ds-space-lg) var(--ds-space-xl); }
+.plan__planlegg { width: 100%; }
 .plan { max-width: var(--ds-content-max); margin: 0 auto; padding: var(--ds-space-lg) 0 0; }
 .plan__lokal {
   margin: 0 var(--ds-space-lg) var(--ds-space-sm);

@@ -230,7 +230,7 @@ const routes = [
     path: '/trening',
     name: 'trening',
     component: () => import('./views/TreningsukeView.vue'),
-    beforeEnter: to => (to.query.dag ? { path: `/trening/dag/${to.query.dag}`, replace: true } : true)
+    beforeEnter: to => (to.query.dag ? { path: `/trening/okt/${to.query.dag}`, replace: true } : true)
   },
   {
     path: '/trening/dag/:dagId',

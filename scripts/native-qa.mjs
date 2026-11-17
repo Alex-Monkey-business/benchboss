@@ -49,12 +49,11 @@ async function dra(x, y, dy, n = 12, msPer = 16) {
 async function slipp() { await cdp.send('Input.dispatchTouchEvent', { type: 'touchEnd', touchPoints: [] }) }
 
 try {
-  // ── Uka → dagen → økta, og tilbake ──
+  // ── Uka → kjøreplanen, og tilbake ──
   await p.goto(`${APP}/trening`)
   await p.locator('.dag').first().waitFor({ timeout: 15000 })
   await p.locator(`#dag-${DAG} .dag__toggle`).click()
-  await p.waitForURL(/\/trening\/dag\//)
-  await p.locator('.okt-start').click()
+  await p.waitForURL(/\/trening\/okt\//)
   await p.locator('.rad').first().waitFor()
   await vent(400)
 
@@ -90,9 +89,7 @@ try {
   ok('Escape lukker', !(await arkApent()) && sti() === `/trening/okt/${DAG}`)
 
   await tilbake()
-  ok('neste tilbake går rett til dagen (ingen døde steg)', sti() === `/trening/dag/${DAG}`, sti())
-  await tilbake()
-  ok('og så til uka', sti() === '/trening', sti())
+  ok('neste tilbake går rett til uka (ingen døde steg)', sti() === '/trening', sti())
 
   // ── Del inn: arkene lukkes med tilbake, stegene står ──
   sql(`delete from del_inn where cohort_id='${KULL}' and dato = current_date`)
@@ -196,19 +193,19 @@ try {
   await tilbake()
   ok('dra-lukket: ett tilbake forlater økta (ingen døde steg)', sti() === '/trening', sti())
 
-  // Lenke inne i et ark: til banken og tilbake skal gi dagen, uten dødt steg.
-  await p.goto(`${APP}/trening/dag/${DAG}`)
-  await p.locator('.steg__hode').first().waitFor()
-  await p.locator('.steg__hode').first().click()
+  // Lenke inne i et ark: til banken og tilbake skal gi kjøreplanen, uten dødt steg.
+  await p.goto(`${APP}/trening/okt/${DAG}`)
+  await p.locator('.rad').first().waitFor()
+  await p.locator('.rad').first().click()
   await p.locator('.ovelse-sheet__bank').waitFor()
   await vent(400)
   await p.locator('.ovelse-sheet__bank').click()
   await p.waitForURL(/\/trening\/ovelser/, { timeout: 5000 }).catch(() => {})
   ok('lenken i arket går til banken', sti() === '/trening/ovelser', sti())
   await tilbake()
-  ok('tilbake fra banken gir dagen, arket lukket', sti() === `/trening/dag/${DAG}` && !(await arkApent()), sti())
+  ok('tilbake fra banken gir kjøreplanen, arket lukket', sti() === `/trening/okt/${DAG}` && !(await arkApent()), sti())
   await tilbake()
-  ok('neste tilbake forlater dagen (ingen døde steg)', sti() !== `/trening/dag/${DAG}`, sti())
+  ok('neste tilbake forlater kjøreplanen (ingen døde steg)', sti() !== `/trening/okt/${DAG}`, sti())
 
   // Siden er ikke låst etter alt dette.
   ok('ingen scroll-lås hengende', await p.evaluate(() => document.body.style.position === ''))

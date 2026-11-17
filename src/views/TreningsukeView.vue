@@ -25,8 +25,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { dagLink } from '../lib/trainingLinks'
 import { folgMed } from '../lib/poll'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
-import { useExercises, exerciseToDrill, resolveDrills, ovelsensVideo, EQUIPMENT_TAGS } from '../composables/useExercises'
-import { riggFor as riggTags, stasjonerFor } from '../lib/grupper'
+import { useExercises, exerciseToDrill, resolveDrills, ovelsensVideo } from '../composables/useExercises'
 import OktListe from '../components/OktListe.vue'
 import { hentDagensOppmote } from '../composables/useTreningsOkt'
 import { useToast } from '../composables/useToast'
@@ -39,8 +38,6 @@ import ExercisePicker from '../components/ExercisePicker.vue'
 import OvelseArk from '../components/OvelseArk.vue'
 import Skeleton from '../components/Skeleton.vue'
 import { meldEvent } from '../lib/sporing'
-import { usePlayers } from '../composables/usePlayers'
-import { usePlayerLevels } from '../composables/usePlayerLevels'
 import { useAuth } from '../stores/auth'
 import BackLink from '../components/BackLink.vue'
 
@@ -267,21 +264,7 @@ const apenTidsrom = computed(() => {
 
 // Gruppene bor i økta (/trening/okt/:id), ikke her. Denne sida er for å
 // lese og planlegge; økta er for å kjøre treninga.
-const { players, fetchPlayers } = usePlayers()
-const { fetchPlayerLevels } = usePlayerLevels()
 const { isCoach } = useAuth()
-
-// Riggen: det som må stå klart før treninga, regnet for hele kullet. Den som
-// rigger vet ikke hvor mange som kommer, så stasjonene er for alle.
-const riggDag = ref(null)
-function riggFor(s) {
-  const ds = drillsFor(s)
-  const tags = riggTags(ds)
-  return {
-    utstyr: EQUIPMENT_TAGS.filter(t => tags.includes(t.value)).map(t => t.label),
-    stasjoner: ds.map(d => ({ navn: d.text, n: stasjonerFor(d, players.value.length) })).filter(x => x.n > 1)
-  }
-}
 
 function visDrill(s, i) {
   meldEvent('ovelse_apnet', { fra: 'treningsuke' })
@@ -289,12 +272,12 @@ function visDrill(s, i) {
 }
 
 
-// Bytter du dag, starter du på nytt: lesemodus, ingenting utfoldet.
-watch(openDayId, () => {
-  editDayId.value = null
-  apen.value = null
-  rad.value = null
-})
+// «Ferdig» går tilbake til kjøreplanen, ikke til en lesemodus av samme liste.
+function ferdig(s) {
+  const til = dagLink(s.id)
+  if (window.history.state?.back === til) router.back()
+  else router.replace(til)
+}
 
 // Hver endring er en funksjon av lista, ikke en ferdig liste: den står på
 // skjermen i samme trykk, og legges oppå den ferske lista fra basen rett før
@@ -349,6 +332,14 @@ function moveDrill(s, i, dir) {
 // til en annen dag, ta den ut — ligger i ett ark med knapper i full bredde.
 // Pilene står igjen på rada, for rekkefølgen justerer du mens du ser lista.
 const rad = ref(null) // { sessionId, i }
+
+// Dagsida er planleggingen: kjøreplanen er lesevisningen (Alex, 17. nov).
+// En trener som kommer hit, står rett i planmodus.
+watch([openDayId, isCoach], () => {
+  editDayId.value = dagId.value && isCoach.value ? dagId.value : null
+  apen.value = null
+  rad.value = null
+}, { immediate: true })
 
 const radDag = computed(() => dager.value.find(s => s.id === rad.value?.sessionId) || null)
 const radDrill = computed(() => (radDag.value && rad.value ? drillsFor(radDag.value)[rad.value.i] || null : null))
@@ -621,8 +612,6 @@ let stoppPoll = null
 onMounted(async () => {
   await fetchWeek()
   fetchExercises()
-  fetchPlayers()
-  fetchPlayerLevels()
   loading.value = false
   stoppPoll = folgMed('treningsuke', hentUkaForPoll)
 })
@@ -652,7 +641,7 @@ onUnmounted(() => { stoppPoll?.() })
         <h1 class="uke__title">Trening</h1>
       </header>
       <nav v-else class="dagside__bar">
-        <BackLink to="/trening" label="Trening" />
+        <BackLink :to="isCoach && synligeDager[0] ? dagLink(synligeDager[0].id) : '/trening'" :label="isCoach && synligeDager[0] ? synligeDager[0].title : 'Trening'" historikk />
       </nav>
       <p v-if="fantIkkeDagen" class="dagside__tom">Fant ikke dagen. <router-link to="/trening">Til uka</router-link></p>
 
@@ -702,28 +691,6 @@ onUnmounted(() => { stoppPoll?.() })
         >Del inn<span v-if="oppmoteIDag[s.id] != null" class="dag__start-meta">{{ oppmoteIDag[s.id] }} her</span></router-link>
 
         <div v-if="openDayId === s.id" class="dag__body">
-          <!-- Kjøreplanen: øvelsene for økta. Oppmøtet tas i Del inn. -->
-          <router-link
-            v-if="isCoach && drillsFor(s).length && editDayId !== s.id"
-            :to="`/trening/okt/${s.id}`"
-            class="okt-start"
-          >
-            <span class="okt-start__tittel">Kjøreplanen</span>
-            <span v-if="oppmoteIDag[s.id] != null" class="okt-start__her">{{ oppmoteIDag[s.id] }} her</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </router-link>
-          <!-- Riggen: én rad, detaljene i et ark. Den gjøres før noen vet
-               hvor mange som kommer, og regnes derfor for hele kullet. -->
-          <button
-            v-if="isCoach && editDayId !== s.id && (riggFor(s).utstyr.length || riggFor(s).stasjoner.length)"
-            type="button"
-            class="rigg-rad"
-            @click="riggDag = s"
-          >
-            <span class="rigg-rad__merke">Rigg</span>
-            <span class="rigg-rad__ting">{{ riggFor(s).utstyr.join(', ') || `${riggFor(s).stasjoner.length} øvelser med stasjoner` }}</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
           <!-- LESEMODUS — økta som en time, ikke en liste. Klokka i margen,
                null knapper mellom deg og innholdet. -->
           <ol v-if="drillsFor(s).length && editDayId !== s.id" class="okt">
@@ -766,7 +733,7 @@ onUnmounted(() => { stoppPoll?.() })
           <div v-else-if="editDayId === s.id" class="plan">
             <div class="plan__topp">
               <span class="plan__tittel">Planlegg treninga</span>
-              <button type="button" class="ds-btn ds-btn--primary ds-btn--sm" @click="editDayId = null">Ferdig</button>
+              <button type="button" class="ds-btn ds-btn--primary ds-btn--sm" @click="dagId ? ferdig(s) : (editDayId = null)">Ferdig</button>
             </div>
 
             <ul v-if="drillsFor(s).length" class="plan__liste">
@@ -999,19 +966,6 @@ Torsdag
       @update:i="j => (apen = j == null ? null : { ...apen, i: j })"
     />
 
-    <!-- Riggen for dagen, for den som gjør klart før treninga. -->
-    <Sheet :show="!!riggDag" title="Rigg" @close="riggDag = null">
-      <template v-if="riggDag">
-        <p v-if="riggFor(riggDag).utstyr.length" class="rigg__utstyr">{{ riggFor(riggDag).utstyr.join(' · ') }}</p>
-        <ul v-if="riggFor(riggDag).stasjoner.length" class="rigg__liste">
-          <li v-for="(x, i) in riggFor(riggDag).stasjoner" :key="i">
-            <span class="rigg__navn">{{ x.navn }}</span>
-            <span class="rigg__n">{{ x.n }} stasjoner</span>
-          </li>
-        </ul>
-      </template>
-    </Sheet>
-
     <ConfirmDialog
       :show="!!deleteDayId"
       title="Slett dagen?"
@@ -1241,57 +1195,8 @@ Torsdag
   font-variant-numeric: tabular-nums;
 }
 
-.rigg-rad {
-  display: flex;
-  align-items: center;
-  gap: var(--ds-space-md);
-  width: 100%;
-  min-height: 52px;
-  padding: 0 var(--ds-space-md);
-  margin-bottom: var(--ds-space-xl);
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-lg);
-  background: var(--ds-color-bg-elevated);
-  color: inherit;
-  text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.rigg-rad svg { width: 18px; height: 18px; flex: none; color: var(--ds-color-text-tertiary); }
-.rigg-rad__merke { flex: none; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
-.rigg-rad__ting { flex: 1; min-width: 0; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
-.rigg__utstyr { margin: 0 0 var(--ds-space-lg); font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); line-height: 1.5; }
-.rigg__liste { list-style: none; margin: 0; padding: 0; }
-.rigg__liste li {
-  display: flex; justify-content: space-between; gap: var(--ds-space-md);
-  padding: var(--ds-space-md) 0;
-  border-top: 1px solid var(--ds-color-border);
-  font-size: var(--ds-text-sm);
-}
-.rigg__navn { color: var(--ds-color-text-primary); min-width: 0; }
-.rigg__n { flex: none; font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); font-variant-numeric: tabular-nums; }
 
-.okt-start {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: var(--ds-space-md);
-  min-height: 52px;
-  padding: 0 var(--ds-space-md);
-  margin-bottom: var(--ds-space-sm);
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-lg);
-  background: var(--ds-color-bg-elevated);
-  color: var(--ds-color-text-primary);
-  text-decoration: none;
-  -webkit-tap-highlight-color: transparent;
-  transition: transform .1s ease;
-}
-.okt-start:active { transform: scale(0.99); }
-.okt-start svg { width: 18px; height: 18px; flex: none; color: var(--ds-color-text-tertiary); }
-.okt-start__tittel { font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); }
-.okt-start__her { margin-left: auto; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); font-variant-numeric: tabular-nums; }
 
 .dag__body {
   padding: 0 var(--ds-space-lg) var(--ds-space-lg);
