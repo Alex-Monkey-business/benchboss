@@ -23,6 +23,7 @@ import { AREAS, areaNote } from '../content/ansvar'
 import Sheet from '../components/Sheet.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
 import { meldEvent } from '../lib/sporing'
+import BackLink from '../components/BackLink.vue'
 
 const route = useRoute()
 const { activeCohort } = useAuth()
@@ -178,10 +179,7 @@ async function save() {
 <template>
   <div class="desktop-container">
     <div class="tr__nav">
-      <router-link to="/serie/tropp" class="tr__back">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Tropp
-      </router-link>
+      <BackLink to="/serie/tropp" label="Tropp" />
     </div>
 
     <div v-if="!ready" class="tr__muted">Henter trener …</div>
@@ -207,7 +205,7 @@ async function save() {
           Trener {{ teamNow.name }} denne sesongen.
         </p>
         <template v-else>
-          <p class="tr__muted">Ikke satt på et lag. Hjem viser alle kampene.</p>
+          <p class="tr__muted">Ikke satt på et lag.</p>
           <button type="button" class="tr__inline-action" @click="openEdit">Sett lag</button>
         </template>
       </section>
@@ -226,11 +224,6 @@ async function save() {
           <p class="tr__muted">Ingen ansvarsområder.</p>
           <button v-if="supportsResponsibilities" type="button" class="tr__inline-action" @click="openEdit">Sett ansvar</button>
         </template>
-        <!-- Migrasjonen ikke kjørt: vi viser fordelingen fra fila, men later
-             ikke som om den kan endres herfra. -->
-        <p v-if="!supportsResponsibilities" class="tr__note">
-          Vises fra innholdsfila. Kjør <code>20260818090000_coach_responsibilities.sql</code> for å kunne endre den her.
-        </p>
       </section>
 
       <!-- Sesongvelger, ikke bare en overskrift: tallene er sesongscopet, og
@@ -315,7 +308,7 @@ async function save() {
 
         <div class="sheet-actions">
           <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg sheet-actions__save" :disabled="saving">
-            {{ saving ? 'Lagrer…' : 'Lagre' }}
+            {{ saving ? 'Lagrer …' : 'Lagre' }}
           </button>
         </div>
       </form>
@@ -332,19 +325,7 @@ async function save() {
   margin: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-lg);
 }
 
-.tr__back {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  text-decoration: none;
-  letter-spacing: -0.005em;
-}
 
-.tr__back svg { width: 14px; height: 14px; }
-.tr__back:hover { color: var(--ds-color-text-primary); }
 
 .tr__head {
   display: flex;
@@ -381,13 +362,12 @@ async function save() {
 
 .tr__name {
   margin: 0;
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: clamp(1.6rem, 6vw, 2.2rem);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-tighter);
   line-height: 1.1;
   color: var(--ds-color-text-primary);
-  font-variation-settings: var(--ds-font-display-settings);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -425,11 +405,6 @@ async function save() {
   font-size: var(--ds-text-xs);
   line-height: 1.5;
   color: var(--ds-color-text-tertiary);
-}
-
-.tr__note code {
-  font-size: 0.95em;
-  word-break: break-all;
 }
 
 .tr__inline-action {

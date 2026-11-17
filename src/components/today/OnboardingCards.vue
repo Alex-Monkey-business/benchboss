@@ -226,7 +226,7 @@ async function pickFile(e) {
   try {
     const rader = await parsePlayerWorkbook(file)
     if (!rader.length) {
-      showToast('Fant ingen navn i filen', 'error')
+      showToast('Fant ingen navn i fila', 'error')
       return
     }
     filRader.value = rader.map(r => ({
@@ -237,7 +237,7 @@ async function pickFile(e) {
     playersOpen.value = false
     filOpen.value = true
   } catch {
-    showToast('Kunne ikke lese filen', 'error')
+    showToast('Kunne ikke lese fila', 'error')
   } finally {
     e.target.value = ''
   }
@@ -329,7 +329,6 @@ async function sendInvite() {
           {{ lagUtenSpillere.map(t => t.name).join(' og ') }}
           {{ lagUtenSpillere.length === 1 ? 'mangler spillere' : 'mangler spillere' }}.
         </span>
-        <span v-else class="onb-card__lead">Lim inn lista fra Spond eller et regneark — én per linje.</span>
       </span>
       <svg class="onb-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
     </button>
@@ -366,7 +365,7 @@ async function sendInvite() {
     <router-link v-else-if="!matchesDone" to="/admin/sesong-kamper" class="ds-card ds-card--interactive onb-card" :class="{ 'onb-card--muted': !playersDone }">
       <span class="onb-card__step">{{ stepNo.matches }}</span>
       <span class="onb-card__body">
-        <span class="onb-card__title">Last opp kampprogrammet</span>
+        <span class="onb-card__title">Last opp terminlista</span>
         <span class="onb-card__lead">Excel-fila fra kretsen{{ activeSeason ? ` → ${activeSeason.name}` : '' }}</span>
       </span>
       <svg class="onb-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
@@ -393,8 +392,6 @@ async function sendInvite() {
           <button type="button" class="ds-btn ds-btn--primary" :disabled="busy || !newTeam.trim()" @click="submitTeam">Legg til</button>
         </div>
 
-        <p class="onb-hint">Samme navn som i kampoppsettet fra kretsen.</p>
-
         <div class="onb-actions">
           <button type="button" class="ds-btn ds-btn--primary" :disabled="!seasonTeams.length" @click="teamsOpen = false">Ferdig</button>
         </div>
@@ -408,9 +405,6 @@ async function sendInvite() {
 
         <label class="ds-label" for="onb-paste">Spillerne på {{ steg.name }}</label>
         <textarea id="onb-paste" v-model="pasted" class="ds-input onb-paste" :rows="parsed.length ? 3 : 6" placeholder="Ola Nordmann&#10;Kari Nordmann&#10;…"></textarea>
-        <p class="onb-hint">
-          Én per linje eller skilt med komma.
-        </p>
 
         <template v-if="parsed.length">
           <p class="ds-label">{{ parsed.length }} {{ parsed.length === 1 ? 'spiller' : 'spillere' }} på {{ steg.name }}</p>
@@ -427,13 +421,13 @@ async function sendInvite() {
         <div class="onb-actions">
           <button type="button" class="ds-btn ds-btn--secondary" @click="nesteSteg({ hopper: true })">Hopp over</button>
           <button type="button" class="ds-btn ds-btn--primary" :disabled="importing || !parsed.length" @click="importPlayers">
-            {{ importing ? 'Legger inn…' : parsed.length ? `Legg inn ${parsed.length} på ${steg.name}` : 'Legg inn spillerne' }}
+            {{ importing ? 'Legger inn …' : parsed.length ? `Legg inn ${parsed.length} på ${steg.name}` : 'Legg inn spillerne' }}
           </button>
         </div>
 
         <!-- Egen jobb, egen inngang. -->
         <button type="button" class="onb-lenke" @click="fileInput?.click()">
-          Har du en fil med navn og lag? Fyll hele kullet på én gang
+          Last opp fil
         </button>
         <input ref="fileInput" type="file" accept=".xlsx,.xls,.csv" hidden @change="pickFile" />
       </div>
@@ -442,7 +436,7 @@ async function sendInvite() {
     <!-- Hele kullet fra fil: egen flate, med lag på hver rad -->
     <Sheet :show="filOpen" title="Fra fil" @close="filOpen = false">
       <div class="onb-form">
-        <p class="ds-label">{{ filRader.length }} {{ filRader.length === 1 ? 'spiller' : 'spillere' }} i filen</p>
+        <p class="ds-label">{{ filRader.length }} {{ filRader.length === 1 ? 'spiller' : 'spillere' }} i fila</p>
         <ul class="onb-players onb-players--fil">
           <li v-for="r in filRader" :key="r.name" class="onb-player">
             <div class="onb-player__rad">
@@ -475,7 +469,7 @@ async function sendInvite() {
         <div class="onb-actions">
           <button type="button" class="ds-btn ds-btn--secondary" @click="filOpen = false">Avbryt</button>
           <button type="button" class="ds-btn ds-btn--primary" :disabled="importing || !filRader.length || filUtenLag.length" @click="importerFil">
-            {{ importing ? 'Legger inn…' : `Legg inn ${filRader.length}` }}
+            {{ importing ? 'Legger inn …' : `Legg inn ${filRader.length}` }}
           </button>
         </div>
         <p v-if="filUtenLag.length" class="onb-hint">
@@ -500,7 +494,7 @@ async function sendInvite() {
         <div class="onb-actions">
           <button type="button" class="ds-btn ds-btn--secondary" @click="coachOpen = false">Ferdig</button>
           <button type="button" class="ds-btn ds-btn--primary" :disabled="sending || !invite.name.trim() || !invite.email.trim()" @click="sendInvite">
-            {{ sending ? 'Sender…' : 'Send invitasjon' }}
+            {{ sending ? 'Sender …' : 'Send invitasjon' }}
           </button>
         </div>
       </div>

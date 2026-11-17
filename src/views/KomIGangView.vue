@@ -349,7 +349,6 @@ function hoppOver() {
         <h1 class="kig__tittel kig__tittel--velkomst">
           Velkommen til <span class="kig__merke">BenchBoss</span>{{ fornavn ? ', ' + fornavn : '' }}
         </h1>
-        <p class="kig__velkomst kig__velkomst--dempet">Lagene og kampene hentes fra fotball.no.</p>
 
         <div class="kig__handling">
           <button type="button" class="ds-btn ds-btn--primary kig__hovedknapp" @click="start">
@@ -450,7 +449,7 @@ function hoppOver() {
         <h1 class="kig__tittel">{{ viserAlle ? 'Hvilke lag hører til kullet?' : 'Hvilke lag er du ansvarlig for?' }}</h1>
         <p v-if="!viserAlle" class="kig__lead">
           <template v-if="lagVises.length">{{ hentesTekst }} i {{ klasseNavn }} hentes.</template>
-          <template v-else>Ingen {{ klasseNavn }}-lag i FIKS.</template>
+          <template v-else>Ingen {{ klasseNavn }}-lag på fotball.no.</template>
         </p>
 
         <ul v-if="lagVises.length" class="kig__liste">
@@ -505,7 +504,7 @@ function hoppOver() {
              FIKS i det hele tatt — de spiller cuper. Å si «0 kamper er inne» og
              gå videre ville latt ham lete etter et kampprogram som aldri kommer. -->
         <p v-if="resultat && !resultat.kamper" class="kig__lead">
-          {{ resultat.lag }} lag. Ingen serie i FIKS for dette kullet, så cupene legges inn under Admin.
+          {{ resultat.lag }} lag. Ingen serie på fotball.no – legg inn cupene under Admin.
         </p>
         <p v-else class="kig__lead">{{ resultat?.lag }} lag og {{ resultat?.kamper }} kamper.</p>
         <div class="kig__handling">
@@ -517,8 +516,6 @@ function hoppOver() {
     <button v-if="steg !== 'velkommen' && steg !== 'henter' && steg !== 'ferdig'" type="button" class="kig__hopp" @click="hoppOver">
       Sett opp for hånd
     </button>
-
-    <p v-if="steg === 'velkommen'" class="kig__signatur">Alex Monkey Business</p>
   </div>
 </template>
 
@@ -804,14 +801,6 @@ function hoppOver() {
   color: var(--ds-color-text-tertiary);
 }
 
-.kig__signatur {
-  margin: clamp(var(--ds-space-md), 2.5dvh, var(--ds-space-xl)) auto 0;
-  text-align: center;
-  font-size: var(--ds-text-xs);
-  letter-spacing: var(--ds-tracking-wide);
-  color: var(--ds-color-text-tertiary);
-}
-
 /* Velkomsten skal ALLTID få plass — den scrollet på alt under en Pro Max,
    og «Kom i gang» lå under folden på SE, SE2 og mini. Sentrert i tilgjengelig
    høyde, og luften rundt kuttet: xl + 2xl er 80 px en lav skjerm ikke har. */
@@ -881,7 +870,6 @@ function hoppOver() {
      knappen er jobben, illustrasjonen er innpakningen. */
   .kig { padding-top: var(--ds-space-md); padding-bottom: var(--ds-space-md); }
   .kig-trener { height: clamp(5.5rem, 23dvh, 10rem); }
-  .kig__signatur { display: none; }
 }
 
 /* Kvitteringen på at terminlista faktisk landet. Samme leire-stil som

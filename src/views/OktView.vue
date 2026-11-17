@@ -3,23 +3,25 @@
 //
 // Oppmøte og inndeling bor i Del inn (Alex, 16. nov): velg trening, hvem er
 // her, del inn. Her er bare planen, med en snarvei dit.
-import { ref, computed, nextTick, onMounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { ref, computed, onMounted } from 'vue'
+import { useRoute } from 'vue-router'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
 import { useExercises, resolveDrills, EQUIPMENT_TAGS } from '../composables/useExercises'
 import { useAuth } from '../stores/auth'
 import { meldEvent } from '../lib/sporing'
-import ExerciseView from '../components/ExerciseView.vue'
-import Sheet from '../components/Sheet.vue'
 import OvelseRader from '../components/OvelseRader.vue'
+import OvelseArk from '../components/OvelseArk.vue'
+import BackLink from '../components/BackLink.vue'
 
 const route = useRoute()
-const router = useRouter()
 const { isCoach } = useAuth()
-const { days, fetchWeek } = useTrainingWeek()
+const { days, fetchWeek, fetchSession } = useTrainingWeek()
 const { exercises, fetchExercises } = useExercises()
 
-const session = computed(() => days.value.find(s => s.id === route.params.id) || null)
+// Direkte lenke uten cache: den ene raden hentes for seg, så planen står før
+// hele uka er hentet.
+const enkelt = ref(null)
+const session = computed(() => days.value.find(s => s.id === route.params.id) || enkelt.value)
 const drills = computed(() => (session.value ? resolveDrills(session.value.drills, exercises.value) : []))
 
 const utstyrNavn = Object.fromEntries(EQUIPMENT_TAGS.map(t => [t.value, t.label.toLowerCase()]))
@@ -36,43 +38,33 @@ function metaFor(k) {
 const minutter = computed(() => drills.value.reduce((s, d) => s + (d.minutes || 0), 0))
 
 const apen = ref(null)
-const aktiv = computed(() => (apen.value == null ? null : kort.value[apen.value] || null))
-async function bla(d) {
-  const j = apen.value + d
-  if (j < 0 || j >= kort.value.length) return
-  apen.value = j
-  await nextTick()
-  document.querySelectorAll('.ds-sheet__body').forEach(el => el.scrollTo({ top: 0 }))
-}
 function apne(i) {
   apen.value = i
   meldEvent('okt_ovelse_apnet')
 }
 
 onMounted(() => {
+  if (!days.value.some(s => s.id === route.params.id)) {
+    fetchSession(route.params.id).then(r => { if (r && r.id === route.params.id) enkelt.value = r })
+  }
   fetchWeek()
   fetchExercises()
 })
 
-function tilbake() {
-  if (window.history.state?.back) return router.back()
-  router.push(session.value ? `/trening/dag/${session.value.id}` : '/trening')
-}
+const tilbakeTil = computed(() => (session.value ? `/trening/dag/${session.value.id}` : '/trening'))
 </script>
 
 <template>
   <div class="okt">
-    <header class="okt__bar">
-      <button class="okt__back" aria-label="Tilbake" @click="tilbake">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-      </button>
-      <span class="okt__title">{{ session?.title || 'Trening' }}</span>
-    </header>
+    <nav class="okt__bar">
+      <BackLink :to="tilbakeTil" label="Trening" historikk />
+    </nav>
 
     <p v-if="!isCoach" class="okt__tom">Kjøreplanen er for trenerne.</p>
     <p v-else-if="!session" class="okt__tom">Laster …</p>
 
     <div v-else class="plan">
+      <h1 class="okt__h1 okt__tittel">{{ session.title || 'Trening' }}</h1>
       <RouterLink to="/del-inn" class="plan__delinn">
         <span class="plan__delinn-tekst"><strong>Del inn</strong></span>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
@@ -87,24 +79,12 @@ function tilbake() {
       </section>
     </div>
 
-    <Sheet :show="!!aktiv" :title="aktiv?.d.text || ''" tall @close="apen = null">
-      <template v-if="aktiv">
-        <p class="ark__nr">Øvelse {{ aktiv.i + 1 }} av {{ kort.length }}</p>
-        <p class="ark__meta">{{ metaFor(aktiv) }}</p>
-        <ExerciseView :exercise="aktiv.d" :minutes="aktiv.d.minutes || 0" />
-      </template>
-      <template #footer>
-        <div v-if="aktiv" class="fot">
-          <button type="button" class="fot__pil" :disabled="apen === 0" aria-label="Forrige øvelse" @click="bla(-1)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          </button>
-          <button type="button" class="fot__knapp" @click="apen = null">Lukk</button>
-          <button type="button" class="fot__pil" :disabled="apen === kort.length - 1" aria-label="Neste øvelse" @click="bla(1)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
-          </button>
-        </div>
-      </template>
-    </Sheet>
+    <!-- Samme ark som uka og dagen. -->
+    <OvelseArk
+      v-model:i="apen"
+      :liste="drills"
+      :hvor="apen != null && session ? `${session.title} · ${apen + 1} av ${drills.length}` : ''"
+    />
   </div>
 </template>
 
@@ -116,12 +96,11 @@ function tilbake() {
 }
 
 .okt__bar {
-  display: flex; align-items: center; gap: var(--ds-space-sm);
-  padding: var(--ds-space-md) var(--ds-space-lg);
-  position: sticky; top: 0; z-index: var(--ds-z-sticky);
-  background: var(--ds-color-bg);
-  border-bottom: 1px solid var(--ds-color-border-light, var(--ds-color-border));
+  max-width: var(--ds-content-max);
+  margin: 0 auto;
+  padding: var(--ds-space-md) var(--ds-space-lg) 0;
 }
+.okt__tittel { padding: 0 var(--ds-space-lg); margin-bottom: var(--ds-space-md); }
 .okt__back {
   display: grid; place-items: center; width: 44px; height: 44px; margin-left: -12px;
   border: none; border-radius: var(--ds-radius-md); background: transparent;
@@ -160,7 +139,7 @@ function tilbake() {
 }
 
 /* ── D1 Hvem er her? ── */
-.oppm { max-width: 560px; margin: 0 auto; padding: var(--ds-space-xl) var(--ds-space-lg) 180px; }
+.oppm { max-width: var(--ds-content-max); margin: 0 auto; padding: var(--ds-space-xl) var(--ds-space-lg) 180px; }
 .oppm__teller {
   margin: var(--ds-space-xl) 0 var(--ds-space-lg);
   font-size: var(--ds-text-md); color: var(--ds-color-text-secondary);
@@ -185,7 +164,7 @@ function tilbake() {
   background: var(--ds-color-bg);
   border-top: 1px solid var(--ds-color-border-light, var(--ds-color-border));
 }
-.oppm__fot-inn { max-width: 560px; margin: 0 auto; }
+.oppm__fot-inn { max-width: var(--ds-content-max); margin: 0 auto; }
 @media (min-width: 768px) {
   .oppm__fot { bottom: 0; }
 }
@@ -208,7 +187,7 @@ function tilbake() {
 .okt__start:disabled { opacity: .45; cursor: default; }
 
 /* ── D2 Kjøreplanen ── */
-.plan { max-width: 560px; margin: 0 auto; padding: var(--ds-space-lg) 0 0; }
+.plan { max-width: var(--ds-content-max); margin: 0 auto; padding: var(--ds-space-lg) 0 0; }
 .plan__lokal {
   margin: 0 var(--ds-space-lg) var(--ds-space-sm);
   font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
@@ -247,7 +226,7 @@ function tilbake() {
 }
 
 /* ── Endre ── */
-.endre { max-width: 560px; margin: 0 auto; padding: 0 var(--ds-space-lg) 300px; }
+.endre { max-width: var(--ds-content-max); margin: 0 auto; padding: 0 var(--ds-space-lg) 300px; }
 .endre__styr {
   display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md);
   margin: 0 calc(-1 * var(--ds-space-lg));

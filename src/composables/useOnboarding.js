@@ -20,6 +20,8 @@ registerReset(() => { memberCount.value = null; membersCohort.value = null })
 
 const ACCENTS = ['sage', 'warm', 'paper', 'sky', 'cornflower', 'olive', 'peach']
 
+let lasterPagar = null
+
 export function useOnboarding() {
   const { activeCohort, isCoach, isAdmin, isPlatformAdmin, coach } = useAuth()
   const { players, fetchPlayers } = usePlayers()
@@ -29,7 +31,13 @@ export function useOnboarding() {
 
   const canManageMembers = computed(() => isAdmin.value || isPlatformAdmin.value)
 
-  async function load() {
+  // Hjem-oppstarten og kortene ber om dette samtidig: én henting.
+  function load() {
+    if (!lasterPagar) lasterPagar = lastInn().finally(() => { lasterPagar = null })
+    return lasterPagar
+  }
+
+  async function lastInn() {
     if (!isCoach.value) return
     await fetchPlayers()
     const id = activeCohort.value?.id

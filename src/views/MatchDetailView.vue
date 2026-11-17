@@ -1,4 +1,5 @@
 <script setup>
+import BackLink from '../components/BackLink.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useMatches } from '../composables/useMatches'
@@ -31,8 +32,8 @@ import { useSeasonTeams } from '../composables/useSeasonTeams'
 
 const route = useRoute()
 const router = useRouter()
-const { matches, matchPlayers, getMatch, fetchMatches, updateMatch, setMatchCoaches, fetchMatchCoaches, getCoachesForMatch, setMatchPlayers, fetchMatchPlayers, getPlayersForMatch, fetchAllMatchPlayers, fetchMatchAbsences, fetchAllMatchAbsences, getAbsencesForMatch, toggleAbsence, deleteMatch } = useMatches()
-const { expenses, fetchExpenses, registerExpense, getExpenseForMatch, removeExpense } = useExpenses()
+const { matches, matchPlayers, getMatch, ensureMatches, updateMatch, setMatchCoaches, getCoachesForMatch, setMatchPlayers, fetchMatchPlayers, getPlayersForMatch, fetchAllMatchPlayers, fetchMatchAbsences, fetchAllMatchAbsences, getAbsencesForMatch, toggleAbsence, deleteMatch } = useMatches()
+const { expenses, registerExpense, getExpenseForMatch, removeExpense } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
 const { players, fetchPlayers, addPlayer, getPlayerById } = usePlayers()
@@ -40,7 +41,7 @@ const { fetchPlayerSeasonTeams, isLoanEligible, teamForSeason } = usePlayerSeaso
 const { seasonTeams } = useSeasonTeams()
 const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals()
 const { session: mmSession, stints: mmStintsAll, statusByMatch, fetchSession: fetchMmSession, fetchStints: fetchMmStints } = useMatchMode()
-const { seasons, fetchSeasons } = useSeasons()
+const { seasons, ensureSeasons } = useSeasons()
 const { coach: currentCoach, activeCohort } = useAuth()
 const { usesReferees } = useFeatures()
 const { show: showToast } = useToast()
@@ -138,24 +139,25 @@ onMounted(async () => {
   const fraLageret = match.value
   // Plassene må telles: sesjonen står mellom målene og periodene. Én komma for
   // lite ga trenerne periodene og spilletida sesjonen (dc549d3).
-  const [fersk, , , , , , mmStints, coachIds] = await Promise.all([
+  // Sesongens kamper kommer med trenere, tropp og utlegg i én rundtur, og er
+  // de hentet for under 30 s siden (fra lista), gjenbrukes de. Det som bare
+  // hører denne kampen til — mål, sesjon, perioder — hentes alltid.
+  const [fersk, , , , mmStints] = await Promise.all([
     kjentSesong ? null : getMatch(id),
-    Promise.all([fetchSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllMatchPlayers(), fetchAllMatchAbsences()]),
+    Promise.all([ensureSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllMatchPlayers(), fetchAllMatchAbsences()]),
     // Sesongens kamper: grunnlag for ekstra-kamp-tall og konflikt-/uke-sjekk,
     // og de gir også en fersk utgave av denne kampen.
-    kjentSesong ? fetchMatches(kjentSesong) : null,
-    fetchExpenses([id]),
+    kjentSesong ? ensureMatches(kjentSesong) : null,
     fetchMatchGoals(id),
     fetchMmSession(id),
-    fetchMmStints(id),
-    fetchMatchCoaches(id)
+    fetchMmStints(id)
   ])
-  if (!kjentSesong && fersk?.season_id) await fetchMatches(fersk.season_id)
+  if (!kjentSesong && fersk?.season_id) await ensureMatches(fersk.season_id)
   match.value = matches.value.find(m => m.id === id) || fersk || match.value
 
   if (match.value) {
     hasPlayingTime.value = (mmStints || []).length > 0
-    matchCoachIds.value = coachIds
+    matchCoachIds.value = getCoachesForMatch(id)
     // Troppen og frafallet for hele kullet er nettopp hentet; denne kampen er med.
     matchPlayerIds.value = getPlayersForMatch(id)
     matchAbsenceIds.value = getAbsencesForMatch(id)
@@ -287,22 +289,27 @@ const heroTime = computed(() => {
   return t && t !== '00:00' ? t : ''
 })
 
+// Trykkene på kampsida svarer med en gang: skjermen endres først, lagringen
+// går etter. Feiler den, settes det tilbake og treneren får beskjed.
+const LAGRING_FEILET = 'Fikk ikke lagret. Prøv igjen.'
+const feilet = () => showToast(LAGRING_FEILET, 'error')
+
 async function selectReferee(name) {
   if (isLocked.value) return
   customReferee.value = false
-  if (match.value.referee === name) {
-    // Deselect
-    await updateMatch(match.value.id, { referee: '' })
-    match.value.referee = ''
-    refereeInput.value = ''
-    showToast('Dommer fjernet', 'success')
-  } else {
-    await updateMatch(match.value.id, { referee: name })
-    match.value.referee = name
-    refereeInput.value = name
-    showRefereePicker.value = false
-    showToast('Dommer oppdatert', 'success')
+  const m = match.value
+  const for_ = m.referee || ''
+  const ny = for_ === name ? '' : name
+  m.referee = ny
+  refereeInput.value = ny
+  if (ny) showRefereePicker.value = false
+  const ok = await updateMatch(m.id, { referee: ny })
+  if (!ok) {
+    m.referee = for_
+    refereeInput.value = for_
+    return feilet()
   }
+  showToast(ny ? 'Dommer oppdatert' : 'Dommer fjernet', 'success')
 }
 
 function showCustomReferee() {
@@ -329,31 +336,37 @@ async function saveCustomReferee() {
 
   const phone = newPhone.value
   const existing = referees.value.find(r => r.name === name)
-  if (!existing) {
-    await addReferee(name, phone)
-  } else if (phone && !existing.phone) {
-    await updateReferee(existing.id, { phone })
-  }
-  if (name !== match.value.referee) {
-    await updateMatch(match.value.id, { referee: name })
-    match.value.referee = name
-  }
+  const m = match.value
+  const for_ = m.referee || ''
+  // Arket lukkes og navnet står med en gang; dommerregisteret og kampen
+  // lagres parallelt etterpå.
+  m.referee = name
   customReferee.value = false
   showRefereePicker.value = false
   refereeInput.value = name
   newPhone.value = ''
+  const [, ok] = await Promise.all([
+    !existing ? addReferee(name, phone) : (phone && !existing.phone ? updateReferee(existing.id, { phone }) : null),
+    name !== for_ ? updateMatch(m.id, { referee: name }) : true
+  ])
+  if (!ok) {
+    m.referee = for_
+    refereeInput.value = for_
+    return feilet()
+  }
   showToast('Dommer lagret', 'success')
 }
 
+// Utlegget endres lokalt i useExpenses før lagringen, og rulles tilbake der.
 async function selectPayer(coachId) {
   if (isLocked.value) return
   if (expense.value?.paid_by === coachId) {
-    await removeExpense(match.value.id)
+    if (!(await removeExpense(match.value.id))) return feilet()
     showToast('Utlegg fjernet', 'success')
   } else {
-    await registerExpense(match.value.id, coachId, match.value.fee_amount || 200)
     const name = coaches.value.find(c => c.id === coachId)?.name
     showPayerPicker.value = false
+    if (!(await registerExpense(match.value.id, coachId, match.value.fee_amount || 200))) return feilet()
     showToast(`${name} la ut ${match.value.fee_amount || 200} kr`, 'success')
   }
 }
@@ -367,8 +380,12 @@ async function toggleCoach(coachId) {
   } else {
     current.push(coachId)
   }
-  await setMatchCoaches(match.value.id, current)
+  const for_ = matchCoachIds.value
   matchCoachIds.value = current
+  if (!(await setMatchCoaches(match.value.id, current))) {
+    matchCoachIds.value = for_
+    return feilet()
+  }
   showToast('Trenere oppdatert', 'success')
 }
 
@@ -381,8 +398,12 @@ async function togglePlayer(playerId) {
   } else {
     current.push(playerId)
   }
-  await setMatchPlayers(match.value.id, current)
+  const for_ = matchPlayerIds.value
   matchPlayerIds.value = current
+  if (!(await setMatchPlayers(match.value.id, current))) {
+    matchPlayerIds.value = for_
+    return feilet()
+  }
   meldEvent('laguttak_endret', { type: 'hospitant', antall: current.length })
   showToast('Lånespillere oppdatert', 'success')
 }
@@ -403,14 +424,15 @@ const availableCount = computed(() =>
 
 async function handleToggleAbsence(playerId) {
   if (isLocked.value) return
-  await toggleAbsence(match.value.id, playerId)
-  meldEvent('laguttak_endret', {
-    type: 'frafall',
-    meldt: !matchAbsenceIds.value.includes(playerId),
-  })
-  matchAbsenceIds.value = matchAbsenceIds.value.includes(playerId)
-    ? matchAbsenceIds.value.filter(id => id !== playerId)
-    : [...matchAbsenceIds.value, playerId]
+  const for_ = matchAbsenceIds.value
+  const meldt = !for_.includes(playerId)
+  matchAbsenceIds.value = meldt ? [...for_, playerId] : for_.filter(id => id !== playerId)
+  const { ok } = await toggleAbsence(match.value.id, playerId)
+  if (!ok) {
+    matchAbsenceIds.value = for_
+    return feilet()
+  }
+  meldEvent('laguttak_endret', { type: 'frafall', meldt })
 }
 
 // ─── Ekstra-kamper per spiller (rettferdighetshint på lånespillere) ────────────
@@ -962,7 +984,7 @@ function focusSummaryGroup() {
        plassen uten at noe hopper. -->
   <div v-if="loading" class="desktop-container md-skel" aria-hidden="true">
     <div class="px-lg md-top">
-      <span class="md-icon-btn"><Skeleton :width="22" :height="22" radius="6px" /></span>
+      <span class="md-skel__back"><Skeleton :width="84" :height="18" radius="6px" /></span>
     </div>
     <header class="px-lg hero">
       <div class="hero__grid">
@@ -987,11 +1009,7 @@ function focusSummaryGroup() {
 
   <div v-else-if="match" class="desktop-container">
     <div class="px-lg md-top">
-      <button class="md-icon-btn" aria-label="Tilbake" @click="router.back()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
-        </svg>
-      </button>
+      <BackLink to="/kamper" label="Kamper" historikk />
       <button
         v-if="!isLocked"
         type="button"
@@ -1035,20 +1053,11 @@ function focusSummaryGroup() {
         </div>
       </div>
 
-      <!-- Scorerne står under laget de scoret for. -->
-      <div v-if="aggregatedScorers.length" class="hero__grid hero__scorers">
-        <div class="hero__side">
-          <template v-if="isHomeMatch">
-            <span v-for="s in aggregatedScorers" :key="s.player_id" class="hero__scorer">{{ s.player?.name || 'Ukjent' }} <span v-if="s.timing" class="hero__timing">{{ s.timing }}</span></span>
-          </template>
-        </div>
-        <div class="hero__mid" aria-hidden="true"></div>
-        <div class="hero__side">
-          <template v-if="!isHomeMatch">
-            <span v-for="s in aggregatedScorers" :key="s.player_id" class="hero__scorer">{{ s.player?.name || 'Ukjent' }} <span v-if="s.timing" class="hero__timing">{{ s.timing }}</span></span>
-          </template>
-        </div>
-      </div>
+      <!-- Scorerne står samlet under resultatet, én linje per spiller, så
+           minuttene aldri brekker midt i en scorer. -->
+      <ul v-if="aggregatedScorers.length" class="hero__scorers">
+        <li v-for="s in aggregatedScorers" :key="s.player_id" class="hero__scorer">{{ s.player?.name || 'Ukjent' }}<span v-if="s.timing" class="hero__timing">{{ s.timing }}</span></li>
+      </ul>
     </header>
 
     <!-- Låst kamp — sesongen er gjort opp -->
@@ -1170,7 +1179,6 @@ function focusSummaryGroup() {
             </template>
             <template v-else-if="!isLocked">
               <div class="referee-contact__empty-title">Ingen telefon registrert</div>
-              <div class="referee-contact__empty-subtitle">Legg til nummer for Ring, SMS og Vipps</div>
               <div class="referee-add-phone__row">
                 <input
                   v-model="newPhone"
@@ -1285,7 +1293,7 @@ function focusSummaryGroup() {
               :key="p.id"
               :data-team="p.primary_team"
               :class="['squad-pill', { 'squad-pill--out': matchAbsenceIds.includes(p.id) }]"
-              :title="matchAbsenceIds.includes(p.id) ? 'Frafall — trykk for å ta tilbake' : 'Trykk for å melde frafall'"
+              :title="matchAbsenceIds.includes(p.id) ? 'Fravær — trykk for å ta tilbake' : 'Trykk for å melde fravær'"
               @click="handleToggleAbsence(p.id)"
             >
               {{ p.name }}
@@ -1299,7 +1307,7 @@ function focusSummaryGroup() {
         <div class="sub-section">
           <div class="sub-section__label sub-section__label--soft">Lånespillere</div>
           <div v-if="players.length === 0" class="hospitant-empty" style="margin: 0;">
-            Ingen spillere i poolen.
+            Ingen spillere å låne.
           </div>
           <template v-else>
             <!-- Valgt -->
@@ -1356,11 +1364,7 @@ function focusSummaryGroup() {
                   <span v-if="tellerIkke(p)" class="med-sist">Teller ikke</span>
                   <span v-if="!playerConflicts[p.id] && extraCount(p.id)" class="extra-badge" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
                   <span v-if="playerConflicts[p.id]" class="hospitant-pill__conflict" :title="`Også kamp ${playerConflicts[p.id].time || 'samme dag'} mot ${playerConflicts[p.id].opponent}`">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                      <circle cx="12" cy="12" r="9"/>
-                      <polyline points="12 7 12 12 15 14"/>
-                    </svg>
-                    {{ playerConflicts[p.id].time || 'samme dag' }}
+                    · {{ playerConflicts[p.id].time || 'samme dag' }}
                   </span>
                 </button>
               </div>
@@ -1483,7 +1487,7 @@ function focusSummaryGroup() {
             </button>
           </div>
           <div v-if="goalCountMismatch" class="scorers-block__hint">
-            Antall scorere ({{ matchGoals.length }}) matcher ikke Halsen-mål ({{ halsenGoalCount }}).
+            {{ matchGoals.length }} scorere, men {{ halsenGoalCount }} mål.
           </div>
         </div>
 
@@ -1575,9 +1579,6 @@ function focusSummaryGroup() {
           class="match-menu__item"
           @click="showMatchMenu = false; focusSummaryGroup()"
         >
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="12" r="9"/><path d="M12 7l4.5 3.3-1.7 5.3H9.2L7.5 10.3z"/>
-          </svg>
           {{ hasResult ? 'Rediger resultat og scorere' : 'Legg inn resultat' }}
         </button>
         <button
@@ -1586,9 +1587,6 @@ function focusSummaryGroup() {
           class="match-menu__item"
           @click="showMatchMenu = false; startEditingReport()"
         >
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <path d="M12 20h9"/><path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4Z"/>
-          </svg>
           {{ match.report ? 'Rediger referat' : 'Skriv referat' }}
         </button>
         <button
@@ -1596,12 +1594,6 @@ function focusSummaryGroup() {
           class="match-menu__item"
           @click="showMatchMenu = false; openEditDateTime()"
         >
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="4" width="18" height="18" rx="2" />
-            <line x1="16" y1="2" x2="16" y2="6" />
-            <line x1="8" y1="2" x2="8" y2="6" />
-            <line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
           Endre tidspunkt
         </button>
         <button
@@ -1609,13 +1601,6 @@ function focusSummaryGroup() {
           class="match-menu__item match-menu__item--danger"
           @click="showMatchMenu = false; showDeleteDialog = true"
         >
-          <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <polyline points="3 6 5 6 21 6" />
-            <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
-            <path d="M10 11v6" />
-            <path d="M14 11v6" />
-            <path d="M9 6V4a2 2 0 0 1 2-2h2a2 2 0 0 1 2 2v2" />
-          </svg>
           Slett kamp
         </button>
       </div>
@@ -1663,7 +1648,7 @@ function focusSummaryGroup() {
     <Sheet :show="showScorerSheet" title="Mål" @close="closeScorerSheet">
       <div class="scorer-form">
         <div v-if="players.length === 0 && !showNewPlayerForm" class="hospitant-empty" style="margin: 0;">
-          Ingen spillere i poolen ennå — legg til en spiller for å registrere mål.
+          Ingen spillere ennå.
         </div>
 
         <div v-else-if="!eligiblePlayers.length && !showNewPlayerForm" class="hospitant-empty" style="margin: 0;">
@@ -1817,6 +1802,14 @@ function focusSummaryGroup() {
       @cancel="showDeleteDialog = false"
     />
   </div>
+
+  <!-- Lenke til en kamp som ikke finnes (slettet, eller feil adresse). -->
+  <div v-else class="desktop-container">
+    <div class="ds-empty">
+      <div class="ds-empty__title">Fant ikke kampen</div>
+      <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="router.replace('/kamper')">Til kamper</button>
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -1849,9 +1842,9 @@ function focusSummaryGroup() {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  margin-left: -8px;
+  width: 44px;
+  height: 44px;
+  margin-left: -10px;
   border: 0;
   border-radius: 50%;
   background: transparent;
@@ -1859,7 +1852,8 @@ function focusSummaryGroup() {
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.md-icon-btn + .md-icon-btn { margin-left: 0; margin-right: -8px; }
+.md-top .md-icon-btn { margin-left: 0; margin-right: -10px; }
+.md-skel__back { display: flex; align-items: center; min-height: 44px; }
 .md-icon-btn svg { width: 22px; height: 22px; }
 .md-icon-btn:active { background: var(--ds-color-bg-subtle); }
 
@@ -1931,16 +1925,28 @@ function focusSummaryGroup() {
   text-align: center;
 }
 
-.hero__scorers { margin-top: calc(-1 * var(--ds-space-xs)); }
-.hero__scorers .hero__side { gap: 2px; }
+.hero__scorers {
+  list-style: none;
+  margin: calc(-1 * var(--ds-space-xs)) 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  min-width: 0;
+}
 
 .hero__scorer {
   font-size: var(--ds-text-xs);
   color: var(--ds-color-text-secondary);
   line-height: 1.4;
+  white-space: nowrap;
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.hero__timing { color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; }
+.hero__timing { margin-left: 0.4em; color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; }
 
 /* Match mode CTA */
 .match-mode-cta {
@@ -2415,36 +2421,17 @@ function focusSummaryGroup() {
   opacity: 0.8;
 }
 
-/* Same-day conflict annotation on lånespiller pill */
+/* Same-day conflict: stille tekst, ikke en feilmarkering. */
 .hospitant-pill__conflict {
-  display: inline-flex;
-  align-items: center;
-  gap: 3px;
-  margin-left: 6px;
-  padding: 1px 6px 1px 4px;
-  border-radius: var(--ds-radius-full);
-  background: var(--ds-color-warm-bg);
-  color: var(--ds-color-warm-text);
-  font-size: 0.6875rem;
-  font-weight: var(--ds-weight-medium);
-  letter-spacing: -0.005em;
+  color: var(--ds-color-text-tertiary);
+  font-weight: var(--ds-weight-regular);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
 }
 
-.hospitant-pill__conflict svg {
-  width: 11px;
-  height: 11px;
-  flex-shrink: 0;
-}
-
-.referee-pill--conflict {
-  border-color: var(--ds-color-warm);
-}
-
 .referee-pill--selected .hospitant-pill__conflict {
-  background: rgba(255, 255, 255, 0.18);
-  color: var(--ds-color-warm-bg);
+  color: inherit;
+  opacity: 0.75;
 }
 
 /* ─── Kamptropp: laget (frafall) + lånespiller-grupper ──────────────── */
@@ -2610,6 +2597,12 @@ function focusSummaryGroup() {
    starten av navnet («edrik V»). Nå er det dommernavnet som krymper; beløpet
    står helt. */
 .sum-chip--squad, .sum-chip--more, .sum-chip--score, .sum-chip--payer { flex: none; }
+.sum-chip--referee { flex: 0 1 auto; min-width: 0; }
+/* På de smaleste skjermene får ikke dommernavnet plass ved siden av beløpet.
+   Da står beløpet alene; navnet står når raden åpnes. */
+@media (max-width: 359px) {
+  .sum-chip--referee:has(+ .sum-chip--payer) { display: none; }
+}
 
 .sum-chip--score {
   font-weight: 700;

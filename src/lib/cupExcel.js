@@ -74,7 +74,7 @@ export function parseCupRows(buffer) {
 export function parseCupMatchFile(file) {
   return new Promise((resolve, reject) => {
     const leser = new FileReader()
-    leser.onerror = () => reject(new Error('Kunne ikke lese filen'))
+    leser.onerror = () => reject(new Error('Kunne ikke lese fila'))
     leser.onload = e => {
       try { resolve(parseCupRows(e.target.result)) } catch (err) { reject(err) }
     }

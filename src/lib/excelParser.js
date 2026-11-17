@@ -204,7 +204,7 @@ export function parseMatchFile(file) {
       }
     }
 
-    reader.onerror = () => reject(new Error('Kunne ikke lese filen'))
+    reader.onerror = () => reject(new Error('Kunne ikke lese fila'))
     reader.readAsArrayBuffer(file)
   })
 }

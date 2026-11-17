@@ -1,6 +1,7 @@
 import { PostgrestClient } from '@supabase/postgrest-js'
 import { GoTrueClient, isAuthRetryableFetchError } from '@supabase/auth-js'
 import { FunctionsClient } from '@supabase/functions-js'
+import { invalidate } from './lib/query'
 
 // En slank Supabase-klient: bare det appen bruker.
 //
@@ -63,7 +64,11 @@ function lagKlient(url, key) {
     const headers = new Headers(init.headers)
     if (!headers.has('apikey')) headers.set('apikey', key)
     if (!headers.has('Authorization')) headers.set('Authorization', `Bearer ${await accessToken()}`)
-    return fetch(input, { ...init, headers })
+    const res = await fetch(input, { ...init, headers })
+    // En skriving gjør ferskhets-cachen gammel (lib/query.js): neste besøk på
+    // en fane henter på nytt i stedet for å vise det som var før endringen.
+    if (skriver(input, init)) invalidate()
+    return res
   }
 
   const rest = new PostgrestClient(new URL('rest/v1', base).href, {
@@ -82,6 +87,15 @@ function lagKlient(url, key) {
       return new FunctionsClient(functionsUrl, { headers: {}, customFetch: fetchWithAuth })
     }
   }
+}
+
+// Rene lese-RPC-er og telemetri skal ikke tømme cachen.
+const LESE_RPC = /\/rpc\/(bb_club_cohort_names|bb_meld_pwa|mm_tilstand)\b|\/rest\/v1\/client_errors\b/
+
+function skriver(input, init) {
+  const metode = (init.method || 'GET').toUpperCase()
+  if (metode === 'GET' || metode === 'HEAD') return false
+  return !LESE_RPC.test(String(input?.url || input))
 }
 
 // Nettverksfeil (ingen dekning) — ikke en ugyldig sesjon.

@@ -537,6 +537,8 @@ export function delInn({ spillere = [], trenere = [], form = 'grupper', type = n
   // mer enn rene nivåer. Blandet: slangetrekning.
   const nivaAv = Object.fromEntries(spillere.map(s => [s.id, nivaTil(s)]))
   const somDel = ids => ({ nivaer: NIVAER.filter(v => ids.some(id => nivaAv[id] === v)), spillere: ids, trenere: [] })
+  // Ingen har nivå: da er alle «B» bare en standard, ikke noe å vise.
+  const visNiva = d => (type === 'diff' && !nivaer ? [] : d.nivaer)
   const deler = form === 'grupper' && type === 'diff'
     ? lagGjenger(spillere, trenere, runde, seed, N, TOLERANSE[balanse] ?? 3)
     : lagGrupper(spillere, N, type, seed).map(somDel)
@@ -546,7 +548,7 @@ export function delInn({ spillere = [], trenere = [], form = 'grupper', type = n
     ut.enheter = deler.map((d, i) => ({
       id: `g${i}`,
       navn: type === 'diff' ? gjengNavn(d) : `Gruppe ${i + 1}`,
-      nivaer: d.nivaer,
+      nivaer: visNiva(d),
       spillere: d.spillere,
       trenere: tr[i]
     }))
@@ -558,7 +560,7 @@ export function delInn({ spillere = [], trenere = [], form = 'grupper', type = n
   // Lag: diff-lag står i nivårekkefølge, så like nivåer møtes på samme bane.
   // Mix-lag pares etter størrelse.
   const lag = deler.map(d => d.spillere)
-  ut.enheter = deler.map((d, i) => ({ id: `l${i}`, navn: lagFarge(i), nivaer: d.nivaer, spillere: d.spillere, trenere: [] }))
+  ut.enheter = deler.map((d, i) => ({ id: `l${i}`, navn: lagFarge(i), nivaer: visNiva(d), spillere: d.spillere, trenere: [] }))
   const par = type === 'diff'
     ? Array.from({ length: Math.ceil(lag.length / 2) }, (_, i) => ({ lag: [2 * i, 2 * i + 1].filter(j => j < lag.length) }))
     : baner(lag)

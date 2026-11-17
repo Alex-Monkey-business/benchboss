@@ -22,8 +22,20 @@ const DEMO_COACHES = [
   { id: 'demo-5', name: 'Jacob', photo_url: '/coaches/jacob.png' }
 ]
 
+// Bildene i /coaches er 384 px PNG-er på ~200 KB, vist som små avatarer.
+// Basen peker på .png-en (photo_url), så filnavnet byttes her: samme bilde
+// som 192 px WebP, ~10 KB. Andre adresser (opplastede bilder) står urørt.
+// Bare filene som finnes som WebP (public/coaches/*-192.webp).
+const WEBP = new Set(['iver', 'jacob', 'simon', 'trond'])
+function bildeFor(url) {
+  if (!url) return null
+  const m = /^\/coaches\/([a-z0-9_-]+)\.png$/i.exec(url)
+  const navn = m?.[1].toLowerCase()
+  return navn && WEBP.has(navn) ? `/coaches/${navn}-192.webp` : url
+}
+
 function enrichWithImages(coachList) {
-  return coachList.map(c => ({ ...c, image: c.photo_url || null }))
+  return coachList.map(c => ({ ...c, image: bildeFor(c.photo_url) }))
 }
 
 export function useCoaches() {

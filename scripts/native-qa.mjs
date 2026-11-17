@@ -60,7 +60,7 @@ try {
 
   // Tilbake lukker arket, ikke siden.
   await p.locator('.rad').first().click()
-  await p.locator('.ds-sheet__footer').waitFor()
+  await p.locator('.ex-view__hvor').waitFor()
   await vent(400)
   await tilbake()
   ok('tilbake lukker øvelsesarket', !(await arkApent()))
@@ -77,13 +77,13 @@ try {
 
   // Lukket med krysset: neste tilbake går rett til dagen, ingen døde steg.
   await p.locator('.rad').first().click()
-  await p.locator('.ds-sheet__footer').waitFor()
+  await p.locator('.ex-view__hvor').waitFor()
   await vent(400)
   await p.locator('.ds-sheet__close').click()
   await vent(500)
   ok('krysset lukker', !(await arkApent()))
   await p.locator('.rad').nth(1).click()
-  await p.locator('.ds-sheet__footer').waitFor()
+  await p.locator('.ex-view__hvor').waitFor()
   await vent(400)
   await p.keyboard.press('Escape')
   await vent(500)
@@ -143,7 +143,7 @@ try {
   await p.goto(`${APP}/trening/okt/${DAG}`)
   await p.locator('.rad').first().waitFor()
   await p.locator('.rad').first().click()
-  await p.locator('.ds-sheet__footer').waitFor()
+  await p.locator('.ex-view__hvor').waitFor()
   await vent(500)
   const hode = await p.locator('.ds-sheet__header').boundingBox()
   const x = Math.round(hode.x + hode.width / 2), y = Math.round(hode.y + hode.height / 2)

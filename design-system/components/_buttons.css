@@ -6,14 +6,15 @@
    Tre høyder i hele appen (10. okt 2026):
    stor 52 px = hovedhandlingen på en flate, full bredde, 17 px
    standard 44 px = alle andre knapper, 15 px (minste trykkflate)
-   liten 36 px = i tette rader (Rediger ved en tittel), 13 px
+   liten 44 px høy, smalere og 13 px = i tette rader (Rediger ved en tittel).
+   Trykkflaten er aldri under 44 px.
    Alle knapper er halvfete.
    ============================================ */
 
 :root {
   --ds-btn-h-lg: 52px;
   --ds-btn-h:    44px;
-  --ds-btn-h-sm: 36px;
+  --ds-btn-h-sm: 44px;
 }
 
 .ds-btn {
@@ -78,6 +79,17 @@
 
 .ds-btn--primary:active {
   background: var(--ds-color-accent-hover);
+}
+
+/* Avslått primær: nøytral flate og dempet tekst, ikke en blek aksent som
+   ser trykkbar ut — særlig i mørk modus. */
+.ds-btn--primary:disabled,
+.ds-btn--primary[aria-disabled="true"] {
+  background: var(--ds-color-bg-subtle);
+  border-color: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-tertiary);
+  box-shadow: none;
+  opacity: 1;
 }
 
 /* ---- Secondary (hairline ghost) ---- */
@@ -154,7 +166,7 @@
 /* ---- Size Modifiers ---- */
 .ds-btn--sm {
   min-height: var(--ds-btn-h-sm);
-  padding: 0.4375rem var(--ds-space-md);
+  padding: 0 var(--ds-space-md);
   font-size: var(--ds-text-xs);
   border-radius: var(--ds-radius-sm);
 }

@@ -33,13 +33,18 @@ function iDag() {
 
 const lag = computed(() => seasonTeams.value.find(t => t.slug === lagSlug.value) || null)
 
-// Nytt ark hver gang: lag og type huskes, resten tømmes.
+// Det du skrev, står til kampen er lagt til: et trykk utenfor arket skal
+// ikke koste deg motstanderen og tida. Etter «Legg til kamp» tømmes det
+// (lag og type huskes).
+let tom = true
 watch(() => props.show, apen => {
   if (!apen) return
   const slugs = seasonTeams.value.map(t => t.slug)
   if (!slugs.includes(lagSlug.value)) {
     lagSlug.value = slugs.includes(preferredTeam.value) ? preferredTeam.value : (slugs[0] || '')
   }
+  if (!tom && dato.value) return
+  tom = false
   motstander.value = ''
   dato.value = iDag()
   tid.value = ''
@@ -63,6 +68,7 @@ async function lagre() {
   })
   lagrer.value = false
   if (!kamp) { showToast('Kunne ikke lagre kampen', 'error'); return }
+  tom = true
   showToast('Kampen er lagt til', 'success')
   emit('close')
 }
@@ -132,7 +138,7 @@ async function lagre() {
       </div>
 
       <button type="button" class="ds-btn ds-btn--primary nk__lagre" :disabled="!klar" @click="lagre">
-        {{ lagrer ? 'Lagrer…' : 'Legg til kamp' }}
+        {{ lagrer ? 'Lagrer …' : 'Legg til kamp' }}
       </button>
     </div>
   </Sheet>

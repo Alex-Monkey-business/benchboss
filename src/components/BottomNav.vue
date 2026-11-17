@@ -52,12 +52,17 @@ const tabs = computed(() => {
 function isActive(tab) {
   if (tab.name === 'hjem') return route.path === '/'
   if (tab.name === 'matches') return route.path === '/kamper' || route.path.startsWith('/kamp/')
-  if (tab.name === 'trening') return route.path.startsWith('/trening')
+  if (tab.name === 'trening') return route.path.startsWith('/trening') || route.path.startsWith('/del-inn')
   if (tab.name === 'tropp') return route.path.startsWith('/serie/tropp')
   if (tab.name === 'serie') return route.path === '/serie'
-  // Admin eier /cup så lenge cup er noe man setter opp der. Har kullet cup
-  // som sin egen fane, er det fanen som skal lyse — ikke Admin.
-  if (tab.name === 'admin') return route.path === '/admin' || route.path.startsWith('/admin/') || (!cupFirst.value && route.path.startsWith('/cup'))
+  // Admin eier alt som åpnes derfra: tropp, spiller, trener og hele cupen
+  // (liste, tropp og kamp), så fanen ikke hopper mellom lista og kampen.
+  // Har kullet cup som sin egen fane, er det fanen som skal lyse.
+  if (tab.name === 'admin') {
+    const p = route.path
+    return p === '/admin' || p.startsWith('/admin/') || p.startsWith('/serie/tropp') ||
+      p.startsWith('/spiller/') || p.startsWith('/trener/') || (!cupFirst.value && p.startsWith('/cup'))
+  }
   if (tab.name === 'stats') return route.path === '/statistikk'
   if (tab.name === 'cup') return route.path.startsWith('/cup')
   return false

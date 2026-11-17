@@ -4,6 +4,7 @@ import { usePlayers } from '../composables/usePlayers'
 import { usePlayerLevels, LEVELS } from '../composables/usePlayerLevels'
 import { useToast } from '../composables/useToast'
 import { shortRelativeDate } from '../lib/dateLabels'
+import BackLink from '../components/BackLink.vue'
 
 // Nivå A/B/C for hele kullet på én skjerm.
 //
@@ -52,15 +53,11 @@ async function pick(player, level) {
 <template>
   <div class="niva">
     <div class="niva__back-wrap">
-      <router-link to="/admin" class="niva__back">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Admin
-      </router-link>
+      <BackLink to="/admin" label="Admin" />
     </div>
 
     <header class="niva__head">
       <h1 class="niva__title">Nivå</h1>
-      <p class="niva__lead">Bare trenere ser dette.</p>
     </header>
 
     <p v-if="!ready" class="niva__muted">Henter spillere …</p>
@@ -104,19 +101,12 @@ async function pick(player, level) {
 
 <style scoped>
 .niva {
-  max-width: 680px;
+  max-width: var(--ds-content-max);
   margin: 0 auto;
   padding: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-2xl);
 }
 
 .niva__back-wrap { margin-bottom: var(--ds-space-xl); }
-.niva__back {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary); text-decoration: none;
-}
-.niva__back svg { width: 14px; height: 14px; }
-.niva__back:hover { color: var(--ds-color-text-primary); }
 
 .niva__head { margin-bottom: var(--ds-space-xl); }
 .niva__title {
@@ -126,8 +116,6 @@ async function pick(player, level) {
   color: var(--ds-color-text-primary);
   margin: 0 0 var(--ds-space-sm);
 }
-.niva__lead { margin: 0; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); line-height: 1.5; }
-
 .niva__muted { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); }
 
 .niva__counts {
@@ -179,6 +167,7 @@ async function pick(player, level) {
 
 .niva__name {
   flex: 1; min-width: 0;
+  display: block; line-height: 44px;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   font-size: var(--ds-text-base); font-weight: var(--ds-weight-medium);
   color: var(--ds-color-text-primary); text-decoration: none;

@@ -10,18 +10,16 @@ import ExerciseView from '../components/ExerciseView.vue'
 import ExerciseVideo from '../components/ExerciseVideo.vue'
 import { useAuth } from '../stores/auth'
 import { meldEvent } from '../lib/sporing'
+import { useToast } from '../composables/useToast'
+import BackLink from '../components/BackLink.vue'
 
 const router = useRouter()
 const route = useRoute()
 const { activeCohort } = useAuth()
+const { show: showToast } = useToast()
 const klubbNavn = computed(() => activeCohort.value?.club_short_name || activeCohort.value?.club_name || '')
 const { exercises, supportsCategory, supportsGruppe, supportsSeEtter, supportsSiTilBarna, supportsVanligeFeil, supportsNokkeltall, supportsPerGruppe, fetchExercises, createExercise, updateExercise, deleteExercise, opphavFor } = useExercises()
 
-// Ekte tilbake: dit du kom fra (perioden, en økt …); /trening som fallback.
-function goBack() {
-  if (window.history.state?.back) router.back()
-  else router.push('/trening')
-}
 
 const search = ref('')
 const showSearch = computed(() => synlige.value.length > 8)
@@ -157,8 +155,21 @@ async function save() {
   }
   if (supportsCategory.value) payload.category = form.value.category || null
   if (mode.value === 'edit') {
-    await updateExercise(activeId.value, payload)
+    // Tilbake til visningen med en gang: endringen står i banken før svaret
+    // er tilbake. Feiler lagringen, settes banken tilbake (useExercises) og
+    // skjemaet åpnes igjen med det du skrev.
+    const id = activeId.value
+    const skjema = form.value
     mode.value = 'view'
+    saving.value = false
+    if (!(await updateExercise(id, payload))) {
+      activeId.value = id
+      form.value = skjema
+      mode.value = 'edit'
+      showSheet.value = true
+      showToast('Fikk ikke lagret. Prøv igjen.', 'error')
+    }
+    return
   } else {
     const row = await createExercise(payload)
     if (row) {
@@ -201,26 +212,23 @@ onMounted(async () => {
 <template>
   <div class="bank">
     <div class="bank__nav">
-      <button type="button" class="back-btn" @click="goBack">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Tilbake
-      </button>
+      <BackLink to="/trening" label="Trening" historikk />
     </div>
 
     <!-- «Ny øvelse» ligger øverst: det var det Alex ikke fant da den lå
          under en liste som kan bli hundre rader lang. -->
     <header class="bank__head">
-      <div class="bank__head-text">
+      <div class="bank__head-row">
         <h1 class="bank__title">Øvelsesbank</h1>
-        <!-- Banken er klubbens, ikke kullets. En ny trener som ser sytten
-             øvelser han ikke har laget, skal vite hvorfor de er der. -->
-        <p class="bank__count">
-          {{ exercises.length }} {{ exercises.length === 1 ? 'øvelse' : 'øvelser' }}<template v-if="klubbNavn"> · delt i hele {{ klubbNavn }}</template>
-        </p>
+        <button v-if="exercises.length" type="button" class="ds-btn ds-btn--primary bank__new" @click="openNew">
+          Ny øvelse
+        </button>
       </div>
-      <button v-if="exercises.length" type="button" class="ds-btn ds-btn--primary bank__new" @click="openNew">
-        Ny øvelse
-      </button>
+      <!-- Banken er klubbens, ikke kullets. En ny trener som ser sytten
+           øvelser han ikke har laget, skal vite hvorfor de er der. -->
+      <p class="bank__count">
+        {{ exercises.length }} {{ exercises.length === 1 ? 'øvelse' : 'øvelser' }}<template v-if="klubbNavn"> · delt i hele {{ klubbNavn }}</template>
+      </p>
     </header>
 
     <input
@@ -234,9 +242,6 @@ onMounted(async () => {
     <div v-if="exercises.length === 0" class="ds-empty">
       <Spot name="skills" class="ds-empty__illo" />
       <div class="ds-empty__title">Ingen øvelser ennå</div>
-      <div class="ds-empty__description">
-        Øvelser du lager i uka havner her<template v-if="klubbNavn">, delt med hele {{ klubbNavn }}</template>.
-      </div>
       <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="openNew">Ny øvelse</button>
     </div>
 
@@ -323,7 +328,7 @@ onMounted(async () => {
             Slett
           </button>
           <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg bank__save" :disabled="!form.name.trim() || saving">
-            {{ saving ? 'Lagrer…' : mode === 'edit' ? 'Lagre endringer' : 'Legg i banken' }}
+            {{ saving ? 'Lagrer …' : mode === 'edit' ? 'Lagre endringer' : 'Legg i banken' }}
           </button>
         </div>
       </form>
@@ -343,22 +348,24 @@ onMounted(async () => {
 
 <style scoped>
 .bank {
-  max-width: 640px;
+  max-width: var(--ds-content-max);
   margin: 0 auto;
   padding: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-2xl);
 }
 
 .bank__nav { margin-bottom: var(--ds-space-xl); }
 
-.bank__head {
+.bank__head { margin-bottom: var(--ds-space-lg); }
+.bank__head-row {
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-between;
   gap: var(--ds-space-md);
-  margin-bottom: var(--ds-space-lg);
 }
-
-.bank__head-text { min-width: 0; }
+.bank__head-row .bank__title { min-width: 0; margin: 0; }
+@media (max-width: 359px) {
+  .bank__head-row .bank__title { font-size: var(--ds-text-xl); }
+}
 .bank__new { flex-shrink: 0; }
 
 /* Verktøyside: sans, som Trening. */
@@ -377,7 +384,7 @@ onMounted(async () => {
 .bank__count {
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-tertiary);
-  margin: 0;
+  margin: 4px 0 0;
   font-variant-numeric: tabular-nums;
 }
 

@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
-import { fetchRows, STATUS, dedupe } from '../lib/query'
+import { fetchRows, STATUS, cached } from '../lib/query'
 import { scoped, withCohort } from '../lib/scope'
 import { persistRef } from '../lib/persist'
 
@@ -30,48 +30,51 @@ const DEMO_SEASONS = [
   { id: 'demo-season-1', name: 'Vår 2025', status: 'settled', settled_at: '2025-09-30T12:00:00Z', created_at: '2025-01-01' }
 ]
 
-export function useSeasons() {
-  async function fetchSeasons() {
-    if (!isSupabaseConfigured) {
-      seasons.value = DEMO_SEASONS
-      activeSeason.value = DEMO_SEASONS[0]
-      if (!viewingSeason.value) viewingSeason.value = activeSeason.value
-      loaded.value = true
-      status.value = STATUS.OK
-      return
-    }
-
-    status.value = STATUS.LOADING
-    const { rows } = await fetchRows(
-      scoped(supabase.from('seasons').select('*')).order('created_at', { ascending: false }),
-      'seasons'
-    )
-
-    // Feiler denne, henter SerieKamperView aldri kamper (den venter på
-    // viewingSeason) og siden blir helt blank — uten skjelett og uten feil.
-    // `loaded` skal derfor aldri låses til true på en feilet spørring.
-    if (!rows) {
-      status.value = STATUS.ERROR
-      return
-    }
-
-    seasons.value = rows
-    const forrigeAktiv = activeSeason.value?.id
-    activeSeason.value = rows.find(s => s.status === 'active') || rows[0] || null
-    // viewingSeason ble sådd fra cachen. Er den sesongen slettet, eller har
-    // en ny sesong blitt aktiv siden sist (vinteren startet), ville appen ellers
-    // fortsatt vise den gamle — og nye kamper havnet i feil sesong.
-    // Bare ved ny id: et nytt objekt med samme id trigger hentingen i hver
-    // skjerm som følger viewingSeason.
-    const finnes = viewingSeason.value && rows.some(s => s.id === viewingSeason.value.id)
-    const nyAktiv = forrigeAktiv !== activeSeason.value?.id
-    if ((!finnes || nyAktiv) && viewingSeason.value?.id !== activeSeason.value?.id) {
-      viewingSeason.value = activeSeason.value
-    }
+async function fetchSeasons() {
+  if (!isSupabaseConfigured) {
+    seasons.value = DEMO_SEASONS
+    activeSeason.value = DEMO_SEASONS[0]
+    if (!viewingSeason.value) viewingSeason.value = activeSeason.value
     loaded.value = true
     status.value = STATUS.OK
+    return
   }
 
+  status.value = STATUS.LOADING
+  const { rows } = await fetchRows(
+    scoped(supabase.from('seasons').select('*')).order('created_at', { ascending: false }),
+    'seasons'
+  )
+
+  // Feiler denne, henter SerieKamperView aldri kamper (den venter på
+  // viewingSeason) og siden blir helt blank — uten skjelett og uten feil.
+  // `loaded` skal derfor aldri låses til true på en feilet spørring.
+  if (!rows) {
+    status.value = STATUS.ERROR
+    return
+  }
+
+  seasons.value = rows
+  const forrigeAktiv = activeSeason.value?.id
+  activeSeason.value = rows.find(s => s.status === 'active') || rows[0] || null
+  // viewingSeason ble sådd fra cachen. Er den sesongen slettet, eller har
+  // en ny sesong blitt aktiv siden sist (vinteren startet), ville appen ellers
+  // fortsatt vise den gamle — og nye kamper havnet i feil sesong.
+  // Bare ved ny id: et nytt objekt med samme id trigger hentingen i hver
+  // skjerm som følger viewingSeason.
+  const finnes = viewingSeason.value && rows.some(s => s.id === viewingSeason.value.id)
+  const nyAktiv = forrigeAktiv !== activeSeason.value?.id
+  if ((!finnes || nyAktiv) && viewingSeason.value?.id !== activeSeason.value?.id) {
+    viewingSeason.value = activeSeason.value
+  }
+  loaded.value = true
+  status.value = STATUS.OK
+}
+
+// fetchSeasons henter alltid; ensureSeasons bare når svaret er eldre enn 30 s.
+const sesongerFersk = cached(fetchSeasons, 'seasons', { ok: () => status.value === STATUS.OK })
+
+export function useSeasons() {
   async function createSeason(name) {
     if (!isSupabaseConfigured) {
       const newSeason = { id: 'demo-' + Date.now(), name, status: 'active', settled_at: null, created_at: new Date().toISOString() }
@@ -133,5 +136,5 @@ export function useSeasons() {
     !!viewingSeason.value && !!activeSeason.value && viewingSeason.value.id !== activeSeason.value.id
   )
 
-  return { seasons, activeSeason, viewingSeason, isViewingPast, loaded, status, fetchSeasons: dedupe(fetchSeasons, 'fetchSeasons'), createSeason, settleSeason, setViewingSeason }
+  return { seasons, activeSeason, viewingSeason, isViewingPast, loaded, status, fetchSeasons: sesongerFersk.force, ensureSeasons: sesongerFersk, createSeason, settleSeason, setViewingSeason }
 }

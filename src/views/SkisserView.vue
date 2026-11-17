@@ -158,7 +158,7 @@ const PARENTS = [
 
     <div v-else-if="current === 'callback-feil'" class="auth">
       <div class="auth__inner auth__inner--msg">
-        <h1 class="auth__title">Lenken virket ikke</h1>
+        <h1 class="auth__title">Lenka virket ikke</h1>
         <p class="auth__body">
           Den åpnet seg antakelig i en annen nettleser. Bruk den sekssifrede koden fra samme e-post i stedet.
         </p>

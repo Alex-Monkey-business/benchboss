@@ -17,13 +17,13 @@
 // Stegene er per telefon. Har noen alt begynt i dag, åpner Del inn rett på
 // inndelingen.
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
 import { useExercises, resolveDrills } from '../composables/useExercises'
 import { usePlayers } from '../composables/usePlayers'
 import { usePlayerLevels } from '../composables/usePlayerLevels'
 import { useCoaches } from '../composables/useCoaches'
-import { useTreningsOkt, hentDagensOppmote } from '../composables/useTreningsOkt'
+import { useTreningsOkt, hentDagensOppmote, dagensOppmoteLagret } from '../composables/useTreningsOkt'
 import { useDelInn } from '../composables/useDelInn'
 import { useToast } from '../composables/useToast'
 import { useAuth } from '../stores/auth'
@@ -34,6 +34,7 @@ import Sheet from '../components/Sheet.vue'
 import Steg from '../components/Steg.vue'
 
 const router = useRouter()
+const route = useRoute()
 const { isCoach, coach } = useAuth()
 const { days, fetchWeek } = useTrainingWeek()
 const { exercises, fetchExercises } = useExercises()
@@ -46,7 +47,9 @@ const delt = useDelInn()
 const toast = useToast()
 
 const dag = computed(() => delt.dag.value)
-const lagretIdag = ref(null) // { session_id: antall } — null = ikke hentet
+// { session_id: antall } — null = ikke hentet. Dagens tall fra telefonen
+// står der med en gang; hentingen (samme spørring som økta) fersker dem.
+const lagretIdag = ref(dagensOppmoteLagret())
 
 // ── Steg 1: trening ─────────────────────────────────────────────────────────
 const UKEDAG = ['', 'Mandag', 'Tirsdag', 'Onsdag', 'Torsdag', 'Fredag', 'Lørdag', 'Søndag']
@@ -76,7 +79,10 @@ function undertittel(s) {
 
 const drills = computed(() => (session.value ? resolveDrills(session.value.drills, exercises.value) : []))
 const dagensRun = computed(() => (run.value && !run.value.lokal && session.value && run.value.session_id === session.value.id ? run.value : null))
-const klar = computed(() => !!players.value.length && !!lagretIdag.value && delt.lastet.value && (!session.value || okt.lastet.value))
+// Uka må være hentet (eller fersk fra cachen, < 30 s) før steg 1 vises:
+// valget «nærmeste trening» skal ikke hoppe når lista kommer.
+const ukaKlar = ref(days.value.length > 0)
+const klar = computed(() => ukaKlar.value && !!players.value.length && !!lagretIdag.value && delt.lastet.value && (!session.value || okt.lastet.value))
 
 // ── Steg 2: hvem er her ─────────────────────────────────────────────────────
 const gjester = computed(() => dag.value?.gjester || [])
@@ -126,8 +132,8 @@ async function vekslSpiller(id) {
   ventSp.value = { ...ventSp.value, [id]: til }
   try {
     if (session.value) {
-      if (await sikreOkt()) await okt.settSpiller(id, til)
-      else toast.show(FEIL, 'error')
+      // Feiler lagringen, settes brikken tilbake (useTreningsOkt) og vi sier fra.
+      if (!(await sikreOkt()) || !(await okt.settSpiller(id, til))) toast.show(FEIL, 'error')
     } else {
       // Bare dette ene fraværet, lagt oppå den ferske lista i basen.
       const alle = players.value.map(p => p.id)
@@ -232,13 +238,44 @@ watch(() => dag.value?.endret_at, (ny, gammel) => {
 const STEG = ['trening', 'oppmote', 'inndeling']
 const steg = ref(null)
 const stegNr = computed(() => STEG.indexOf(steg.value))
-watch(klar, k => {
-  if (!k || steg.value) return
+// Steget velges fra det telefonen vet (lagret fra i dag), så skjermen står
+// med en gang. Til raden og oppmøtet er hentet ferskt, er det et forslag:
+// viser basen noe annet, flyttes steget — men aldri etter at du har trykket.
+const oppmoteFersk = ref(false)
+let stegLast = false
+// Steget Del inn åpnet på. Adressen uten ?steg= er dette steget; hvert steg
+// framover er en egen oppføring i historikken (?steg=…), så tilbake på
+// telefonen går ett steg tilbake i flyten, ikke ut av den.
+const startSteg = ref(null)
+// Stegene i historikken siden Del inn ble åpnet, og hvor vi står i den.
+// Tilbake-knappen i toppen og «Endre» går bakover i den samme historikken
+// som telefonens tilbake, så de to aldri sier hver sin ting.
+let stabel = [null]
+let pos = 0
+let malPos = null
+// Åpnes Del inn på nytt (omlasting) med ?steg= i adressen, velges steget
+// fra det som er gjort i dag, som før — ikke fra en gammel adresse.
+if (route.query.steg) router.replace({ query: {} })
+watch(() => route.query.steg, q => {
+  if (route.name !== 'del-inn' || !startSteg.value) return
+  const s = STEG.includes(q) ? q : startSteg.value
+  if (q) stegLast = true
+  if (malPos != null) pos = malPos
+  else if (pos > 0 && stabel[pos - 1] === s) pos--
+  else if (stabel[pos + 1] === s) pos++
+  else stabel[pos] = s
+  malPos = null
+  if (!s || s === steg.value) return
+  steg.value = s
+  window.scrollTo({ top: 0 })
+}, { immediate: true })
+watch([klar, () => !!dag.value, lagretIdag, () => delt.fersk.value, oppmoteFersk, () => route.query.steg], ([k]) => {
+  if (!k || stegLast || route.query.steg) return
   // Har noen alt begynt i dag: rett på inndelingen.
-  // lagretIdag er hentet før klar, så dette avhenger ikke av hvilken økt
-  // som følges akkurat nå.
   const oppmoteIdag = Object.keys(lagretIdag.value || {}).length > 0
-  steg.value = dag.value || oppmoteIdag ? 'inndeling' : 'trening'
+  startSteg.value = steg.value = dag.value || oppmoteIdag ? 'inndeling' : 'trening'
+  if (pos === 0) stabel[0] = startSteg.value
+  if (delt.fersk.value && oppmoteFersk.value) stegLast = true
 }, { immediate: true })
 
 async function nesteFraTrening() {
@@ -261,8 +298,22 @@ async function tilInndeling() {
   if (session.value && !dagensRun.value) meldFeil(await sikreOkt())
 }
 function gaTil(s) {
-  steg.value = s
-  window.scrollTo({ top: 0 })
+  stegLast = true
+  if (!startSteg.value) startSteg.value = stabel[0] = steg.value || s
+  if (s === steg.value) return
+  // Står steget bak oss i historikken: gå tilbake dit.
+  const bak = stabel.lastIndexOf(s, pos - 1)
+  if (pos > 0 && bak > -1) { malPos = bak; router.go(bak - pos); return }
+  const q = s === startSteg.value ? {} : { steg: s }
+  if (STEG.indexOf(s) > stegNr.value) {
+    stabel = [...stabel.slice(0, pos + 1), s]
+    malPos = pos + 1
+    router.push({ query: q })
+  } else {
+    stabel[pos] = s
+    malPos = pos
+    router.replace({ query: q })
+  }
 }
 function tilbake() {
   if (stegNr.value > 0) return gaTil(STEG[stegNr.value - 1])
@@ -276,7 +327,16 @@ async function nullstill() {
   if (dagensRun.value) await okt.slett()
   await delt.nullstill()
   meldEvent('del_inn_nullstilt')
-  gaTil('trening')
+  // Tilbake til starten av historikken, så tilbake etterpå ikke går til et
+  // steg i flyten som nettopp ble nullstilt.
+  startSteg.value = 'trening'
+  if (pos > 0) {
+    malPos = 0
+    await new Promise(ferdig => { const av = router.afterEach(() => { av(); ferdig() }); router.go(-pos) })
+  }
+  stabel[0] = 'trening'
+  if (route.query.steg) { malPos = 0; router.replace({ query: {} }) }
+  else steg.value = 'trening'
 }
 
 let stoppOkt = null
@@ -286,9 +346,9 @@ watch(session, s => {
   stoppOkt = s ? okt.folg(s) : null
 }, { immediate: true })
 onMounted(() => {
-  hentDagensOppmote().then(m => { lagretIdag.value = m || {} })
+  hentDagensOppmote().then(m => { lagretIdag.value = m || {}; oppmoteFersk.value = true })
   stoppDelt = delt.folg()
-  fetchWeek()
+  fetchWeek().finally(() => { ukaKlar.value = true })
   fetchExercises()
   fetchPlayers()
   fetchPlayerLevels()
@@ -490,7 +550,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 }
 .del__bar {
   display: flex; align-items: center; gap: var(--ds-space-md);
-  max-width: 600px; margin: 0 auto;
+  max-width: var(--ds-content-max); margin: 0 auto;
   padding: var(--ds-space-sm) var(--ds-space-md);
   position: sticky; top: 0; z-index: var(--ds-z-sticky);
   background: var(--ds-color-bg);
@@ -509,7 +569,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 .del__strek--pa { background: var(--ds-color-text-primary); }
 
 .del__tom { padding: var(--ds-space-xl) var(--ds-space-lg); text-align: center; color: var(--ds-color-text-tertiary); }
-.del__side { max-width: 560px; margin: 0 auto; padding: var(--ds-space-md) var(--ds-space-lg) 0; }
+.del__side { max-width: var(--ds-content-max); margin: 0 auto; padding: var(--ds-space-md) var(--ds-space-lg) 0; }
 .del__h1 {
   margin: 0 0 var(--ds-space-lg);
   font-size: 28px; line-height: 1.15; font-weight: var(--ds-weight-bold);
@@ -551,7 +611,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
   border-top: 1px solid var(--ds-color-border-light, var(--ds-color-border));
 }
 @media (min-width: 768px) { .del__fot { bottom: 0; } }
-.del__fot-inn { max-width: 560px; margin: 0 auto; }
+.del__fot-inn { max-width: calc(var(--ds-content-max) - 2 * var(--ds-space-lg)); margin: 0 auto; }
 .del__hoved {
   display: block; width: 100%;
   min-height: var(--ds-btn-h-lg, 52px);
@@ -641,7 +701,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 .del__seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; padding: 3px; border-radius: var(--ds-radius-full); background: var(--ds-color-bg-subtle, var(--ds-color-bg-elevated)); }
 .del__seg--bred { display: grid; }
 .del__seg-knapp {
-  min-height: 42px; min-width: 64px; padding: 0 16px;
+  min-height: 44px; min-width: 64px; padding: 0 16px;
   border: 0; border-radius: var(--ds-radius-full); background: transparent;
   font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-secondary);
   cursor: pointer; -webkit-tap-highlight-color: transparent;

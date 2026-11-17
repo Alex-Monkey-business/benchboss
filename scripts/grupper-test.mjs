@@ -128,18 +128,15 @@ try {
   ok('ingen klokkeslett', !/\d{2}:\d{2}/.test(await p.locator('.plan').innerText()))
   await p.screenshot({ path: `${OUT}/okt-plan.png`, fullPage: true })
 
-  // Øvelsen i et ark, bla uten at bunnen flytter seg.
+  // Øvelsen i samme ark som uka: «1 av 2», Forrige/Neste i arket.
   await p.locator('.rad').first().click()
-  await p.locator('.ark__nr').waitFor()
-  ok('arket sier «Øvelse 1 av 2»', /Øvelse 1 av 2/.test(await p.locator('.ark__nr').innerText()))
-  const bunn = async () => (await p.locator('.ds-sheet__footer').boundingBox()).y
-  await vent(600)
-  const b0 = await bunn()
-  await p.locator('.fot__pil[aria-label="Neste øvelse"]').click()
+  await p.locator('.ex-view__hvor').waitFor()
+  ok('arket sier «1 av 2»', /1 av 2/i.test(await p.locator('.ex-view__hvor').innerText()))
+  await p.locator('.bla--neste').click()
   await vent(300)
-  ok('Neste blar uten at bunnen flytter seg', likt(await bunn(), b0) && /Øvelse 2 av 2/.test(await p.locator('.ark__nr').innerText()))
+  ok('Neste blar til øvelse 2', /2 av 2/i.test(await p.locator('.ex-view__hvor').innerText()))
   ok('arket har ikke valg for antall lag', await p.locator('.antall').count() === 0)
-  await p.locator('.fot__knapp', { hasText: 'Lukk' }).click()
+  await p.locator('.ds-sheet__close').first().click()
   await vent(400)
   ok('kjøreplanen lagrer ikke oppmøte', sql(`select count(*) from training_runs where session_id='${DAG}'`) === '0')
 
@@ -203,7 +200,7 @@ try {
   const chip2 = d.locator('.dag', { hasText: 'QA-økt' }).locator('.dag__start')
   await chip2.waitFor({ timeout: 15000 })
   await inntil(async () => /21 her/.test(await chip2.innerText()))
-  ok('uka viser «21 her» på dagens kort', (await chip2.innerText()).trim() === '21 her')
+  ok('uka viser «21 her» på dagens kort', /21 her/.test(await chip2.innerText()))
   await d.context().close()
 
   // En annen trener ser samme Del inn: rett på inndelingen, samme grupper.

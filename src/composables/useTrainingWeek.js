@@ -1,7 +1,7 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
-import { fetchRows, STATUS, dedupe } from '../lib/query'
+import { fetchRows, STATUS, cached } from '../lib/query'
 import { scoped, withCohort } from '../lib/scope'
 import { persistRef } from '../lib/persist'
 
@@ -103,43 +103,170 @@ const DEMO_DAYS = [
     focus: 'Spill og mestring. Mye touch, små lag, mange mål — la dem prøve det vi har trent på.',
     drills: [
       { type: 'diff', text: 'Utvidet Barça-oppvarming', organisering: 'Innside, utside, såle, vendinger og finter med begge føtter, rundt kjegler.', link: null },
-      { type: 'diff', text: 'Eggs (transition game)', organisering: '4v4, 3v3 eller 2v2 ut fra antall.', link: { label: 'Eggs Transition Game – 4v4 til 4v3', url: 'https://tiim.no/ovelse/eggs-transition-game-4v4-til-4v3' } },
+      { type: 'diff', text: 'Egg, omstillingsspill', organisering: '4v4, 3v3 eller 2v2 ut fra antall.', link: { label: 'Egg – 4v4 til 4v3', url: 'https://tiim.no/ovelse/eggs-transition-game-4v4-til-4v3' } },
       { type: 'mix',  text: '4v4-turnering', organisering: 'Korte baner, helst med store mål.', link: null },
       { type: 'none', text: 'Tverrliggerkonkurranse og killer', link: null }
     ]
   }
 ]
 
-export function useTrainingWeek() {
-  async function fetchWeek() {
-    loading.value = true
+async function fetchWeek() {
+  loading.value = true
 
-    if (!isSupabaseConfigured) {
-      days.value = [...DEMO_DAYS].sort(iUkerekkefølge)
-      loading.value = false
-      status.value = STATUS.OK
-      return days.value
-    }
-
-    status.value = STATUS.LOADING
-    // Ukedagen sorterer, plassen bryter uavgjort. NULL-ukedager havner sist i
-    // Postgres' ASC av seg selv — samme svar som iUkerekkefølge gir.
-    const { rows } = await fetchRows(
-      scoped(supabase.from('training_sessions').select('*')).order('weekday').order('position'),
-      'training_sessions'
-    )
+  if (!isSupabaseConfigured) {
+    days.value = [...DEMO_DAYS].sort(iUkerekkefølge)
     loading.value = false
-
-    if (!rows) {
-      status.value = STATUS.ERROR
-      return days.value
-    }
-
-    days.value = rows
     status.value = STATUS.OK
     return days.value
   }
 
+  status.value = STATUS.LOADING
+  // Ukedagen sorterer, plassen bryter uavgjort. NULL-ukedager havner sist i
+  // Postgres' ASC av seg selv — samme svar som iUkerekkefølge gir.
+  const { rows } = await fetchRows(
+    scoped(supabase.from('training_sessions').select('*')).order('weekday').order('position'),
+    'training_sessions'
+  )
+  loading.value = false
+
+  if (!rows) {
+    status.value = STATUS.ERROR
+    return days.value
+  }
+
+  days.value = rows.map(medVentendeDrills)
+  status.value = STATUS.OK
+  return days.value
+}
+
+// ── Øvelsene i en dag, med to trenere ───────────────────────────────────────
+//
+// Før skrev hvert trykk hele øvelseslista fra telefonens kopi. To trenere som
+// planla samme dag samtidig, visket ut hverandre: den siste som lagret vant,
+// og den andres øvelse var borte uten at noen merket det.
+//
+// Nå er hver endring en funksjon av lista (endreDrills), som i Del inn. Den
+// står på skjermen i samme trykk. Rett før lagring hentes den ferske lista
+// fra basen, endringen legges oppå den, og det er det som skrives. Endringene
+// for én dag går i kø, så to raske trykk her heller ikke overskriver hverandre.
+// Feiler lagringen, tas endringen ut igjen og feilen kastes videre.
+const venter = new Map() // dag-id → { base, fns: [], kjede }
+
+function brukAlle(base, fns) {
+  return fns.reduce((ds, fn) => { try { return fn([...ds]) || ds } catch { return ds } }, base || [])
+}
+
+// Det som venter, legges oppå raden fra basen, så en henting midt i en
+// lagring ikke tegner lista uten trykket du nettopp gjorde.
+function medVentendeDrills(row) {
+  const v = venter.get(row.id)
+  if (!v || !v.fns.length) return row
+  v.base = row.drills || []
+  return { ...row, drills: brukAlle(v.base, v.fns) }
+}
+
+function settDrills(id, drills) {
+  const i = days.value.findIndex(s => s.id === id)
+  if (i < 0) return
+  const kopi = [...days.value]
+  kopi[i] = { ...kopi[i], drills }
+  days.value = kopi
+}
+
+// Mens en dag har endringer på vei, er det denne telefonen som vet best.
+export function harVentendeDrills() {
+  for (const v of venter.values()) if (v.fns.length) return true
+  return false
+}
+
+// Sant når basen mangler bb_endre_drills (migrasjonen er ikke inne ennå).
+let utenEndreDrills = false
+
+async function endreDrills(id, fn) {
+  const dag = days.value.find(s => s.id === id)
+  if (!dag) throw new Error('Fant ikke dagen')
+  let v = venter.get(id)
+  if (!v) { v = { base: dag.drills || [], fns: [], kjede: Promise.resolve() }; venter.set(id, v) }
+  if (!v.fns.length) v.base = dag.drills || []
+  v.fns.push(fn)
+  settDrills(id, brukAlle(v.base, v.fns))
+
+  if (!isSupabaseConfigured) {
+    v.fns.shift()
+    v.base = fn([...v.base]) || v.base
+    const di = DEMO_DAYS.findIndex(s => s.id === id)
+    if (di > -1) DEMO_DAYS[di] = { ...DEMO_DAYS[di], drills: v.base }
+    return v.base
+  }
+
+  const jobb = v.kjede.then(async () => {
+    try {
+      // Skrives bare hvis lista fortsatt er den vi leste (bb_endre_drills).
+      // Har en annen trener skrevet i mellomtiden, leses den på nytt og
+      // endringen legges oppå igjen.
+      for (let forsok = 0; forsok < 4; forsok++) {
+        const { data: fersk, error: lesFeil } = await supabase
+          .from('training_sessions').select('drills').eq('id', id).maybeSingle()
+        if (lesFeil) throw lesFeil
+        if (!fersk) throw new Error('Dagen finnes ikke lenger')
+        v.base = fersk.drills || []
+        const neste = fn([...v.base]) || v.base
+        let data = null, error = { code: 'PGRST202' }
+        if (!utenEndreDrills) ({ data, error } = await supabase.rpc('bb_endre_drills', { p_id: id, p_for: v.base, p_ny: neste }))
+        if (error?.code === 'PGRST202') {
+          // Funksjonen er ikke i basen ennå: vanlig skriving. Huskes, så den
+          // ikke prøves ved hvert trykk.
+          utenEndreDrills = true
+          ;({ data, error } = await supabase
+            .from('training_sessions').update({ drills: neste }).eq('id', id).select())
+        }
+        if (error) throw error
+        const rad = Array.isArray(data) ? data[0] : data
+        if (!rad) continue
+        v.base = rad.drills || neste
+        return rad
+      }
+      throw new Error('Dagen ble endret samtidig. Prøv igjen.')
+    } finally {
+      v.fns.splice(v.fns.indexOf(fn), 1)
+      settDrills(id, brukAlle(v.base, v.fns))
+    }
+  })
+  // Kjeden skal ikke stoppe på en feil: neste trykk prøver for seg.
+  v.kjede = jobb.catch(() => {})
+  return jobb
+}
+
+// Henting for lib/poll: true når uka endret seg. Utenom ferskhetscachen, og
+// ikke mens en endring her er på vei.
+async function hentUkaForPoll() {
+  if (!isSupabaseConfigured || harVentendeDrills()) return false
+  const for_ = JSON.stringify(days.value)
+  const { rows } = await fetchRows(
+    scoped(supabase.from('training_sessions').select('*')).order('weekday').order('position'),
+    'training_sessions'
+  )
+  if (!rows || harVentendeDrills()) return false
+  const etter = JSON.stringify(rows)
+  if (etter === for_) return false
+  days.value = rows.map(medVentendeDrills)
+  return true
+}
+
+// Uka er fersk i 30 s: Hjem, Trening og Del inn spør om den ved hvert besøk.
+// En skriving gjør den gammel med en gang (supabase.js → invalidate).
+const ukaFersk = cached(fetchWeek, 'week', { ok: () => status.value === STATUS.OK })
+
+// Én treningsdag, for en direkte lenke uten noe i cachen (kjøreplanen delt
+// på SMS): én rad i stedet for å vente på hele uka.
+async function fetchSession(id) {
+  const cachedDay = days.value.find(d => d.id === id)
+  if (cachedDay || !isSupabaseConfigured) return cachedDay || null
+  const { data } = await supabase.from('training_sessions').select('*').eq('id', id).maybeSingle()
+  return data || null
+}
+
+export function useTrainingWeek() {
   async function createDay(payload) {
     const data = stripUnsupported({ position: days.value.length, accent: 'warm', illustration: null, focus: null, drills: [], weekday: null, ...payload })
 
@@ -175,6 +302,15 @@ export function useTrainingWeek() {
       return days.value.find(s => s.id === id)
     }
 
+    // Endringen står på skjermen med en gang; feiler lagringen, settes lista
+    // tilbake og feilen kastes videre.
+    const for_ = days.value
+    const li = days.value.findIndex(s => s.id === id)
+    if (li > -1) {
+      const kopi = [...days.value]
+      kopi[li] = { ...kopi[li], ...updates }
+      days.value = kopi.sort(iUkerekkefølge)
+    }
     const { data, error } = await supabase
       .from('training_sessions')
       .update(updates)
@@ -182,10 +318,10 @@ export function useTrainingWeek() {
       .select()
       .single()
     // Kastes, så en øvelse som ikke ble lagret ikke ser lagret ut.
-    if (error) throw error
+    if (error) { days.value = for_; throw error }
     if (data) {
       const i = days.value.findIndex(s => s.id === id)
-      if (i > -1) days.value[i] = data
+      if (i > -1) days.value[i] = medVentendeDrills(data)
       days.value = [...days.value].sort(iUkerekkefølge)
     }
     return data
@@ -210,5 +346,5 @@ export function useTrainingWeek() {
     days.value = days.value.filter(s => s.id !== id)
   }
 
-  return { days, loading, status, supportsDuration, fetchWeek: dedupe(fetchWeek, 'fetchWeek'), createDay, updateDay, removeDay }
+  return { days, loading, status, supportsDuration, fetchWeek: ukaFersk, fetchSession, createDay, updateDay, removeDay, endreDrills, hentUkaForPoll }
 }

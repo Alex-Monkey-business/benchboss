@@ -124,6 +124,7 @@ function toggle() {
   font-weight: 500;
   color: var(--ds-color-text);
   text-align: right;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;

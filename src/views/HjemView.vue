@@ -23,7 +23,7 @@ import OnboardingCards from '../components/today/OnboardingCards.vue'
 import { useOnboarding } from '../composables/useOnboarding'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import { dagLink } from '../lib/trainingLinks'
-import { hentDagensOppmote } from '../composables/useTreningsOkt'
+import { hentDagensOppmote, dagensOppmoteLagret } from '../composables/useTreningsOkt'
 
 const {
   loading, refresh, followDay, today, greeting,
@@ -60,6 +60,9 @@ const { identityIncomplete, isCoach, coach } = useAuth()
 const dagensOppmote = ref(undefined)
 watch(() => todayTraining.value?.id, async id => {
   if (!id || !isCoach.value) { dagensOppmote.value = undefined; return }
+  // Det telefonen vet fra i dag står med en gang; hentingen fersker det.
+  const lagret = dagensOppmoteLagret()
+  if (lagret) dagensOppmote.value = id in lagret ? lagret[id] : null
   const alle = await hentDagensOppmote()
   dagensOppmote.value = id in alle ? alle[id] : null
 }, { immediate: true })
@@ -178,8 +181,7 @@ function coachNamesForMatch(matchId) {
 
     <div v-if="identityIncomplete" class="px-lg">
       <p class="hjem-identity-warning">
-        Kontoen din er ikke koblet til en trenerprofil. «Mine kamper» og utlegg
-        blir feil til det er ordnet.
+        Kontoen din er ikke koblet til en trener. Be admin ordne det.
       </p>
     </div>
 
@@ -243,7 +245,7 @@ function coachNamesForMatch(matchId) {
       >
         <Spot name="cup" class="hjem-cupkort__illo" :size="64" />
         <span class="hjem-cupkort__tekst">
-          <span class="hjem-cupkort__tittel">Legg inn turneringen</span>
+          <span class="hjem-cupkort__tittel">Legg inn cupen</span>
           <span class="hjem-cupkort__lead">Laget har ingen seriekamper.</span>
         </span>
       </RouterLink>
@@ -293,7 +295,6 @@ function coachNamesForMatch(matchId) {
       <div v-if="showEmpty" class="ds-empty ds-anim-fade-up ds-anim-delay-1">
         <Spot name="empty" class="ds-empty__illo" />
         <h3 class="ds-empty__title">Ingenting på planen</h3>
-        <p class="ds-empty__description">Ingen kamper eller treninger fremover.</p>
       </div>
     </div>
   </div>

@@ -45,7 +45,11 @@ const cdp = await ctx.newCDPSession(p)
 // Ekte fingersveip: dy < 0 = dra fingeren opp (innholdet scroller nedover).
 async function sveip(sel, dy) {
   const bx = await p.locator(sel).first().boundingBox()
-  await cdp.send('Input.synthesizeScrollGesture', { x: Math.round(bx.x + bx.width / 2), y: Math.round(bx.y + Math.min(bx.height / 2, 200)), yDistance: dy, speed: 1600, gestureSourceType: 'touch' })
+  const vh = await p.evaluate(() => innerHeight)
+  // Midt i den synlige delen av elementet (en ark med film øverst kan ha
+  // toppen av kroppen over skjermkanten).
+  const topp = Math.max(bx.y, 0), bunn = Math.min(bx.y + bx.height, vh)
+  await cdp.send('Input.synthesizeScrollGesture', { x: Math.round(bx.x + bx.width / 2), y: Math.round(topp + Math.min((bunn - topp) / 2, 200)), yDistance: dy, speed: 1600, gestureSourceType: 'touch' })
   await vent(250)
 }
 const sideY = () => p.evaluate(() => document.querySelector('main, .okt, .uke')?.getBoundingClientRect().top ?? 0)
@@ -141,7 +145,7 @@ try {
     const rader = await p.locator('.rad').count()
     for (let i = 0; i < rader; i++) {
       await p.locator('.rad').nth(i).click()
-      await p.locator('.ds-sheet__footer').waitFor({ timeout: 5000 })
+      await p.locator('.ex-view__hvor').waitFor({ timeout: 5000 })
       await vent(500)
       ok(`${w} øvelse ${i + 1}: arket åpner på toppen`, (await p.evaluate(() => document.querySelector('.ds-sheet__body')?.scrollTop || 0)) === 0)
       await arkSjekk(`øvelse ${i + 1}`, w)
@@ -171,7 +175,7 @@ try {
 
     // Navigér bort med arket åpent: låsen må slippes, ellers står hele appen fast.
     await p.locator('.rad').first().click()
-    await p.locator('.ds-sheet__footer').waitFor()
+    await p.locator('.ex-view__hvor').waitFor()
     await p.goBack()
     await vent(800)
     ok(`${w} tilbake med åpent ark: låsen er sluppet`, !(await laast()))

@@ -21,7 +21,10 @@ import { buildReminders } from '../lib/reminders'
 import { useDismissedReminders } from './useDismissedReminders'
 import { useCupTeams } from './useCupTeams'
 import { useCupFirst } from './useCupFirst'
+import { useOnboarding } from './useOnboarding'
 import { registerReset } from '../stores/dataReset'
+import { cached } from '../lib/query'
+import { meldHjemKlar } from '../lib/shell'
 
 // Egen modul-state. NB: ikke gjenbruk useMatchMode.fetchSession her —
 // den holder én singleton-session og knekker når to Halsen-lag spiller samme dag.
@@ -39,12 +42,32 @@ const todayIso = computed(() => localISODate(now.value))
 
 registerReset(() => { prepSessions.value = []; loading.value = false; fetchedOnce.value = false })
 
+// Hele Hjem-hentingen er fersk i 30 s (lib/query → cached). Hjem → Kamper →
+// Hjem, eller et kort blikk i en annen app, er ikke lenger en ny runde mot
+// basen; kommer du tilbake etter mer enn 30 s, eller har noe blitt skrevet,
+// hentes alt som før. Samtidige kall (oppstarten og HjemView) deler svaret.
+let sisteHent = null
+const hjemFersk = cached(() => sisteHent?.(), 'hjem')
+
+// Kalles fra routeren så snart vi vet at Hjem skal vises og hvem du er: da
+// går hentingen samtidig med at Hjem-skjermen lastes ned, i stedet for etter.
+// HjemView kaller refresh() selv, og deler samme forespørsel (cached).
+let forhentet = false
+export function forhentHjem() {
+  if (forhentet) return
+  forhentet = true
+  useToday().refresh().catch(() => {})
+  // Oppstartskortene (spillere, medlemmer) avgjør om Del inn-knappen står —
+  // samme bølge, ellers dukker den opp et øyeblikk etter resten.
+  useOnboarding().load().catch(() => {})
+}
+
 export function useToday() {
   const { coach, preferredTeam, preferredCupTeam, activeCohort } = useAuth()
   const { usesReferees } = useFeatures()
   const { dismissed } = useDismissedReminders()
-  const { activeSeason, fetchSeasons } = useSeasons()
-  const { matches, fetchMatches, getCoachesForMatch } = useMatches()
+  const { activeSeason, ensureSeasons } = useSeasons()
+  const { matches, ensureMatches, getCoachesForMatch } = useMatches()
   const { fetchCoaches } = useCoaches()
   const { fetchExpenses, getExpenseForMatch } = useExpenses()
   const { activeCup, cupInProgress, fetchCups } = useCups()
@@ -397,11 +420,13 @@ export function useToday() {
     // en helt tom første start. Ventet vi på hentingen her, sto PWA-en med
     // skjelett så lenge nettet eller innloggingen strevde.
     loading.value = !fetchedOnce.value && matches.value.length === 0
+    sisteHent = hent
     try {
-      await hent()
+      await hjemFersk()
       fetchedOnce.value = true
     } finally {
       loading.value = false
+      meldHjemKlar()
     }
   }
 
@@ -436,9 +461,9 @@ export function useToday() {
     // hentes de på nytt. Fra seks serielle bølger til to på en varm start.
     const kjentSesong = activeSeason.value?.id || null
     const kjentCup = cupInProgress.value ? activeCup.value?.id : null
-    const forste = [fetchSeasons(), fetchCoaches(), fetchCups(), fetchWeek(), fetchSerieStatus()]
+    const forste = [ensureSeasons(), fetchCoaches(), fetchCups(), fetchWeek(), fetchSerieStatus()]
     if (kjentSesong) {
-      forste.push(fetchMatches(kjentSesong))
+      forste.push(ensureMatches(kjentSesong))
       if (activeCohort.value?.id) forste.push(fetchSeasonTeams(activeCohort.value.id, kjentSesong))
     }
     if (kjentCup) forste.push(fetchCupMatches(kjentCup))
@@ -446,7 +471,7 @@ export function useToday() {
 
     const jobs = []
     if (activeSeason.value && activeSeason.value.id !== kjentSesong) {
-      jobs.push(fetchMatches(activeSeason.value.id))
+      jobs.push(ensureMatches(activeSeason.value.id))
       // Lag-til-trener: uten denne vet ikke Hjem hvilket lag som er mitt, og
       // faller tilbake på den statiske configen i lib/seasonTeams.js.
       if (activeCohort.value?.id) jobs.push(fetchSeasonTeams(activeCohort.value.id, activeSeason.value.id))

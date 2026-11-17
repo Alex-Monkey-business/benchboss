@@ -19,8 +19,8 @@ import FormCurve from '../components/FormCurve.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
 import { hasResult, isOurMatch, isOurs, isPlayed, teamAccent, teamLabel, teamSlugFromName, teamSlugs } from '../lib/matchMeta'
 
-const { viewingSeason, fetchSeasons } = useSeasons()
-const { matches, matchCoaches, matchPlayers, fetchMatches } = useMatches()
+const { viewingSeason, ensureSeasons } = useSeasons()
+const { matches, matchCoaches, matchPlayers, ensureMatches } = useMatches()
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees } = useReferees()
 const { usesReferees } = useFeatures()
@@ -38,16 +38,18 @@ const teamOf = p => teamForSeason(p, viewingSeason.value?.id)
 const loading = ref(matches.value.length === 0)
 
 onMounted(async () => {
-  await Promise.all([fetchSeasons(), fetchCoaches(), (usesReferees.value ? fetchReferees() : Promise.resolve()), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllGoals(), fetchAllStints()])
-  if (viewingSeason.value) {
-    await fetchMatches(viewingSeason.value.id)
-  }
+  // Alt i én bølge: kampene for sesongen fra sist går sammen med resten, og
+  // hentes på nytt bare om sesongen viser seg å være en annen. Oppmøtet også.
+  const kjent = viewingSeason.value?.id || null
+  if (kjent) lastOppmote()
+  await Promise.all([ensureSeasons(), fetchCoaches(), (usesReferees.value ? fetchReferees() : Promise.resolve()), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllGoals(), fetchAllStints(), kjent ? ensureMatches(kjent) : null])
+  if (viewingSeason.value && viewingSeason.value.id !== kjent) await ensureMatches(viewingSeason.value.id)
   loading.value = false
-  lastOppmote()
+  if (!kjent) lastOppmote()
 })
 
 watch(viewingSeason, async (s) => {
-  if (s) await fetchMatches(s.id)
+  if (s) await ensureMatches(s.id)
 })
 
 // Lagene er kullets egne (useSeasonTeams via matchMeta) — ingen fast liste.
@@ -234,6 +236,8 @@ const playerStats = computed(() =>
     .filter(p => p.count > 0 || p.upcoming > 0)
     .sort((a, b) => b.count - a.count || b.upcoming - a.upcoming || a.name.localeCompare(b.name))
 )
+// Kommende-kolonnen vises bare når noen faktisk er booket.
+const hasUpcomingLoans = computed(() => playerStats.value.some(p => p.upcoming > 0))
 
 // Toppscorere — kun mål registrert i denne sesongens kamper.
 // Vises kollapset (topp 5) som standard — listen er for gøy, ikke styring.
@@ -303,7 +307,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 </script>
 
 <template>
-  <div class="desktop-container">
+  <div class="desktop-container stat-page">
     <div class="page-header ds-anim-fade-up">
       <h1 class="page-header__title">Statistikk</h1>
       <SeasonPicker />
@@ -355,7 +359,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
       <div class="ds-empty">
         <Spot name="stats" class="ds-empty__illo" play="auto" />
         <h3 class="ds-empty__title">Ingen kamper spilt i {{ viewingSeason?.name || 'sesongen' }}</h3>
-        <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="$router.push('/kamper')">Se kampprogrammet</button>
+        <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="$router.push('/kamper')">Se terminlista</button>
       </div>
     </div>
 
@@ -403,10 +407,10 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
       <div class="standings">
         <div class="standings__header">
           <span></span>
-          <span>Sp</span>
-          <span>V</span>
-          <span>U</span>
-          <span>T</span>
+          <span class="standings__opt">Sp</span>
+          <span class="standings__opt">V</span>
+          <span class="standings__opt">U</span>
+          <span class="standings__opt">T</span>
           <span class="standings__header-goals">Mål</span>
           <span class="standings__header-diff">+/-</span>
           <span class="standings__header-points">P</span>
@@ -417,10 +421,10 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
               <span :class="['standings__dot', `standings__dot--${team.key}`]" aria-hidden="true"></span>
               {{ team.label }}
             </span>
-            <span class="standings__num standings__num--muted">{{ team.played }}</span>
-            <span class="standings__num">{{ team.w }}</span>
-            <span class="standings__num standings__num--muted">{{ team.d }}</span>
-            <span class="standings__num standings__num--muted">{{ team.l }}</span>
+            <span class="standings__num standings__num--muted standings__opt">{{ team.played }}</span>
+            <span class="standings__num standings__opt">{{ team.w }}</span>
+            <span class="standings__num standings__num--muted standings__opt">{{ team.d }}</span>
+            <span class="standings__num standings__num--muted standings__opt">{{ team.l }}</span>
             <span class="standings__goals">{{ team.gf }} – {{ team.ga }}</span>
             <span :class="['standings__diff', team.diff > 0 ? 'standings__diff--pos' : team.diff < 0 ? 'standings__diff--neg' : '']">
               {{ team.diff > 0 ? '+' : '' }}{{ team.diff }}
@@ -443,8 +447,8 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
         <div class="leaderboard__head">
           <span class="leaderboard__rank" aria-hidden="true"></span>
           <span class="leaderboard__name"></span>
-          <span class="leaderboard__metric leaderboard__metric--head">Ekstra</span>
-          <span class="leaderboard__metric leaderboard__metric--head">Kommende</span>
+          <span class="leaderboard__metric leaderboard__metric--head">Ekstrakamper</span>
+          <span v-if="hasUpcomingLoans" class="leaderboard__metric leaderboard__metric--head">Kommende</span>
         </div>
         <div v-for="(item, i) in playerStats" :key="item.id" class="leaderboard__row">
           <span class="leaderboard__rank">{{ i + 1 }}</span>
@@ -454,7 +458,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
           </span>
           <!-- Tomt i stedet for strek: øyet leser bare tallene. -->
           <span class="leaderboard__metric">{{ item.count || '' }}</span>
-          <span class="leaderboard__metric leaderboard__metric--upcoming">{{ item.upcoming || '' }}</span>
+          <span v-if="hasUpcomingLoans" class="leaderboard__metric leaderboard__metric--upcoming">{{ item.upcoming || '' }}</span>
         </div>
       </div>
     </div>
@@ -611,10 +615,12 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .playtime-row {
+  position: relative;
   display: grid;
   grid-template-columns: minmax(72px, auto) 1fr auto;
   align-items: center;
   gap: 12px;
+  min-height: 48px;
   padding: 10px 14px;
   border-top: 1px solid var(--ds-color-border-light);
 }
@@ -628,7 +634,8 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
    med en rolig flate når den trykkes. */
 .leaderboard__row:has(.leaderboard__link) { position: relative; transition: background-color 150ms ease; }
 .leaderboard__link::after { content: ''; position: absolute; inset: 0; }
-.leaderboard__row:has(.leaderboard__link:active) { background: var(--ds-color-bg-subtle); }
+.leaderboard__row:has(.leaderboard__link:active),
+.playtime-row:has(.leaderboard__link:active) { background: var(--ds-color-bg-subtle); }
 
 .playtime-row__name {
   font-size: 0.875rem;
@@ -1002,6 +1009,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 
 .standings__goals {
   text-align: right;
+  white-space: nowrap;
   font-size: 0.875rem;
   color: var(--ds-color-text-primary);
   font-weight: 500;
@@ -1050,6 +1058,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 
 .leaderboard__toggle {
   width: 100%;
+  min-height: 44px;
   padding: 10px 14px;
   border: none;
   border-top: 1px solid var(--ds-color-border-light);
@@ -1080,6 +1089,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   display: flex;
   align-items: center;
   gap: 14px;
+  min-height: 48px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--ds-color-border-light);
 }
@@ -1089,6 +1099,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .leaderboard__rank {
+  flex-shrink: 0;
   font-size: 0.75rem;
   font-weight: 700;
   color: var(--ds-color-text-tertiary);
@@ -1099,6 +1110,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 
 .leaderboard__name {
   flex: 1;
+  min-width: 0;
   font-size: 0.875rem;
   font-weight: 500;
   color: var(--ds-color-text-primary);
@@ -1124,7 +1136,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .leaderboard__metric {
-  width: 64px;
+  width: 56px;
   flex-shrink: 0;
   text-align: right;
   font-size: 0.8125rem;
@@ -1137,10 +1149,11 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .leaderboard__metric--head {
-  font-size: 0.625rem;
+  width: auto;
+  min-width: 56px;
+  white-space: nowrap;
+  font-size: var(--ds-text-xs);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: var(--ds-color-text-tertiary);
 }
 
@@ -1198,4 +1211,16 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
     min-width: 20px;
   }
 }
+
+/* Smale skjermer: Lag, Mål, +/- og P. Resten står i kortet over. */
+@media (max-width: 359px) {
+  .standings__header,
+  .standings__row {
+    grid-template-columns: 1fr auto auto auto;
+    gap: 10px;
+  }
+  .standings__opt { display: none; }
+  .standings__form { padding-left: 10px; }
+}
+
 </style>

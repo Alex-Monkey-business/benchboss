@@ -14,6 +14,9 @@
   --ds-space-2xl: 3rem;      /* 48px */
   --ds-space-3xl: 4rem;      /* 64px */
   --ds-space-4xl: 6rem;      /* 96px — section rhythm */
+
+  /* ---- Innholdsbredde på desktop: én bredde for alle hovedskjermer ---- */
+  --ds-content-max: 640px;
   --ds-space-5xl: 8rem;      /* 128px — hero breathing */
 
   /* ---- Border Radius ---- */

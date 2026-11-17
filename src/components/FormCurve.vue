@@ -31,6 +31,8 @@ const RESULT_LABEL = { w: 'V', d: 'U', l: 'T' }
   display: flex;
   align-items: center;
   gap: var(--ds-space-sm);
+  min-width: 0;
+  max-width: 100%;
   font-family: var(--ds-font-body);
 }
 
@@ -44,6 +46,8 @@ const RESULT_LABEL = { w: 'V', d: 'U', l: 'T' }
 
 .form-curve__chips {
   display: flex;
+  flex-wrap: wrap;
+  min-width: 0;
   gap: 3px;
   list-style: none;
   margin: 0;
@@ -80,5 +84,10 @@ const RESULT_LABEL = { w: 'V', d: 'U', l: 'T' }
 .form-curve__chip--l {
   background: var(--ds-color-warm-bg);
   color: var(--ds-color-warm-text);
+}
+
+/* Smale skjermer: bare de fem siste, så raden aldri sprenger kortet. */
+@media (max-width: 359px) {
+  .form-curve__chip:nth-last-child(n + 6) { display: none; }
 }
 </style>

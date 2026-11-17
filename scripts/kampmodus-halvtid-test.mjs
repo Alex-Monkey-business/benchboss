@@ -49,7 +49,7 @@ let [st,per,base]=sesjon()
 ok('auto-pause på 30:00', st==='paused' && per==='1' && base==='1800', `${st} ${per} ${base}`)
 ok('halvtid: stor flate med navn og knapp', /Halvtid/.test(await p.locator('.mm__pause-navn').innerText()) && await p.locator('.mm__pause-start').innerText()==='Start 2. omgang')
 ok('halvtid: den lille knappen i toppen er borte', await p.locator('.mm__clockrow .mm__ctrl:not(.mm__ctrl--end)').count()===0)
-ok('halvtid: viser hvor lenge klokka har stått', /Stått i 0:0\d/.test(await p.locator('.mm__pause-tid').innerText()), await p.locator('.mm__pause-tid').innerText())
+ok('halvtid: viser hvor lenge klokka har stått', /Pause i 0:0\d/.test(await p.locator('.mm__pause-tid').innerText()), await p.locator('.mm__pause-tid').innerText())
 await p.screenshot({path:`${UT}/mm-halvtid.png`})
 
 // Låst skjerm gjennom 30:00: pausen telles fra 30:00, ikke fra når skjermen våknet.
@@ -57,7 +57,7 @@ await p.locator('.mm__pause-start').click(); await vent(800)
 sql(`update match_sessions set status='running', period=1, clock_base_seconds=1500, running_since=now()-interval '10 minutes' where match_id='${M}'`)
 await reload(p); await p.locator('.mm__pause').waitFor({timeout:8000}); await vent(300)
 ok('låst skjerm: auto-pause på 30:00', sesjon()[2]==='1800')
-ok('låst skjerm: stått i ~5 min', /Stått i 5:0\d/.test(await p.locator('.mm__pause-tid').innerText()), await p.locator('.mm__pause-tid').innerText())
+ok('låst skjerm: stått i ~5 min', /Pause i 5:0\d/.test(await p.locator('.mm__pause-tid').innerText()), await p.locator('.mm__pause-tid').innerText())
 
 // En vanlig halvtid (4 min) gir ikke spørsmålet.
 sql(`update match_sessions set updated_at=now()-interval '4 minutes' where match_id='${M}'`)

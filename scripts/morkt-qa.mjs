@@ -152,7 +152,7 @@ try {
     await mal('kjoreplan')
     await p.locator('.rad').first().click()
     await mal('ark-ovelse', false)
-    await p.locator('.fot__knapp', { hasText: 'Lukk' }).click()
+    await p.locator('.ds-sheet__close').first().click()
     await vent(400)
     await p.goto(`${APP}/`)
     await p.locator('.hjem-delinn').waitFor()

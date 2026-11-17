@@ -2,18 +2,24 @@
 import { computed } from 'vue'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
 
-defineProps({
+const props = defineProps({
   modelValue: { type: String, default: 'alle' },
-  counts: { type: Object, default: () => ({}) }
+  counts: { type: Object, default: () => ({}) },
+  // Uten egen «Alle»: lagene slås av og på, og nullstillingen bor i en
+  // annen rad (Kamper har én «Alle» for både sted og lag).
+  utenAlle: { type: Boolean, default: false }
 })
 
 const emit = defineEmits(['update:modelValue'])
 
 const { seasonTeams } = useSeasonTeams()
 const filters = computed(() => [
-  { key: 'alle', label: 'Alle' },
+  ...(props.utenAlle ? [] : [{ key: 'alle', label: 'Alle' }]),
   ...seasonTeams.value.map(t => ({ key: t.slug, label: t.name }))
 ])
+function velg(key) {
+  emit('update:modelValue', props.utenAlle && props.modelValue === key ? 'alle' : key)
+}
 </script>
 
 <template>
@@ -22,7 +28,7 @@ const filters = computed(() => [
       v-for="f in filters"
       :key="f.key"
       :class="['ds-pill', 'team-pill', `team-pill--${f.key}`, { 'ds-pill--active': modelValue === f.key }]"
-      @click="emit('update:modelValue', f.key)"
+      @click="velg(f.key)"
     >
       <span v-if="f.key !== 'alle'" :class="['team-pill__dot', `team-pill__dot--${f.key}`]" aria-hidden="true"></span>
       {{ f.label }}

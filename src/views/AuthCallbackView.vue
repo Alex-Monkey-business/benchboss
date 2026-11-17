@@ -85,7 +85,7 @@ onMounted(async () => {
   }
 
   if (!session) {
-    error.value = 'Lenken kunne ikke leses. Be om en ny kode.'
+    error.value = 'Lenka kunne ikke leses. Be om en ny kode.'
     return
   }
 
@@ -126,9 +126,9 @@ onMounted(async () => {
     <template v-else-if="error">
       <Spot name="connection" class="callback-illo" />
       <p class="callback-error">{{ error }}</p>
-      <router-link to="/login" class="callback-link">Tilbake til innlogging</router-link>
+      <router-link to="/login" class="callback-link">Til innlogging</router-link>
     </template>
-    <p v-else class="callback-status">Logger inn…</p>
+    <p v-else class="callback-status">Logger inn …</p>
   </div>
 </template>
 

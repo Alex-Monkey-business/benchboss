@@ -2,7 +2,10 @@ import { ref, computed, watch } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { scoped } from '../lib/scope'
 import { registerReset } from '../stores/dataReset'
+import { cached } from '../lib/query'
 import { planTransfer, transferableSeconds } from '../lib/timeTransfer'
+import { legg, trekk, poster, venterFor, utforer, paSvar, nyId, ventPa, ventPaKamp } from '../lib/kampKo'
+import { medVentendeMal } from './useMatchGoals'
 
 // Event-sourced match mode. Spilletid telles ALDRI med en teller — den regnes
 // ut fra kampklokka (match_sessions) + opphold på banen (match_stints).
@@ -103,9 +106,106 @@ function applyState(matchId, st) {
   if (!st) return
   if (st.now) serverOffset.value = Date.parse(st.now) - Date.now()
   session.value = st.session || null
-  stints.value = stints.value.filter(s => s.match_id !== matchId).concat(st.stints || [])
-  remote.value = { matchId, score: st.score || null, goals: st.goals || [] }
+  stints.value = stints.value.filter(s => s.match_id !== matchId).concat(medVentendeBytter(matchId, st.stints || []))
+  remote.value = { matchId, score: medVentendeMaal(matchId, st.score || null), goals: medVentendeMal(matchId, st.goals || []) }
 }
+
+// ── Uten nett ───────────────────────────────────────────────────────────────
+// Mål og bytter går gjennom kampkøen (lib/kampKo.js). Det som venter, legges
+// oppå serverens tilstand hver gang den tegnes, så et mål eller et bytte gjort
+// uten nett blir stående på skjermen til det er sendt.
+function medVentendeMaal(matchId, score) {
+  const ko = poster(matchId).filter(p => p.type === 'maal')
+  if (!ko.length || !score) return score
+  let h = score.home_score, b = score.away_score
+  for (const p of ko) {
+    if (p.args.p_hjemme) h = Math.max(0, (h || 0) + p.args.p_hjemme)
+    if (p.args.p_borte) b = Math.max(0, (b || 0) + p.args.p_borte)
+  }
+  return { ...score, home_score: h, away_score: b }
+}
+
+function medVentendeBytter(matchId, rader) {
+  const ko = poster(matchId).filter(p => p.type === 'bytte')
+  if (!ko.length) return rader
+  let ut = rader
+  for (const p of ko) ut = gjettBytte(ut, matchId, p.args.p_ut, p.args.p_inn, p.args.p_klokke, 'ko-' + p.id)
+  return ut
+}
+
+function gjettBytte(liste, matchId, utId, innId, klk, id) {
+  const out = liste.find(s => s.match_id === matchId && s.player_id === utId && s.off_clock == null)
+  if (!out || liste.some(s => s.match_id === matchId && s.player_id === innId && s.off_clock == null)) return liste
+  return liste.map(x => x.id === out.id ? { ...x, off_clock: klk } : x)
+    .concat([{ id, match_id: matchId, player_id: innId, role: out.role, position: out.position, on_clock: klk, off_clock: null }])
+}
+
+function koFeil(error, status) {
+  return Object.assign(error || new Error('Fikk ikke lagret'), { status })
+}
+
+// Ny signatur først; finnes den ikke i basen ennå (migrasjonen kommer etter
+// koden), den gamle. Svaret huskes, så den nye ikke prøves ved hvert kall.
+const gammel = { mm_maal: false, mm_bytte: false }
+
+async function nyEllerGammel(fn, args) {
+  if (gammel[fn]) return null
+  const r = await supabase.rpc(fn, args)
+  if (r.error?.code === 'PGRST202') { gammel[fn] = true; return null }
+  if (r.error) throw koFeil(r.error, r.status)
+  return r
+}
+
+function stilling(st) {
+  return { h: st?.score?.home_score || 0, b: st?.score?.away_score || 0 }
+}
+
+utforer('maal', async (args, post) => {
+  const { p_match, p_hjemme, p_borte } = args
+  const ny = await nyEllerGammel('mm_maal', args)
+  if (ny) return ny.data
+  // Gammel base: ingen nøkkel, så et nytt forsøk kan telle målet to ganger.
+  // Stillingen før første forsøk huskes på posten. Kom ikke svaret, sjekkes
+  // stillingen før målet sendes igjen: står målet der, nådde det fram. Har
+  // stillingen endret seg på en annen måte, vet vi ikke, og da sendes det
+  // ikke på nytt.
+  const t = await supabase.rpc('mm_tilstand', { p_match })
+  if (t.error) throw koFeil(t.error, t.status)
+  const na = stilling(t.data)
+  const g = post.grunnlag
+  if (g) {
+    const venter = { h: Math.max(0, g.h + (p_hjemme || 0)), b: Math.max(0, g.b + (p_borte || 0)) }
+    const likt = (x, y) => x.h === y.h && x.b === y.b
+    if (!likt(na, g)) {
+      if (likt(na, venter)) return { ...t.data, ok: true }
+      throw Object.assign(new Error('Usikkert om målet ble lagret'), { code: 'BB_USIKKERT', usikkert: true })
+    }
+  }
+  post.grunnlag = na
+  const r = await supabase.rpc('mm_maal', { p_match, p_hjemme, p_borte })
+  if (r.error) throw koFeil(r.error, r.status)
+  return r.data
+})
+
+utforer('bytte', async ({ p_match, p_ut, p_inn, p_klokke }) => {
+  const ny = await nyEllerGammel('mm_bytte', { p_match, p_ut, p_inn, p_klokke })
+  if (ny) return ny.data
+  const r = await supabase.rpc('mm_bytte', { p_match, p_ut, p_inn })
+  if (r.error) throw koFeil(r.error, r.status)
+  return r.data
+})
+
+// Byttekvitteringer for bytter som gikk gjennom køen: post-id → stint-id-er.
+// Angre trenger dem.
+const koKvitteringer = new Map()
+
+paSvar((post, svar) => {
+  if (post.type !== 'maal' && post.type !== 'bytte' && post.type !== 'scorer' && post.type !== 'fjernScorer') return
+  gen++
+  if (post.type === 'bytte' && svar?.ok) koKvitteringer.set(post.id, { outStintId: svar.out_stint || null, inStintId: svar.in_stint || null })
+  // Siste svar når køen for kampen er tom, er hele den ferske tilstanden.
+  if (svar && 'session' in svar && !venterFor(post.matchId) && session.value?.match_id === post.matchId) applyState(post.matchId, svar)
+})
 
 class Konflikt extends Error {
   constructor() { super('Kampen ble endret på en annen telefon'); this.konflikt = true }
@@ -131,15 +231,37 @@ async function rpc(fn, args, matchId) {
 // til og bytter to.
 async function optimistisk(matchId, gjett, fn, args) {
   const forSesjon = session.value ? { ...session.value } : null
-  const forPerioder = stints.value.map(x => ({ ...x }))
+  const forPerioder = stints.value.filter(x => x.match_id === matchId).map(x => ({ ...x }))
   try { gjett() } catch { /* gjetningen er bare pynt */ }
   try {
     return await rpc(fn, args, matchId)
   } catch (e) {
-    if (!e?.konflikt) { session.value = forSesjon; stints.value = forPerioder }
+    // Bare denne kampen legges tilbake: andre kampers perioder kan ha blitt
+    // hentet på nytt i mellomtiden.
+    if (!e?.konflikt) {
+      if (!session.value || session.value.match_id === matchId) session.value = forSesjon
+      stints.value = stints.value.filter(x => x.match_id !== matchId).concat(forPerioder)
+    }
     throw e
   }
 }
+
+// Kampstatusene (lista) og alle periodene (Statistikk) hentes ved hvert
+// besøk; svaret er ferskt i 30 s. Kampmodus selv går utenom: der er det
+// mm_tilstand og fetchStints(matchId) som gjelder.
+const statuserFersk = cached(async () => {
+  const { data, error } = await scoped(supabase.from('match_sessions').select('match_id, status'))
+  if (data) statusByMatch.value = Object.fromEntries(data.map(r => [r.match_id, r.status]))
+  return !error
+}, 'mmStatus', { ok: v => v === true })
+
+// Bare kolonnene statistikken og spilletida leser — ikke cohort_id/created_at.
+const STINT_KOLONNER = 'id, match_id, player_id, role, position, on_clock, off_clock'
+const perioderFersk = cached(async () => {
+  const { data, error } = await scoped(supabase.from('match_stints').select(STINT_KOLONNER))
+  if (data) stints.value = data
+  return !error
+}, 'stints', { ok: v => v === true })
 
 export function useMatchMode() {
   const currentClock = computed(() => computeClock(session.value, now.value))
@@ -173,8 +295,7 @@ export function useMatchMode() {
       statusByMatch.value = Object.fromEntries(Object.values(DEMO_SESSIONS).map(s => [s.match_id, s.status]))
       return statusByMatch.value
     }
-    const { data } = await scoped(supabase.from('match_sessions').select('match_id, status'))
-    if (data) statusByMatch.value = Object.fromEntries(data.map(r => [r.match_id, r.status]))
+    await statuserFersk()
     return statusByMatch.value
   }
 
@@ -203,8 +324,7 @@ export function useMatchMode() {
       if (stints.value.length === 0) stints.value = [...DEMO_STINTS]
       return stints.value
     }
-    const { data } = await scoped(supabase.from('match_stints').select('*'))
-    if (data) stints.value = data
+    await perioderFersk()
     return stints.value
   }
 
@@ -405,13 +525,11 @@ export function useMatchMode() {
   async function substitute(matchId, { outPlayerId, inPlayerId }) {
     const clk = currentClock.value
     if (isSupabaseConfigured) {
-      const data = await optimistisk(matchId, () => {
-        const out = openStintFor(matchId, outPlayerId)
-        if (!out) return
-        stints.value = stints.value.map(x => x.id === out.id ? { ...x, off_clock: clk } : x)
-          .concat([{ id: 'tmp-' + Date.now(), match_id: matchId, player_id: inPlayerId, role: out.role, position: out.position, on_clock: clk, off_clock: null }])
-      }, 'mm_bytte', { p_match: matchId, p_ut: outPlayerId, p_inn: inPlayerId })
-      return { outStintId: data?.out_stint || null, inStintId: data?.in_stint || null }
+      // Gjennom køen: banen flytter seg i samme trykk, også uten nett. Klokka
+      // følger med, så et bytte sendt senere får riktig minutt.
+      stints.value = gjettBytte(stints.value, matchId, outPlayerId, inPlayerId, clk, 'tmp-' + Date.now())
+      const post = legg('bytte', matchId, { p_match: matchId, p_ut: outPlayerId, p_inn: inPlayerId, p_klokke: clk })
+      return { koId: post.id, ut: outPlayerId, inn: inPlayerId, klk: clk }
     }
     const out = openStintFor(matchId, outPlayerId)
     const role = out?.role || 'field'
@@ -427,6 +545,22 @@ export function useMatchMode() {
   // innbytteren er byttet ut igjen, eller den gamle perioden er rørt.
   async function undoSubstitute(matchId, receipt) {
     if (!receipt) return false
+    if (receipt.koId) {
+      // Ikke sendt ennå: ta det ut av køen og tegn banen på nytt uten det.
+      if (trekk(receipt.koId)) {
+        const { ut, inn, klk } = receipt
+        const lukket = stints.value.filter(x => x.match_id === matchId && x.player_id === ut && x.off_clock === klk).pop()
+        stints.value = stints.value
+          .filter(x => !(x.match_id === matchId && x.player_id === inn && x.off_clock == null && x.on_clock === klk))
+          .map(x => x === lukket ? { ...x, off_clock: null } : x)
+        return true
+      }
+      // På vei akkurat nå: vent på svaret, så kan det angres som vanlig.
+      if (!koKvitteringer.has(receipt.koId)) await ventPa(receipt.koId)
+      const k = koKvitteringer.get(receipt.koId)
+      if (!k) return false
+      receipt = k
+    }
     // Låst på serveren: sjekken mot telefonens kopi holder ikke når en annen
     // trener kan ha byttet innbytteren ut igjen de siste sekundene.
     if (isSupabaseConfigured) {
@@ -511,6 +645,11 @@ export function useMatchMode() {
   async function finishMatch(matchId) {
     const clk = currentClock.value
     if (isSupabaseConfigured) {
+      // Et bytte eller mål som venter i køen, avvises når kampen er slutt.
+      // Vent til køen for kampen er sendt; går det ikke, avsluttes ikke kampen.
+      if (venterFor(matchId) && !(await ventPaKamp(matchId, 6000))) {
+        throw Object.assign(new Error('Noe er ikke lagret ennå'), { code: 'BB_IKKE_LAGRET', ikkeLagret: true })
+      }
       return rpc('mm_klokkehandling', { p_match: matchId, p_handling: 'avslutt', p_forventet: session.value?.status || 'running' }, matchId)
     }
     const open = stints.value.filter(s => s.match_id === matchId && s.off_clock == null)
@@ -638,21 +777,26 @@ export function useMatchMode() {
 
   // Hele tilstanden i ett kall. Hopper over svaret hvis en handling ble sendt
   // mens hentingen var underveis: da er handlingens svar ferskere.
-  async function syncState(matchId) {
+  // Venter noe i kampkøen, er det denne telefonen som vet best: da hoppes
+  // runden over (`tross` brukes ved innlasting, der køen legges oppå).
+  async function syncState(matchId, { tross = false } = {}) {
     if (!isSupabaseConfigured) return null
-    if (pending) return null
+    if (!tross && (pending || venterFor(matchId))) return null
     const start = gen
     const { data, error } = await supabase.rpc('mm_tilstand', { p_match: matchId })
     if (error) throw error
-    if (pending || gen !== start) return null
+    if (gen !== start || (!tross && (pending || venterFor(matchId)))) return null
     applyState(matchId, data)
     return data
   }
 
   // Resultatet som endring (+1/−1), ikke som tall: to trenere som trykker
   // samtidig skal gi to mål.
-  async function changeScore(matchId, dHome, dAway) {
-    return rpc('mm_maal', { p_match: matchId, p_hjemme: dHome, p_borte: dAway }, matchId)
+  // Gjennom køen, med en nøkkel: et nytt forsøk etter et svar som ble borte
+  // gir ikke to mål.
+  function changeScore(matchId, dHome, dAway) {
+    const id = nyId()
+    return legg('maal', matchId, { p_match: matchId, p_hjemme: dHome, p_borte: dAway, p_noekkel: id }, id)
   }
 
   return {

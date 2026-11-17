@@ -20,10 +20,10 @@ import { useContent } from '../composables/useContent'
 // elleve andre igjen med gammel tekst.
 //
 // Uka gjentar seg. Da ligger den ett sted og gjelder til noen endrer den.
-import { ref, computed, watch, nextTick, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { dagLink } from '../lib/trainingLinks'
-import { naarRolig } from '../lib/tilbake'
+import { folgMed } from '../lib/poll'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
 import { useExercises, exerciseToDrill, resolveDrills, ovelsensVideo, EQUIPMENT_TAGS } from '../composables/useExercises'
 import { riggFor as riggTags, stasjonerFor } from '../lib/grupper'
@@ -36,18 +36,18 @@ import { WEEKDAY_LABELS } from '../lib/dateLabels'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import ExercisePicker from '../components/ExercisePicker.vue'
-import ExerciseView from '../components/ExerciseView.vue'
-import ExerciseVideo from '../components/ExerciseVideo.vue'
+import OvelseArk from '../components/OvelseArk.vue'
 import Skeleton from '../components/Skeleton.vue'
 import { meldEvent } from '../lib/sporing'
 import { usePlayers } from '../composables/usePlayers'
 import { usePlayerLevels } from '../composables/usePlayerLevels'
 import { useAuth } from '../stores/auth'
+import BackLink from '../components/BackLink.vue'
 
 const { hasHandbook, principles } = useContent()
 
 const route = useRoute()
-const { days: dager, supportsDuration, fetchWeek, createDay, updateDay, removeDay } = useTrainingWeek()
+const { days: dager, supportsDuration, fetchWeek, createDay, updateDay, removeDay, endreDrills, hentUkaForPoll } = useTrainingWeek()
 const { exercises, supportsCategory, fetchExercises, createExercise } = useExercises()
 const { show: showToast } = useToast()
 
@@ -159,7 +159,12 @@ const MIN_START = 10
 
 function setDrillMinutes(s, i, minutes) {
   const m = Math.min(MIN_MAX, Math.max(0, minutes))
-  queueDrills(s.id, ds => ds.map((d, idx) => (idx === i ? { ...d, minutes: m || null } : d)))
+  const drill = s.drills?.[i]
+  if (!drill) return
+  queueDrills(s.id, ds => {
+    const k = finnDrill(ds, drill, i)
+    return k < 0 ? ds : ds.map((d, idx) => (idx === k ? { ...d, minutes: m || null } : d))
+  })
 }
 
 // Fra «ingen tid» går første trykk rett til 10, ikke til 5: det er et
@@ -247,10 +252,6 @@ const apen = ref(null) // { sessionId, i }
 
 const apenDag = computed(() => dager.value.find(s => s.id === apen.value?.sessionId) || null)
 const apenListe = computed(() => (apenDag.value ? drillsFor(apenDag.value) : []))
-const apenDrill = computed(() => (apen.value ? apenListe.value[apen.value.i] || null : null))
-const apenVideo = computed(() => (apenDrill.value ? ovelsensVideo(apenDrill.value) : null))
-const forrige = computed(() => (apen.value ? apenListe.value[apen.value.i - 1] || null : null))
-const neste = computed(() => (apen.value ? apenListe.value[apen.value.i + 1] || null : null))
 
 // «0:20–0:40»: når i treninga denne øvelsen ligger. Bare når klokka går —
 // står rekkefølgen der i stedet, finnes det ikke noe tidsrom å vise.
@@ -282,30 +283,11 @@ function riggFor(s) {
   }
 }
 
-// Lenken i arket: lukk arket først og vent til tilbake-oppføringen er borte,
-// så navigér. Ellers ligger et dødt steg under banken i historikken.
-async function tilBanken(id) {
-  apen.value = null
-  await nextTick()
-  await naarRolig()
-  router.push({ path: '/trening/ovelser', query: { ovelse: id } })
-}
-
 function visDrill(s, i) {
   meldEvent('ovelse_apnet', { fra: 'treningsuke' })
   apen.value = { sessionId: s.id, i }
 }
 
-async function blaDrill(delta) {
-  if (!apen.value) return
-  const j = apen.value.i + delta
-  if (j < 0 || j >= apenListe.value.length) return
-  apen.value = { ...apen.value, i: j }
-  // Ny øvelse, start på toppen — ellers lander du midt i «Si dette til barna»
-  // på den neste fordi du sto der på den forrige.
-  await nextTick()
-  document.querySelector('.ds-sheet__body')?.scrollTo({ top: 0 })
-}
 
 // Bytter du dag, starter du på nytt: lesemodus, ingenting utfoldet.
 watch(openDayId, () => {
@@ -314,25 +296,31 @@ watch(openDayId, () => {
   rad.value = null
 })
 
-// Serialisert kø per dag: to raske trykk skal ikke overskrive hverandre.
-// Gir true/false, aldri en feil: en feilet lagring skal si fra, ikke stoppe
-// køen for dagen og ikke la neste trykk henge på et avvist løfte.
-const queues = new Map()
-function queueDrills(sessionId, mutate) {
-  const current = dager.value.find(s => s.id === sessionId)
-  const prev = queues.get(sessionId) || Promise.resolve(true)
-  const next = prev.then(async () => {
-    const live = dager.value.find(s => s.id === sessionId) || current
-    try {
-      await updateDay(sessionId, { drills: mutate([...(live?.drills || [])]) })
-      return true
-    } catch {
-      showToast('Ikke lagret. Sjekk nettet og prøv igjen.', 'error')
-      return false
-    }
-  })
-  queues.set(sessionId, next)
-  return next
+// Hver endring er en funksjon av lista, ikke en ferdig liste: den står på
+// skjermen i samme trykk, og legges oppå den ferske lista fra basen rett før
+// lagring (useTrainingWeek.endreDrills). Da visker ikke to trenere som
+// planlegger samtidig ut hverandre. Gir true/false, aldri en feil: en feilet
+// lagring tar endringen ut igjen og sier fra.
+async function queueDrills(sessionId, mutate) {
+  try {
+    await endreDrills(sessionId, mutate)
+    return true
+  } catch {
+    showToast('Fikk ikke lagret. Prøv igjen.', 'error')
+    return false
+  }
+}
+
+// Øvelsen i den ferske lista. En annen trener kan ha lagt til eller flyttet
+// noe siden denne telefonen tegnet lista, så plassen alene holder ikke: lik
+// øvelse nærmest plassen den sto på vinner.
+function finnDrill(ds, drill, i) {
+  const n = JSON.stringify(drill)
+  const like = ds.map((d, k) => (JSON.stringify(d) === n ? k : -1)).filter(k => k > -1)
+  const kandidater = like.length ? like
+    : ds.map((d, k) => ((drill.exercise_id ? d.exercise_id === drill.exercise_id : d.text === drill.text) ? k : -1)).filter(k => k > -1)
+  if (!kandidater.length) return -1
+  return kandidater.reduce((a, b) => (Math.abs(b - i) < Math.abs(a - i) ? b : a))
 }
 
 // Pilene bytter plass innenfor dagen. De pleide å krysse over i nabodagen
@@ -342,9 +330,13 @@ function queueDrills(sessionId, mutate) {
 function moveDrill(s, i, dir) {
   const j = dir === 'up' ? i - 1 : i + 1
   if (j < 0 || j >= (s.drills || []).length) return
+  const drill = s.drills[i]
   queueDrills(s.id, ds => {
+    const k = finnDrill(ds, drill, i)
+    const m = dir === 'up' ? k - 1 : k + 1
+    if (k < 0 || m < 0 || m >= ds.length) return ds
     const arr = [...ds]
-    ;[arr[i], arr[j]] = [arr[j], arr[i]]
+    ;[arr[k], arr[m]] = [arr[m], arr[k]]
     return arr
   })
 }
@@ -377,17 +369,32 @@ async function flyttTilDag(mal) {
   // Legg til først, fjern etterpå. Omvendt ble øvelsen borte for godt om
   // lagringen i måldagen feilet.
   if (!(await queueDrills(mal.id, ds => [...ds, drill]))) return
-  if (!(await queueDrills(s.id, ds => ds.filter((_, idx) => idx !== i)))) return
+  if (!(await queueDrills(s.id, ds => { const k = finnDrill(ds, drill, i); return k < 0 ? ds : ds.filter((_, idx) => idx !== k) }))) return
   showToast(`Flyttet til ${mal.title.toLowerCase()}`, 'success')
 }
 
-// Fjerne fra dagen er ikke sletting — øvelsen blir liggende i banken.
+// Fjerne fra dagen er ikke sletting — øvelsen blir liggende i banken. Angre
+// legger den tilbake på samme plass, med samme minutter.
 async function removeDrill(s, i) {
   const d = s.drills?.[i]
   if (!d) return
   rad.value = null
-  if (!(await queueDrills(s.id, ds => ds.filter((_, idx) => idx !== i)))) return
-  showToast(d.exercise_id ? 'Fjernet — ligger i banken' : 'Fjernet', 'success')
+  const fjern = queueDrills(s.id, ds => { const k = finnDrill(ds, d, i); return k < 0 ? ds : ds.filter((_, idx) => idx !== k) })
+  showToast(d.exercise_id ? 'Fjernet — ligger i banken' : 'Fjernet', 'success', 5000, {
+    action: { label: 'Angre', handler: () => angreFjern(s.id, d, i, fjern) }
+  })
+  await fjern
+}
+
+async function angreFjern(sessionId, d, i, fjern) {
+  // Var fjerningen aldri lagret, står øvelsen der allerede.
+  if (!(await fjern)) return
+  queueDrills(sessionId, ds => {
+    if (ds.some(x => JSON.stringify(x) === JSON.stringify(d))) return ds
+    const arr = [...ds]
+    arr.splice(Math.min(i, arr.length), 0, d)
+    return arr
+  })
 }
 
 // Fra arket og rett inn i øvelsen slik den leses på banen.
@@ -417,7 +424,11 @@ async function byttUt(ex) {
   const gammel = drillsFor(s)[b.i]
   bytteFor.value = null
   pickerFor.value = null
-  if (!(await queueDrills(s.id, ds => ds.map((d, idx) => (idx === b.i ? { ...exerciseToDrill(ex), minutes: d.minutes ?? null } : d))))) return
+  const gammelRad = s.drills?.[b.i]
+  if (!(await queueDrills(s.id, ds => {
+    const k = gammelRad ? finnDrill(ds, gammelRad, b.i) : -1
+    return k < 0 ? [...ds, exerciseToDrill(ex)] : ds.map((d, idx) => (idx === k ? { ...exerciseToDrill(ex), minutes: d.minutes ?? null } : d))
+  }))) return
   showToast(gammel ? `«${gammel.text}» byttet ut med «${ex.name}»` : `«${ex.name}» lagt inn`, 'success')
 }
 
@@ -444,7 +455,9 @@ function toggleExercise(ex) {
   if (!s) return
   const match = d => d.exercise_id === ex.id || (d.text || '').trim().toLowerCase() === ex.name.trim().toLowerCase()
   const inDay = (s.drills || []).some(match)
-  queueDrills(s.id, ds => (inDay ? ds.filter(d => !match(d)) : [...ds, exerciseToDrill(ex)]))
+  // Valget er det du så da du trykket: la til eller tok ut. Har en annen trener
+  // alt gjort det samme, blir det ikke to.
+  queueDrills(s.id, ds => (inDay ? ds.filter(d => !match(d)) : (ds.some(match) ? ds : [...ds, exerciseToDrill(ex)])))
 }
 
 async function createFromPicker(f) {
@@ -514,7 +527,10 @@ async function saveDay() {
     // Uten ukedag beholder vi navnet raden allerede har, i stedet for å blanke det.
     title: f.weekday ? WEEKDAY_LABELS[f.weekday - 1] : f.fallbackTitle
   }
-  // Skjemaet blir stående om lagringen feiler, så det du skrev ikke er borte.
+  // Arket lukkes med en gang — endringen står i uka før svaret er tilbake.
+  // Feiler lagringen, rulles uka tilbake (useTrainingWeek) og skjemaet åpnes
+  // igjen med det du skrev.
+  dayForm.value = null
   try {
     if (f.id) {
       await updateDay(f.id, payload)
@@ -526,12 +542,11 @@ async function saveDay() {
       })
     }
   } catch {
-    showToast('Dagen ble ikke lagret. Prøv igjen.', 'error')
-    return
+    if (!dayForm.value) dayForm.value = f
+    showToast('Fikk ikke lagret. Prøv igjen.', 'error')
   } finally {
     savingDay.value = false
   }
-  dayForm.value = null
 }
 
 const deleteDayId = ref(null)
@@ -599,13 +614,19 @@ async function confirmPaste() {
 const oppmoteIDag = ref({})
 watch(isCoach, c => { if (c) hentDagensOppmote().then(m => { oppmoteIDag.value = m }) }, { immediate: true })
 
+// To trenere kan planlegge samtidig. Mens planen er åpen, følges uka med
+// samme klokke som Del inn (lib/poll), så den andres endring står her innen
+// noen sekunder.
+let stoppPoll = null
 onMounted(async () => {
   await fetchWeek()
   fetchExercises()
   fetchPlayers()
   fetchPlayerLevels()
   loading.value = false
+  stoppPoll = folgMed('treningsuke', hentUkaForPoll)
 })
+onUnmounted(() => { stoppPoll?.() })
 </script>
 
 <template>
@@ -620,9 +641,6 @@ onMounted(async () => {
     <div v-else-if="!dager.length" class="ds-empty">
       <Spot name="training" class="ds-empty__illo" />
       <div class="ds-empty__title">Ingen treningsuke ennå</div>
-      <div class="ds-empty__description">
-        Uka gjentar seg til du endrer den.
-      </div>
       <div class="plan-actions">
         <button type="button" class="ds-btn ds-btn--primary" @click="openNewDay">Legg til dag</button>
         <button type="button" class="ds-btn ds-btn--secondary" @click="showPaste = true">Lim inn plan</button>
@@ -634,10 +652,7 @@ onMounted(async () => {
         <h1 class="uke__title">Trening</h1>
       </header>
       <nav v-else class="dagside__bar">
-        <router-link to="/trening" class="dagside__tilbake" aria-label="Tilbake til uka">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-          Trening
-        </router-link>
+        <BackLink to="/trening" label="Trening" />
       </nav>
       <p v-if="fantIkkeDagen" class="dagside__tom">Fant ikke dagen. <router-link to="/trening">Til uka</router-link></p>
 
@@ -657,7 +672,8 @@ onMounted(async () => {
           @click="!dagId && apneDag(s)"
         >
           <span class="dag__head">
-            <span class="dag__name">{{ s.title }}<span v-if="!dagId && s.weekday === todayWeekday()" class="dag__idag">I dag</span></span>
+            <span class="dag__name">{{ s.title }}</span>
+            <span v-if="!dagId && s.weekday === todayWeekday()" class="dag__idag">I dag</span>
             <span class="dag__meta">
               <span v-if="s.duration_min" class="dag__len">{{ formatDuration(s.duration_min) }}</span>
             </span>
@@ -683,7 +699,7 @@ onMounted(async () => {
           v-if="isCoach && openDayId !== s.id && (s.weekday === todayWeekday() || oppmoteIDag[s.id] != null)"
           to="/del-inn"
           class="dag__start"
-        >{{ oppmoteIDag[s.id] != null ? `${oppmoteIDag[s.id]} her` : 'Del inn' }}</router-link>
+        >Del inn<span v-if="oppmoteIDag[s.id] != null" class="dag__start-meta">{{ oppmoteIDag[s.id] }} her</span></router-link>
 
         <div v-if="openDayId === s.id" class="dag__body">
           <!-- Kjøreplanen: øvelsene for økta. Oppmøtet tas i Del inn. -->
@@ -888,7 +904,7 @@ onMounted(async () => {
         <div class="sheet-actions">
           <button v-if="dayForm.id" type="button" class="ds-btn ds-btn--ghost sheet-actions__danger" @click="deleteDayId = dayForm.id">Slett dagen</button>
           <button type="submit" class="ds-btn ds-btn--primary ds-btn--lg sheet-actions__save" :disabled="(!dayForm.id && !dayForm.weekday) || savingDay">
-            {{ savingDay ? 'Lagrer…' : dayForm.id ? 'Lagre' : 'Legg til dagen' }}
+            {{ savingDay ? 'Lagrer …' : dayForm.id ? 'Lagre' : 'Legg til dagen' }}
           </button>
         </div>
         <button v-if="!dayForm.id" type="button" class="ds-btn ds-btn--ghost dag-lim" @click="dayForm = null; showPaste = true">
@@ -911,7 +927,6 @@ Torsdag
 - Ferdighetssirkel
 - Vinneren står (mix)"
       ></textarea>
-      <p class="paste-hint">Ukedag gir ny dag, kulepunkt gir øvelse.</p>
 
       <div v-if="parsedPlan.sessions.length" class="paste-preview">
         <div v-for="(s, i) in parsedPlan.sessions" :key="i" class="paste-preview__row">
@@ -926,7 +941,7 @@ Torsdag
         :disabled="!parsedPlan.sessions.length || savingPaste"
         @click="confirmPaste"
       >
-        {{ savingPaste ? 'Lagrer…' : parsedPlan.sessions.length ? `Legg til ${parsedPlan.sessions.length} ${parsedPlan.sessions.length === 1 ? 'dag' : 'dager'}` : 'Legg til dager' }}
+        {{ savingPaste ? 'Lagrer …' : parsedPlan.sessions.length ? `Legg til ${parsedPlan.sessions.length} ${parsedPlan.sessions.length === 1 ? 'dag' : 'dager'}` : 'Legg til dager' }}
       </button>
     </Sheet>
 
@@ -975,39 +990,14 @@ Torsdag
       </template>
     </Sheet>
 
-    <!-- Øvelsen — samme visning som banken. Forrige/Neste nederst: på banen
+    <!-- Øvelsen — samme ark som økta. Forrige/Neste nederst: på banen
          blar du gjennom treninga, du navigerer ikke. -->
-    <Sheet :show="!!apenDrill" :title="apenDrill?.text || ''" @close="apen = null">
-      <template v-if="apenVideo" #media>
-        <ExerciseVideo :video="apenVideo" />
-      </template>
-      <template v-if="apenDrill">
-        <ExerciseView
-          class="ex-view--sheet"
-          :exercise="apenDrill"
-          :minutes="apenDrill.minutes || 0"
-          :video-ute="!!apenVideo"
-          :hvor="`${apenDag.title} · ${apen.i + 1} av ${apenListe.length}${apenTidsrom ? ' · ' + apenTidsrom : ''}`"
-        >
-          <nav v-if="apenListe.length > 1" class="ovelse-sheet__bla" aria-label="Bla i treninga">
-            <button type="button" class="bla" :disabled="!forrige" @click="blaDrill(-1)">
-              <span class="bla__merke">Forrige</span>
-              <span class="bla__navn">{{ forrige?.text || '—' }}</span>
-            </button>
-            <button type="button" class="bla bla--neste" :disabled="!neste" @click="blaDrill(1)">
-              <span class="bla__merke">Neste</span>
-              <span class="bla__navn">{{ neste?.text || '—' }}</span>
-            </button>
-          </nav>
-          <a
-            v-if="apenDrill.exercise_id"
-            :href="`/trening/ovelser?ovelse=${apenDrill.exercise_id}`"
-            class="ovelse-sheet__bank"
-            @click.prevent="tilBanken(apenDrill.exercise_id)"
-          >Endre øvelsen i banken</a>
-        </ExerciseView>
-      </template>
-    </Sheet>
+    <OvelseArk
+      :liste="apenListe"
+      :i="apen ? apen.i : null"
+      :hvor="apenDag && apen ? `${apenDag.title} · ${apen.i + 1} av ${apenListe.length}${apenTidsrom ? ' · ' + apenTidsrom : ''}` : ''"
+      @update:i="j => (apen = j == null ? null : { ...apen, i: j })"
+    />
 
     <!-- Riggen for dagen, for den som gjør klart før treninga. -->
     <Sheet :show="!!riggDag" title="Rigg" @close="riggDag = null">
@@ -1038,7 +1028,7 @@ Torsdag
 <style scoped>
 
 .uke {
-  max-width: 640px;
+  max-width: var(--ds-content-max);
   margin: 0 auto;
   padding: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-2xl);
 }
@@ -1095,14 +1085,14 @@ Torsdag
 .dag--open .dag__toggle { padding-bottom: var(--ds-space-sm); }
 
 .dag__idag {
-  display: inline-flex; align-items: center;
-  height: 22px; margin-left: 10px; padding: 0 10px;
+  display: inline-flex; align-items: center; flex-shrink: 0;
+  height: 22px; padding: 0 10px;
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-accent); color: var(--ds-color-accent-text);
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-xs, 12px); font-weight: var(--ds-weight-semibold);
   letter-spacing: 0; text-transform: none;
-  vertical-align: middle;
+  align-self: center;
 }
 
 .dag__head {
@@ -1113,13 +1103,10 @@ Torsdag
 }
 
 .dag__name {
-  flex: 1;
+  flex: 0 1 auto;
   min-width: 0;
-  /* Uten klippingen renner «TORSDAG» rett inn i lengden på smale skjermer —
-     boksen krympet, teksten gjorde det ikke. */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  /* Ukedagen klippes aldri. Lange egne titler brytes mellom ord. */
+  overflow-wrap: break-word;
   font-family: var(--ds-font-display-sans);
   font-size: var(--ds-text-xl);
   font-weight: var(--ds-weight-semibold);
@@ -1133,6 +1120,7 @@ Torsdag
   align-items: baseline;
   gap: 6px;
   flex-shrink: 0;
+  margin-left: auto;
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);
   font-variant-numeric: tabular-nums;
@@ -1144,6 +1132,10 @@ Torsdag
    dagsnavnet — på 360 ble det «TORS…». Lengden viker: den står i dagen når du
    åpner den. Antallet svarer på om dagen i det hele tatt er planlagt, og blir
    stående. */
+@media (max-width: 359px) {
+  .dag:not(.dag--side) .dag__meta { display: none; }
+  .dag:not(.dag--side) .dag__chevron { margin-left: auto; }
+}
 
 .dag__chevron {
   flex-shrink: 0;
@@ -1158,18 +1150,6 @@ Torsdag
 
 /* Dagen som egen side: ikke et kort i en liste, men siden selv. */
 .dagside__bar { margin: 0 0 var(--ds-space-md) calc(-1 * var(--ds-space-xs)); }
-.dagside__tilbake {
-  display: inline-flex;
-  align-items: center;
-  gap: 2px;
-  min-height: 40px;
-  padding-right: var(--ds-space-sm);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  text-decoration: none;
-}
-.dagside__tilbake svg { width: 20px; height: 20px; }
 .dagside__tom { color: var(--ds-color-text-secondary); font-size: var(--ds-text-sm); }
 .dag--side {
   background: transparent;
@@ -1241,16 +1221,24 @@ Torsdag
 .dag__start {
   display: inline-flex;
   align-items: center;
-  min-height: 40px;
+  gap: 10px;
+  min-height: 44px;
   margin: 0 var(--ds-space-lg) var(--ds-space-lg);
   padding: 0 18px;
+  border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-full);
-  background: var(--ds-color-accent);
-  color: var(--ds-color-accent-text);
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-primary);
   font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-bold);
+  font-weight: var(--ds-weight-semibold);
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
+}
+.dag__start:active { background: var(--ds-color-bg-subtle); }
+.dag__start-meta {
+  color: var(--ds-color-text-tertiary);
+  font-weight: var(--ds-weight-medium);
+  font-variant-numeric: tabular-nums;
 }
 
 .rigg-rad {
@@ -1289,20 +1277,21 @@ Torsdag
   align-items: center;
   justify-content: space-between;
   gap: var(--ds-space-md);
-  min-height: var(--ds-btn-h-lg);
-  padding: 0 var(--ds-space-lg);
+  min-height: 52px;
+  padding: 0 var(--ds-space-md);
   margin-bottom: var(--ds-space-sm);
+  border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
-  background: var(--ds-color-accent);
-  color: var(--ds-color-accent-text);
+  background: var(--ds-color-bg-elevated);
+  color: var(--ds-color-text-primary);
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
   transition: transform .1s ease;
 }
 .okt-start:active { transform: scale(0.99); }
-.okt-start svg { width: 20px; height: 20px; flex: none; }
-.okt-start__tittel { font-size: var(--ds-text-md); font-weight: var(--ds-weight-bold); }
-.okt-start__her { margin-left: auto; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); opacity: .85; font-variant-numeric: tabular-nums; }
+.okt-start svg { width: 18px; height: 18px; flex: none; color: var(--ds-color-text-tertiary); }
+.okt-start__tittel { font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); }
+.okt-start__her { margin-left: auto; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); font-variant-numeric: tabular-nums; }
 
 .dag__body {
   padding: 0 var(--ds-space-lg) var(--ds-space-lg);
@@ -1703,65 +1692,6 @@ Torsdag
 .valg:active { background: var(--ds-color-bg-subtle); }
 .valg--fjern { color: var(--ds-color-error); }
 
-/* ---- Øvelsen i sheeten ---- */
-/* To store flater, ikke to piler: på banen treffer du med tommelen uten å se.
-   Navnet på neste øvelse står på knappen, så du vet hva du blar til. */
-.ovelse-sheet__bla {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: var(--ds-space-sm);
-  margin-top: var(--ds-space-sm);
-}
-
-.bla {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  min-width: 0;
-  min-height: 60px;
-  padding: 10px 14px;
-  border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-md);
-  background: var(--ds-color-bg-elevated);
-  font-family: var(--ds-font-body);
-  text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.bla--neste { text-align: right; align-items: flex-end; }
-.bla:disabled { opacity: 0.4; cursor: default; }
-.bla:not(:disabled):active { transform: scale(0.98); }
-
-.bla__merke {
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-medium);
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--ds-color-text-tertiary);
-}
-
-.bla__navn {
-  max-width: 100%;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-primary);
-}
-
-.ovelse-sheet__bank {
-  display: block;
-  margin-top: var(--ds-space-xs);
-  text-align: center;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
-
 /* ---- Foten i en åpen dag ---- */
 .dag__foot {
   display: flex;
@@ -1920,7 +1850,7 @@ Torsdag
   height: 56px;
   flex-shrink: 0;
   border: 1px solid var(--ds-color-border);
-  border-radius: var(--ds-radius-md);
+  border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
   color: var(--ds-color-text-primary);
   font-family: var(--ds-font-body);
@@ -1949,13 +1879,6 @@ Torsdag
 }
 
 .paste-input { width: 100%; font-size: var(--ds-text-sm); line-height: 1.5; resize: vertical; }
-
-.paste-hint {
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-tertiary);
-  margin: var(--ds-space-sm) 0 0;
-  line-height: 1.5;
-}
 
 .paste-preview { display: flex; flex-direction: column; gap: 4px; margin-top: var(--ds-space-md); }
 

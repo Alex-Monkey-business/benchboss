@@ -171,7 +171,6 @@
   font-size: var(--ds-text-xs);
   color: var(--ds-color-text-tertiary);
   font-weight: var(--ds-weight-medium);
-  text-transform: capitalize;
   letter-spacing: var(--ds-tracking-wide);
 }
 
@@ -764,12 +763,6 @@
   color: var(--ds-color-text-secondary);
 }
 
-.file-drop__hint {
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-tertiary);
-  margin-top: var(--ds-space-xs);
-}
-
 /* ---- Preview Table ---- */
 
 .preview-table {
@@ -1216,15 +1209,7 @@
 
   /* Desktop content container */
   .desktop-container {
-    max-width: 800px;
-    padding: 0 var(--ds-space-xl);
-  }
-
-  /* Match cards grid on desktop */
-  .ds-stack--sm.ds-anim-stagger-list {
-    display: grid;
-    grid-template-columns: repeat(2, 1fr);
-    gap: var(--ds-space-md);
+    max-width: var(--ds-content-max);
   }
 
   /* Section header wider */
@@ -1255,11 +1240,6 @@
   }
 }
 
-@media (min-width: 1024px) {
-  .desktop-container {
-    max-width: 960px;
-  }
-}
 
 /* ============================================
    MICRO-ANIMATIONS

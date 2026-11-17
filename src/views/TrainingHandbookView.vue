@@ -4,6 +4,7 @@ import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import { useContent } from '../composables/useContent'
+import BackLink from '../components/BackLink.vue'
 
 const router = useRouter()
 const { activeCohort } = useAuth()
@@ -19,20 +20,13 @@ function open(slug) {
 <template>
   <div class="handbook">
     <div class="handbook__back-wrap">
-      <router-link to="/trening" class="handbook__back">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Trening
-      </router-link>
+      <BackLink to="/trening" label="Trening" />
     </div>
 
     <header class="handbook__hero">
       <Spot name="book" class="handbook__icon" :size="104" />
-      <span class="handbook__eyebrow">Trener-håndbok</span>
+      <span class="handbook__eyebrow">Trenerhåndbok</span>
       <h1 class="handbook__title">{{ handbokOpphav ? `Slik trener vi i ${klubbNavn}` : `Slik trener vi ${cohortName}` }}</h1>
-      <p v-if="hasHandbook" class="handbook__lead">
-        Åtte prinsipper som gjør at alle utvikler seg —
-        ikke bare de som allerede er fremme.
-      </p>
       <!-- Håndboka er klubbens, men den er skrevet av noen. Uten avsenderen
            leser et nytt kull prinsippene som appens egne, og da er de ingens. -->
       <p v-if="handbokOpphav" class="handbook__opphav">
@@ -64,10 +58,6 @@ function open(slug) {
         </svg>
       </button>
     </div>
-
-    <footer v-if="hasHandbook" class="handbook__footer">
-      <p>Skrevet for oss fem, basert på det vi har lært. Endrer seg etter hvert som vi gjør det.</p>
-    </footer>
   </div>
 </template>
 
@@ -87,7 +77,7 @@ function open(slug) {
 /* Per-accent palette for cards — matches coach color tokens */
 
 .handbook {
-  max-width: 680px;
+  max-width: var(--ds-content-max);
   margin: 0 auto;
   padding: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-2xl);
 }
@@ -96,25 +86,8 @@ function open(slug) {
   margin-bottom: var(--ds-space-xl);
 }
 
-.handbook__back {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  text-decoration: none;
-  letter-spacing: -0.005em;
-}
 
-.handbook__back svg {
-  width: 14px;
-  height: 14px;
-}
 
-.handbook__back:hover {
-  color: var(--ds-color-text-primary);
-}
 
 /* ---- Hero ---- */
 .handbook__hero {
@@ -138,24 +111,12 @@ function open(slug) {
 }
 
 .handbook__title {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: clamp(2.2rem, 7vw, 3.2rem);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-tighter);
   line-height: 1.05;
   color: var(--ds-color-text-primary);
-  font-variation-settings: var(--ds-font-display-settings);
-  margin: 0 0 var(--ds-space-lg);
-}
-
-.handbook__lead {
-  font-family: var(--ds-font-display);
-  font-size: var(--ds-text-lg);
-  font-weight: var(--ds-weight-regular);
-  line-height: 1.45;
-  letter-spacing: -0.01em;
-  color: var(--ds-color-text-secondary);
-  max-width: 32ch;
   margin: 0;
 }
 
@@ -208,12 +169,11 @@ function open(slug) {
   justify-content: center;
   background: var(--accent-bg);
   color: var(--accent-text);
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: var(--ds-text-xl);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: -0.02em;
   font-variant-numeric: tabular-nums;
-  font-variation-settings: var(--ds-font-display-settings);
   /* Flush innenfor kortets 1 px ramme: kortets hjørne minus rammen, så
      de to buene er konsentriske. */
   border-radius: calc(var(--ds-radius-lg) - 1px) 0 0 calc(var(--ds-radius-lg) - 1px);
@@ -230,7 +190,7 @@ function open(slug) {
 }
 
 .handbook-card__title {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: var(--ds-text-md);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-tight);
@@ -254,19 +214,6 @@ function open(slug) {
 }
 
 /* ---- Footer ---- */
-.handbook__footer {
-  padding-top: var(--ds-space-xl);
-  border-top: 1px solid var(--ds-color-border-light);
-}
-
-.handbook__footer p {
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-tertiary);
-  font-style: italic;
-  margin: 0;
-  letter-spacing: -0.005em;
-}
-
 @keyframes handbook-card-in {
   from { opacity: 0; transform: translateY(8px); }
   to   { opacity: 1; transform: translateY(0); }

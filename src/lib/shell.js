@@ -5,3 +5,9 @@ import { ref } from 'vue'
 // banen, ikke fem faner hen ikke skal trykke på. Visningen nullstiller selv
 // når den forlates.
 export const navHidden = ref(false)
+
+// Første Hjem-henting er ferdig (useToday). App.vue venter med å laste ned de
+// andre fanene til da, så de ikke slåss med Hjem om båndbredden ved kald start.
+let hjemFerdig = null
+export const hjemKlar = new Promise(r => { hjemFerdig = r })
+export function meldHjemKlar() { hjemFerdig?.() }

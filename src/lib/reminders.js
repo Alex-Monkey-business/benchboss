@@ -151,8 +151,8 @@ export function buildReminders({ matches, coachId, getCoachesForMatch, getExpens
         ? `Utlegg ikke ført mot ${m.away_team}`
         : `${pendingExpense.length} kamper venter på utlegg`,
       // Konsekvensen er at pengene ikke kommer tilbake før det er ført.
-      body: pendingExpense.length === 1 ? 'Før utlegget' : 'Før utleggene',
-      action: pendingExpense.length === 1 ? 'Før utlegget' : 'Før utleggene',
+      body: pendingExpense.length === 1 ? 'Legg inn utlegget' : 'Legg inn utleggene',
+      action: pendingExpense.length === 1 ? 'Legg inn utlegget' : 'Legg inn utleggene',
       matchId: m.id
     })
   }

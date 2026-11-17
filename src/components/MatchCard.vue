@@ -35,8 +35,9 @@ const status = computed(() => {
   const soon = days >= 0 && days <= 7
   const past = isPast(m.match_date)
   if (played.value && !hasResult(m)) return { label: 'Resultat mangler', tone: 'muted' }
-  if (usesReferees.value && isHome.value && !played.value && soon && !m.referee) return { label: 'Dommer mangler', tone: 'warn' }
+  // Treningskamp har ingen dommer fra kretsen: å mangle en er ikke en mangel.
   const treningskamp = m.kind === 'treningskamp' || m.division === 'Treningskamp'
+  if (usesReferees.value && isHome.value && !played.value && soon && !m.referee && !treningskamp) return { label: 'Dommer mangler', tone: 'warn' }
   if (usesReferees.value && isHome.value && past && !props.expense && !treningskamp) return { label: 'Utlegg mangler', tone: 'muted' }
   return null
 })

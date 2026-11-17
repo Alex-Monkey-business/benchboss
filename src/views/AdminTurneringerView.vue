@@ -8,6 +8,7 @@ import { useToast } from '../composables/useToast'
 import { useAuth } from '../stores/auth'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
+import BackLink from '../components/BackLink.vue'
 
 // Turneringene settes opp her, og brukes på /cup. Samme skille som
 // /admin/sesong-kamper har mot /kamper: én flate redigerer, én flate leses.
@@ -62,12 +63,12 @@ async function lagreNyCup() {
   })
   lagrer.value = false
 
-  if (!cup) { showToast('Turneringen ble ikke lagret', 'error'); return }
+  if (!cup) { showToast('Cupen ble ikke lagret', 'error'); return }
 
   await fetchCupMatches(cup.id)
   visNyCup.value = false
   nyCup.value = tomCup()
-  showToast('Turneringen er lagt inn', 'success')
+  showToast('Cupen er lagt inn', 'success')
 }
 
 // ---- Bytte hvilken cup man ser på ----
@@ -146,7 +147,7 @@ async function lesFil(fil) {
     const { parseCupMatchFile, fordelLag } = await import('../lib/cupExcel')
     const rader = await parseCupMatchFile(fil)
     if (!rader.length) {
-      showToast('Fant ingen kamper i filen', 'error')
+      showToast('Fant ingen kamper i fila', 'error')
       return
     }
     importRader.value = fordelLag(rader, {
@@ -155,7 +156,7 @@ async function lesFil(fil) {
     })
     visImport.value = true
   } catch (e) {
-    showToast(e?.message || 'Kunne ikke lese filen', 'error')
+    showToast(e?.message || 'Kunne ikke lese fila', 'error')
   } finally {
     leser.value = false
   }
@@ -208,9 +209,9 @@ async function bekreftSlettCup() {
   const cup = cupTilSletting.value
   cupTilSletting.value = null
   if (!cup) return
-  if (!await deleteCup(cup.id)) { showToast('Turneringen ble ikke slettet', 'error'); return }
+  if (!await deleteCup(cup.id)) { showToast('Cupen ble ikke slettet', 'error'); return }
   if (activeCup.value) await fetchCupMatches(activeCup.value.id)
-  showToast('Turneringen er slettet', 'success')
+  showToast('Cupen er slettet', 'success')
 }
 
 // ---- Status ----
@@ -218,7 +219,7 @@ async function settStatus(status) {
   if (!activeCup.value) return
   const oppdatert = await updateCup(activeCup.value.id, { status })
   showToast(
-    oppdatert ? (status === 'completed' ? 'Turneringen er avsluttet' : 'Turneringen er åpnet igjen') : 'Statusen ble ikke endret',
+    oppdatert ? (status === 'completed' ? 'Cupen er avsluttet' : 'Cupen er åpnet igjen') : 'Statusen ble ikke endret',
     oppdatert ? 'success' : 'error'
   )
 }
@@ -251,22 +252,20 @@ const sorterteKamper = computed(() =>
 
 <template>
   <div class="desktop-container">
+    <div class="px-lg" style="padding-top: var(--ds-space-md);">
+      <BackLink to="/admin" label="Admin" />
+    </div>
     <div class="page-header">
-      <h1 class="page-header__title">Turneringer</h1>
-      <p class="page-header__subtitle">Legg inn cuper laget spiller</p>
+      <h1 class="page-header__title">Cuper</h1>
     </div>
 
     <div class="px-lg">
-      <p v-if="!ready" class="turn-muted">Henter turneringer …</p>
+      <p v-if="!ready" class="turn-muted">Henter cuper …</p>
 
       <div v-else-if="!cups.length" class="ds-empty">
         <Spot name="cup" class="ds-empty__illo" />
-        <h3 class="ds-empty__title">Ingen turneringer ennå</h3>
-        <p class="ds-empty__description">
-          Legg inn cupen med lagene dere stiller med, så kan du fordele troppen og
-          føre kampene underveis.
-        </p>
-        <button class="ds-btn ds-btn--primary ds-empty__action" @click="visNyCup = true">Ny turnering</button>
+        <h3 class="ds-empty__title">Ingen cuper ennå</h3>
+        <button class="ds-btn ds-btn--primary ds-empty__action" @click="visNyCup = true">Ny cup</button>
       </div>
 
       <template v-else>
@@ -327,8 +326,7 @@ const sorterteKamper = computed(() =>
             @drop="onDrop"
             @click="filInput?.click()"
           >
-            <p class="turn-slipp__tittel">{{ leser ? 'Leser filen …' : 'Har du kampoppsettet i et regneark?' }}</p>
-            <p class="turn-slipp__hint">Dra fila hit, eller tap for å velge. .xlsx, .xls og .csv.</p>
+            <p class="turn-slipp__tittel">{{ leser ? 'Leser fila …' : 'Last opp regneark' }}</p>
           </div>
           <input ref="filInput" type="file" accept=".xlsx,.xls,.csv" style="display:none" @change="onFilValgt" />
           </template>
@@ -338,7 +336,7 @@ const sorterteKamper = computed(() =>
               <button type="button" class="turn-rad" @click="apenKamp = m">
                 <span class="turn-rad__tekst">
                   <span class="turn-rad__topp">{{ kampDato(m) }}</span>
-                  <span class="turn-rad__hoved">{{ lagNavn(m.our_team) }} mot {{ m.opponent || 'TBD' }}</span>
+                  <span class="turn-rad__hoved">{{ lagNavn(m.our_team) }} mot {{ m.opponent || '–' }}</span>
                   <span v-if="m.pitch || m.round" class="turn-rad__bunn">
                     {{ [m.pitch, m.round].filter(Boolean).join(' · ') }}
                   </span>
@@ -351,12 +349,12 @@ const sorterteKamper = computed(() =>
 
         <!-- Sjeldent og irreversibelt står sist og alene. En ny turnering
              legges inn én gang i året; sletting nesten aldri. -->
-        <button class="ds-btn ds-btn--secondary turn-ny turn-ny--bunn" @click="visNyCup = true">Ny turnering</button>
-        <button v-if="activeCup" class="turn-slett turn-slett--bunn" @click="cupTilSletting = activeCup">Slett turneringen</button>
+        <button class="ds-btn ds-btn--secondary turn-ny turn-ny--bunn" @click="visNyCup = true">Ny cup</button>
+        <button v-if="activeCup" class="turn-slett turn-slett--bunn" @click="cupTilSletting = activeCup">Slett cupen</button>
       </template>
     </div>
 
-    <Sheet :show="!!apenKamp" :title="apenKamp ? `${lagNavn(apenKamp.our_team)} mot ${apenKamp.opponent || 'TBD'}` : ''" @close="apenKamp = null">
+    <Sheet :show="!!apenKamp" :title="apenKamp ? `${lagNavn(apenKamp.our_team)} mot ${apenKamp.opponent || '–'}` : ''" @close="apenKamp = null">
       <template v-if="apenKamp">
         <p class="turn-kampinfo">{{ kampDato(apenKamp) }}</p>
         <p v-if="apenKamp.pitch || apenKamp.round" class="turn-kampinfo turn-kampinfo--meta">
@@ -368,7 +366,7 @@ const sorterteKamper = computed(() =>
       </template>
     </Sheet>
 
-    <Sheet :show="visNyCup" title="Ny turnering" @close="visNyCup = false">
+    <Sheet :show="visNyCup" title="Ny cup" @close="visNyCup = false">
       <div class="ds-form-group">
         <label class="ds-label" for="cup-navn">Navn</label>
         <input id="cup-navn" v-model="nyCup.name" class="ds-input" placeholder="f.eks. Sandarcupen" />
@@ -461,16 +459,15 @@ const sorterteKamper = computed(() =>
       <p class="turn-hint turn-hint--topp">
         {{ importRader.length }} {{ importRader.length === 1 ? 'kamp' : 'kamper' }} funnet.
         <template v-if="usikre">
-          {{ usikre }} av dem vet vi ikke hvilket lag tilhører — trykk på laget for å rette.
+          {{ usikre }} mangler lag. Trykk for å velge.
         </template>
-        <template v-else-if="cupTeams.length > 1">Trykk på laget for å bytte.</template>
       </p>
 
       <ul class="turn-import">
         <li v-for="(r, i) in importRader" :key="i" class="turn-import__rad" :class="{ 'turn-import__rad--gjett': !r.sikker }">
           <button type="button" class="turn-import__lag" @click="bytteLag(i)">{{ lagNavn(r.our_team) }}</button>
           <span class="turn-import__tekst">
-            <span class="turn-import__hoved">mot {{ r.opponent || 'TBD' }}</span>
+            <span class="turn-import__hoved">mot {{ r.opponent || '–' }}</span>
             <span class="turn-import__meta">
               {{ kampDato(r) }}<template v-if="r.pitch"> · {{ r.pitch }}</template>
             </span>
@@ -490,7 +487,7 @@ const sorterteKamper = computed(() =>
     <ConfirmDialog
       :show="!!kampTilSletting"
       title="Slette kampen?"
-      :message="kampTilSletting ? `${lagNavn(kampTilSletting.our_team)} mot ${kampTilSletting.opponent || 'TBD'}` : ''"
+      :message="kampTilSletting ? `${lagNavn(kampTilSletting.our_team)} mot ${kampTilSletting.opponent || '–'}` : ''"
       confirm-label="Slett"
       @confirm="bekreftSlettKamp"
       @cancel="kampTilSletting = null"
@@ -498,8 +495,8 @@ const sorterteKamper = computed(() =>
 
     <ConfirmDialog
       :show="!!cupTilSletting"
-      title="Slette turneringen?"
-      message="Kampene og lagfordelingen i turneringen slettes også. Dette kan ikke angres."
+      title="Slette cupen?"
+      message="Kampene og lagfordelingen i cupen slettes også. Dette kan ikke angres."
       confirm-label="Slett"
       @confirm="bekreftSlettCup"
       @cancel="cupTilSletting = null"
@@ -524,11 +521,6 @@ const sorterteKamper = computed(() =>
 }
 
 .turn-slipp__tittel { margin: 0; font-weight: 600; }
-.turn-slipp__hint {
-  margin: 6px 0 0;
-  color: var(--ds-color-text-secondary);
-  font-size: var(--ds-text-sm);
-}
 
 .turn-import {
   list-style: none;
@@ -620,10 +612,10 @@ const sorterteKamper = computed(() =>
 
 .turn-ny--bunn { margin: var(--ds-space-xl) 0 0; }
 
-.turn-slett--bunn {
+.turn-slett.turn-slett--bunn {
   display: block;
   margin: var(--ds-space-lg) auto 0;
-  padding: var(--ds-space-sm) var(--ds-space-md);
+  padding: 0 var(--ds-space-md);
   color: var(--ds-color-text-tertiary);
 }
 
@@ -653,19 +645,24 @@ const sorterteKamper = computed(() =>
 }
 
 .turn-velger__knapp {
-  border: 1px solid var(--ds-color-border);
-  background: var(--ds-color-bg);
+  min-height: 44px;
+  border: 0;
+  background: var(--ds-color-bg-subtle);
   color: var(--ds-color-text-secondary);
   border-radius: var(--ds-radius-full);
-  padding: 6px 14px;
+  padding: 0 16px;
+  font-family: var(--ds-font-body);
   font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
   cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
 }
 
+/* Valgt = fylt aksent, som de andre valgene i appen. */
 .turn-velger__knapp--valgt {
-  border-color: var(--ds-color-text-primary);
-  color: var(--ds-color-text-primary);
-  font-weight: 600;
+  background: var(--ds-color-accent);
+  color: var(--ds-color-accent-text);
+  font-weight: var(--ds-weight-semibold);
 }
 
 .turn-kort {
@@ -807,9 +804,10 @@ const sorterteKamper = computed(() =>
 
 .turn-slett {
   flex: none;
+  min-height: 44px;
   background: none;
   border: none;
-  padding: 4px;
+  padding: 0 var(--ds-space-sm);
   color: var(--ds-color-error);
   font-size: var(--ds-text-sm);
   cursor: pointer;

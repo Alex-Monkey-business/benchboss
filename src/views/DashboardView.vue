@@ -25,11 +25,11 @@ const { coach, isCoach, isPlatformAdmin } = useAuth()
 // trenerne ser kampene sine.
 const kanLeggeTil = computed(() => isCoach.value || isPlatformAdmin.value)
 const visNyKamp = ref(false)
-const { viewingSeason, fetchSeasons } = useSeasons()
-const { matches, fetchMatches, getCoachesForMatch } = useMatches()
-const { expenses, fetchExpenses, getExpenseForMatch } = useExpenses()
+const { viewingSeason, ensureSeasons } = useSeasons()
+const { matches, ensureMatches, getCoachesForMatch } = useMatches()
+const { expenses, getExpenseForMatch } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
-const { fetchSessionStatuses } = useMatchMode()
+const { fetchSessionStatuses, statusByMatch } = useMatchMode()
 
 const teamFilter = ref('alle')
 const venueFilter = ref('alle')
@@ -46,22 +46,20 @@ onMounted(async () => {
   // Parallelt og uten å vente: lista trenger den ikke, men kampsida tegner
   // riktig fase i første bilde når statusen ligger klar.
   fetchSessionStatuses()
-  await Promise.all([fetchSeasons(), fetchCoaches()])
-  if (viewingSeason.value) {
-    await fetchMatches(viewingSeason.value.id)
-    await fetchExpenses(matches.value.map(m => m.id))
-  }
+  // Sesongen fra sist går i samme bølge som sesonglista: kampene (med
+  // trenere, tropp og utlegg) kommer i én rundtur, og bare hvis sesongen
+  // viser seg å være en annen, hentes de på nytt. Ferskt i 30 s.
+  const kjent = viewingSeason.value?.id || null
+  await Promise.all([ensureSeasons(), fetchCoaches(), kjent ? ensureMatches(kjent) : null])
+  if (viewingSeason.value && viewingSeason.value.id !== kjent) await ensureMatches(viewingSeason.value.id)
   loading.value = false
   if (!fanenValgt && upcomingMatches.value.length === 0 && pastMatches.value.length > 0) {
     timeFilter.value = 'past'
   }
 })
 
-watch(viewingSeason, async (s) => {
-  if (s) {
-    await fetchMatches(s.id)
-    await fetchExpenses(matches.value.map(m => m.id))
-  }
+watch(viewingSeason, (s) => {
+  if (s) ensureMatches(s.id)
 })
 
 // Get all team colors for a match (can be 2 for internal matches)
@@ -103,9 +101,16 @@ const filteredMatches = computed(() => {
 
 const today = computed(() => localISODate())
 
+// Spilt er spilt: en kamp med resultat, eller som er avsluttet i kampmodus,
+// står under «Tidligere» med en gang — ikke først i morgen.
+function erTidligere(match) {
+  if (match.match_date < today.value) return true
+  if (match.match_date > today.value) return false
+  return (match.home_score != null && match.away_score != null) || statusByMatch.value[match.id] === 'finished'
+}
+
 function isInCurrentTimeFilter(match) {
-  if (timeFilter.value === 'past') return match.match_date < today.value
-  return match.match_date >= today.value
+  return timeFilter.value === 'past' ? erTidligere(match) : !erTidligere(match)
 }
 
 const timeScopedHalsenMatches = computed(() =>
@@ -153,9 +158,9 @@ watch(showFilters, (v) => {
   if (!v) { teamFilter.value = 'alle'; venueFilter.value = 'alle' }
 })
 
-const upcomingMatches = computed(() => filteredMatches.value.filter(m => m.match_date >= today.value))
+const upcomingMatches = computed(() => filteredMatches.value.filter(m => !erTidligere(m)))
 const pastMatches = computed(() =>
-  [...filteredMatches.value.filter(m => m.match_date < today.value)].reverse()
+  [...filteredMatches.value.filter(erTidligere)].reverse()
 )
 
 // Group matches by date
@@ -203,10 +208,11 @@ function getCoachesForMatchList(matchId) {
         v-if="kanLeggeTil && viewingSeason"
         type="button"
         class="ds-btn ds-btn--secondary kamper-header__ny"
+        aria-label="Ny kamp"
         @click="visNyKamp = true"
       >
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-        Kamp
+        <span class="kamper-header__ny-tekst">Kamp</span>
       </button>
     </div>
 
@@ -237,17 +243,26 @@ function getCoachesForMatchList(matchId) {
       <div class="filter-row">
         <div class="ds-pills">
           <button
-            v-for="f in [{ key: 'alle', label: 'Alle' }, { key: 'hjemme', label: 'Hjemme' }, { key: 'borte', label: 'Borte' }]"
+            type="button"
+            :class="['ds-pill', { 'ds-pill--active': venueFilter === 'alle' && teamFilter === 'alle' }]"
+            @click="venueFilter = 'alle'; teamFilter = 'alle'"
+          >
+            Alle
+            <span class="ds-pill__count">{{ venueCounts.alle }}</span>
+          </button>
+          <button
+            v-for="f in [{ key: 'hjemme', label: 'Hjemme' }, { key: 'borte', label: 'Borte' }]"
             :key="f.key"
+            type="button"
             :class="['ds-pill', { 'ds-pill--active': venueFilter === f.key }]"
-            @click="venueFilter = f.key"
+            @click="venueFilter = venueFilter === f.key ? 'alle' : f.key"
           >
             {{ f.label }}
             <span class="ds-pill__count">{{ venueCounts[f.key] }}</span>
           </button>
         </div>
         <span class="filter-row__divider" aria-hidden="true"></span>
-        <TeamFilter v-model="teamFilter" :counts="counts" />
+        <TeamFilter v-model="teamFilter" :counts="counts" uten-alle />
       </div>
     </div>
 
@@ -258,9 +273,8 @@ function getCoachesForMatchList(matchId) {
     <div v-else-if="filteredMatches.length === 0" class="px-lg ds-anim-fade-up ds-anim-delay-3">
       <div class="ds-empty">
         <Spot name="match" class="ds-empty__illo" />
-        <h3 class="ds-empty__title">Ingen kamper enda</h3>
-        <p class="ds-empty__description">Last opp terminlista for å komme i gang.</p>
-        <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="$router.push('/admin/sesong-kamper')">Last opp kampprogram</button>
+        <h3 class="ds-empty__title">Ingen kamper ennå</h3>
+        <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="$router.push('/admin/sesong-kamper')">Last opp terminlista</button>
       </div>
     </div>
 
@@ -299,6 +313,12 @@ function getCoachesForMatchList(matchId) {
   border-radius: var(--ds-radius-full);
 }
 .kamper-header__ny svg { width: 16px; height: 16px; }
+/* Smale skjermer: bare plusset, så «Høst 2026» får stå på én linje. */
+@media (max-width: 359px) {
+  .kamper-header__ny { width: 44px; padding: 0; justify-content: center; }
+  .kamper-header__ny-tekst { display: none; }
+  .kamper-header__ny svg { width: 18px; height: 18px; }
+}
 
 /* Hver kamp lever for seg selv i sin egen myke gruppe. Dagen er en liten
    tittel over, ikke en boks rundt. */
@@ -351,6 +371,7 @@ function getCoachesForMatchList(matchId) {
   display: inline-flex;
   align-items: baseline;
   gap: 6px;
+  min-height: 44px;
   padding: 12px 0;
   border: 0;
   border-bottom: 2px solid transparent;

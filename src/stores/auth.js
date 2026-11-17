@@ -2,6 +2,7 @@ import { reactive, computed } from 'vue'
 import { supabase, isSupabaseConfigured, isGoogleEnabled, erNettfeil } from '../supabase'
 import { resetAllData } from './dataReset'
 import { clearPersisted } from '../lib/persist'
+import { tomKo, settBruker } from '../lib/kampKo'
 import { readLegacyUser, clearLegacyUser, refreshLegacyFlag } from './legacyAuth'
 import { meldPwa } from '../lib/pwa'
 
@@ -68,6 +69,7 @@ if (cached?.profile) {
   state.activeCohortId = localStorage.getItem(ACTIVE_KEY) || null
 }
 if (!state.profile) state.legacy = readLegacyUser()
+settBruker(state.profile?.id)
 
 // ---------------------------------------------------------------------------
 // Avledet identitet
@@ -194,7 +196,8 @@ function applyMemberships(profile, rows) {
 
   // Byttet person bak skjermen? De 18 composablene er singletons som lever så
   // lenge fanen gjør det, og ville ellers vist forrige brukers kamper.
-  if (previousProfile && previousProfile !== profile?.id) { clearPersisted(); resetAllData() }
+  if (previousProfile && previousProfile !== profile?.id) { clearPersisted(); tomKo(); resetAllData() }
+  settBruker(profile?.id)
 
   // Ekte innlogging vinner over PIN-broen.
   if (state.memberships.length) state.legacy = null
@@ -263,7 +266,9 @@ async function bootstrap() {
       // ryddes det under, og appen sender til innlogging.
       state.offline = true
     } else if (state.profile) {
-      // Cachen påsto innlogget, men sesjonen er borte.
+      // Cachen påsto innlogget, men sesjonen er borte. Køen beholdes: den er
+      // merket med brukeren og sendes bare om samme person logger inn igjen.
+      settBruker(null)
       state.profile = null
       state.memberships = []
       state.activeCohortId = null
@@ -304,6 +309,8 @@ bootstrap()
 // ---------------------------------------------------------------------------
 
 function clearAuthState() {
+  tomKo()
+  settBruker(null)
   state.profile = null
   state.memberships = []
   state.activeCohortId = null
@@ -418,6 +425,10 @@ function demoLogin({ name, role: r, coachId = null, cohortId = 'demo-cohort' }) 
 }
 
 async function logout() {
+  // Det som venter i kampkøen, hører til denne brukeren. Neste person som
+  // logger inn på telefonen, skal ikke sende det.
+  tomKo()
+  settBruker(null)
   clearLegacyUser()
   state.legacy = null
   state.profile = null

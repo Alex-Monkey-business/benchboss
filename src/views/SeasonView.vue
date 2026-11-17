@@ -15,6 +15,7 @@ import SeasonPicker from '../components/SeasonPicker.vue'
 import { PLAYERS_ON_PITCH_OPTIONS } from '../lib/formations'
 import { periodsFor } from '../lib/spillform'
 import { useKullFormat } from '../composables/useKullFormat'
+import BackLink from '../components/BackLink.vue'
 
 const { coach: currentCoach, activeCohort, isAdmin, isCoach, isPlatformAdmin, refreshMember } = useAuth()
 const { usesReferees } = useFeatures()
@@ -98,7 +99,6 @@ const formatEndret = computed(() => {
     || format.value.period_minutes !== (c.period_minutes || 30)
 })
 
-const totaltMinutter = computed(() => format.value.period_count * format.value.period_minutes)
 
 // Ny spillform tar med seg NFF-lengden for den. Justeres etterpå om kretsen
 // eller turneringen sier noe annet.
@@ -166,6 +166,9 @@ async function handleExport() {
 
 <template>
   <div class="desktop-container">
+    <div class="px-lg" style="padding-top: var(--ds-space-md);">
+      <BackLink to="/admin" label="Admin" />
+    </div>
     <div class="page-header">
       <h1 class="page-header__title">{{ usesReferees ? 'Sesongoppgjør' : 'Sesong' }}</h1>
       <SeasonPicker />
@@ -213,7 +216,7 @@ async function handleExport() {
           </div>
           <div class="stat-card">
             <div class="stat-card__value">{{ totalAmount }}</div>
-            <div class="stat-card__label">Totalt kr</div>
+            <div class="stat-card__label">kr totalt</div>
           </div>
         </div>
       </div>
@@ -263,13 +266,6 @@ async function handleExport() {
         </button>
       </div>
 
-      <!-- Avslutt sesong er det mest irreversible på sida, og gjøres én gang i
-           halvåret. Da skal den ikke være det mest synlige. -->
-      <div v-if="!isSettled" class="px-lg mb-lg">
-        <button class="ds-btn ds-btn--ghost" style="width: 100%;" @click="showSettleDialog = true">
-          Avslutt sesong
-        </button>
-      </div>
 
       <!-- Previous settled seasons -->
       <div v-if="seasons.filter(s => s.status === 'settled' && s.id !== viewingSeason?.id).length > 0" class="px-lg mb-lg">
@@ -297,33 +293,40 @@ async function handleExport() {
           >{{ n }}er</button>
         </div>
 
+        <!-- Kamplengden leses som én linje («2 × 30 min»). Stepperne står
+             hver på sin rad med navn, så det ikke henger løse × og = mellom dem. -->
+        <p class="format__oppsum">{{ format.period_count }} × {{ format.period_minutes }} min</p>
         <div class="format__lengde">
-          <div class="format__steg" role="group" aria-label="Omganger">
-            <button type="button" class="format__knapp" aria-label="Færre omganger" :disabled="format.period_count <= 1 || lagrerFormat" @click="endreOmganger(-1)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12" /></svg>
-            </button>
-            <span class="format__tall"><b>{{ format.period_count }}</b> omg.</span>
-            <button type="button" class="format__knapp" aria-label="Flere omganger" :disabled="format.period_count >= 4 || lagrerFormat" @click="endreOmganger(1)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-            </button>
+          <div class="format__rad">
+            <span class="format__navn">Omganger</span>
+            <div class="format__steg" role="group" aria-label="Omganger">
+              <button type="button" class="format__knapp" aria-label="Færre omganger" :disabled="format.period_count <= 1 || lagrerFormat" @click="endreOmganger(-1)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+              </button>
+              <span class="format__tall"><b>{{ format.period_count }}</b></span>
+              <button type="button" class="format__knapp" aria-label="Flere omganger" :disabled="format.period_count >= 4 || lagrerFormat" @click="endreOmganger(1)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+              </button>
+            </div>
           </div>
-          <span class="format__ganger" aria-hidden="true">×</span>
-          <div class="format__steg" role="group" aria-label="Minutter per omgang">
-            <button type="button" class="format__knapp" aria-label="Fem minutter mindre" :disabled="format.period_minutes <= 5 || lagrerFormat" @click="endreMinutter(-5)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12" /></svg>
-            </button>
-            <span class="format__tall"><b>{{ format.period_minutes }}</b> min</span>
-            <button type="button" class="format__knapp" aria-label="Fem minutter mer" :disabled="format.period_minutes >= 45 || lagrerFormat" @click="endreMinutter(5)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-            </button>
+          <div class="format__rad">
+            <span class="format__navn">Minutter</span>
+            <div class="format__steg" role="group" aria-label="Minutter per omgang">
+              <button type="button" class="format__knapp" aria-label="Fem minutter mindre" :disabled="format.period_minutes <= 5 || lagrerFormat" @click="endreMinutter(-5)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+              </button>
+              <span class="format__tall"><b>{{ format.period_minutes }}</b></span>
+              <button type="button" class="format__knapp" aria-label="Fem minutter mer" :disabled="format.period_minutes >= 45 || lagrerFormat" @click="endreMinutter(5)">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+              </button>
+            </div>
           </div>
-          <span class="format__sum">= {{ totaltMinutter }} min</span>
         </div>
 
         <div v-if="formatEndret" class="format__handling">
           <button type="button" class="ds-btn ds-btn--secondary" :disabled="lagrerFormat" @click="formatFraKullet">Angre</button>
           <button type="button" class="ds-btn ds-btn--primary" :disabled="lagrerFormat" @click="lagreSpillform">
-            {{ lagrerFormat ? 'Lagrer…' : 'Lagre' }}
+            {{ lagrerFormat ? 'Lagrer …' : 'Lagre' }}
           </button>
         </div>
       </div>
@@ -348,6 +351,14 @@ async function handleExport() {
           >Trenger ikke</button>
         </div>
       </div>
+
+      <!-- Avslutt sesong er det mest irreversible på sida, og gjøres én gang i
+           halvåret. Den står nederst, under alt annet. -->
+      <div v-if="!isSettled" class="px-lg mb-lg season-avslutt">
+        <button class="ds-btn ds-btn--ghost" style="width: 100%;" @click="showSettleDialog = true">
+          Avslutt sesong
+        </button>
+      </div>
     </template>
 
     <ConfirmDialog
@@ -370,19 +381,40 @@ async function handleExport() {
 .format { margin-top: var(--ds-space-xl); }
 .format + .dommere { margin-top: var(--ds-space-lg); }
 
+.season-avslutt { margin-top: var(--ds-space-2xl, 48px); }
 .format__pills .ds-pill {
   min-width: 52px;
-  min-height: 38px;
+  min-height: 44px;
   justify-content: center;
+  font-variant-numeric: tabular-nums;
+}
+
+.format__oppsum {
+  margin: var(--ds-space-md) 0 0;
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-primary);
   font-variant-numeric: tabular-nums;
 }
 
 .format__lengde {
   display: flex;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-sm);
+}
+
+.format__rad {
+  display: flex;
   align-items: center;
-  gap: var(--ds-space-sm) 6px;
-  margin-top: var(--ds-space-md);
+  justify-content: space-between;
+  gap: var(--ds-space-md);
+}
+
+.format__navn {
+  min-width: 0;
+  font-size: var(--ds-text-sm);
+  color: var(--ds-color-text-secondary);
 }
 
 .format__steg {
@@ -411,7 +443,7 @@ async function handleExport() {
 .format__knapp:disabled { color: var(--ds-color-text-tertiary); box-shadow: none; opacity: .5; cursor: default; }
 
 .format__tall {
-  min-width: 52px;
+  min-width: 36px;
   white-space: nowrap;
   text-align: center;
   font-size: var(--ds-text-sm);
@@ -422,19 +454,6 @@ async function handleExport() {
   font-size: var(--ds-text-md);
   font-weight: var(--ds-weight-bold);
   color: var(--ds-color-text-primary);
-}
-
-.format__sum {
-  margin-left: 4px;
-  white-space: nowrap;
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-secondary);
-  font-variant-numeric: tabular-nums;
-}
-
-.format__ganger {
-  color: var(--ds-color-text-tertiary);
-  font-size: var(--ds-text-md);
 }
 
 .format__handling {
@@ -466,7 +485,8 @@ async function handleExport() {
   appearance: none;
   border: 0;
   background: transparent;
-  padding: 8px 16px;
+  min-height: 44px;
+  padding: 0 18px;
   border-radius: var(--ds-radius-full);
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-sm);
@@ -499,7 +519,7 @@ async function handleExport() {
 }
 
 .my-balance__amount {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: var(--ds-text-3xl);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-tighter);

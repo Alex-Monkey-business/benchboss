@@ -1,7 +1,7 @@
 /* ============================================
    RESET & BASE STYLES
-   Notion-monokrom: Fraunces display for h1/h2,
-   Inter for h3+ and body, crisp focus rings.
+   Notion-monokrom: sans-overskrifter overalt (h1–h6),
+   Inter for body, crisp focus rings.
    ============================================ */
 
 *,
@@ -39,13 +39,11 @@ h1, h2, h3, h4, h5, h6 {
   line-height: var(--ds-leading-tight);
 }
 
-/* h1, h2 — editorial Fraunces moment */
+/* h1, h2 — samme sans som resten av appen; ingen serif-øyeblikk */
 h1, h2 {
-  font-family: var(--ds-font-display);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-tighter);
-  font-variation-settings: var(--ds-font-display-settings);
-  font-feature-settings: 'ss01', 'ss02';
+  font-family: var(--ds-font-heading);
+  font-weight: var(--ds-weight-bold);
+  letter-spacing: var(--ds-tracking-tight);
 }
 
 /* h3+ — Inter, tight tracking */

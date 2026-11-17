@@ -20,7 +20,7 @@ function shortDay(iso) {
 }
 
 function dayColumn(item) {
-  return item.kind === 'training-week' ? 'Uka' : weekDayLabel(item.date)
+  return weekDayLabel(item.date)
 }
 
 function title(item) {
@@ -53,7 +53,8 @@ function sub(item) {
       :to="interactive ? item.to : undefined"
       class="ds-row"
     >
-      <span class="ds-row__lead">{{ dayColumn(item) }}</span>
+      <!-- Uke-raden har ingen dag: datoene står i undertittelen. -->
+      <span v-if="item.kind !== 'training-week'" class="ds-row__lead">{{ dayColumn(item) }}</span>
       <div class="ds-row__body">
         <span class="ds-row__title">{{ title(item) }}</span>
         <span v-if="sub(item)" class="ds-row__sub">{{ sub(item) }}</span>

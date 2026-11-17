@@ -267,7 +267,10 @@ const routes = [
   { path: '/admin/handbok/:slug', redirect: to => `/trening/handbok/${to.params.slug}` },
   // Backwards-compat redirects for old paths
   { path: '/sesong', redirect: '/admin/dommerutlegg' },
-  { path: '/mer', redirect: '/admin' }
+  { path: '/mer', redirect: '/admin' },
+  // En adresse som ikke finnes (gammel lenke, skrivefeil): til Hjem, ikke en
+  // blank side. Står sist, så alt over vinner.
+  { path: '/:pathMatch(.*)*', redirect: '/' }
 ]
 
 export const router = createRouter({
@@ -325,6 +328,7 @@ router.beforeResolve((to) => {
   sett.add(noekkel)
 })
 
+let forhentetHjem = false
 router.beforeEach(async (to) => {
   // Uten denne rekker guarden å kjøre før sesjonen er lest, og sender en
   // innlogget bruker til /login på hver kalde start.
@@ -355,5 +359,12 @@ router.beforeEach(async (to) => {
     needsSetup(activeCohort.value)
   ) {
     return { name: 'kom-i-gang' }
+  }
+
+  // Hjem ved kald start: dataene hentes nå, mens Hjem-skjermen lastes ned —
+  // ikke etter. Før gikk det ~1 s fra skjermen var klar til første spørring.
+  if (to.name === 'hjem' && !forhentetHjem) {
+    forhentetHjem = true
+    import('./composables/useToday').then(m => m.forhentHjem()).catch(() => {})
   }
 })

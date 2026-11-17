@@ -99,7 +99,6 @@ function pickCategory(value) {
     <div v-if="showPerGruppe && (form.type === 'diff' || form.type === 'mix')" class="ds-form-group">
       <label class="ds-label" for="ex-per-gruppe">{{ form.type === 'mix' ? 'Spillere per lag' : 'Spillere per gruppe' }}</label>
       <input id="ex-per-gruppe" v-model.number="form.per_gruppe" class="ds-input ex-per-gruppe" type="number" inputmode="numeric" min="1" max="30" placeholder="F.eks. 5" />
-      <p class="ex-hint">{{ form.type === 'mix' ? 'Appen trekker lag med nivåene spredt, ut fra hvor mange som er på trening. Uten tall: fra navnet («4v4»), ellers fem per lag.' : 'Nivågruppene deles opp når øvelsen trenger mindre grupper, som en Y med fem i hver.' }} Kan endres i kjøreplanen.</p>
     </div>
 
     <div class="ds-form-group">
@@ -134,7 +133,7 @@ function pickCategory(value) {
   </template>
 
   <div class="ds-form-group">
-    <label class="ds-label" for="ex-moments">Momenter — ett per linje</label>
+    <label class="ds-label" for="ex-moments">Læringsmål</label>
     <textarea id="ex-moments" v-model="form.laeringsmomenter" class="ds-input" rows="3" placeholder="Mykt medtak ut til siden&#10;Løft blikket (valgfri)"></textarea>
   </div>
 
@@ -145,21 +144,21 @@ function pickCategory(value) {
 
   <div class="ds-form-group">
     <label class="ds-label" for="ex-org">Gjennomføring</label>
-    <textarea id="ex-org" v-model="form.organisering" class="ds-input" rows="4" placeholder="Ett steg per linje — de nummereres for deg. Én linje blir stående som avsnitt (valgfri)."></textarea>
+    <textarea id="ex-org" v-model="form.organisering" class="ds-input" rows="4" placeholder="Ett steg per linje"></textarea>
   </div>
 
   <div v-if="showSeEtter" class="ds-form-group">
-    <label class="ds-label" for="ex-se-etter">Se etter dette — ett per linje</label>
+    <label class="ds-label" for="ex-se-etter">Se etter dette</label>
     <textarea id="ex-se-etter" v-model="form.se_etter" class="ds-input" rows="3" placeholder="Ballen trekkes tett bak støttefoten&#10;Lavt tyngdepunkt i vendingen (valgfri)"></textarea>
   </div>
 
   <div v-if="showSiTilBarna" class="ds-form-group">
-    <label class="ds-label" for="ex-si-til-barna">Si dette til barna — én frase per linje</label>
+    <label class="ds-label" for="ex-si-til-barna">Si dette til barna</label>
     <textarea id="ex-si-til-barna" v-model="form.si_til_barna" class="ds-input" rows="3" placeholder="Selg skuddet&#10;Vend raskt (valgfri)"></textarea>
   </div>
 
   <div v-if="showVanligeFeil" class="ds-form-group">
-    <label class="ds-label" for="ex-vanlige-feil">Vanlige feil — én per linje</label>
+    <label class="ds-label" for="ex-vanlige-feil">Vanlige feil</label>
     <textarea id="ex-vanlige-feil" v-model="form.vanlige_feil" class="ds-input" rows="3" placeholder="Holder ballen for lenge&#10;Går for tidlig i press (valgfri)"></textarea>
   </div>
 
@@ -176,11 +175,6 @@ function pickCategory(value) {
 /* Fra-til på én linje: to felt og en strek leses som ett spenn, mens to
    merkede felt under hverandre leses som to uavhengige tall. */
 .ex-per-gruppe { max-width: 8rem; }
-.ex-hint {
-  margin: 6px 0 0;
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-tertiary);
-}
 
 .antall-row {
   display: grid;

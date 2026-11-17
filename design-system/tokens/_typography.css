@@ -85,7 +85,7 @@
 
 /* ---- Type helpers ---- */
 .ds-display {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-tighter);
   line-height: var(--ds-leading-tight);

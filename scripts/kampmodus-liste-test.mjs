@@ -86,7 +86,7 @@ ok('Totalt huskes', await p.getByRole('button',{name:'Totalt',exact:true}).getAt
 
 // Benken først virker også.
 await p.locator('.mm__lkol').nth(1).locator('.mm__lrad').first().click(); await vent(200)
-ok('benken først: valgt', await p.locator('.mm__lkol').nth(1).locator('.mm__lrad--valgt').count()===1 && /Tapp spilleren som skal ut/.test(await p.locator('.mm__topslot').innerText()))
+ok('benken først: valgt', await p.locator('.mm__lkol').nth(1).locator('.mm__lrad--valgt').count()===1 && /inn for/.test(await p.locator('.mm__topslot').innerText()))
 await p.locator('.mm__lkol').nth(0).locator('.mm__lrad').first().click(); await vent(1500)
 ok('benken + banen er et bytte', apne()===plasser)
 

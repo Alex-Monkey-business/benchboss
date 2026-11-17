@@ -112,6 +112,11 @@
   overflow: hidden;
 }
 
+/* Mørk modus: arket må skille seg fra siden bak — tydeligere kant og lys. */
+[data-theme="dark"] .ds-sheet {
+  border-color: var(--ds-color-border-strong);
+}
+
 .ds-sheet__header {
   display: flex;
   align-items: center;

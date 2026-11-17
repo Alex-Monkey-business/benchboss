@@ -173,9 +173,6 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
         <h3 class="ds-empty__title">
           {{ timeFilter === 'past' ? 'Ingen tidligere kamper' : 'Ingen kommende kamper' }}
         </h3>
-        <p class="ds-empty__description">
-          {{ timeFilter === 'past' ? 'Spilte kamper dukker opp her etter hvert.' : 'Ingen kommende kamper i denne sesongen.' }}
-        </p>
       </div>
 
       <template v-else>
@@ -234,7 +231,6 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
 .day-label {
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);
-  text-transform: capitalize;
   color: var(--ds-color-text-secondary);
   margin: var(--ds-space-lg) 2px var(--ds-space-sm);
 }
@@ -295,8 +291,9 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
 }
 .time-tabs__option {
   display: inline-flex;
-  align-items: center;
-  gap: 8px;
+  align-items: baseline;
+  gap: 6px;
+  min-height: 44px;
   padding: 12px 0;
   border: 0;
   border-bottom: 2px solid transparent;
@@ -315,19 +312,11 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
   color: var(--ds-color-text-primary);
   border-bottom-color: var(--ds-color-accent);
 }
+/* Tallet er tall, ikke en brikke — samme som i Kamper. */
 .time-tabs__count {
-  font-size: 0.75rem;
-  font-weight: 600;
+  font-size: 0.8125rem;
+  font-weight: 500;
   color: var(--ds-color-text-tertiary);
-  background: var(--ds-color-bg-subtle);
-  padding: 1px 7px;
-  border-radius: var(--ds-radius-full);
   font-variant-numeric: tabular-nums;
-  min-width: 20px;
-  text-align: center;
-}
-.time-tabs__option--active .time-tabs__count {
-  background: var(--ds-color-accent-light);
-  color: var(--ds-color-accent);
 }
 </style>

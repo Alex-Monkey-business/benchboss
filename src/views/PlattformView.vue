@@ -8,6 +8,7 @@ import { useFiks } from '../composables/useFiks'
 import { useClientErrors } from '../composables/useClientErrors'
 import { clubLogo } from '../lib/klubblogo'
 import Sheet from '../components/Sheet.vue'
+import BackLink from '../components/BackLink.vue'
 
 // Plattform-nivå: klubber og kull.
 //
@@ -263,12 +264,15 @@ function nårTekst(iso) {
 
 <template>
   <div class="desktop-container">
+    <div class="px-lg" style="padding-top: var(--ds-space-md);">
+      <BackLink to="/admin" label="Admin" />
+    </div>
     <div class="page-header">
       <h1 class="page-header__title">Klubber og kull</h1>
     </div>
 
     <div v-if="loading" class="px-lg">
-      <p class="plattform-empty">Henter…</p>
+      <p class="plattform-empty">Henter …</p>
     </div>
 
     <template v-else>
@@ -323,7 +327,7 @@ function nårTekst(iso) {
         </button>
       </div>
 
-      <p v-if="lasterFeil" class="plattform-empty">Henter…</p>
+      <p v-if="lasterFeil" class="plattform-empty">Henter …</p>
       <p v-else-if="!feil.length" class="plattform-empty">
         Ingen krasj.
       </p>
@@ -340,7 +344,7 @@ function nårTekst(iso) {
           <pre>{{ s.stack }}</pre>
         </details>
         <button type="button" class="feil-sak__kvitter" :disabled="kvitterer === s.fingerprint" @click="kvitter(s)">
-          {{ kvitterer === s.fingerprint ? 'Kvitterer…' : 'Kvitter ut' }}
+          {{ kvitterer === s.fingerprint ? 'Kvitterer …' : 'Kvitter ut' }}
         </button>
       </div>
     </div>
@@ -361,7 +365,7 @@ function nårTekst(iso) {
               <button type="button" class="plattform-tekstknapp" @click="nullstillKlubb">Bytt</button>
             </div>
 
-            <label class="plattform-label" for="nk-club-short">Kortnavn <span class="plattform-muted">slik det står i kampoppsettet</span></label>
+            <label class="plattform-label" for="nk-club-short">Kortnavn <span class="plattform-muted">slik det står i terminlista</span></label>
             <input id="nk-club-short" v-model="form.club_short_name" type="text" class="plattform-input" autocapitalize="words" />
           </template>
 
@@ -393,7 +397,7 @@ function nårTekst(iso) {
             <label class="plattform-label" for="nk-club-name">Klubbnavn</label>
             <input id="nk-club-name" v-model="form.club_name" type="text" class="plattform-input" placeholder="Stag IF" autocapitalize="words" />
 
-            <label class="plattform-label" for="nk-club-short">Kortnavn <span class="plattform-muted">slik det står i kampoppsettet</span></label>
+            <label class="plattform-label" for="nk-club-short">Kortnavn <span class="plattform-muted">slik det står i terminlista</span></label>
             <input id="nk-club-short" v-model="form.club_short_name" type="text" class="plattform-input" :placeholder="form.club_name.split(' ')[0] || 'Stag'" autocapitalize="words" />
 
             <button type="button" class="plattform-tekstknapp" @click="friTekst = false">Søk på fotball.no likevel</button>
@@ -403,21 +407,10 @@ function nårTekst(iso) {
         <label class="plattform-label" for="nk-season">Første sesong</label>
         <input id="nk-season" v-model="form.season_name" type="text" class="plattform-input" autocapitalize="words" />
 
-        <p class="plattform-hint plattform-note">
-          <template v-if="form.fiks_id">
-            Klubben er koblet til fotball.no. Treneren velger årskull ved første innlogging, og
-            får lagene og terminlista derfra.
-          </template>
-          <template v-else>
-            Årskull, lag, spillform og terminliste settes av treneren ved første innlogging.
-            Uten kobling til fotball.no må treneren finne klubben selv.
-          </template>
-        </p>
 
         <button type="button" class="plattform-primary plattform-submit" :disabled="pending || !canSubmit" @click="submit">
-          {{ pending ? 'Oppretter…' : 'Opprett kull' }}
+          {{ pending ? 'Oppretter …' : 'Opprett kull' }}
         </button>
-        <p class="plattform-hint">Du blir administrator i kullet. Treneren inviterer du fra Tilgang etterpå.</p>
       </div>
     </Sheet>
   </div>

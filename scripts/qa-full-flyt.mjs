@@ -170,7 +170,7 @@ ok('tom årgang sier det rett ut', /· 0 lag/.test(tomStatus), tomStatus)
 await p.getByRole('button',{name:'Videre'}).click()
 await p.waitForTimeout(500)
 const tomLead=await p.locator('.kig__lead').innerText()
-ok('tomt lag-steg forklarer hvorfor', /Ingen G\d+-lag i FIKS/.test(tomLead), tomLead.replace(/\s+/g,' '))
+ok('tomt lag-steg forklarer hvorfor', /Ingen G\d+-lag på fotball\.no/.test(tomLead), tomLead.replace(/\s+/g,' '))
 ok('hele klubbens lagliste er tilgjengelig som utvei', await p.getByRole('button',{name:/Vis alle \d+/}).count()===1)
 await p.goBack().catch(()=>{})
 await p.goto(APP+'/kom-i-gang',{waitUntil:'networkidle'}); await p.waitForTimeout(1200)
@@ -204,10 +204,10 @@ const ferdigTekst=await p.locator('.kig__lead').innerText()
 // Mellom sesongene har FIKS ingen serie for kullet (nov 2026: høsten ferdig,
 // vinterserien ikke lagt inn). Da kan ingen kamper hentes, og det er FIKS,
 // ikke appen. Appen skal si det rett ut — det sjekker vi i stedet.
-const fiksTom = /Ingen serie i FIKS/.test(ferdigTekst)
+const fiksTom = /Ingen serie på fotball\.no/.test(ferdigTekst)
 if (fiksTom) {
   console.log('  FIKS har ingen serie for kullet nå — hopper over kamp-sjekkene')
-  ok('appen sier at FIKS ikke har serie', /lag\. Ingen serie i FIKS/.test(ferdigTekst.replace(/\s+/g,' ')), ferdigTekst.replace(/\s+/g,' ').slice(0,80))
+  ok('appen sier at FIKS ikke har serie', /lag\. Ingen serie på fotball\.no/.test(ferdigTekst.replace(/\s+/g,' ')), ferdigTekst.replace(/\s+/g,' ').slice(0,80))
 } else {
   ok('lag og kamper er hentet', /\d+ lag og \d+ kamper/.test(ferdigTekst), ferdigTekst.replace(/\s+/g,' ').slice(0,80))
 }
@@ -220,7 +220,7 @@ await p.waitForTimeout(1800)
 const hjem=(await p.locator('body').innerText()).replace(/\s+/g,' ')
 ok('lander på Hjem', p.url().replace(/\/$/,'')===APP, p.url())
 ok('Hjem ber om spillere', /Legg inn spillerne/.test(hjem))
-ok('Hjem maser IKKE om kampprogram', !/Last opp kampprogrammet/.test(hjem))
+ok('Hjem maser IKKE om kampprogram', !/Last opp terminlista/.test(hjem))
 ok('Hjem maser IKKE om å invitere trenere', !/Inviter trenerne/.test(hjem))
 
 // ---------- 5b. Veiviseren én gang til ----------
@@ -399,14 +399,14 @@ const nav = (await p.locator('.bottom-nav').innerText().catch(() => '')).replace
 ok('cup erstatter Kamper i menyen uten serie', /Cup/.test(nav) && !/Kamper/.test(nav), nav)
 
 const tom = (await p.locator('body').innerText()).replace(/\s+/g, ' ')
-ok('Hjem peker på turneringen', /Legg inn turneringen/.test(tom), tom.slice(0, 90))
+ok('Hjem peker på turneringen', /Legg inn cupen/.test(tom), tom.slice(0, 90))
 
 // «Hent kampene» er et steg som aldri kan bli ferdig for de yngste, og
 // onboardingen sto derfor evig åpen: kortet «Last opp kampprogrammet» ble
 // stående for godt, og «Å ordne» var skjult resten av sesongen fordi den
 // viker for onboardingen. Nå teller et synket FIKS-lag uten kamper som svar.
 ok('onboardingen maser ikke om et kampprogram som ikke finnes',
-  !/Last opp kampprogrammet/.test(tom) && !/Prøv å hente kampene igjen/.test(tom))
+  !/Last opp terminlista/.test(tom) && !/Prøv å hente kampene igjen/.test(tom))
 
 // Og kampene skal BLI borte. Den stille auto-hentingen på Hjem leste det
 // tomme kullet som «ikke ferdig» og hentet hele terminlista inn igjen i
@@ -423,7 +423,7 @@ ok('lander på turneringsflaten', p.url().includes('/admin/turneringer'), p.url(
 const iDag = new Date()
 const dato = n => new Date(iDag.getTime() + n * 86400000).toISOString().slice(0, 10)
 
-await p.getByRole('button', { name: 'Ny turnering' }).click()
+await p.getByRole('button', { name: 'Ny cup' }).click()
 await p.waitForTimeout(400)
 await p.locator('#cup-navn').fill('Ørncupen')
 await p.locator('#cup-fra').fill(dato(7))

@@ -30,12 +30,15 @@ export function useCupFirst() {
     if (maaltKull.value === id) return
     if (!isSupabaseConfigured) { serieKamper.value = 1; maaltKull.value = id; return }
 
-    const { count, error } = await supabase
+    // Spørsmålet er «finnes det én?», ikke «hvor mange?». count=exact teller
+    // hele kullets kamper i basen; limit(1) stopper på den første.
+    const { data, error } = await supabase
       .from('matches')
-      .select('id', { count: 'exact', head: true })
+      .select('id')
       .eq('cohort_id', id)
+      .limit(1)
     if (error) return
-    serieKamper.value = count ?? 0
+    serieKamper.value = data?.length ?? 0
     maaltKull.value = id
   }
 

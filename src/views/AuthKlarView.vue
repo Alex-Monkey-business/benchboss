@@ -35,7 +35,7 @@ const feil = ref('')
 const utlopt = ref(false)
 
 onMounted(() => {
-  if (!token) feil.value = 'Lenken mangler innloggingskoden. Be om en ny fra innloggingssiden.'
+  if (!token) feil.value = 'Lenka mangler innloggingskoden. Be om en ny fra innloggingssiden.'
 })
 
 async function loggInn() {
@@ -96,8 +96,7 @@ async function loggInn() {
       <BenchBossBrand />
       <!-- Merket sier alt en overskrift ville sagt. Teksten sier hvor du kom
            fra, så trykket ikke føles som et steg for mye. -->
-      <h1 class="klar__skjult">Logg inn i BenchBoss</h1>
-      <p class="klar__lead">Lenka fra e-posten er klar.</p>
+      <h1 class="klar__skjult">Logg inn på BenchBoss</h1>
       <button type="button" class="ds-btn ds-btn--primary klar__knapp" :disabled="jobber || !token" @click="loggInn">
         {{ jobber ? 'Logger inn …' : 'Logg inn' }}
       </button>
@@ -127,11 +126,6 @@ async function loggInn() {
   overflow: hidden;
   clip: rect(0 0 0 0);
   white-space: nowrap;
-}
-
-.klar__lead {
-  margin: 0;
-  color: var(--ds-color-text-secondary);
 }
 
 .klar__knapp {

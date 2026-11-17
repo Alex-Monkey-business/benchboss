@@ -36,14 +36,21 @@ await p.goto(`${APP}/trening`)
 await p.waitForSelector('.dag', { timeout: 15000 })
 await p.waitForTimeout(600)
 
+// Hver dag har sin egen side (/trening/dag/<id>). Står vi på en annen dags
+// side, går vi til uka først og åpner dagen derfra.
 async function apne(navn) {
-  for (const d of await p.$$('.dag')) {
-    const t = await d.$eval('.dag__name', e => e.textContent.trim()).catch(() => '')
-    if (new RegExp(navn, 'i').test(t)) {
-      if (!await d.evaluate(e => e.classList.contains('dag--open'))) await d.$eval('.dag__toggle', e => e.click())
-      await p.waitForTimeout(500)
-      return
+  for (let forsok = 0; forsok < 2; forsok++) {
+    for (const d of await p.$$('.dag')) {
+      const t = await d.$eval('.dag__name', e => e.textContent.trim()).catch(() => '')
+      if (new RegExp(navn, 'i').test(t)) {
+        if (!await d.evaluate(e => e.classList.contains('dag--open'))) await d.$eval('.dag__toggle', e => e.click())
+        await p.waitForTimeout(500)
+        return
+      }
     }
+    await p.goto(`${APP}/trening`)
+    await p.waitForSelector('.dag', { timeout: 15000 })
+    await p.waitForTimeout(500)
   }
   throw new Error(`fant ikke dagen «${navn}»`)
 }
@@ -99,8 +106,9 @@ const sheet = await p.evaluate(() => {
     tittel: t('.ds-sheet__title'),
     hvor: t('.ex-view__hvor'),
     video: !!sh.querySelector('video'),
-    videoForst: rekkefolge[0] === 'ex-video',
-    kilde: t('.ex-video__tekst'),
+    // I arket står filmen over selve øvelsen (videoUte), ikke inne i den.
+    videoForst: rekkefolge[0] === 'ex-video' || !!(sh.querySelector('video') && sh.querySelector('.ex-view') && (sh.querySelector('video').compareDocumentPosition(sh.querySelector('.ex-view')) & Node.DOCUMENT_POSITION_FOLLOWING)),
+    kilde: t('.ex-video__tekst') || t('.ex-view__kilde'),
     kort: [...sh.querySelectorAll('.ex-sek__tittel')].map(e => e.textContent.trim()),
     fakta: [...sh.querySelectorAll('.ex-fakta dt')].map(e => e.textContent.trim()),
     tidIDag: [...sh.querySelectorAll('.ex-fakta dt')].findIndex(e => e.textContent.trim() === 'Tid i dag'),

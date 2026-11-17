@@ -5,6 +5,7 @@ import { useToast } from '../composables/useToast'
 import { formatPhone, parsePhone } from '../lib/phone'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
+import BackLink from '../components/BackLink.vue'
 
 const { referees, fetchReferees, addReferee, updateReferee, deleteReferee } = useReferees()
 const { show: showToast } = useToast()
@@ -78,12 +79,7 @@ async function confirmDeleteReferee() {
 <template>
   <div class="desktop-container">
     <div class="px-lg" style="padding-top: var(--ds-space-md);">
-      <router-link to="/admin" class="back-btn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-        Admin
-      </router-link>
+      <BackLink to="/admin" label="Admin" />
     </div>
 
     <div class="page-header">
@@ -226,8 +222,9 @@ async function confirmDeleteReferee() {
   gap: 6px;
   background: transparent;
   border: 0;
-  padding: 12px 4px 4px;
-  margin-top: 8px;
+  min-height: 44px;
+  padding: 0 4px;
+  margin-top: 4px;
   cursor: pointer;
   color: var(--ds-color-accent);
   font-weight: 600;

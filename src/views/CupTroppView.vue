@@ -6,6 +6,8 @@ import { usePlayers } from '../composables/usePlayers'
 import { useCupSquad } from '../composables/useCupSquad'
 import { useCupTeams } from '../composables/useCupTeams'
 import CupTabs from '../components/CupTabs.vue'
+import BackLink from '../components/BackLink.vue'
+import { useCupFirst } from '../composables/useCupFirst'
 
 const { isParent } = useAuth()
 const { activeCup, fetchCups } = useCups()
@@ -13,8 +15,10 @@ const { players, fetchPlayers, getPlayerById } = usePlayers()
 const { squad, fetchCupSquad, teamForPlayer, playerIdsForTeam, setTeam, removeFromSquad } = useCupSquad()
 const { cupTeams } = useCupTeams()
 
+const { cupFirst } = useCupFirst()
 const canEdit = computed(() => !isParent.value)
-const ready = ref(false)
+// Spillerne vi allerede har, tegnes med en gang; hentingen friskes opp bak.
+const ready = ref(players.value.length > 0)
 const editing = ref(false)
 const cupId = computed(() => activeCup.value?.id)
 
@@ -49,6 +53,9 @@ async function remove(playerId) {
 
 <template>
   <div class="desktop-container">
+    <div v-if="canEdit && !cupFirst" class="px-lg" style="padding-top: var(--ds-space-md);">
+      <BackLink to="/admin" label="Admin" />
+    </div>
     <div class="page-header">
       <h1 class="page-header__title">Tropp</h1>
       <p class="page-header__subtitle">{{ activeCup?.name || 'Cup' }}</p>
@@ -64,7 +71,7 @@ async function remove(playerId) {
         </button>
       </div>
 
-      <div v-if="!ready" class="cmd-muted">Henter tropp …</div>
+      <div v-if="!ready"></div>
 
       <!-- Samme layout i lese- og edit-modus: lag-kort med chips -->
       <template v-else>

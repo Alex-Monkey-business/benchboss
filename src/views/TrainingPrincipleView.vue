@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import Spot from '../components/Spot.vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useContent } from '../composables/useContent'
+import BackLink from '../components/BackLink.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -21,10 +22,7 @@ function goTo(slug) {
 <template>
   <div v-if="principle" class="principle" :data-accent="principle.accent">
     <div class="principle__nav">
-      <router-link to="/trening/handbok" class="principle__back">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Håndboken
-      </router-link>
+      <BackLink to="/trening/handbok" label="Håndboken" />
       <span class="principle__pos">{{ principle.number }} av {{ principles.length }}</span>
     </div>
 
@@ -73,7 +71,7 @@ function goTo(slug) {
 <style scoped>
 
 .principle {
-  max-width: 640px;
+  max-width: var(--ds-content-max);
   margin: 0 auto;
   padding: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-2xl);
 }
@@ -85,20 +83,8 @@ function goTo(slug) {
   margin-bottom: var(--ds-space-2xl);
 }
 
-.principle__back {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  text-decoration: none;
-  letter-spacing: -0.005em;
-}
 
-.principle__back svg { width: 14px; height: 14px; }
 
-.principle__back:hover { color: var(--ds-color-text-primary); }
 
 .principle__pos {
   font-size: var(--ds-text-xs);
@@ -124,28 +110,26 @@ function goTo(slug) {
   background: var(--accent-bg);
   color: var(--accent-text);
   border-radius: var(--ds-radius-lg);
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: var(--ds-text-2xl);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
-  font-variation-settings: var(--ds-font-display-settings);
   margin-bottom: var(--ds-space-sm);
 }
 
 .principle__title {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: clamp(2rem, 6.5vw, 2.8rem);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-tighter);
   line-height: 1.1;
   color: var(--ds-color-text-primary);
-  font-variation-settings: var(--ds-font-display-settings);
   margin: 0;
 }
 
 .principle__lead {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: var(--ds-text-lg);
   font-weight: var(--ds-weight-regular);
   line-height: 1.45;
@@ -210,7 +194,7 @@ function goTo(slug) {
   background: var(--accent-bg);
   color: var(--accent-text);
   border-radius: var(--ds-radius-lg);
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-style: italic;
   font-size: var(--ds-text-lg);
   font-weight: var(--ds-weight-regular);
@@ -277,7 +261,7 @@ function goTo(slug) {
 }
 
 .principle__pager-title {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);
   color: var(--ds-color-text-primary);

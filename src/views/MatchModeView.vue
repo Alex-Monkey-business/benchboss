@@ -15,6 +15,7 @@ import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { meldEvent } from '../lib/sporing'
 import { isSupabaseConfigured } from '../supabase'
+import { poster, paSvar, forkastFor } from '../lib/kampKo'
 
 const route = useRoute()
 const router = useRouter()
@@ -35,7 +36,7 @@ const { setSessionHold, sessionLost, activeCohort } = useAuth()
 // En sesjon som utløper her skal ikke gi en redirect. Storen holder tilbake
 // opprydningen så lenge dette viewet lever; vi sier bare fra.
 watch(sessionLost, lost => {
-  if (lost) showToast('Sesjonen er utløpt. Fullfør kampen — logg inn igjen etterpå.', 'error', 0)
+  if (lost) showToast('Du er logget ut. Fullfør kampen og logg inn igjen etterpå.', 'error', 0)
 })
 
 const matchId = route.params.id
@@ -84,7 +85,7 @@ onMounted(async () => {
     if (!alive) return
     // Ett kall gir sesjon, perioder, scorere, resultat og serverens klokke.
     // Uten Supabase (demo) går det som før.
-    const st = await syncState(matchId).catch(() => null)
+    const st = await syncState(matchId, { tross: true }).catch(() => null)
     if (!alive) return
     if (!st) await Promise.all([fetchSession(matchId), fetchStints(matchId), fetchMatchGoals(matchId)])
     if (!alive) return
@@ -120,7 +121,29 @@ onUnmounted(() => {
   releaseWakeLock()
   document.removeEventListener('visibilitychange', onVisibility)
   window.removeEventListener('touchmove', preventScrollWhileDragging)
+  avSvar()
 })
+
+// ── Uten nett ───────────────────────────────────────────────────────────────
+// Mål, scorere og bytter går gjennom kampkøen og står på skjermen med en gang.
+// Så lenge noe venter, står det én stille linje i toppen — ingen toast per
+// trykk. Når køen er tom, hentes kampen på nytt.
+const ikkeLagret = computed(() => poster(matchId).length > 0)
+watch(ikkeLagret, (na, for_) => { if (for_ && !na) synk() })
+const avSvar = paSvar((post, svar, feil) => {
+  if (post.matchId !== matchId) return
+  // Scorere har sin egen beskjed (useMatchGoals).
+  if (feil) return post.type === 'scorer' || post.type === 'fjernScorer' ? undefined : reportError(feil)
+  if (svar?.ok !== false) return
+  // Et bytte som avvises fordi det allerede er gjort (et tidligere forsøk
+  // nådde fram, eller en annen trener gjorde det samme), er ikke en feil.
+  if (post.type === 'bytte') {
+    const apen = id => (svar.stints || []).some(s => s.player_id === id && s.off_clock == null)
+    if (apen(post.args.p_inn) && !apen(post.args.p_ut)) return
+  }
+  reportError({ konflikt: true })
+})
+
 
 // ── Lagret oppstilling (setup) ───────────────────────────────────────────────
 // Hver endring autolagres (debounced) til sesjonsraden, så oppstillingen kan
@@ -265,7 +288,7 @@ function startSync() {
   syncTimer = setInterval(synk, SYNC_MS)
 }
 async function synk() {
-  if (document.visibilityState !== 'visible' || dragId.value || lineupDirty) return
+  if (document.visibilityState !== 'visible' || dragId.value || lineupDirty || !alive) return
   if (phase.value === 'done') return
   try { await syncState(matchId) } catch { /* neste runde prøver igjen */ }
 }
@@ -300,17 +323,25 @@ watch(() => session.value?.status, (ny, gammel) => {
 
 // Feil mot databasen (typisk: migrasjon ikke kjørt) — én tydelig melding.
 function reportError(e) {
+  if (e?.usikkert) {
+    showToast('Fikk ikke bekreftet målet. Sjekk resultatet.', 'error')
+    return
+  }
+  if (e?.ikkeLagret) {
+    showToast('Kampen er ikke avsluttet. Et bytte eller mål er ikke lagret ennå. Prøv igjen når du har nett.', 'error')
+    return
+  }
   if (e?.konflikt) {
-    showToast('Kampen ble endret på en annen telefon. Du ser den nå.', 'success')
+    showToast('Kampen ble oppdatert fra en annen telefon.', 'success')
     return
   }
   const msg = (e?.message || '').toLowerCase()
   if (msg.includes('match_sessions') || msg.includes('match_stints') || msg.includes('does not exist') || msg.includes('schema cache')) {
-    showToast('Databasen mangler match mode-tabellene — kjør SQL-migrasjonen først', 'error')
+    showToast('Fikk ikke lagret. Prøv igjen.', 'error')
   } else if (!navigator.onLine || /fetch|network/i.test(msg)) {
     showToast('Ingen nett. Endringen ble ikke lagret.', 'error')
   } else {
-    showToast('Noe gikk galt — prøv igjen', 'error')
+    showToast('Fikk ikke lagret. Prøv igjen.', 'error')
   }
 }
 
@@ -413,7 +444,7 @@ function tilBenken() {
 // Det neste trykket gjør, i klartekst — står der overskriften «Benk» ellers står.
 const benkBeskjed = computed(() => {
   if (dragId.value) return 'Slipp på en spiller for å bytte plass'
-  if (plasserArm.value) return `Tapp plassen til ${kort(playerById(plasserArm.value)?.name)}`
+  if (plasserArm.value) return `Trykk på plassen til ${kort(playerById(plasserArm.value)?.name)}`
   if (valgtPlass.value) {
     const her = playerInSlot(valgtPlass.value)
     return her ? `Hvem tar plassen til ${kort(her.name)}?` : `Hvem skal spille ${slotLabel(valgtPlass.value).toLowerCase()}?`
@@ -1010,6 +1041,8 @@ async function handleReset() {
   clearTimeout(lineupTimer)
   lineupDirty = false
   try {
+    // Det som venter i køen for denne kampen, hører til kampen som slettes.
+    forkastFor(matchId)
     await resetMatch(matchId)
     // Blanke ark: fjern også resultat + scorere logget i match mode.
     await updateMatch(matchId, { home_score: null, away_score: null })
@@ -1060,12 +1093,9 @@ async function endreResultat(vaare, deres) {
     return
   }
   // Ellers aldri et absolutt tall som reserve: det ville skrevet over målet
-  // den andre treneren nettopp la inn. Feiler det, er serveren fasit.
-  try { await changeScore(matchId, dHome, dAway) }
-  catch (e) {
-    reportError(e)
-    if (!e?.konflikt) await syncState(matchId).catch(() => {})
-  }
+  // den andre treneren nettopp la inn. Endringen går gjennom kampkøen og
+  // kommer fram når nettet gjør det.
+  changeScore(matchId, dHome, dAway)
 }
 async function halsenGoalPlus() {
   showScorer.value = true
@@ -1084,12 +1114,35 @@ async function halsenGoalMinus() {
 }
 async function oppGoalPlus() { await endreResultat(0, 1) }
 async function oppGoalMinus() { if (oppScore.value > 0) await endreResultat(0, -1) }
+// Hjemmelaget til venstre, som overalt ellers i appen.
+const vare = computed(() => ({ tall: halsenScore.value, pluss: halsenGoalPlus, minus: halsenGoalMinus }))
+const deres = computed(() => ({ tall: oppScore.value, pluss: oppGoalPlus, minus: oppGoalMinus }))
+const hjemme = computed(() => isHome.value ? vare.value : deres.value)
+const borte = computed(() => isHome.value ? deres.value : vare.value)
 
 async function pickScorer(playerId) {
   showScorer.value = false
   try { await addGoal(matchId, { player_id: playerId, clock_seconds: currentClock.value }) }
   catch (e) { reportError(e) }
 }
+
+// Tilbake: dit du kom fra. Åpnet direkte (lenke, ny fane) finnes det ingen
+// historikk å gå tilbake i, og da er kampsida stedet.
+function tilbake() {
+  if (history.state?.back) router.back()
+  else router.push(`/kamp/${matchId}`)
+}
+
+// Sluttresultatet øverst på ferdig-skjermen, med scorerne samlet per spiller.
+const sluttScorere = computed(() => {
+  const m = new Map()
+  for (const g of matchGoals.value) {
+    const e = m.get(g.player_id) || { id: g.player_id, navn: kort(playerById(g.player_id)?.name) || 'Ukjent', min: [] }
+    if (goalMinute(g) != null) e.min.push(`${goalMinute(g)}′`)
+    m.set(g.player_id, e)
+  }
+  return [...m.values()]
+})
 
 // Done — sammendrag
 const summary = computed(() =>
@@ -1110,7 +1163,7 @@ const summary = computed(() =>
 <template>
   <div class="mm">
     <div v-if="phase !== 'live'" class="mm__bar">
-      <button class="mm__back" @click="router.back()" aria-label="Tilbake">
+      <button class="mm__back" @click="tilbake" aria-label="Tilbake">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
       </button>
       <span class="mm__title" v-if="match">{{ match.home_team }} – {{ match.away_team }}</span>
@@ -1119,7 +1172,10 @@ const summary = computed(() =>
 
     <div v-if="loading" class="mm__loading">Laster …</div>
 
-    <div v-else-if="!match" class="mm__empty">Fant ikke kampen.</div>
+    <div v-else-if="!match" class="ds-empty">
+      <div class="ds-empty__title">Fant ikke kampen</div>
+      <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="router.replace('/kamper')">Til kamper</button>
+    </div>
 
     <!-- ── SETUP ────────────────────────────────────────────── -->
     <div v-else-if="phase === 'setup'" class="mm__setup">
@@ -1237,12 +1293,13 @@ const summary = computed(() =>
     <div v-else-if="phase === 'live'" class="mm__live" :class="{ 'mm__live--sporsmal': senStart }">
       <div class="mm__cockpit-top">
       <div class="mm__clockrow">
-        <button class="mm__back" @click="router.back()" aria-label="Tilbake">
+        <button class="mm__back" @click="tilbake" aria-label="Tilbake">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
         </button>
         <div class="mm__clockwrap">
           <div class="mm__clock" :class="{ 'mm__clock--paused': !isRunning }">{{ fmt(currentClock) }}</div>
-          <div v-if="!visPause" class="mm__phase">{{ phaseLabel }}</div>
+          <div v-if="ikkeLagret" class="mm__phase mm__ventende" role="status">Ikke lagret</div>
+          <div v-else-if="!visPause" class="mm__phase">{{ phaseLabel }}</div>
         </div>
         <div class="mm__controls">
           <button v-if="!visPause" type="button" class="mm__ctrl" @click="clockAction">{{ clockBtnLabel }}</button>
@@ -1258,7 +1315,7 @@ const summary = computed(() =>
       <div v-if="visPause" class="mm__pause" :class="{ 'mm__pause--slutt': fullTid }">
         <div class="mm__pause-topp">
           <span class="mm__pause-navn">{{ phaseLabel }}</span>
-          <span v-if="klokkaStar" class="mm__pause-tid">Stått i {{ fmt(pauseSiden) }}</span>
+          <span v-if="klokkaStar" class="mm__pause-tid">Pause i {{ fmt(pauseSiden) }}</span>
         </div>
         <button v-if="fullTid" type="button" class="mm__pause-start" @click="showFinish = true">Avslutt kamp</button>
         <button v-else type="button" class="mm__pause-start" @click="clockAction">{{ clockBtnLabel }}</button>
@@ -1281,18 +1338,18 @@ const summary = computed(() =>
       </div>
 
       <div class="mm__score">
-        <div class="mm__score-caption">{{ halsenName }} – {{ oppName }}</div>
+        <div class="mm__score-caption">{{ match.home_team }} – {{ match.away_team }}</div>
         <div class="mm__score-row">
           <div class="mm__score-ctrl">
-            <button type="button" class="mm__score-btn" :disabled="halsenScore === 0" @click="halsenGoalMinus">−</button>
-            <span class="mm__score-num">{{ halsenScore }}</span>
-            <button type="button" class="mm__score-btn mm__score-btn--plus" @click="halsenGoalPlus">+</button>
+            <button type="button" class="mm__score-btn" :disabled="hjemme.tall === 0" :aria-label="`Ett mål mindre for ${match.home_team}`" @click="hjemme.minus">−</button>
+            <span class="mm__score-num">{{ hjemme.tall }}</span>
+            <button type="button" class="mm__score-btn mm__score-btn--plus" :aria-label="`Mål for ${match.home_team}`" @click="hjemme.pluss">+</button>
           </div>
           <span class="mm__score-dash">–</span>
           <div class="mm__score-ctrl">
-            <button type="button" class="mm__score-btn" :disabled="oppScore === 0" @click="oppGoalMinus">−</button>
-            <span class="mm__score-num">{{ oppScore }}</span>
-            <button type="button" class="mm__score-btn mm__score-btn--plus" @click="oppGoalPlus">+</button>
+            <button type="button" class="mm__score-btn" :disabled="borte.tall === 0" :aria-label="`Ett mål mindre for ${match.away_team}`" @click="borte.minus">−</button>
+            <span class="mm__score-num">{{ borte.tall }}</span>
+            <button type="button" class="mm__score-btn mm__score-btn--plus" :aria-label="`Mål for ${match.away_team}`" @click="borte.pluss">+</button>
           </div>
         </div>
       </div>
@@ -1434,8 +1491,10 @@ const summary = computed(() =>
       <div class="mm__cockpit-bottom">
         <!-- Fast høyde: banen skal ikke flytte seg mellom første og andre trykk. -->
         <div class="mm__topslot">
-        <div v-if="dragId && !dragLearned" class="mm__sub-hint">Slipp på en spiller for å bytte plass</div>
-        <div v-else-if="armedBenchId" class="mm__sub-hint">Tapp spilleren som skal ut</div>
+        <div v-if="armedBenchId" class="mm__sub-rad">
+          <span class="mm__sub-hint">{{ kort(playerById(armedBenchId)?.name) }} inn for …</span>
+          <button type="button" class="ds-btn ds-btn--ghost ds-btn--sm" @click="armedBenchId = null">Avbryt</button>
+        </div>
         <div v-else-if="valgtPaBanen" class="mm__sub-rad">
           <span class="mm__sub-hint">Hvem går inn for {{ kort(playerById(valgtPaBanen)?.name) }}?</span>
           <button type="button" class="ds-btn ds-btn--ghost ds-btn--sm" @click="valgtPaBanen = null">Avbryt</button>
@@ -1477,6 +1536,17 @@ const summary = computed(() =>
 
     <!-- ── DONE ─────────────────────────────────────────────── -->
     <div v-else class="mm__wrap">
+      <div class="mm__slutt">
+        <div class="mm__slutt-lag">
+          <span>{{ match.home_team }}</span>
+          <span>{{ match.away_team }}</span>
+        </div>
+        <div class="mm__slutt-tall">{{ match.home_score ?? 0 }} – {{ match.away_score ?? 0 }}</div>
+        <ul v-if="sluttScorere.length" class="mm__slutt-scorere">
+          <li v-for="sc in sluttScorere" :key="sc.id">{{ sc.navn }}<span v-if="sc.min.length" class="mm__slutt-min"> {{ sc.min.join(', ') }}</span></li>
+        </ul>
+      </div>
+
       <div class="mm__donehead">
         <h1 class="mm__h1">Spilletid</h1>
         <div class="mm__totalpill">{{ fmt(currentClock) }} totalt</div>
@@ -1507,8 +1577,7 @@ const summary = computed(() =>
       </div>
 
       <div class="mm__doneactions">
-        <button type="button" class="mm__btn mm__btn--ghost" @click="showReset = true">Start på nytt</button>
-        <button type="button" class="mm__btn mm__btn--primary" @click="router.push(`/kamp/${matchId}`)">Til kampen</button>
+        <button type="button" class="mm__btn mm__btn--primary" @click="router.replace(`/kamp/${matchId}`)">Til kampen</button>
       </div>
     </div>
 
@@ -1718,6 +1787,20 @@ const summary = computed(() =>
 .mm__live .mm__clockwrap { flex: 1; min-width: 0; }
 .mm__live .mm__ctrl { padding: 10px 14px; }
 .mm__live .mm__phase { margin-top: 0; }
+.mm__live .mm__controls { flex: none; }
+.mm__live .mm__phase { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+@media (max-width: 400px) {
+  .mm__live .mm__clock { font-size: 2.5rem; }
+  .mm__live .mm__ctrl { padding: 10px 12px; font-size: var(--ds-text-sm); min-height: 44px; }
+  .mm__live .mm__controls { gap: 6px; }
+  .mm__live .mm__phase { font-size: var(--ds-text-xs); }
+}
+@media (max-width: 340px) {
+  .mm__live .mm__clock { font-size: 2.25rem; }
+  .mm__live .mm__ctrl { padding: 10px; }
+}
+.mm__ventende { display: flex; align-items: center; gap: 6px; color: var(--ds-color-text-secondary); }
+.mm__ventende::before { content: ''; width: 6px; height: 6px; border-radius: 50%; background: var(--ds-color-warning, #d97706); flex: none; }
 .mm__live .mm__score { flex-direction: column; align-items: stretch; padding: 6px var(--ds-space-md) 8px; gap: 2px; }
 .mm__score-caption {
   font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-tertiary);
@@ -1726,16 +1809,25 @@ const summary = computed(() =>
 .mm__score-row { display: flex; align-items: center; justify-content: center; gap: var(--ds-space-lg); }
 .mm__live .mm__score-ctrl { gap: 8px; }
 .mm__live .mm__score-num { font-size: 1.5rem; min-width: 20px; line-height: 1; }
-.mm__live .mm__score-btn { width: 30px; height: 30px; font-size: 18px; }
+.mm__live .mm__score-btn { width: 30px; height: 30px; font-size: 18px; position: relative; }
+/* Treffflaten er 44 px selv om knappen ser liten ut. */
+.mm__live .mm__score-btn::after { content: ''; position: absolute; inset: -7px; }
 .mm__live .mm__score-dash { padding-top: 0; align-self: center; }
 
 /* Draktene skalerer med banehøyden (cqh), så radene ikke kolliderer når
    telefonen er lav. 48 px ved ≥ 420 px bane, 38 px ved ~330. */
-.pitch--live { container-type: size; }
-.pitch--live .marker { gap: clamp(2px, 1.2cqh, 5px); }
-.pitch--live .marker__circle { width: clamp(38px, 11.5cqh, 48px); height: clamp(38px, 11.5cqh, 48px); font-size: clamp(14px, 3.8cqh, 16px); }
-.pitch--live .marker__label { font-size: clamp(11px, 3cqh, 12.5px); }
+.pitch--live, .mm__setup-pitch .pitch { container-type: size; }
+.pitch--live .marker, .mm__setup-pitch .marker { gap: clamp(2px, 1.2cqh, 5px); width: min(80px, 27cqw); }
+.pitch--live .marker__circle, .mm__setup-pitch .marker__circle { width: clamp(34px, 11.5cqh, 48px); height: clamp(34px, 11.5cqh, 48px); font-size: clamp(14px, 3.8cqh, 16px); }
+.pitch--live .marker__label, .mm__setup-pitch .marker__label { font-size: clamp(11px, 3cqh, 12.5px); max-width: 100%; }
 .pitch--live .marker__time { font-size: clamp(10px, 2.6cqh, 11px); }
+/* Lav oppsettbane (liten telefon): draktene krymper mer, så navnet under
+   ikke havner oppå drakta i raden under. */
+.mm__setup-pitch .marker__circle { width: clamp(28px, 11.5cqh, 48px); height: clamp(28px, 11.5cqh, 48px); font-size: clamp(12px, 3.8cqh, 16px); border-width: 2px; }
+.mm__setup-pitch .marker__label { font-size: clamp(10px, 3cqh, 12.5px); }
+.mm__setup-pitch .marker { gap: clamp(1px, 1cqh, 5px); }
+/* Keeperen står nederst: navnet skal ikke klippes av banekanten. */
+.pitch--live .marker--gk:not(.marker--ghost), .mm__setup-pitch .marker--gk:not(.marker--ghost) { transform: translate(-50%, -62%); }
 
 /* Kompaktere topp i cockpit — klokkerad mister sticky + breakout */
 .mm__live .mm__clockrow {
@@ -2123,7 +2215,7 @@ const summary = computed(() =>
 .mm__senstart-rad { display: flex; align-items: center; gap: var(--ds-space-sm); margin: var(--ds-space-sm) 0; }
 .mm__senstart-steg {
   flex: none; width: 44px; height: 44px;
-  border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-md);
+  border: 1.5px solid var(--ds-color-border); border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg); color: var(--ds-color-text-primary);
   font-size: 22px; line-height: 1; cursor: pointer;
 }
@@ -2206,6 +2298,14 @@ const summary = computed(() =>
 .mm__btag { font-size: var(--ds-text-xs); opacity: .6; }
 
 /* ── Done ── */
+.mm__slutt { text-align: center; padding: var(--ds-space-md) 0 var(--ds-space-xl); }
+.mm__slutt-lag { display: flex; justify-content: center; gap: var(--ds-space-lg); font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-secondary); }
+.mm__slutt-lag span { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mm__slutt-lag span:first-child { text-align: right; }
+.mm__slutt-lag span:last-child { text-align: left; }
+.mm__slutt-tall { font-family: var(--ds-font-heading); font-size: 3rem; font-weight: var(--ds-weight-bold); line-height: 1.1; letter-spacing: -0.02em; color: var(--ds-color-text-primary); font-variant-numeric: tabular-nums; margin-top: 4px; }
+.mm__slutt-scorere { list-style: none; margin: var(--ds-space-sm) 0 0; padding: 0; display: flex; flex-wrap: wrap; justify-content: center; gap: 4px var(--ds-space-md); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+.mm__slutt-min { color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; }
 .mm__donehead { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md); }
 .mm__totalpill { font-variant-numeric: tabular-nums; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-secondary); background: var(--ds-color-bg-subtle); padding: 6px 12px; border-radius: var(--ds-radius-full); }
 

@@ -10,6 +10,7 @@ import { useAuth } from '../stores/auth'
 import { useCoaches } from '../composables/useCoaches'
 import { useResponsibilities } from '../composables/useResponsibilities'
 import { useContent } from '../composables/useContent'
+import BackLink from '../components/BackLink.vue'
 
 const { activeCohort } = useAuth()
 const { coaches, fetchCoaches } = useCoaches()
@@ -56,10 +57,7 @@ function dateLabel(iso) {
 <template>
   <div v-if="meeting" class="referat">
     <div class="referat__nav">
-      <router-link to="/admin/referater" class="referat__back">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Referater
-      </router-link>
+      <BackLink to="/admin/referater" label="Referater" />
     </div>
 
     <header class="referat__hero">
@@ -100,26 +98,14 @@ function dateLabel(iso) {
 <style scoped>
 
 .referat {
-  max-width: 680px;
+  max-width: var(--ds-content-max);
   margin: 0 auto;
   padding: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-2xl);
 }
 
 .referat__nav { margin-bottom: var(--ds-space-xl); }
 
-.referat__back {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  text-decoration: none;
-  letter-spacing: -0.005em;
-}
 
-.referat__back svg { width: 14px; height: 14px; }
-.referat__back:hover { color: var(--ds-color-text-primary); }
 
 .referat__hero { margin-bottom: var(--ds-space-2xl); }
 
@@ -134,18 +120,17 @@ function dateLabel(iso) {
 }
 
 .referat__title {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: clamp(2.2rem, 7vw, 3.2rem);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-tighter);
   line-height: 1.05;
   color: var(--ds-color-text-primary);
-  font-variation-settings: var(--ds-font-display-settings);
   margin: 0 0 var(--ds-space-lg);
 }
 
 .referat__lead {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: var(--ds-text-lg);
   font-weight: var(--ds-weight-regular);
   line-height: 1.45;

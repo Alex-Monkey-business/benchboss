@@ -7,6 +7,7 @@ import { useSeasonTeams } from '../composables/useSeasonTeams'
 import { useSeasons } from '../composables/useSeasons'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
+import BackLink from '../components/BackLink.vue'
 
 const { activeCohort, isAdmin, isPlatformAdmin, coach } = useAuth()
 const { show: showToast } = useToast()
@@ -239,12 +240,15 @@ onMounted(load)
 
 <template>
   <div class="desktop-container">
+    <div class="px-lg" style="padding-top: var(--ds-space-md);">
+      <BackLink to="/admin" label="Admin" />
+    </div>
     <div class="page-header">
       <h1 class="page-header__title">Tilgang</h1>
     </div>
 
     <div v-if="loading" class="px-lg">
-      <p class="tilgang-empty">Henter…</p>
+      <p class="tilgang-empty">Henter …</p>
     </div>
 
     <template v-else>
@@ -313,7 +317,7 @@ onMounted(load)
           :disabled="busy || !form.name.trim() || !form.email.trim()"
           @click="submitInvite"
         >
-          {{ pending === 'send' ? 'Sender…' : 'Send invitasjon' }}
+          {{ pending === 'send' ? 'Sender …' : 'Send invitasjon' }}
         </button>
       </div>
     </Sheet>
@@ -344,7 +348,7 @@ onMounted(load)
               :disabled="busy || !emailDraft.trim()"
               @click="saveEmail"
             >
-              {{ pending === 'save' ? 'Lagrer…' : 'Lagre' }}
+              {{ pending === 'save' ? 'Lagrer …' : 'Lagre' }}
             </button>
             <button
               type="button"
@@ -352,7 +356,7 @@ onMounted(load)
               :disabled="busy || (!emailDraft.trim() && !selected.email)"
               @click="emailDraft.trim() ? sendInvite() : resend()"
             >
-              {{ pending === 'send' ? 'Sender…' : (selected.invited_at ? 'Send på nytt' : 'Send') }}
+              {{ pending === 'send' ? 'Sender …' : (selected.invited_at ? 'Send på nytt' : 'Send') }}
             </button>
           </div>
         </template>

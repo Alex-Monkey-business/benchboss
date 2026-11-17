@@ -63,7 +63,7 @@
       </p>
       <p>
         Vi selger ingenting videre, og deler ingenting med andre klubber eller
-        med Halsen sentralt.
+        med klubben sentralt.
       </p>
     </section>
 
@@ -138,7 +138,7 @@
       <p class="personvern__stamp">Sist oppdatert 15. september 2026.</p>
     </section>
 
-    <router-link to="/login" class="personvern__back">Til innloggingen</router-link>
+    <router-link to="/login" class="personvern__back">Til innlogging</router-link>
   </div>
 </template>
 
@@ -151,7 +151,7 @@
 
 <style scoped>
 .personvern {
-  max-width: 640px;
+  max-width: var(--ds-content-max);
   margin: 0 auto;
   padding: var(--ds-space-xl) var(--ds-space-lg) var(--ds-space-4xl);
 }
@@ -161,18 +161,17 @@
 }
 
 .personvern__title {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: clamp(2rem, 6.5vw, 2.8rem);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-tighter);
   line-height: 1.1;
   color: var(--ds-color-text-primary);
-  font-variation-settings: var(--ds-font-display-settings);
   margin: 0 0 var(--ds-space-md);
 }
 
 .personvern__lead {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: var(--ds-text-lg);
   font-weight: var(--ds-weight-regular);
   line-height: 1.45;
@@ -191,7 +190,6 @@
   letter-spacing: var(--ds-tracking-tight);
   line-height: 1.25;
   color: var(--ds-color-text-primary);
-  font-variation-settings: var(--ds-font-display-settings);
   margin: 0 0 var(--ds-space-sm);
 }
 

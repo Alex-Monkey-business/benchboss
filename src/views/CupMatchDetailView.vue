@@ -10,7 +10,12 @@ import { useCupTeams } from '../composables/useCupTeams'
 import { usePlayers } from '../composables/usePlayers'
 import { useToast } from '../composables/useToast'
 import { cupTeam } from '../lib/cupTeams'
+import { trimAbbrevDots } from '../lib/dateLabels'
+import { supabase, isSupabaseConfigured } from '../supabase'
+import { useKlubbmerke } from '../composables/useKlubbmerke'
 import Sheet from '../components/Sheet.vue'
+import TeamCrest from '../components/TeamCrest.vue'
+import BackLink from '../components/BackLink.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -22,15 +27,17 @@ const { fetchCupSquad, playerIdsForTeam } = useCupSquad()
 const { cupTeams } = useCupTeams()
 const { players, fetchPlayers, getPlayerById } = usePlayers()
 const { show: showToast } = useToast()
+const { merkeFor } = useKlubbmerke()
 
 const canEdit = computed(() => !isParent.value)
-const loading = ref(true)
-const match = ref(null)
 const matchId = route.params.id
+// Kampen vi allerede har, tegnes med en gang. Bare uten den venter siden.
+const match = ref(getCupMatch(matchId) || null)
+const loading = ref(!match.value)
 
-const homeScoreInput = ref('')
-const awayScoreInput = ref('')
-const reportInput = ref('')
+const homeScoreInput = ref(match.value?.home_score ?? '')
+const awayScoreInput = ref(match.value?.away_score ?? '')
+const reportInput = ref(match.value?.report || '')
 const isEditingReport = ref(false)
 // Samme regel som seriekampen: resultatet leses før det redigeres.
 const editingResult = ref(false)
@@ -39,17 +46,24 @@ const lastTappedPlayerId = ref('')
 
 onMounted(async () => {
   await Promise.all([fetchCups(), fetchPlayers()])
-  if (activeCup.value) {
-    if (!cupMatches.value.length) await fetchCupMatches(activeCup.value.id)
-    await fetchCupSquad(activeCup.value.id)
+  if (activeCup.value && !cupMatches.value.length) await fetchCupMatches(activeCup.value.id)
+  const fersk = getCupMatch(matchId)
+  if (fersk) match.value = fersk
+  // En lenke kan peke på en kamp i en annen cup enn den aktive. Da hentes
+  // kampen direkte på id, så siden ikke sier «Fant ikke kampen».
+  if (!match.value && isSupabaseConfigured) {
+    const { data } = await supabase.from('cup_matches').select('*').eq('id', matchId).maybeSingle()
+    if (data) match.value = data
   }
-  match.value = getCupMatch(matchId)
   if (match.value) {
-    await fetchForMatch(matchId)
-    homeScoreInput.value = match.value.home_score ?? ''
-    awayScoreInput.value = match.value.away_score ?? ''
-    reportInput.value = match.value.report || ''
-    isEditingReport.value = false
+    const cupId = match.value.cup_id || activeCup.value?.id
+    await Promise.all([fetchForMatch(matchId), cupId ? fetchCupSquad(cupId) : null])
+    // Ikke skriv over noe treneren har begynt å skrive mens kampen ble hentet.
+    if (!editingResult.value && !resultatRort.value) {
+      homeScoreInput.value = match.value.home_score ?? ''
+      awayScoreInput.value = match.value.away_score ?? ''
+    }
+    if (!isEditingReport.value) reportInput.value = match.value.report || ''
   }
   loading.value = false
 })
@@ -66,8 +80,8 @@ const teamName = computed(() => {
 const timeLabel = computed(() => (match.value?.match_time ? match.value.match_time.slice(0, 5) : ''))
 const dateLabel = computed(() => {
   if (!match.value?.match_date) return ''
-  return new Date(match.value.match_date + 'T00:00:00')
-    .toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' })
+  return trimAbbrevDots(new Date(match.value.match_date + 'T12:00:00')
+    .toLocaleDateString('nb-NO', { weekday: 'short', day: 'numeric', month: 'short' }))
 })
 
 const hasResult = computed(() =>
@@ -80,6 +94,7 @@ function isValidScore(v) {
   return Number.isInteger(n) && n >= 0 && n <= 99
 }
 const isResultValid = computed(() => isValidScore(homeScoreInput.value) && isValidScore(awayScoreInput.value))
+const resultatRort = computed(() => String(homeScoreInput.value) !== String(match.value?.home_score ?? '') || String(awayScoreInput.value) !== String(match.value?.away_score ?? ''))
 const isResultChanged = computed(() => {
   const h = homeScoreInput.value === '' ? null : Number(homeScoreInput.value)
   const a = awayScoreInput.value === '' ? null : Number(awayScoreInput.value)
@@ -127,7 +142,6 @@ const pickerPlayers = computed(() => {
   const base = ids.length ? players.value.filter(p => ids.includes(p.id)) : players.value
   return [...base].sort((a, b) => a.name.localeCompare(b.name, 'no'))
 })
-const squadIsEmpty = computed(() => playerIdsForTeam(match.value?.our_team).length === 0)
 
 function goalCountForPlayer(pid) {
   return matchGoals.value.filter(g => g.player_id === pid).length
@@ -156,101 +170,97 @@ async function saveReport() {
 </script>
 
 <template>
-  <div v-if="loading" class="desktop-container">
-    <p class="cmd-readmuted" style="padding:30px 16px;text-align:center;">Henter kamp …</p>
-  </div>
+  <div v-if="loading" class="desktop-container"></div>
 
   <div v-else-if="!match" class="desktop-container">
     <div class="px-lg" style="padding-top: var(--ds-space-md);">
-      <button class="back-btn" @click="router.back()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-        Tilbake
-      </button>
+      <BackLink to="/cup" label="Cup" historikk />
     </div>
     <p class="cmd-readmuted" style="padding:30px 16px;text-align:center;">Fant ikke kampen.</p>
   </div>
 
   <div v-else class="desktop-container">
     <div class="px-lg" style="padding-top: var(--ds-space-md);">
-      <button class="back-btn" @click="router.back()">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-        Tilbake
-      </button>
+      <BackLink to="/cup" label="Cup" historikk />
     </div>
 
-    <!-- Header -->
-    <div class="px-lg mt-lg">
-      <div class="ds-card cmd-card">
-        <div class="cmd-meta">
-          {{ dateLabel }}<template v-if="timeLabel"> · {{ timeLabel }}</template><template v-if="match.pitch"> · {{ match.pitch }}</template>
+    <!-- Samme hero som seriekampen: vårt lag, resultat eller tid, motstander. -->
+    <header class="px-lg hero">
+      <div class="hero__grid">
+        <div class="hero__side">
+          <TeamCrest :name="teamName || 'Vi'" :src="merkeFor(teamName)" :size="56" />
+          <span class="hero__team">{{ teamName }}</span>
         </div>
-        <div class="cmd-teams">
-          <span class="cmd-team">{{ teamName }}</span>
-          <span v-if="hasResult" class="cmd-score">{{ match.home_score }}<span class="cmd-dash">–</span>{{ match.away_score }}</span>
-          <span v-else class="cmd-vs">mot</span>
-          <span class="cmd-team cmd-team--opp">{{ match.opponent || 'TBD' }}</span>
+        <div class="hero__mid">
+          <span v-if="hasResult" class="hero__big">{{ match.home_score }} – {{ match.away_score }}</span>
+          <span v-else-if="timeLabel" class="hero__big">{{ timeLabel }}</span>
+          <span v-else class="hero__big hero__big--tba">–</span>
+          <span class="hero__sub">{{ dateLabel }}</span>
         </div>
-        <div v-if="match.round" class="cmd-round">{{ match.round }}</div>
+        <div class="hero__side">
+          <TeamCrest :name="match.opponent || '–'" :src="merkeFor(match.opponent)" :size="56" />
+          <span class="hero__team">{{ match.opponent || '–' }}</span>
+        </div>
       </div>
-    </div>
+      <p v-if="match.pitch || match.round" class="hero__place">
+        {{ [match.pitch, match.round].filter(Boolean).join(' · ') }}
+      </p>
+    </header>
 
     <div class="px-lg mt-lg cmd-sections">
       <!-- Resultat -->
       <section class="cmd-section">
-        <div class="cmd-label">
-          Resultat
-          <button v-if="canEdit && hasResult" type="button" class="cmd-editlink" @click="editingResult = !editingResult">{{ editingResult ? 'Ferdig' : 'Rediger' }}</button>
+        <div class="cmd-head">
+          <h2 class="cmd-label">Resultat</h2>
+          <button v-if="canEdit && hasResult" type="button" class="ds-btn ds-btn--ghost ds-btn--sm cmd-headbtn" @click="editingResult = !editingResult">{{ editingResult ? 'Ferdig' : 'Endre' }}</button>
         </div>
         <template v-if="canEdit && (!hasResult || editingResult)">
           <div class="result-form">
             <input v-model="homeScoreInput" type="number" min="0" max="99" inputmode="numeric" class="ds-input result-input" :aria-label="`Mål ${teamName}`" @keydown.enter="saveResult" />
             <span class="result-dash">–</span>
             <input v-model="awayScoreInput" type="number" min="0" max="99" inputmode="numeric" class="ds-input result-input" :aria-label="`Mål ${match.opponent}`" @keydown.enter="saveResult" />
-            <button type="button" class="ds-btn ds-btn--primary ds-btn--sm" :disabled="!isResultValid || !isResultChanged" @click="saveResult">Lagre</button>
+            <button v-if="isResultChanged" type="button" class="ds-btn ds-btn--primary result-save" :disabled="!isResultValid" @click="saveResult">Lagre</button>
           </div>
-          <button v-if="hasResult" type="button" class="ds-btn ds-btn--ghost ds-btn--sm" style="margin-top:8px;" @click="clearResult">Fjern resultat</button>
+          <button v-if="hasResult" type="button" class="ds-btn ds-btn--ghost cmd-full" @click="clearResult">Fjern resultat</button>
         </template>
-        <template v-else>
-          <p v-if="hasResult" class="cmd-readscore">{{ teamName }} {{ match.home_score }}–{{ match.away_score }} {{ match.opponent }}</p>
-          <p v-else class="cmd-readmuted">Ikke spilt ennå</p>
-        </template>
+        <p v-else-if="hasResult" class="cmd-readscore">{{ teamName }} {{ match.home_score }}–{{ match.away_score }} {{ match.opponent }}</p>
+        <p v-else class="cmd-readmuted">Ikke spilt ennå</p>
       </section>
 
       <!-- Målscorere -->
       <section class="cmd-section">
-        <div class="cmd-label">Målscorere</div>
-        <div v-if="aggregatedScorers.length === 0" class="cmd-readmuted">Ingen scorere registrert{{ canEdit ? ' ennå' : '' }}.</div>
+        <div class="cmd-head">
+          <h2 class="cmd-label">Målscorere</h2>
+        </div>
+        <p v-if="aggregatedScorers.length === 0" class="cmd-readmuted">Ingen ennå</p>
         <div v-else class="cmd-pills">
           <span v-for="s in aggregatedScorers" :key="s.player_id" class="referee-pill cmd-scorer">
             {{ s.player?.name || 'Ukjent' }}<span v-if="s.count > 1" class="cmd-scorer__count"> ×{{ s.count }}</span>
           </span>
         </div>
-        <button v-if="canEdit" type="button" class="ds-btn ds-btn--secondary ds-btn--sm" style="margin-top:10px;" @click="showScorerSheet = true">+ Legg til scorer</button>
+        <button v-if="canEdit" type="button" class="ds-btn ds-btn--secondary cmd-full" @click="showScorerSheet = true">Legg til scorer</button>
       </section>
 
       <!-- Referat -->
       <section class="cmd-section">
-        <div class="cmd-label">
-          Kampreferat
-          <button v-if="canEdit && !isEditingReport" type="button" class="cmd-editlink" @click="isEditingReport = true">{{ match.report ? 'Rediger' : 'Skriv referat' }}</button>
+        <div class="cmd-head">
+          <h2 class="cmd-label">Kampreferat</h2>
+          <button v-if="canEdit && !isEditingReport && match.report" type="button" class="ds-btn ds-btn--ghost ds-btn--sm cmd-headbtn" @click="isEditingReport = true">Endre</button>
         </div>
         <template v-if="canEdit">
           <div v-if="!isEditingReport && match.report" class="cmd-report-read">{{ match.report }}</div>
           <template v-else-if="isEditingReport">
-            <textarea v-model="reportInput" class="ds-input cmd-textarea" rows="6" maxlength="1000" placeholder="Skriv kort om kampen — høydepunkter, læring …"></textarea>
-            <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:8px;">
-              <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" @click="reportInput = match.report || ''; isEditingReport = false">Avbryt</button>
-              <button v-if="isReportChanged" type="button" class="ds-btn ds-btn--primary ds-btn--sm" @click="saveReport">Lagre referat</button>
+            <textarea v-model="reportInput" class="ds-input cmd-textarea" rows="6" maxlength="1000" placeholder="Høydepunkter, læring …"></textarea>
+            <div class="cmd-actions">
+              <button type="button" class="ds-btn ds-btn--ghost" @click="reportInput = match.report || ''; isEditingReport = false">Avbryt</button>
+              <button type="button" class="ds-btn ds-btn--primary" :disabled="!isReportChanged" @click="saveReport">Lagre</button>
             </div>
           </template>
+          <button v-else type="button" class="ds-btn ds-btn--secondary cmd-full" @click="isEditingReport = true">Skriv referat</button>
         </template>
         <template v-else>
           <div v-if="match.report" class="cmd-report-read">{{ match.report }}</div>
-          <div v-else class="cmd-readmuted">Ingen referat ennå.</div>
+          <p v-else class="cmd-readmuted">Ingen ennå</p>
         </template>
       </section>
     </div>
@@ -258,9 +268,6 @@ async function saveReport() {
     <!-- Scorer-sheet (kun trener) -->
     <Sheet :show="showScorerSheet" title="Mål" @close="showScorerSheet = false">
       <div class="scorer-form">
-        <div v-if="squadIsEmpty" class="cmd-readmuted" style="margin:0 0 12px;">
-          Troppen for {{ teamName }} er ikke satt opp ennå (viser hele spillerlista). Sett opp under «Tropp».
-        </div>
         <div class="cmd-picker">
           <button
             v-for="p in pickerPlayers"
@@ -285,52 +292,87 @@ async function saveReport() {
 </template>
 
 <style scoped>
-.cmd-card { padding: var(--ds-space-lg); }
-.cmd-meta {
-  font-size: var(--ds-text-xs);
-  color: var(--ds-color-text-tertiary);
-  text-transform: capitalize;
-  margin-bottom: var(--ds-space-sm);
+/* Hero og seksjoner speiler seriekampen (MatchDetailView). */
+.hero {
+  margin-top: var(--ds-space-md);
+  display: flex;
+  flex-direction: column;
+  gap: var(--ds-space-md);
 }
-.cmd-teams { display: flex; align-items: center; justify-content: center; gap: var(--ds-space-md); }
-.cmd-team {
-  font-family: var(--ds-font-heading);
-  font-size: var(--ds-text-lg);
-  font-weight: var(--ds-weight-bold);
-  letter-spacing: var(--ds-tracking-tight);
+.hero__grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  column-gap: var(--ds-space-md);
+  align-items: start;
+}
+.hero__side {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 10px; min-width: 0; text-align: center;
+}
+.hero__team {
+  font-size: var(--ds-text-sm);
+  overflow-wrap: break-word;
+  font-weight: var(--ds-weight-semibold);
+  line-height: 1.25;
   color: var(--ds-color-text-primary);
 }
-.cmd-team--opp { color: var(--ds-color-text-secondary); font-weight: var(--ds-weight-semibold); }
-.cmd-vs { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); }
-.cmd-score {
-  display: inline-flex; align-items: baseline; gap: 6px;
-  font-size: 1.75rem; font-weight: 700; font-variant-numeric: tabular-nums;
-  color: var(--ds-color-text-primary); line-height: 1;
+.hero__mid {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 6px; min-width: 84px; padding: 8px 0 0;
 }
-.cmd-dash { color: var(--ds-color-text-tertiary); font-weight: 500; font-size: 1.25rem; }
-.cmd-round { text-align: center; font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary); margin-top: var(--ds-space-sm); }
-
-.cmd-sections { display: flex; flex-direction: column; gap: var(--ds-space-xl); }
-.cmd-section { }
-.cmd-label {
-  display: flex; align-items: center; justify-content: space-between;
-  font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold);
-  text-transform: uppercase; letter-spacing: 0.04em;
+.hero__big {
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-2xl);
+  font-weight: var(--ds-weight-bold);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.02em;
+  line-height: 1;
+  color: var(--ds-color-text-primary);
+  white-space: nowrap;
+}
+.hero__big--tba { color: var(--ds-color-text-tertiary); }
+.hero__sub {
+  font-size: var(--ds-text-xs);
+  font-weight: var(--ds-weight-medium);
   color: var(--ds-color-text-secondary);
-  margin-bottom: var(--ds-space-sm);
+  text-align: center;
 }
-.cmd-editlink {
-  appearance: none; border: none; background: transparent;
-  font-family: var(--ds-font-body); font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-warm); cursor: pointer; text-transform: none; letter-spacing: 0;
+.hero__place {
+  margin: 0;
+  text-align: center;
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
 }
+
+.cmd-sections { display: flex; flex-direction: column; gap: 10px; padding-bottom: var(--ds-space-xl); }
+.cmd-section {
+  background: var(--ds-color-bg-subtle);
+  border-radius: var(--ds-radius-lg);
+  padding: var(--ds-space-md);
+  display: flex; flex-direction: column; gap: var(--ds-space-sm);
+}
+.cmd-head {
+  display: flex; align-items: center; justify-content: space-between;
+  min-height: 32px;
+}
+.cmd-label {
+  margin: 0;
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: 0;
+  color: var(--ds-color-text-primary);
+}
+.cmd-headbtn { margin-right: calc(-1 * var(--ds-space-sm)); }
+.cmd-full { width: 100%; margin-top: var(--ds-space-xs); }
+.cmd-actions { display: flex; justify-content: flex-end; gap: 8px; }
 .cmd-readscore { font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); margin: 0; }
 .cmd-readmuted { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); margin: 0; }
 
 /* Resultat-skjema – identisk med seriekamper (skjuler tallfelt-pilene) */
-.result-form { display: flex; align-items: center; gap: 8px; margin-top: 12px; }
+.result-form { display: flex; align-items: center; gap: 8px; }
 .result-input {
-  width: 64px; text-align: center;
+  width: 64px; min-height: var(--ds-btn-h); text-align: center;
   font-variant-numeric: tabular-nums;
   font-weight: 600; font-size: 1rem;
   -moz-appearance: textfield;
@@ -341,6 +383,7 @@ async function saveReport() {
   margin: 0;
 }
 .result-dash { font-size: 1.125rem; font-weight: 700; color: var(--ds-color-text-tertiary); }
+.result-save { margin-left: auto; }
 
 .cmd-pills { display: flex; flex-wrap: wrap; gap: 8px; }
 .cmd-scorer__count { font-weight: var(--ds-weight-bold); }
@@ -348,10 +391,6 @@ async function saveReport() {
 .cmd-textarea { width: 100%; min-height: 120px; resize: vertical; line-height: 1.5; }
 .cmd-report-read {
   white-space: pre-wrap;
-  background: var(--ds-color-bg-subtle);
-  border: var(--ds-border-width) solid var(--ds-color-border-light);
-  border-radius: var(--ds-radius-md);
-  padding: var(--ds-space-md);
   color: var(--ds-color-text-primary);
   font-size: var(--ds-text-sm);
   line-height: 1.55;

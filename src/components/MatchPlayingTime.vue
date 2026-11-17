@@ -177,12 +177,12 @@ function share(sec) { return clock.value ? Math.round((sec / clock.value) * 100)
     <!-- Justering: nullsum, så det er alltid ett bytte — A går av, B står de
          sekundene A ikke lenger står. Aldri «legg til tid». -->
     <div v-if="adjusting" class="adj">
-      <p v-if="!giver" class="adj__hint">Velg hvem som skal gi tid.</p>
-      <p v-else-if="!taker" class="adj__hint">Og hvem som skal få den.</p>
-      <template v-else>
-        <p class="adj__pair">
-          {{ firstName(playerName(giver)) }} <span class="adj__arrow">→</span> {{ firstName(playerName(taker)) }}
-        </p>
+      <p class="adj__pair">
+        <span :class="{ 'adj__tom': !giver }">{{ giver ? firstName(playerName(giver)) : 'Fra' }}</span>
+        <span class="adj__arrow">→</span>
+        <span :class="{ 'adj__tom': !taker }">{{ taker ? firstName(playerName(taker)) : 'Til' }}</span>
+      </p>
+      <template v-if="giver && taker">
         <div class="adj__chips">
           <button
             v-for="m in [1, 2, 3, 5]"
@@ -385,6 +385,7 @@ function share(sec) { return clock.value ? Math.round((sec / clock.value) * 100)
 }
 
 .adj__arrow { color: var(--ds-color-text-tertiary); padding: 0 2px; }
+.adj__tom { color: var(--ds-color-text-tertiary); font-weight: var(--ds-weight-medium); }
 
 .adj__chips {
   display: flex;

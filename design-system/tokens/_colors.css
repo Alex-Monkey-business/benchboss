@@ -198,14 +198,15 @@
   --ds-color-info-light:      #1F1F1E;
 
   /* ---- Lagfarger (dark) ---- */
-  --ds-team-gronn:        #B5D2B0;
+  /* Mettet nok til at prikker og streker skiller Grønn fra Rød i mørket. */
+  --ds-team-gronn:        #66C987;
   --ds-team-gronn-bg:     #1A241D;
-  --ds-team-rod:          #F2C9D4;
+  --ds-team-rod:          #F0839D;
   --ds-team-rod-bg:       #38232F;
   --ds-team-hvit:         #B8B8B2;
   --ds-team-hvit-bg:      var(--ds-color-bg-elevated);
   --ds-team-hvit-border:  var(--ds-color-border-strong);
 
   /* ---- Overlay ---- */
-  --ds-color-overlay:         rgba(0, 0, 0, 0.6);
+  --ds-color-overlay:         rgba(0, 0, 0, 0.65);
 }

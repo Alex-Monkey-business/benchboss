@@ -5,16 +5,20 @@ import { useAuth } from '../stores/auth'
 import { useCups } from '../composables/useCups'
 import { useCupMatches } from '../composables/useCupMatches'
 import { cupTeam } from '../lib/cupTeams'
+import { relativeDateLabel } from '../lib/dateLabels'
 import { useCupFilter } from '../composables/useCupFilter'
 import { useCupTeams } from '../composables/useCupTeams'
 import CupTeamFilter from '../components/CupTeamFilter.vue'
 import CupTabs from '../components/CupTabs.vue'
+import BackLink from '../components/BackLink.vue'
+import { useCupFirst } from '../composables/useCupFirst'
 
 const { isParent } = useAuth()
 const { activeCup, fetchCups } = useCups()
 const { cupMatches, loading, status, fetchCupMatches } = useCupMatches()
 const { teamFilter, setFilter } = useCupFilter()
 const { cupTeams } = useCupTeams()
+const { cupFirst } = useCupFirst()
 const ready = ref(false)
 
 onMounted(async () => {
@@ -29,8 +33,12 @@ function teamName(slug) {
 
 function dayLabel(dateStr) {
   if (!dateStr) return 'Dato kommer'
-  const d = new Date(dateStr + 'T00:00:00')
-  return d.toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' })
+  // Samme datoform som gruppene i Kamper.
+  return relativeDateLabel(dateStr)
+}
+
+function harResultat(m) {
+  return m.home_score != null && m.away_score != null
 }
 
 function timeLabel(t) {
@@ -57,6 +65,9 @@ const groups = computed(() => {
 
 <template>
   <div class="desktop-container">
+    <div v-if="!isParent && !cupFirst" class="px-lg" style="padding-top: var(--ds-space-md);">
+      <BackLink to="/admin" label="Admin" />
+    </div>
     <div class="page-header">
       <h1 class="page-header__title">Kampprogram</h1>
       <p class="page-header__subtitle">{{ activeCup?.name || 'Cup' }}</p>
@@ -88,14 +99,9 @@ const groups = computed(() => {
            nøyaktig den døde knappen vi allerede har brukt en dag på. -->
       <div v-else-if="filteredMatches.length === 0" class="ds-empty">
         <Spot name="cup" class="ds-empty__illo" />
-        <h3 class="ds-empty__title">{{ activeCup ? 'Ingen kamper ennå' : 'Ingen turnering lagt inn' }}</h3>
-        <p class="ds-empty__description">
-          {{ activeCup
-            ? 'Kampprogrammet for turneringen er ikke lagt inn.'
-            : 'Legg inn turneringen for å fordele troppen.' }}
-        </p>
+        <h3 class="ds-empty__title">{{ activeCup ? 'Ingen kamper ennå' : 'Ingen cup lagt inn' }}</h3>
         <router-link v-if="!isParent" to="/admin/turneringer" class="ds-btn ds-btn--primary">
-          {{ activeCup ? 'Legg til kamper' : 'Legg inn turnering' }}
+          {{ activeCup ? 'Legg til kamper' : 'Legg inn cup' }}
         </router-link>
       </div>
 
@@ -107,22 +113,21 @@ const groups = computed(() => {
               v-for="m in group.matches"
               :key="m.id"
               :to="{ name: 'cup-match', params: { id: m.id } }"
-              class="ds-card ds-card--interactive match-card cup-mcard"
+              class="ds-card ds-card--interactive cup-mcard"
             >
-              <div class="match-card__teams">
-                <span class="match-card__team">{{ teamName(m.our_team) }}</span>
-                <span v-if="m.home_score != null && m.away_score != null" class="match-card__score">{{ m.home_score }} – {{ m.away_score }}</span>
-                <span v-else-if="timeLabel(m.match_time)" class="match-card__time">{{ timeLabel(m.match_time) }}</span>
-                <span v-else class="match-card__vs">vs</span>
-                <span class="match-card__team">{{ m.opponent || 'TBD' }}</span>
-              </div>
-              <div class="match-card__meta">
-                <span v-if="m.pitch" class="match-card__meta-item">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  {{ m.pitch }}
+              <!-- Samme oppsett som kampkortene i Kamper: to linjer, venstrestilt. -->
+              <span class="cup-mcard__lag">
+                <span class="cup-mcard__rad">
+                  <span class="cup-mcard__navn cup-mcard__navn--vart">{{ teamName(m.our_team) }}</span>
+                  <span v-if="harResultat(m)" class="cup-mcard__mal">{{ m.home_score }}</span>
                 </span>
-                <span v-if="m.round" class="match-card__meta-item">{{ m.round }}</span>
-              </div>
+                <span class="cup-mcard__rad">
+                  <span class="cup-mcard__navn">{{ m.opponent || '–' }}</span>
+                  <span v-if="harResultat(m)" class="cup-mcard__mal">{{ m.away_score }}</span>
+                </span>
+              </span>
+              <span v-if="!harResultat(m)" class="cup-mcard__tid" :class="{ 'cup-mcard__tid--tba': !timeLabel(m.match_time) }">{{ timeLabel(m.match_time) || '–' }}</span>
+              <span v-if="m.pitch || m.round" class="cup-mcard__meta">{{ [m.pitch, m.round].filter(Boolean).join(' · ') }}</span>
             </router-link>
           </div>
         </div>
@@ -136,23 +141,55 @@ const groups = computed(() => {
 .day-label {
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);
-  text-transform: capitalize;
   color: var(--ds-color-text-secondary);
   margin: var(--ds-space-lg) 2px var(--ds-space-sm);
 }
 .list { display: flex; flex-direction: column; gap: var(--ds-space-sm); }
 
-/* Bruker seriens globale .match-card-oppsett; her bare lenke-oppførsel */
 .cup-mcard {
-  display: block;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  column-gap: var(--ds-space-md);
+  padding: var(--ds-space-md);
   text-decoration: none;
-  padding: var(--ds-space-lg);
+  color: inherit;
   transition: transform 160ms var(--ds-ease-out), border-color 160ms var(--ds-ease-out), box-shadow 160ms var(--ds-ease-out);
 }
 @media (hover: hover) and (pointer: fine) {
   .cup-mcard:hover { transform: translateY(-1px); }
 }
 .cup-mcard:active { transform: scale(0.98); transition-duration: 100ms; }
-/* siste kamp-meta uten bunnmargin (match-card__teams har 14px) */
-.cup-mcard .match-card__teams { margin-bottom: 10px; }
+.cup-mcard__lag { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cup-mcard__rad { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-md); }
+.cup-mcard__navn {
+  min-width: 0;
+  font-size: var(--ds-text-sm);
+  line-height: 1.35;
+  color: var(--ds-color-text-primary);
+  overflow-wrap: break-word;
+}
+.cup-mcard__navn--vart { font-weight: var(--ds-weight-semibold); }
+.cup-mcard__mal {
+  flex: none;
+  font-family: var(--ds-font-display-sans);
+  font-size: var(--ds-text-base);
+  font-weight: var(--ds-weight-bold);
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-color-text-primary);
+}
+.cup-mcard__tid {
+  flex: none;
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-semibold);
+  font-variant-numeric: tabular-nums;
+  color: var(--ds-color-text-secondary);
+}
+.cup-mcard__tid--tba { color: var(--ds-color-text-tertiary); }
+.cup-mcard__meta {
+  flex-basis: 100%;
+  margin-top: 8px;
+  font-size: var(--ds-text-xs);
+  color: var(--ds-color-text-tertiary);
+}
 </style>

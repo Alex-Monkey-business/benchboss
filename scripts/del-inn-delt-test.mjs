@@ -144,7 +144,9 @@ try {
   qaDag = sql(`insert into training_sessions (cohort_id, title, weekday, position, drills) values ('${KULL}', 'QA-delt', ${UKEDAG}, 97, jsonb_build_array(jsonb_build_object('type','diff','text','QA diff','exercise_id','${DIFF}','minutes',20))) returning id`).split('\n')[0]
   await alex.reload()
   await alex.getByRole('heading', { name: 'Hvilken trening?' }).waitFor({ timeout: 15000 })
-  ok('Dagens trening er valgt som nærmeste', /QA-delt/.test(await alex.locator('.valg__rad[aria-checked="true"]').innerText()))
+  // Uka fra telefonen står med en gang; den ferske lista kan flytte valget
+  // så lenge ingen har trykket.
+  ok('Dagens trening er valgt som nærmeste', await inntil(async () => /QA-delt/.test(await alex.locator('.valg__rad[aria-checked="true"]').innerText())))
   await tilOppmote(alex)
   await alex.locator('.oppg__grid').first().locator('button').nth(2).click()
   ok('Trening: oppmøtet ble lagret på økta', await inntil(async () => Number(sql(`select count(*) from training_run_players rp join training_runs r on r.id=rp.run_id where r.session_id='${qaDag}' and r.dato=current_date`)) === alle - 1))

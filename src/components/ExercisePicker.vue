@@ -211,7 +211,7 @@ function varighet(ex) {
       </button>
 
       <p v-if="!exercises.length && !canCreate" class="picker-no-hits">
-        Ingen øvelser ennå. Skriv et navn for å lage en.
+        Ingen øvelser ennå.
       </p>
 
       <template v-if="exercises.length">

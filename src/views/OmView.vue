@@ -2,7 +2,7 @@
   <div class="om">
     <header class="om__top">
       <p class="om__merke">BenchBoss</p>
-      <h1 class="om__title">Verktøyet for de som trener et fotballag</h1>
+      <h1 class="om__title">Verktøyet for dem som trener et fotballag</h1>
       <p class="om__lead">
         BenchBoss holder orden på tropper, spilletid, kamper og treningsøkter
         for ett årskull i en fotballklubb. Det er laget for trenere i
@@ -28,7 +28,7 @@
         </li>
         <li>
           <strong>Cup.</strong> Tropper, kamper og ansvar gjennom en hel
-          turneringshelg.
+          cuphelg.
         </li>
         <li>
           <strong>Regnskapet.</strong> Hvem som har lagt ut for dommer, og hva
@@ -92,13 +92,13 @@
 
 <style scoped>
 .om {
-  max-width: 640px;
+  max-width: var(--ds-content-max);
   margin: 0 auto;
   padding: var(--ds-space-xl) var(--ds-space-lg) var(--ds-space-4xl);
 }
 
 .om__merke {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-wider);
@@ -108,18 +108,17 @@
 }
 
 .om__title {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: clamp(2rem, 6.5vw, 2.8rem);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-tighter);
   line-height: 1.1;
   color: var(--ds-color-text-primary);
-  font-variation-settings: var(--ds-font-display-settings);
   margin: 0 0 var(--ds-space-md);
 }
 
 .om__lead {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: var(--ds-text-lg);
   font-weight: var(--ds-weight-regular);
   line-height: 1.45;
@@ -131,13 +130,12 @@
 .om__section { margin-top: var(--ds-space-3xl); }
 
 .om__heading {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: var(--ds-text-lg);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-tight);
   line-height: 1.25;
   color: var(--ds-color-text-primary);
-  font-variation-settings: var(--ds-font-display-settings);
   margin: 0 0 var(--ds-space-sm);
 }
 

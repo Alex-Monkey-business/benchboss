@@ -5,6 +5,7 @@ import { registerReset } from '../stores/dataReset'
 import { clubScoped, withClub, cohortId } from '../lib/scope'
 import { useAuth } from '../stores/auth'
 import { persistRef } from '../lib/persist'
+import { cached } from '../lib/query'
 
 // Øvelsesbank — gjenbrukbare øvelser (training_exercises).
 // Copy-on-add: banken er malen, økta eier sin egen kopi (drills-JSONB).
@@ -139,7 +140,7 @@ const DEMO_EXERCISES = [
   { id: 'dex-2', se_etter: ['Forsvarerne presser sammen, ikke én og én', 'Angriperne spiller fremover på første touch'], si_til_barna: ['Press sammen', 'Snakk', 'Fremover'], category: 'spill', name: '3v3 med press i ryggen', type: 'diff', tema: 'Fart i angrep, hold overtaket', gruppe: 'To baner med småmål.', utstyr: 'Fire småmål, vester.', organisering: 'To forsvarere ved eget mål; den siste jager i press straks angriperne får ballen.', laeringsmomenter: [], link: null },
   { id: 'dex-3', se_etter: [], si_til_barna: [], category: 'spill', name: 'Vinneren står', type: 'mix', tema: 'Tempo og lite dødtid', organisering: 'To lag spiller kort 7er — ny kamp straks det er mål.', laeringsmomenter: [], link: null },
   { id: 'dex-4', se_etter: [], si_til_barna: [], category: 'sjef-over-ballen', name: 'Ferdighetssirkel', type: 'mix', tema: 'Sjef over ballen', organisering: 'Avsluttes med press.', laeringsmomenter: [], link: null },
-  { id: 'dex-5', se_etter: [], si_til_barna: [], category: 'spill', name: 'Eggs (transition game)', type: 'diff', tema: null, organisering: '4v4, 3v3 eller 2v2 ut fra antall.', laeringsmomenter: [], link: { label: 'Eggs Transition Game – 4v4 til 4v3', url: 'https://tiim.no/ovelse/eggs-transition-game-4v4-til-4v3' } },
+  { id: 'dex-5', se_etter: [], si_til_barna: [], category: 'spill', name: 'Egg, omstillingsspill', type: 'diff', tema: null, organisering: '4v4, 3v3 eller 2v2 ut fra antall.', laeringsmomenter: [], link: { label: 'Egg – 4v4 til 4v3', url: 'https://tiim.no/ovelse/eggs-transition-game-4v4-til-4v3' } },
   { id: 'dex-6', se_etter: [], si_til_barna: [], category: 'oppvarming', name: 'Utvidet Barça-oppvarming', type: 'diff', tema: null, organisering: 'Innside, utside, såle, vendinger og finter med begge føtter, rundt kjegler.', laeringsmomenter: [], link: null }
 ]
 
@@ -284,36 +285,62 @@ function utenUstottede(payload) {
   return p
 }
 
-export function useExercises() {
-  async function fetchExercises() {
-    if (loaded.value) return exercises.value
-    loading.value = true
+// Banken hentes i bakgrunnen ved hvert besøk (lib/query → cached slår
+// sammen kall som kommer samtidig). Før ble den hentet én gang per app-levetid:
+// resolveDrills tar alt annet enn minuttene fra banken, så en øvelse endret
+// på en annen telefon sto med gammel tekst til appen ble lastet på nytt.
+// Den lagrede kopien vises med en gang; svaret legger seg oppå.
+async function hentBanken() {
+  loading.value = true
 
-    if (!isSupabaseConfigured) {
-      exercises.value = [...DEMO_EXERCISES].sort(byName)
-      loaded.value = true
-      loading.value = false
-      return exercises.value
-    }
+  if (!isSupabaseConfigured) {
+    exercises.value = [...DEMO_EXERCISES].sort(byName)
+    loaded.value = true
+    loading.value = false
+    return true
+  }
 
-    // Banken deles på KLUBB — Halsens kull deler øvelser, Stag har sine.
-    const { data, error } = await clubScoped(supabase
+  // Banken deles på KLUBB — Halsens kull deler øvelser, Stag har sine.
+  // Avsenderne går i samme runde. Feiler den, står øvelsene uten merke — det
+  // er en etikett, ikke en tilgangssjekk, og banken skal vises uansett.
+  const [{ data, error }, { data: kull }] = await Promise.all([
+    clubScoped(supabase
       .from('training_exercises')
       .select('*'))
-      .order('name')
+      .order('name'),
+    supabase.rpc('bb_club_cohort_names')
+  ])
+  if (kull) kullNavn.value = Object.fromEntries(kull.map(k => [k.id, k.name]))
 
-    // Avsenderne. Feiler den, står øvelsene uten merke — det er en etikett,
-    // ikke en tilgangssjekk, og banken skal vises uansett.
-    const { data: kull } = await supabase.rpc('bb_club_cohort_names')
-    if (kull) kullNavn.value = Object.fromEntries(kull.map(k => [k.id, k.name]))
+  if (!error && data) {
+    exercises.value = data
+    loaded.value = true
+  } else if (error) {
+    console.warn('Øvelsesbank utilgjengelig — er supabase-ovelsesbank-schema.sql kjørt?', error.message)
+  }
+  loading.value = false
+  return !error
+}
+// Stale-while-revalidate: skjermen tegner fra kopien, og hvert besøk fersker
+// i bakgrunnen. Vinduet er bare for å slå sammen kall i samme åpning (flere
+// komponenter ber om banken samtidig), ikke for å spare besøk.
+const hentBankenFersk = cached(hentBanken, 'exercises', { maxAge: 2000, ok: v => v === true })
 
-    if (!error && data) {
-      exercises.value = data
-      loaded.value = true
-    } else if (error) {
-      console.warn('Øvelsesbank utilgjengelig — er supabase-ovelsesbank-schema.sql kjørt?', error.message)
-    }
-    loading.value = false
+// Kommer appen fram igjen mens en treningsside står åpen, ferskes banken.
+// Andre steder venter den til noen ber om den.
+if (typeof document !== 'undefined') {
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState !== 'visible' || !loaded.value) return
+    if (/^\/(trening|del-inn)/.test(window.location.pathname)) hentBankenFersk()
+  })
+}
+
+export function useExercises() {
+  // Returnerer det som finnes NÅ hvis vi har noe (persistert eller hentet);
+  // ferskingen går i bakgrunnen. Første gang uten noe å vise, venter vi.
+  async function fetchExercises() {
+    const p = hentBankenFersk()
+    if (!loaded.value && !exercises.value.length) await p
     return exercises.value
   }
 
@@ -347,17 +374,28 @@ export function useExercises() {
       return exercises.value.find(e => e.id === id)
     }
 
+    // Endringen står i banken med en gang; feiler lagringen, settes den
+    // tilbake og kalleren får null.
+    const for_ = exercises.value
+    const li = exercises.value.findIndex(e => e.id === id)
+    if (li > -1) {
+      const kopi = [...exercises.value]
+      kopi[li] = { ...kopi[li], ...updates }
+      exercises.value = kopi.sort(byName)
+    }
     const { data, error } = await supabase
       .from('training_exercises')
       .update(utenUstottede(updates))
       .eq('id', id)
       .select()
       .single()
-    if (!error && data) {
-      const i = exercises.value.findIndex(e => e.id === id)
-      if (i > -1) exercises.value[i] = data
-      exercises.value = [...exercises.value].sort(byName)
+    if (error || !data) {
+      exercises.value = for_
+      return null
     }
+    const i = exercises.value.findIndex(e => e.id === id)
+    if (i > -1) exercises.value[i] = data
+    exercises.value = [...exercises.value].sort(byName)
     return data
   }
 
@@ -388,7 +426,8 @@ export function useExercises() {
   async function upsertFromDrill(d) {
     const name = (d.text || '').trim()
     if (!name) return null
-    await fetchExercises()
+    // Ikke en ny henting per øvelse i en batch: hver insert gjør cachen gammel.
+    if (!loaded.value && !exercises.value.length) await hentBankenFersk()
     const hit = findByName(name)
     if (hit) return hit
     return createExercise(drillToExercise(d))

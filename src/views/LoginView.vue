@@ -170,7 +170,7 @@ function onDemo(role) {
             <path fill="#FBBC05" d="M12.7 28a12 12 0 0 1 0-8l-7-5.4a20.5 20.5 0 0 0 0 18.8Z"/>
             <path fill="#EA4335" d="M24 12c3.3 0 6.2 1.2 8.5 3.5l6-6A20.5 20.5 0 0 0 5.7 14.6l7 5.4A12 12 0 0 1 24 12Z"/>
           </svg>
-          {{ googleBusy ? 'Åpner Google…' : 'Fortsett med Google' }}
+          {{ googleBusy ? 'Åpner Google …' : 'Fortsett med Google' }}
         </button>
         <button v-if="!showEmail" type="button" class="login-link" @click="showEmail = true">Annen e-post</button>
         <form v-if="showEmail" class="login-form" @submit.prevent="onSend">
@@ -189,7 +189,7 @@ function onDemo(role) {
             :disabled="sending"
           />
           <button type="submit" class="login-button" :disabled="sending || !email.trim()">
-            {{ sending ? 'Sender…' : (isIosStandalone ? 'Send kode' : 'Send lenke') }}
+            {{ sending ? 'Sender …' : (isIosStandalone ? 'Send kode' : 'Send lenke') }}
           </button>
         </form>
 
@@ -218,13 +218,12 @@ function onDemo(role) {
           </h1>
           <p class="login-hint">{{ email }}</p>
           <p v-if="isIosStandalone" class="login-note">
-            Ikke trykk på lenken i e-posten — den åpner Safari, ikke denne
-            appen. Skriv inn koden her i stedet.
+            Lenka åpner Safari. Skriv inn koden her.
           </p>
         </div>
 
         <div class="login-pin">
-          <p v-if="!isIosStandalone" class="login-alt">Trykk på lenken, eller skriv koden her:</p>
+          <p v-if="!isIosStandalone" class="login-alt">Trykk på lenka, eller skriv koden her:</p>
           <PinInput
             ref="pinRef"
             :length="6"
@@ -239,7 +238,7 @@ function onDemo(role) {
 
         <div class="login-actions">
           <button type="button" class="login-link" :disabled="sending" @click="onResend">
-            {{ sending ? 'Sender…' : 'Send på nytt' }}
+            {{ sending ? 'Sender …' : 'Send på nytt' }}
           </button>
           <button type="button" class="login-link" @click="onBackToEmail">Bytt e-post</button>
         </div>
@@ -284,13 +283,12 @@ function onDemo(role) {
 }
 
 .login-title {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: var(--ds-text-3xl);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-tighter);
   color: var(--ds-color-text-primary);
   line-height: var(--ds-leading-tight);
-  font-variation-settings: var(--ds-font-display-settings);
   margin: 0;
 }
 

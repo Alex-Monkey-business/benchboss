@@ -30,8 +30,8 @@ window.addEventListener('vite:preloadError', event => {
   window.location.reload()
 })
 
-// Register the network-only service worker so the app is installable (Android).
-// It caches nothing — see public/pwa-sw.js.
+// Service workeren gjør appen installerbar og lar den starte uten nett:
+// hash-filene fra cache, sidelast alltid fra nettet først — se public/pwa-sw.js.
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('/pwa-sw.js').catch(() => {})

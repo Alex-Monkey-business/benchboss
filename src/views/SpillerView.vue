@@ -13,6 +13,7 @@ import { shortRelativeDate } from '../lib/dateLabels'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
+import BackLink from '../components/BackLink.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -134,10 +135,7 @@ async function confirmDelete() {
 <template>
   <div class="desktop-container">
     <div class="sp__nav">
-      <router-link to="/serie/tropp" class="sp__back">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Tropp
-      </router-link>
+      <BackLink to="/serie/tropp" label="Tropp" />
     </div>
 
     <div v-if="!ready" class="sp__muted">Henter spiller …</div>
@@ -163,7 +161,7 @@ async function confirmDelete() {
           <span v-for="v in positions" :key="v" class="sp__tag">{{ positionLabel(v) }}</span>
         </div>
         <template v-else>
-          <p class="sp__muted">Ingen posisjoner satt. Da foreslås ikke {{ player.name.split(' ')[0] }} noe sted i kampmodus.</p>
+          <p class="sp__muted">Ingen posisjoner.</p>
           <button type="button" class="sp__inline-action" @click="openEdit">Sett posisjoner</button>
         </template>
       </section>
@@ -206,9 +204,9 @@ async function confirmDelete() {
         </div>
       </section>
 
-      <section class="sp__section">
+      <section v-if="hasTimed" class="sp__section">
         <h2 class="ds-section-label sp__h2">Spilletid</h2>
-        <div v-if="hasTimed" class="sp__stats">
+        <div class="sp__stats">
           <div class="sp__stat">
             <span class="sp__statnum">{{ mins(stats.totalSec) }}</span>
             <span class="sp__statlabel">min totalt</span>
@@ -222,10 +220,6 @@ async function confirmDelete() {
             <span class="sp__statlabel">min i mål</span>
           </div>
         </div>
-        <p v-else class="sp__muted">
-          Spilletid måles bare i kampmodus.
-        </p>
-        <p v-if="hasTimed" class="sp__note">{{ stats.timedGames }} av {{ stats.games }} kamper målt i kampmodus.</p>
       </section>
 
       <section v-if="recentMatches.length" class="sp__section">
@@ -274,7 +268,6 @@ async function confirmDelete() {
             @click="togglePosition(o.value)"
           >{{ o.label }}</button>
         </div>
-        <p class="poschips__hint">Sorterer forslagene i kampmodus</p>
       </div>
       <div class="ds-form-group">
         <label class="ds-label ds-label--optional">Nivå</label>
@@ -288,7 +281,6 @@ async function confirmDelete() {
             @click="editLevel = editLevel === l ? null : l"
           >{{ l }}</button>
         </div>
-        <p class="poschips__hint">Fordeler grupper på differensierte øvelser. Bare trenere ser det.</p>
       </div>
       <button
         type="button"
@@ -325,12 +317,6 @@ async function confirmDelete() {
 .sp__muted { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); padding: var(--ds-space-sm) var(--ds-space-lg); }
 
 .sp__nav { padding: var(--ds-space-md) var(--ds-space-lg) 0; }
-.sp__back {
-  display: inline-flex; align-items: center; gap: 4px;
-  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-tertiary); text-decoration: none;
-}
-.sp__back svg { width: 16px; height: 16px; }
 
 .sp__head {
   display: flex; align-items: center; gap: var(--ds-space-md);
@@ -366,7 +352,8 @@ async function confirmDelete() {
 
 /* Handlingen hører til der mangelen er, ikke bare i knappen øverst. */
 .sp__inline-action {
-  margin-top: var(--ds-space-sm); padding: 0;
+  display: inline-flex; align-items: center; min-height: 44px;
+  margin-top: var(--ds-space-xs); padding: 0;
   border: 0; background: transparent; cursor: pointer;
   font-family: var(--ds-font-body); font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium); color: var(--ds-color-text-primary);
@@ -435,7 +422,6 @@ async function confirmDelete() {
   background: var(--ds-color-accent);
   color: var(--ds-color-accent-text);
 }
-.poschips__hint { margin: var(--ds-space-sm) 0 0; font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary); }
 
 .loan-toggle {
   display: flex; align-items: center; gap: var(--ds-space-md);

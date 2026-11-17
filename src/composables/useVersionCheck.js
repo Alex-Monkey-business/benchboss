@@ -4,28 +4,31 @@ const BUILD_VERSION = typeof __BUILD_VERSION__ !== 'undefined' ? __BUILD_VERSION
 const POLL_INTERVAL_MS = 60_000
 
 let started = false
-// Ny versjon funnet mens kampen pågår: venter til neste navigasjon.
+// Ny versjon funnet: venter til neste navigasjon. Appen lastes aldri på nytt
+// mens noen ser på den — ikke når den kommer fram igjen, og ikke midt i en
+// kamp. Neste trykk til en annen skjerm blir en full sidelast rett til
+// målet, så ingen merker mer enn et vanlig sideskift.
 let ventendeReload = false
 
-// Kampmodus skal aldri lastes på nytt av seg selv. En reload midt i kampen
-// tar klokka ut av hånda på treneren, mister wake lock og et ulagret bytte.
-function kampPagar() {
-  if (/\/kamp\/[^/]+\/live/.test(window.location.pathname)) return true
-  return !!useAuth().sessionHeld.value
-}
-
+// Kampmodus skal aldri lastes på nytt av seg selv (se vakten under): en
+// reload midt i kampen tar klokka ut av hånda på treneren.
+let pagar = null
+let sist = 0
 async function check() {
   if (ventendeReload) return
   if (BUILD_VERSION === 'dev') return
-  try {
-    const r = await fetch('/version.json?_=' + Date.now(), { cache: 'no-store' })
-    if (!r.ok) return
-    const { version } = await r.json()
-    if (version && version !== BUILD_VERSION) {
-      if (kampPagar()) ventendeReload = true
-      else window.location.reload()
-    }
-  } catch {}
+  // Fokus og synlighet kommer som et par når appen hentes fram: én sjekk.
+  if (pagar || Date.now() - sist < 5000) return pagar
+  sist = Date.now()
+  pagar = (async () => {
+    try {
+      const r = await fetch('/version.json?_=' + Date.now(), { cache: 'no-store' })
+      if (!r.ok) return
+      const { version } = await r.json()
+      if (version && version !== BUILD_VERSION) ventendeReload = true
+    } catch {} finally { pagar = null }
+  })()
+  return pagar
 }
 
 async function unregisterOldServiceWorkers() {
@@ -33,8 +36,8 @@ async function unregisterOldServiceWorkers() {
   try {
     const regs = await navigator.serviceWorker.getRegistrations()
     // Only kill the legacy workbox SW (/sw.js) that cached stale bundles.
-    // Leave the network-only /pwa-sw.js alone — it never caches and is what
-    // keeps the app installable on Android.
+    // Leave /pwa-sw.js alone — it keeps the app installable and lets it
+    // start offline (network-first for pages, only hashed /assets cached).
     let removedOldWorkbox = false
     for (const reg of regs) {
       if (reg.active?.scriptURL?.endsWith('/sw.js')) {

@@ -25,19 +25,22 @@ import { isPlayed, isOurMatch, teamColorsForMatch } from '../lib/matchMeta'
 //              når det spør «hvor mange kamper har han spilt?».
 
 export function usePlayerStats() {
-  const { matches, matchPlayers, matchAbsences, fetchMatches, fetchAllMatchPlayers, fetchAllMatchAbsences } = useMatches()
+  const { matches, matchPlayers, matchAbsences, ensureMatches, fetchAllMatchPlayers, fetchAllMatchAbsences } = useMatches()
   const { goals, fetchAllGoals } = useMatchGoals()
   const { stints, fetchAllStints } = useMatchMode()
-  const { viewingSeason, fetchSeasons } = useSeasons()
+  const { viewingSeason, ensureSeasons } = useSeasons()
   const { players, fetchPlayers } = usePlayers()
   const { fetchPlayerSeasonTeams, teamForSeason } = usePlayerSeasonTeams()
 
   async function ensurePlayerStats() {
+    // Sesongen fra sist går i første bølge; bare et sesongbytte gir en runde til.
+    const kjent = viewingSeason.value?.id || null
     await Promise.all([
-      fetchSeasons(), fetchPlayers(), fetchPlayerSeasonTeams(),
-      fetchAllGoals(), fetchAllStints(), fetchAllMatchPlayers(), fetchAllMatchAbsences()
+      ensureSeasons(), fetchPlayers(), fetchPlayerSeasonTeams(),
+      fetchAllGoals(), fetchAllStints(), fetchAllMatchPlayers(), fetchAllMatchAbsences(),
+      kjent ? ensureMatches(kjent) : null
     ])
-    if (viewingSeason.value) await fetchMatches(viewingSeason.value.id)
+    if (viewingSeason.value && viewingSeason.value.id !== kjent) await ensureMatches(viewingSeason.value.id)
   }
 
   const seasonId = computed(() => viewingSeason.value?.id ?? null)

@@ -13,6 +13,7 @@ import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
 import DisclosureSection from '../components/DisclosureSection.vue'
 import Spot from '../components/Spot.vue'
+import BackLink from '../components/BackLink.vue'
 
 const { seasons, activeSeason, viewingSeason, fetchSeasons, createSeason, setViewingSeason } = useSeasons()
 const { matches, fetchMatches, bulkAddMatches, addMatch, updateMatch, deleteAllMatches, backfillDefaultCoaches } = useMatches()
@@ -199,7 +200,7 @@ async function processFile(file) {
 
     if (ours.length === 0) {
       loading.value = false
-      showToast(`Fant ingen ${clubName.value}-kamper i filen`, 'error')
+      showToast(`Fant ingen ${clubName.value}-kamper i fila`, 'error')
       return
     }
 
@@ -209,7 +210,7 @@ async function processFile(file) {
     loading.value = false
   } catch (err) {
     loading.value = false
-    showToast('Kunne ikke lese filen: ' + err.message, 'error')
+    showToast('Kunne ikke lese fila: ' + err.message, 'error')
   }
 }
 
@@ -377,16 +378,11 @@ function formatMatchDate(dateStr) {
 <template>
   <div class="desktop-container">
     <div class="px-lg" style="padding-top: var(--ds-space-md);">
-      <router-link to="/admin" class="back-btn">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="15 18 9 12 15 6"/>
-        </svg>
-        Admin
-      </router-link>
+      <BackLink to="/admin" label="Admin" />
     </div>
 
     <div class="page-header">
-      <h1 class="page-header__title">Sesong og kampprogram</h1>
+      <h1 class="page-header__title">Sesong og terminliste</h1>
     </div>
 
     <!-- ═══ SESONG ═══ -->
@@ -466,7 +462,7 @@ function formatMatchDate(dateStr) {
       <div class="section-label">Legg til kamper</div>
       <div class="legg-til">
     <!-- ═══ IMPORT ═══ -->
-      <DisclosureSection v-model="apneSeksjoner.import" label="Last opp kampprogram" empty-text="">
+      <DisclosureSection v-model="apneSeksjoner.import" label="Last opp terminliste" empty-text="">
         <div v-if="!showPreview">
           <div
             :class="['file-drop', { 'file-drop--active': dragActive }]"
@@ -478,8 +474,7 @@ function formatMatchDate(dateStr) {
             <div class="file-drop__icon">
               <Spot name="import" class="file-drop__spot" :size="80" />
             </div>
-            <p class="file-drop__text">Dra fil hit eller tap for å velge</p>
-            <p class="file-drop__hint">Støtter .xlsx, .xls og .csv</p>
+            <p class="file-drop__text">Last opp regneark</p>
           </div>
           <input
             ref="fileInput"
@@ -494,7 +489,7 @@ function formatMatchDate(dateStr) {
           <!-- Pila går ned i kalenderen én gang: fila ER lest. Ikke en suksessmelding, en kvittering på handlingen. -->
           <Spot name="import" class="file-drop__spot mb-md" :size="80" :play="true" />
           <div class="ds-alert ds-alert--info mb-md">
-            {{ parsedMatches.length }} Halsen-kamper funnet i filen.
+            {{ parsedMatches.length }} kamper funnet.
             <template v-if="skippedForeign">
               {{ skippedForeign }} kamper for andre lag utelates.
             </template>
@@ -524,7 +519,7 @@ function formatMatchDate(dateStr) {
                 </tr>
                 <tr v-if="parsedMatches.length > 10">
                   <td colspan="5" style="text-align: center; color: var(--ds-color-text-tertiary);">
-                    ...og {{ parsedMatches.length - 10 }} til
+                    … og {{ parsedMatches.length - 10 }} til
                   </td>
                 </tr>
               </tbody>
@@ -534,7 +529,7 @@ function formatMatchDate(dateStr) {
           <div class="ds-flex ds-gap-sm">
             <button class="ds-btn ds-btn--secondary" @click="showPreview = false; parsedMatches = []">Avbryt</button>
             <button class="ds-btn ds-btn--primary" :disabled="importing" @click="confirmImport">
-              {{ importing ? 'Importerer...' : `Importer ${parsedMatches.length} kamper` }}
+              {{ importing ? 'Importerer …' : `Importer ${parsedMatches.length} kamper` }}
             </button>
           </div>
         </div>
@@ -544,9 +539,6 @@ function formatMatchDate(dateStr) {
       <DisclosureSection v-model="apneSeksjoner.fiks" label="Terminliste fra fotball.no" empty-text="">
         <!-- Klubben er ikke koblet: da finnes ingen terminliste å se på. -->
         <template v-if="!activeCohort?.club_fiks_id">
-          <p class="fiks-lead">
-            Koble til fotball.no, så oppdateres kampene når kretsen flytter dem.
-          </p>
           <input
             v-model="klubbSok"
             type="search"
@@ -570,11 +562,8 @@ function formatMatchDate(dateStr) {
 
         <!-- Koblet, men ingen sjekk kjørt ennå -->
         <template v-else-if="!synk">
-          <p class="fiks-lead">
-            Ingenting flyttes før du godkjenner.
-          </p>
           <button class="ds-btn ds-btn--primary fiks-knapp" :disabled="synker" @click="sjekkTerminliste">
-            {{ synker ? 'Henter fra fotball.no…' : 'Sjekk terminlista' }}
+            {{ synker ? 'Henter fra fotball.no …' : 'Sjekk terminlista' }}
           </button>
         </template>
 
@@ -619,7 +608,7 @@ function formatMatchDate(dateStr) {
 
           <div class="fiks-handling">
             <button v-if="antallEndringer" class="ds-btn ds-btn--primary" :disabled="oppdaterer" @click="oppdaterFraFiks">
-              {{ oppdaterer ? 'Oppdaterer…' : `Oppdater ${antallEndringer} ${antallEndringer === 1 ? 'kamp' : 'kamper'}` }}
+              {{ oppdaterer ? 'Oppdaterer …' : `Oppdater ${antallEndringer} ${antallEndringer === 1 ? 'kamp' : 'kamper'}` }}
             </button>
             <button class="ds-btn ds-btn--secondary" @click="synk = null">
               {{ antallEndringer ? 'Ikke nå' : 'Lukk' }}
@@ -645,7 +634,7 @@ function formatMatchDate(dateStr) {
         <span class="action-row__icon">
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg>
         </span>
-        <span class="action-row__label">{{ backfilling ? 'Setter trenere…' : 'Sett standardtrenere på kamper uten' }}</span>
+        <span class="action-row__label">{{ backfilling ? 'Setter trenere …' : 'Sett trenere på kamper som mangler' }}</span>
         <svg class="action-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
       </button>
     </div>
@@ -874,6 +863,7 @@ function formatMatchDate(dateStr) {
   align-items: center;
   justify-content: space-between;
   width: 100%;
+  min-height: 44px;
   padding: 10px 12px;
   background: var(--ds-color-bg-subtle);
   border: 1px solid transparent;
@@ -901,10 +891,12 @@ function formatMatchDate(dateStr) {
   border: none;
   background: none;
   color: var(--ds-color-accent);
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: 600;
   cursor: pointer;
-  padding: 8px 0 0;
+  min-height: 44px;
+  padding: 0;
+  margin-top: var(--ds-space-sm);
   border-top: 1px solid var(--ds-color-border-light);
   width: 100%;
   transition: opacity 0.15s;
@@ -1012,7 +1004,7 @@ function formatMatchDate(dateStr) {
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-  width: 110px;
+  width: 88px;
   font-variant-numeric: tabular-nums;
 }
 
@@ -1041,7 +1033,10 @@ function formatMatchDate(dateStr) {
   font-weight: 500;
   color: var(--ds-color-text-primary);
   min-width: 0;
-  overflow-wrap: anywhere;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .match-row__vs {
@@ -1056,9 +1051,9 @@ function formatMatchDate(dateStr) {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 40px;
-  height: 40px;
-  margin: -4px;
+  width: 44px;
+  height: 44px;
+  margin: -6px -8px -6px 0;
   padding: 0;
   border: none;
   border-radius: 6px;

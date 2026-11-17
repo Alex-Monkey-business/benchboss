@@ -72,7 +72,7 @@
 }
 
 .ds-card__title--display {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: var(--ds-text-2xl);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-tighter);
@@ -126,7 +126,7 @@
 
 /* ---- Card Stat (for big numbers — e.g. totals) ---- */
 .ds-card__stat {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-weight: var(--ds-weight-semibold);
   font-size: var(--ds-text-3xl);
   line-height: 1;

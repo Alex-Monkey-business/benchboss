@@ -10,6 +10,7 @@ import { useCoaches } from '../composables/useCoaches'
 import { useResponsibilities } from '../composables/useResponsibilities'
 import { openPoints } from '../content/meetings'
 import { useContent } from '../composables/useContent'
+import BackLink from '../components/BackLink.vue'
 
 const { activeCohort } = useAuth()
 const { coaches, fetchCoaches } = useCoaches()
@@ -46,15 +47,11 @@ onMounted(async () => {
 <template>
   <div class="referater">
     <div class="referater__back-wrap">
-      <router-link to="/admin" class="referater__back">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
-        Admin
-      </router-link>
+      <BackLink to="/admin" label="Admin" />
     </div>
 
     <header class="referater__hero">
-      <span class="referater__eyebrow">Trenerteamet</span>
-      <h1 class="referater__title">Det vi ble enige&nbsp;om</h1>
+      <h1 class="referater__title">Møtereferater</h1>
     </header>
 
     <section class="block">
@@ -105,47 +102,24 @@ onMounted(async () => {
 }
 
 .referater {
-  max-width: 680px;
+  max-width: var(--ds-content-max);
   margin: 0 auto;
   padding: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-2xl);
 }
 
 .referater__back-wrap { margin-bottom: var(--ds-space-xl); }
 
-.referater__back {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  text-decoration: none;
-  letter-spacing: -0.005em;
-}
 
-.referater__back svg { width: 14px; height: 14px; }
-.referater__back:hover { color: var(--ds-color-text-primary); }
 
 .referater__hero { margin-bottom: var(--ds-space-2xl); }
 
-.referater__eyebrow {
-  display: inline-block;
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-medium);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
-  color: var(--ds-color-text-tertiary);
-  margin-bottom: var(--ds-space-md);
-}
-
 .referater__title {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: clamp(2.2rem, 7vw, 3.2rem);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-tighter);
   line-height: 1.05;
   color: var(--ds-color-text-primary);
-  font-variation-settings: var(--ds-font-display-settings);
   margin: 0;
 }
 
@@ -307,7 +281,7 @@ onMounted(async () => {
 }
 
 .referat-kort__title {
-  font-family: var(--ds-font-display);
+  font-family: var(--ds-font-heading);
   font-size: var(--ds-text-lg);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: var(--ds-tracking-tight);

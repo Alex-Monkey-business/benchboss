@@ -19,6 +19,12 @@ export function minutesToKickoff(matchDate, matchTime, now = Date.now()) {
   return Math.round((d.getTime() - now) / 60000)
 }
 
+function erIdag(matchDate, now) {
+  const d = new Date(now)
+  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return String(matchDate || '').slice(0, 10) === iso
+}
+
 export function matchCta({ status, hasLineup, hasResult, matchDate, matchTime, now = Date.now() }) {
   // En kamp som fortsatt går skal alltid ha veien tilbake til klokka — også
   // om noen har ført resultatet underveis.
@@ -38,6 +44,11 @@ export function matchCta({ status, hasLineup, hasResult, matchDate, matchTime, n
 
   if (mins !== null && mins <= 60) {
     return { label: 'Start kamp', tone: 'start', icon: 'play' }
+  }
+  // Kampdag uten lag: å sette opp laget er det neste som skal skje, og
+  // knappen har full tyngde.
+  if (!hasLineup && erIdag(matchDate, now)) {
+    return { label: 'Sett opp lag', tone: 'start', icon: 'grid' }
   }
   if (mins !== null && mins <= 180) {
     return { label: 'Gjør klart til kamp', tone: 'prep', icon: 'clock' }

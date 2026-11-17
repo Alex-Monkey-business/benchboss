@@ -8,8 +8,8 @@ import { usePlayerSeasonTeams } from '../composables/usePlayerSeasonTeams'
 import { useToast } from '../composables/useToast'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
 import { useCoaches } from '../composables/useCoaches'
-import { playerPositions } from '../lib/playerPositions'
 import Sheet from '../components/Sheet.vue'
+import BackLink from '../components/BackLink.vue'
 import { meldEvent } from '../lib/sporing'
 
 const { isParent } = useAuth()
@@ -21,7 +21,8 @@ const { coaches, fetchCoaches } = useCoaches()
 const { show: showToast } = useToast()
 
 const canEdit = computed(() => !isParent.value)
-const ready = ref(false)
+// Spillerne vi allerede har, tegnes med en gang; hentingen friskes opp bak.
+const ready = ref(players.value.length > 0)
 const editing = ref(false)
 const seasonId = computed(() => activeSeason.value?.id ?? null)
 
@@ -55,21 +56,34 @@ const unplaced = computed(() =>
 // Lånespiller-status er trenerinformasjon. Foreldre ser hverken stjerner eller
 // forklaringen på hva de betyr.
 const eligible = p => canEdit.value && isLoanEligible(p, seasonId.value)
-const hasEligible = computed(() => players.value.some(eligible))
-
-// Posisjonene styrer forslagene i kampmodus. Antallet uten er det eneste
-// signalet som trengs for å se om jobben er gjort — vises kun i rediger-modus.
-const missingPositions = computed(() =>
-  players.value.filter(p => !playerPositions(p).length).length)
 
 // Hurtig lag-bytte (chip-prikkene / ×)
 async function assign(playerId, team) {
   await updatePlayer(playerId, { primary_team: team })
   meldEvent('lag_endret', { flate: 'spiller', satt: true })
 }
+// Av laget med én gang; Angre i varslinga setter spilleren tilbake på samme
+// lag. Feiler lagringen, står spilleren der igjen.
+async function settLag(playerId, team) {
+  const p = players.value.find(x => x.id === playerId)
+  const for_ = p?.primary_team ?? null
+  if (p) p.primary_team = team
+  const ok = await updatePlayer(playerId, { primary_team: team }).catch(() => null)
+  if (!ok) {
+    if (p) p.primary_team = for_
+    showToast('Fikk ikke lagret. Prøv igjen.', 'error')
+  }
+  return !!ok
+}
 async function remove(playerId) {
-  await updatePlayer(playerId, { primary_team: null })
+  const p = players.value.find(x => x.id === playerId)
+  const lag = p?.primary_team
+  if (!p || !lag) return
+  if (!(await settLag(playerId, null))) return
   meldEvent('lag_endret', { flate: 'spiller', satt: false })
+  showToast(`${p.name.split(' ')[0]} tatt av laget`, 'success', 5000, {
+    action: { label: 'Angre', handler: () => settLag(playerId, lag) }
+  })
 }
 
 // Ny spiller
@@ -93,6 +107,9 @@ async function handleAdd() {
 
 <template>
   <div class="desktop-container">
+    <div v-if="canEdit" class="px-lg" style="padding-top: var(--ds-space-md);">
+      <BackLink to="/admin" label="Admin" />
+    </div>
     <div class="page-header">
       <h1 class="page-header__title">Tropp</h1>
       <p class="page-header__subtitle">{{ activeSeason?.name || 'Serie' }}</p>
@@ -104,13 +121,13 @@ async function handleAdd() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Ny spiller
         </button>
-        <span v-else class="tropp-hint">{{ unplaced.length }} ikke plassert</span>
+        <span v-else-if="unplaced.length" class="tropp-hint">{{ unplaced.length }} ikke plassert</span>
         <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" @click="editing = !editing">
           {{ editing ? 'Ferdig' : 'Rediger tropp' }}
         </button>
       </div>
 
-      <div v-if="!ready" class="cmd-muted">Henter tropp …</div>
+      <div v-if="!ready"></div>
 
       <div v-else-if="canEdit && players.length === 0" class="ds-empty">
         <Spot name="squad" class="ds-empty__illo" />
@@ -120,11 +137,6 @@ async function handleAdd() {
 
       <!-- Samme layout i lese- og edit-modus: lag-kort med chips -->
       <template v-else>
-        <div v-if="canEdit && (hasEligible || missingPositions)" class="legends">
-          <p v-if="hasEligible" class="star-legend"><span class="chip__star">★</span> = egnet som lånespiller</p>
-          <p v-if="missingPositions" class="star-legend">{{ missingPositions }} uten posisjon</p>
-        </div>
-
         <section v-for="t in seasonTeams" :key="t.slug" class="teamcard" :data-accent="t.accent" :data-team="t.slug">
           <header class="teamcard__head">
             <span class="teamcard__dot"></span>
@@ -206,6 +218,7 @@ async function handleAdd() {
   display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md);
   margin-bottom: var(--ds-space-md);
 }
+.tropp-actions > .ds-btn:last-child { margin-left: auto; }
 .tropp-hint { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); }
 .add-link {
   display: inline-flex; align-items: center; gap: 6px;
@@ -286,7 +299,9 @@ async function handleAdd() {
 
 .roster { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }
 .chip {
+  position: relative;
   display: inline-flex; align-items: center; gap: var(--ds-space-xs);
+  min-height: 44px;
   padding: 6px var(--ds-space-md);
   border: 1px solid transparent;
   border-radius: var(--ds-radius-full);
@@ -303,10 +318,13 @@ async function handleAdd() {
   font: inherit; color: inherit; letter-spacing: inherit;
 }
 .chip__name:hover { text-decoration: underline; }
+/* Hele chipen er trykkflata, ikke bare navnet. */
+.chip__name::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
+.chip__x, .chip__assign { position: relative; z-index: 1; }
 
 .chip__x {
   display: grid; place-items: center;
-  width: 18px; height: 18px; margin: 0 -4px 0 2px; padding: 0;
+  width: 32px; height: 32px; margin: 0 -10px 0 -4px; padding: 0;
   border: none; border-radius: 50%;
   background: transparent; color: inherit; opacity: 0.55;
   font-size: 15px; line-height: 1; cursor: pointer;
@@ -315,7 +333,7 @@ async function handleAdd() {
 
 .chip__assign { display: inline-flex; align-items: center; gap: 5px; margin-left: 4px; }
 .chip__dot {
-  width: 18px; height: 18px; padding: 0; flex: none;
+  width: 24px; height: 24px; padding: 0; flex: none;
   background: var(--accent-text);
   border: 2px solid var(--ds-color-bg-elevated);
   border-radius: 50%; cursor: pointer;
@@ -325,19 +343,6 @@ async function handleAdd() {
 
 .chip__star { color: var(--ds-color-warning); font-size: 11px; margin: 0 -2px 0 1px; }
 
-/* To forklaringslinjer sto som inline-flex og kolliderte på samme linje uten
-   mellomrom: «★ = egnet som lånespiller16 uten posisjon». Beholderen eier nå
-   både retningen og luften. */
-.legends {
-  display: flex; flex-wrap: wrap; column-gap: var(--ds-space-md); row-gap: 4px;
-  margin-bottom: var(--ds-space-md);
-}
-.star-legend {
-  display: inline-flex; align-items: center; gap: 5px;
-  margin: 0;
-  font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary);
-}
-.star-legend .chip__star { font-size: 12px; margin: 0; }
 
 /* Sheet-handlinger (ny/rediger spiller) */
 .sheet-actions {

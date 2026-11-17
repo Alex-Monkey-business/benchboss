@@ -94,6 +94,7 @@ function pick(seasonId) {
   display: inline-flex;
   align-items: center;
   gap: 6px;
+  min-height: 44px;
   border: none;
   background: none;
   padding: 0;
@@ -137,6 +138,9 @@ function pick(seasonId) {
   color: var(--ds-color-warm-text);
 }
 .season-picker__reset {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
   border: none;
   background: none;
   padding: 0;
@@ -158,6 +162,7 @@ function pick(seasonId) {
   align-items: center;
   gap: 8px;
   width: 100%;
+  min-height: 52px;
   padding: 12px;
   background: var(--ds-color-bg-subtle);
   border: 1px solid transparent;

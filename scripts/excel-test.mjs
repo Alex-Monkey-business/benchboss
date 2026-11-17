@@ -13,7 +13,7 @@ await page.evaluate(id=>localStorage.setItem('bb_active_cohort',id),STAG)
 await page.goto(APP+'/',{waitUntil:'networkidle'})
 await page.getByRole('button',{name:/Legg inn spillerne/}).click()
 await page.locator('#onb-paste').waitFor()
-await page.getByRole('button',{name:/Har du en fil/}).click()
+await page.getByRole('button',{name:'Last opp fil'}).click()
 
 await page.setInputFiles('input[type=file]', 'spillere.xlsx')
 await page.waitForTimeout(900)

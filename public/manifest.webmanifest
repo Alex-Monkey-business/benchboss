@@ -1,8 +1,8 @@
 {
   "name": "BenchBoss",
   "short_name": "BenchBoss",
-  "description": "Built for the beautiful chaos of grassroots football",
-  "lang": "no",
+  "description": "Spilletid, tropper og trening for barnefotballen",
+  "lang": "nb",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

@@ -6,7 +6,8 @@ import { defaultCoachIdsForMatch } from '../lib/coachTeams'
 import { useSeasonTeams } from './useSeasonTeams'
 import { useAuth } from '../stores/auth'
 import { registerReset } from '../stores/dataReset'
-import { fetchRows, STATUS, dedupe } from '../lib/query'
+import { fetchRows, STATUS, cached } from '../lib/query'
+import { settUtlegg } from './useExpenses'
 import { persistRef } from '../lib/persist'
 
 const matches = persistRef('matches', ref([]))
@@ -72,55 +73,91 @@ const DEMO_MATCH_PLAYERS = [
   { match_id: 'dm-5', player_id: 'p-15' }, // Isak again
 ]
 
-export function useMatches() {
-  const { coaches, fetchCoaches } = useCoaches()
+async function hentKamper(seasonId) {
+  loading.value = true
 
-  async function fetchMatches(seasonId) {
-    loading.value = true
-
-    if (!isSupabaseConfigured) {
-      matches.value = DEMO_MATCHES.filter(m => m.season_id === seasonId)
-      // Keep user changes in demo mode - only init if empty
-      if (matchCoaches.value.length === 0 && DEMO_MATCH_COACHES.length > 0) {
-        matchCoaches.value = [...DEMO_MATCH_COACHES]
-      }
-      if (matchPlayers.value.length === 0 && DEMO_MATCH_PLAYERS.length > 0) {
-        matchPlayers.value = [...DEMO_MATCH_PLAYERS]
-      }
-      loading.value = false
-      status.value = STATUS.OK
-      return
+  if (!isSupabaseConfigured) {
+    matches.value = DEMO_MATCHES.filter(m => m.season_id === seasonId)
+    // Keep user changes in demo mode - only init if empty
+    if (matchCoaches.value.length === 0 && DEMO_MATCH_COACHES.length > 0) {
+      matchCoaches.value = [...DEMO_MATCH_COACHES]
     }
-
-    status.value = STATUS.LOADING
-    const { rows } = await fetchRows(
-      supabase.from('matches').select('*').eq('season_id', seasonId)
-        .order('match_date').order('match_time'),
-      'matches'
-    )
-
-    // Feiler kamphentingen, ville de to neste spørringene kjørt mot ID-ene fra
-    // forrige sesong og gitt et sammenblandet resultat. Stopp her i stedet.
-    if (!rows) {
-      loading.value = false
-      status.value = STATUS.ERROR
-      return
+    if (matchPlayers.value.length === 0 && DEMO_MATCH_PLAYERS.length > 0) {
+      matchPlayers.value = [...DEMO_MATCH_PLAYERS]
     }
-    matches.value = rows
-
-    const matchIds = matches.value.map(m => m.id)
-
-    const [{ rows: mc }, { rows: mp }] = await Promise.all([
-      fetchRows(supabase.from('match_coaches').select('*').in('match_id', matchIds), 'match_coaches'),
-      fetchRows(supabase.from('match_players').select('*').in('match_id', matchIds), 'match_players')
-    ])
-
-    if (mc) matchCoaches.value = mc
-    if (mp) matchPlayers.value = mp
-
     loading.value = false
     status.value = STATUS.OK
+    return
   }
+
+  status.value = STATUS.LOADING
+  // Kampene, trenerne, hospitantene og utleggene i ÉN rundtur. Før var det
+  // tre bølger etter hverandre (kamper → trenere/tropp → utlegg), ~450 ms
+  // på mobilnett før Hjem og Kamper var ferdige.
+  //
+  // Fremmednøkkelen må navngis: kullsperren la til en nummer to mellom de
+  // samme tabellene (match_id, cohort_id), og uten hint svarer PostgREST
+  // med PGRST201 (tvetydig relasjon).
+  const { rows } = await fetchRows(
+    supabase.from('matches')
+      .select('*, match_coaches!match_coaches_match_id_fkey(*), match_players!match_players_match_id_fkey(*), expenses!expenses_match_id_fkey(*)')
+      .eq('season_id', seasonId)
+      .order('match_date').order('match_time'),
+    'matches'
+  )
+
+  // Feiler kamphentingen, beholder vi det vi har (og ikke en blanding av
+  // denne og forrige sesong).
+  if (!rows) {
+    loading.value = false
+    status.value = STATUS.ERROR
+    return
+  }
+
+  // Kamp-radene holdes flate, som før: de spres inn i oppdateringer andre
+  // steder, og en innebygd liste der hadde blitt sendt tilbake til basen.
+  // Utlegg er unikt per kamp, så PostgREST gir et objekt (eller null), ikke en
+  // liste. Alle tre leses som lister uansett.
+  const liste = x => (x == null ? [] : Array.isArray(x) ? x : [x])
+  const mc = [], mp = [], ex = []
+  matches.value = rows.map(({ match_coaches: c, match_players: p, expenses: e, ...m }) => {
+    mc.push(...liste(c))
+    mp.push(...liste(p))
+    ex.push(...liste(e))
+    return m
+  })
+  matchCoaches.value = mc
+  // Hospitantene for andre sesonger blir stående: kampsida henter hele
+  // kullets tropp (konfliktsjekken), og den skal ikke viskes ut av at
+  // Kamper henter én sesong.
+  const iSesongen = new Set(matches.value.map(m => m.id))
+  matchPlayers.value = [...matchPlayers.value.filter(r => !iSesongen.has(r.match_id)), ...mp]
+  settUtlegg(ex, matches.value.map(m => m.id))
+
+  loading.value = false
+  status.value = STATUS.OK
+}
+
+// Alle som henter kampene, deler én forespørsel om gangen (dedupe), og et svar
+// er ferskt i 30 s (cached). `fetchMatches` henter alltid — den brukes etter
+// importer og synk. `ensureMatches` er for skjermer som bare vil ha dem
+// ferske nok: Hjem, Kamper, kampsida og Statistikk.
+const kamperFersk = cached(hentKamper, 'matches', { ok: () => status.value === STATUS.OK, enPlass: true })
+
+// Hele kullets tropp og frafall (konfliktsjekken på kampsida). Fersk i 30 s.
+const allePlayersFersk = cached(async () => {
+  const { data, error } = await scoped(supabase.from('match_players').select('match_id, player_id'))
+  if (data) matchPlayers.value = data
+  return !error
+}, 'allMatchPlayers', { ok: v => v === true })
+const alleFravaerFersk = cached(async () => {
+  const { data, error } = await scoped(supabase.from('match_absences').select('match_id, player_id'))
+  if (data) matchAbsences.value = data
+  return !error
+}, 'allMatchAbsences', { ok: v => v === true })
+
+export function useMatches() {
+  const { coaches, fetchCoaches } = useCoaches()
 
   async function getMatch(matchId) {
     if (!isSupabaseConfigured) {
@@ -140,7 +177,7 @@ export function useMatches() {
     if (!isSupabaseConfigured) {
       const idx = matches.value.findIndex(m => m.id === matchId)
       if (idx > -1) Object.assign(matches.value[idx], updates)
-      return matches.value[idx]
+      return matches.value[idx] || { id: matchId, ...updates }
     }
 
     const { data, error } = await supabase
@@ -240,7 +277,7 @@ export function useMatches() {
     const { seasonTeams, fetchSeasonTeams } = useSeasonTeams()
     const { activeCohort } = useAuth()
     await Promise.all([
-      fetchMatches(seasonId),
+      kamperFersk.force(seasonId),
       fetchCoaches(),
       fetchSeasonTeams(activeCohort.value?.id, seasonId)
     ])
@@ -257,25 +294,36 @@ export function useMatches() {
     return updated
   }
 
+  // Trenerne på en kamp settes som en diff: de nye legges til, de som er tatt
+  // av slettes — parallelt. Før var det «slett alle, sett inn alle» etter
+  // hverandre: to rundturer per trykk, og et vindu der kampen sto uten trenere.
+  // Returnerer false når noe ikke ble lagret, så kalleren kan rulle tilbake.
   async function setMatchCoaches(matchId, coachIds) {
-    if (!isSupabaseConfigured) {
+    const fra = getCoachesForMatch(matchId)
+    const settLokalt = ids => {
       matchCoaches.value = matchCoaches.value.filter(mc => mc.match_id !== matchId)
-      coachIds.forEach(cid => matchCoaches.value.push({ match_id: matchId, coach_id: cid }))
-      return
+      ids.forEach(cid => matchCoaches.value.push({ match_id: matchId, coach_id: cid }))
     }
+    if (!isSupabaseConfigured) { settLokalt(coachIds); return true }
 
-    // blindskriving: setter trenerne på nytt. Null rader slettet er riktig og
-    // vanlig — kampen hadde ingen trenere fra før.
-    await supabase.from('match_coaches').delete().eq('match_id', matchId)
-
-    if (coachIds.length > 0) {
-      await supabase
-        .from('match_coaches')
-        .insert(coachIds.map(coach_id => ({ match_id: matchId, coach_id })))
+    const ny = coachIds.filter(id => !fra.includes(id))
+    const ut = fra.filter(id => !coachIds.includes(id))
+    settLokalt(coachIds)
+    const [a, b] = await Promise.all([
+      ny.length
+        ? supabase.from('match_coaches').insert(ny.map(coach_id => ({ match_id: matchId, coach_id }))).select('coach_id')
+        : { error: null },
+      ut.length
+        ? supabase.from('match_coaches').delete().eq('match_id', matchId).in('coach_id', ut).select('coach_id')
+        : { error: null }
+    ])
+    if (a.error || b.error) {
+      console.warn('[match_coaches] lagring feilet', (a.error || b.error).message)
+      // Hent sannheten: den ene halvdelen kan ha gått gjennom.
+      await fetchMatchCoaches(matchId)
+      return false
     }
-
-    matchCoaches.value = matchCoaches.value.filter(mc => mc.match_id !== matchId)
-    coachIds.forEach(cid => matchCoaches.value.push({ match_id: matchId, coach_id: cid }))
+    return true
   }
 
   function getCoachesForMatch(matchId) {
@@ -300,25 +348,32 @@ export function useMatches() {
     return data ? data.map(mc => mc.coach_id) : []
   }
 
+  // Samme diff som trenerne. Returnerer false når noe ikke ble lagret.
   async function setMatchPlayers(matchId, playerIds) {
-    if (!isSupabaseConfigured) {
+    const fra = getPlayersForMatch(matchId)
+    const settLokalt = ids => {
       matchPlayers.value = matchPlayers.value.filter(mp => mp.match_id !== matchId)
-      playerIds.forEach(pid => matchPlayers.value.push({ match_id: matchId, player_id: pid }))
-      return
+      ids.forEach(pid => matchPlayers.value.push({ match_id: matchId, player_id: pid }))
     }
+    if (!isSupabaseConfigured) { settLokalt(playerIds); return true }
 
-    // blindskriving: samme som over — troppen settes på nytt, og en kamp uten
-    // hospitanter fra før gir null rader.
-    await supabase.from('match_players').delete().eq('match_id', matchId)
-
-    if (playerIds.length > 0) {
-      await supabase
-        .from('match_players')
-        .insert(playerIds.map(player_id => ({ match_id: matchId, player_id })))
+    const ny = playerIds.filter(id => !fra.includes(id))
+    const ut = fra.filter(id => !playerIds.includes(id))
+    settLokalt(playerIds)
+    const [a, b] = await Promise.all([
+      ny.length
+        ? supabase.from('match_players').insert(ny.map(player_id => ({ match_id: matchId, player_id }))).select('player_id')
+        : { error: null },
+      ut.length
+        ? supabase.from('match_players').delete().eq('match_id', matchId).in('player_id', ut).select('player_id')
+        : { error: null }
+    ])
+    if (a.error || b.error) {
+      console.warn('[match_players] lagring feilet', (a.error || b.error).message)
+      await fetchMatchPlayers(matchId)
+      return false
     }
-
-    matchPlayers.value = matchPlayers.value.filter(mp => mp.match_id !== matchId)
-    playerIds.forEach(pid => matchPlayers.value.push({ match_id: matchId, player_id: pid }))
+    return true
   }
 
   function getPlayersForMatch(matchId) {
@@ -346,8 +401,7 @@ export function useMatches() {
   // Fetch all match_players rows — needed for cross-match conflict detection.
   async function fetchAllMatchPlayers() {
     if (!isSupabaseConfigured) return matchPlayers.value
-    const { data } = await scoped(supabase.from('match_players').select('match_id, player_id'))
-    if (data) matchPlayers.value = data
+    await allePlayersFersk()
     return matchPlayers.value
   }
 
@@ -355,8 +409,7 @@ export function useMatches() {
   // Spillere fra laget som er ute av en kamp. Speiler match_players-mønsteret.
   async function fetchAllMatchAbsences() {
     if (!isSupabaseConfigured) return matchAbsences.value
-    const { data } = await scoped(supabase.from('match_absences').select('match_id, player_id'))
-    if (data) matchAbsences.value = data
+    await alleFravaerFersk()
     return matchAbsences.value
   }
 
@@ -379,28 +432,25 @@ export function useMatches() {
     return matchAbsences.value.filter(a => a.match_id === matchId).map(a => a.player_id)
   }
 
-  // Veksle frafall for én spiller på én kamp.
+  // Veksle frafall for én spiller på én kamp. Lista endres med en gang;
+  // feiler lagringen, settes den tilbake. Returnerer { ute, ok }.
   async function toggleAbsence(matchId, playerId) {
     const isOut = matchAbsences.value.some(a => a.match_id === matchId && a.player_id === playerId)
+    const uten = () => matchAbsences.value.filter(a => !(a.match_id === matchId && a.player_id === playerId))
+    if (isOut) matchAbsences.value = uten()
+    else matchAbsences.value = [...matchAbsences.value, { match_id: matchId, player_id: playerId }]
 
-    if (!isSupabaseConfigured) {
-      if (isOut) {
-        matchAbsences.value = matchAbsences.value.filter(a => !(a.match_id === matchId && a.player_id === playerId))
-      } else {
-        matchAbsences.value.push({ match_id: matchId, player_id: playerId })
-      }
-      return !isOut
-    }
+    if (!isSupabaseConfigured) return { ute: !isOut, ok: true }
 
-    if (isOut) {
-      const { data, error } = await supabase
-        .from('match_absences').delete().eq('match_id', matchId).eq('player_id', playerId).select('player_id')
-      if (!error && data?.length) matchAbsences.value = matchAbsences.value.filter(a => !(a.match_id === matchId && a.player_id === playerId))
-    } else {
-      const { error } = await supabase.from('match_absences').insert({ match_id: matchId, player_id: playerId })
-      if (!error) matchAbsences.value.push({ match_id: matchId, player_id: playerId })
+    const { error } = isOut
+      ? await supabase.from('match_absences').delete().eq('match_id', matchId).eq('player_id', playerId).select('player_id')
+      : await supabase.from('match_absences').insert({ match_id: matchId, player_id: playerId }).select('player_id')
+    if (error) {
+      if (isOut) matchAbsences.value = [...matchAbsences.value, { match_id: matchId, player_id: playerId }]
+      else matchAbsences.value = uten()
+      return { ute: isOut, ok: false }
     }
-    return !isOut
+    return { ute: !isOut, ok: true }
   }
 
   async function deleteMatch(matchId) {
@@ -430,7 +480,7 @@ export function useMatches() {
 
   return {
     matches, matchCoaches, matchPlayers, matchAbsences, loading, status,
-    fetchMatches: dedupe(fetchMatches, 'fetchMatches'), getMatch, updateMatch, addMatch, bulkAddMatches,
+    fetchMatches: kamperFersk.force, ensureMatches: kamperFersk, getMatch, updateMatch, addMatch, bulkAddMatches,
     setMatchCoaches, getCoachesForMatch, fetchMatchCoaches, backfillDefaultCoaches,
     setMatchPlayers, getPlayersForMatch, fetchMatchPlayers, fetchAllMatchPlayers,
     fetchAllMatchAbsences, fetchMatchAbsences, getAbsencesForMatch, toggleAbsence,
