@@ -274,7 +274,12 @@ function getCoachesForMatchList(matchId) {
       <div class="ds-empty">
         <Spot name="match" class="ds-empty__illo" />
         <h3 class="ds-empty__title">Ingen kamper ennå</h3>
-        <button type="button" class="ds-btn ds-btn--primary ds-empty__action" @click="$router.push('/admin/sesong-kamper')">Last opp terminlista</button>
+        <button
+          v-if="kanLeggeTil && viewingSeason"
+          type="button"
+          class="ds-btn ds-btn--primary ds-empty__action"
+          @click="visNyKamp = true"
+        >Legg inn kamp</button>
       </div>
     </div>
 
