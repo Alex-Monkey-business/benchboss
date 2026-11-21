@@ -27,7 +27,7 @@ export function useOnboarding() {
   const { players, fetchPlayers } = usePlayers()
   const { seasonTeams, teamsFromDb, reloadTeams, invalidateTeamCoaches } = useSeasonTeams()
   const { matches } = useMatches()
-  const { activeSeason } = useSeasons()
+  const { activeSeason, seasons } = useSeasons()
 
   const canManageMembers = computed(() => isAdmin.value || isPlatformAdmin.value)
 
@@ -85,7 +85,13 @@ export function useOnboarding() {
   const fiksSpurtOgTom = computed(() =>
     fiksLag.value.length > 0 && fiksLag.value.every(t => t.fiks_synced_at)
   )
-  const matchesDone = computed(() => matches.value.length > 0 || fiksSpurtOgTom.value)
+  // Et kull som har avsluttet en sesong er satt opp. Ny sesong starter tom —
+  // vinteren har ingen terminliste, treningskampene legges inn underveis — og
+  // da skal ikke Hjem falle tilbake til oppstartskortene. Det skjedde 21. nov:
+  // Høst 2026 ble avsluttet, Vinter 26/27 hadde null kamper, og onboardingen
+  // gjemte Del inn for trenere som åpnet appen på nytt.
+  const harAvsluttetSesong = computed(() => seasons.value.some(s => s.status === 'settled'))
+  const matchesDone = computed(() => matches.value.length > 0 || fiksSpurtOgTom.value || harAvsluttetSesong.value)
 
   const steps = computed(() => [
     { key: 'teams', done: teamsDone.value },
