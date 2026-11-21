@@ -35,10 +35,11 @@ const TEAM_OPTIONS = computed(() =>
   [{ value: '', label: 'Ingen' }, ...seasonTeams.value.map(t => ({ value: t.slug, label: t.name }))])
 
 // Liste eller bane. Bare for trenere: banen viser posisjonene, og nivået
-// lekker gjennom hvem som står hvor. Valget huskes på telefonen.
+// lekker gjennom hvem som står hvor. Banen er standard; valget huskes på
+// telefonen.
 const { hent: hentOppstilling } = useOppstilling()
 const VISNING = 'bb-tropp-visning'
-const visning = ref((() => { try { return localStorage.getItem(VISNING) === 'bane' ? 'bane' : 'liste' } catch { return 'liste' } })())
+const visning = ref((() => { try { return localStorage.getItem(VISNING) === 'liste' ? 'liste' : 'bane' } catch { return 'bane' } })())
 watch(visning, v => { try { localStorage.setItem(VISNING, v) } catch { /* privat modus */ } })
 const visBane = computed(() => canEdit.value && visning.value === 'bane' && !editing.value)
 const spillform = computed(() => {
@@ -483,6 +484,9 @@ async function handleAdd() {
   background: var(--ds-color-bg-subtle); color: var(--ds-color-text-secondary);
   padding-right: 4px;
 }
+/* «Ikke plassert»-kortet er selv dempet; chipsene løftes så de ikke blir
+   løs tekst på flaten. */
+.teamcard--muted .chip--muted { background: var(--ds-color-bg-elevated); border-color: var(--ds-color-border-light); }
 .chip__name {
   background: transparent; border: 0; padding: 0; margin: 0; cursor: pointer;
   font: inherit; color: inherit; letter-spacing: inherit;
@@ -521,21 +525,5 @@ async function handleAdd() {
 .chip__star { color: var(--ds-color-warning); font-size: 11px; margin: 0 -2px 0 1px; }
 
 
-/* Sheet-handlinger (ny/rediger spiller) */
-.sheet-actions {
-  display: flex; align-items: center; justify-content: flex-end;
-  gap: 8px; margin-top: var(--ds-space-lg);
-}
-.sheet-actions--with-delete { justify-content: space-between; }
-.sheet-actions__delete {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 40px; height: 40px; margin-right: auto;
-  border-radius: var(--ds-radius-md);
-  background: transparent; border: 1px solid var(--ds-color-border);
-  color: var(--ds-color-error); cursor: pointer;
-  transition: all 0.15s ease;
-}
-.sheet-actions__delete:hover {
-  background: var(--ds-color-error-light); border-color: var(--ds-color-error);
-}
+/* .sheet-actions bor i app.css. */
 </style>

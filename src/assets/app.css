@@ -1600,3 +1600,34 @@
 .splash-bar--visible {
   width: 100%;
 }
+
+/* Knappene nederst i et ark. Én definisjon for hele appen: hver skjerm hadde
+   sin egen kopi, og skjermene som glemte den (Rediger spiller, Rediger
+   trener) fikk søppelkasse, Avbryt og Lagre klistret inntil hverandre. */
+.sheet-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-xl);
+}
+.sheet-actions__delete {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: var(--ds-btn-h, 44px);
+  height: var(--ds-btn-h, 44px);
+  margin-right: auto;
+  border-radius: var(--ds-radius-md);
+  background: transparent;
+  border: 1px solid var(--ds-color-border);
+  color: var(--ds-color-error);
+  cursor: pointer;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+.sheet-actions__delete:hover {
+  background: var(--ds-color-error-light);
+  border-color: var(--ds-color-error);
+}
+.sheet-actions__save { flex: 1; }

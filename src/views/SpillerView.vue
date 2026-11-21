@@ -21,7 +21,7 @@ const { players, fetchPlayers, updatePlayer, deletePlayer } = usePlayers()
 const { fetchPlayerSeasonTeams, teamForSeason, isLoanEligible, setLoanEligible, playerSeasonTeams } = usePlayerSeasonTeams()
 const { ensurePlayerStats, statsFor, matchesFor } = usePlayerStats()
 const { seasons, viewingSeason, fetchSeasons } = useSeasons()
-const { seasonTeams, seasonTeam } = useSeasonTeams()
+const { seasonTeams, seasonTeam, teamsForSeason } = useSeasonTeams()
 const { fetchPlayerLevels, levelFor, setLevel } = usePlayerLevels()
 const { show: showToast } = useToast()
 
@@ -46,7 +46,8 @@ const positions = computed(() => playerPositions(player.value))
 const level = computed(() => (player.value ? levelFor(player.value.id) : null))
 const teamNow = computed(() => {
   const slug = teamForSeason(player.value, seasonId.value)
-  return seasonTeam(slug)
+  // Bare et lag som fantes i sesongen. Fjorårets «Rød» er ikke laget nå.
+  return teamsForSeason(seasonId.value).find(t => t.slug === slug) || null
 })
 
 // Spilletid finnes bare for kamper som faktisk ble kjørt i kampmodus. Uten den
@@ -339,7 +340,7 @@ async function confirmDelete() {
 
 .sp__head {
   display: flex; align-items: center; gap: var(--ds-space-md);
-  padding: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-lg);
+  padding: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-xl);
 }
 .sp__avatar {
   flex: none; width: 52px; height: 52px; border-radius: 50%;
@@ -368,6 +369,9 @@ async function confirmDelete() {
   gap: var(--ds-space-md); margin-bottom: var(--ds-space-sm);
 }
 .sp__seasonrow .sp__h2 { margin: 0; }
+/* Lenken i overskriftsraden beholder trykkflaten, men skyver ikke raden
+   høyere: ellers sto Nivå og Sesong med større luft over enn Posisjoner. */
+.sp__seasonrow .sp__inline-action { min-height: 0; padding-block: 12px; margin-block: -12px; }
 
 /* Handlingen hører til der mangelen er, ikke bare i knappen øverst. */
 .sp__inline-action {
@@ -423,8 +427,14 @@ async function confirmDelete() {
 .sp__histteam { color: var(--ds-color-text-tertiary); }
 
 /* Samme velger som i troppen — to kolonner, femte valg i full bredde. */
-.posbane { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--ds-space-sm); }
-.posbane .poschip { padding: 11px 6px; text-align: center; line-height: 1.2; }
+/* Like høye knapper: «Venstre back» bryter på smale telefoner, og da sto
+   raden ujevn. Alle rader får samme høyde, teksten står i midten. */
+.posbane { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: var(--ds-space-sm); }
+.posbane .poschip {
+  display: flex; align-items: center; justify-content: center;
+  min-height: 48px; padding: 8px 6px; text-align: center; line-height: 1.2;
+  border-radius: var(--ds-radius-lg);
+}
 .posgamle { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-sm); margin-top: var(--ds-space-md); }
 .posgamle__tekst { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); }
 .poschip--liten { padding: 6px 12px; }

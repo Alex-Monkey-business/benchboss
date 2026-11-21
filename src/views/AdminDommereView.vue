@@ -236,35 +236,5 @@ async function confirmDeleteReferee() {
   text-decoration: underline;
 }
 
-.sheet-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 8px;
-  margin-top: var(--ds-space-lg);
-}
-
-.sheet-actions--with-delete {
-  justify-content: space-between;
-}
-
-.sheet-actions__delete {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--ds-radius-md);
-  background: transparent;
-  border: 1px solid var(--ds-color-border);
-  color: var(--ds-color-error);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  margin-right: auto;
-}
-
-.sheet-actions__delete:hover {
-  background: var(--ds-color-error-light);
-  border-color: var(--ds-color-error);
-}
+/* .sheet-actions bor i app.css. */
 </style>
