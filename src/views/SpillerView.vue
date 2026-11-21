@@ -8,7 +8,7 @@ import { usePlayerLevels, LEVELS } from '../composables/usePlayerLevels'
 import { useSeasons } from '../composables/useSeasons'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
 import { useToast } from '../composables/useToast'
-import { POSITIONS, playerPositions, positionLabel } from '../lib/playerPositions'
+import { GAMLE_POSITIONS, POSITION_RADER, playerPositions, positionLabel } from '../lib/playerPositions'
 import { shortRelativeDate } from '../lib/dateLabels'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -96,6 +96,7 @@ function openEdit() {
   editLevel.value = level.value
   editing.value = true
 }
+const gamleValgt = computed(() => GAMLE_POSITIONS.filter(o => editPositions.value.includes(o.value)))
 function togglePosition(value) {
   const i = editPositions.value.indexOf(value)
   if (i > -1) editPositions.value.splice(i, 1)
@@ -258,15 +259,33 @@ async function confirmDelete() {
       </div>
       <div class="ds-form-group">
         <label class="ds-label ds-label--optional">Posisjoner</label>
-        <div class="poschips">
+        <!-- Står som banen: spiss øverst, keeper nederst. -->
+        <div class="posbane">
+          <template v-for="(rad, r) in POSITION_RADER" :key="r">
+            <template v-for="(v, k) in rad" :key="`${r}-${k}`">
+              <button
+                v-if="v"
+                type="button"
+                class="poschip"
+                :class="{ 'poschip--on': editPositions.includes(v) }"
+                :aria-pressed="editPositions.includes(v) ? 'true' : 'false'"
+                @click="togglePosition(v)"
+              >{{ positionLabel(v) }}</button>
+              <span v-else aria-hidden="true"></span>
+            </template>
+          </template>
+        </div>
+        <!-- De gamle grove posisjonene står til treneren tar dem bort. -->
+        <div v-if="gamleValgt.length" class="posgamle">
+          <span class="posgamle__tekst">Fra før:</span>
           <button
-            v-for="o in POSITIONS"
+            v-for="o in gamleValgt"
             :key="o.value"
             type="button"
-            class="poschip"
-            :class="{ 'poschip--on': editPositions.includes(o.value) }"
+            class="poschip poschip--on poschip--liten"
+            :aria-label="`Fjern ${o.label}`"
             @click="togglePosition(o.value)"
-          >{{ o.label }}</button>
+          >{{ o.label }} ×</button>
         </div>
       </div>
       <div class="ds-form-group">
@@ -404,6 +423,11 @@ async function confirmDelete() {
 .sp__histteam { color: var(--ds-color-text-tertiary); }
 
 /* Samme velger som i troppen — to kolonner, femte valg i full bredde. */
+.posbane { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--ds-space-sm); }
+.posbane .poschip { padding: 11px 6px; text-align: center; line-height: 1.2; }
+.posgamle { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-sm); margin-top: var(--ds-space-md); }
+.posgamle__tekst { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); }
+.poschip--liten { padding: 6px 12px; }
 .poschips { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ds-space-sm); }
 .poschips .poschip:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .poschips--tre { grid-template-columns: repeat(3, 1fr); }

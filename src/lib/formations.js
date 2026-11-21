@@ -1,5 +1,6 @@
 // Formasjoner per spillform. Slot-IDene er kontrakten mot lagrede stints og
-// SLOT_POSITIONS i playerPositions.js — nye slots må inn begge steder.
+// SLOTS i playerPositions.js (posisjon per slot og spillform) — nye slots må
+// inn begge steder.
 // x/y i prosent av banen, y fra topp; vi angriper oppover.
 const FORMATIONS = {
   // 3er: ingen keeper.

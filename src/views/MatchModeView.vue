@@ -9,7 +9,7 @@ import { useMatchGoals } from '../composables/useMatchGoals'
 import { useToast } from '../composables/useToast'
 import { useAuth } from '../stores/auth'
 import { teamColorsForMatch, isHomeMatch, teamLabel } from '../lib/matchMeta'
-import { formationFor } from '../lib/formations'
+import { formationFor, PLAYERS_ON_PITCH_OPTIONS } from '../lib/formations'
 import { positionForSlot, positionLabel, slotLabel, splitByFit, fitsPosition } from '../lib/playerPositions'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -48,6 +48,8 @@ const loading = ref(true)
 // Formasjonen følger kullets spillform (5er/7er/9er/11er). y måles fra topp;
 // vi angriper oppover (spiss øverst). Slot-IDene er de lagrede stints kjenner.
 const FORMATION = formationFor(activeCohort.value?.players_on_pitch)
+// Posisjonen bak en slot avhenger av spillformen (d1 = venstre back i 9er).
+const SPILLFORM = PLAYERS_ON_PITCH_OPTIONS.includes(activeCohort.value?.players_on_pitch) ? activeCohort.value.players_on_pitch : 7
 
 // Setup
 const assignments = ref({})   // slotId -> playerId
@@ -407,13 +409,13 @@ const kanStarte = computed(() =>
 const benkOppsett = computed(() => {
   if (planModus.value) return planKandidater.value
   if (!valgtPlass.value) return unassigned.value
-  const { fit, rest } = splitByFit(unassigned.value, positionForSlot(valgtPlass.value))
+  const { fit, rest } = splitByFit(unassigned.value, positionForSlot(valgtPlass.value, SPILLFORM))
   return [...fit, ...rest]
 })
 const anbefaltPlass = computed(() => {
   if (!valgtPlass.value) return null
   const forste = benkOppsett.value[0]
-  return forste && fitsPosition(forste, positionForSlot(valgtPlass.value)) ? forste.id : null
+  return forste && fitsPosition(forste, positionForSlot(valgtPlass.value, SPILLFORM)) ? forste.id : null
 })
 
 function trykkPlass(slotId) {
@@ -447,7 +449,7 @@ const benkBeskjed = computed(() => {
   if (plasserArm.value) return `Trykk på plassen til ${kort(playerById(plasserArm.value)?.name)}`
   if (valgtPlass.value) {
     const her = playerInSlot(valgtPlass.value)
-    return her ? `Hvem tar plassen til ${kort(her.name)}?` : `Hvem skal spille ${slotLabel(valgtPlass.value).toLowerCase()}?`
+    return her ? `Hvem tar plassen til ${kort(her.name)}?` : `Hvem skal spille ${slotLabel(valgtPlass.value, SPILLFORM).toLowerCase()}?`
   }
   if (planModus.value) return planArm.value
     ? `Hvem går ut for ${kort(playerById(planArm.value)?.name)}?`
@@ -476,7 +478,7 @@ function fyllResten() {
   const igjen = unassigned.value.slice()
   const neste = {}
   for (const sl of ledige) {
-    const pos = positionForSlot(sl.id)
+    const pos = positionForSlot(sl.id, SPILLFORM)
     const passer = igjen.filter(pl => fitsPosition(pl, pos))
       .sort((a, b) => (a.positions?.length || 9) - (b.positions?.length || 9))
     const valgt = passer[0] || igjen.find(pl => sl.role === 'keeper' || !fitsPosition(pl, 'keeper')) || igjen[0]
@@ -536,7 +538,7 @@ const onField = computed(() =>
 // Med en spiller valgt på banen sorteres benken om: de som passer i plassen,
 // minst spilletid først. Da står de aktuelle til venstre, også med en lang benk.
 const valgtPosisjon = computed(() =>
-  valgtPaBanen.value ? positionForSlot(positionOf(valgtPaBanen.value)) : null)
+  valgtPaBanen.value ? positionForSlot(positionOf(valgtPaBanen.value), SPILLFORM) : null)
 const benkVist = computed(() => {
   if (!valgtPaBanen.value) return bench.value
   const { fit, rest } = splitByFit(bench.value, valgtPosisjon.value)
@@ -668,7 +670,7 @@ const forslag = computed(() => {
     .map(p => ({ ...p, sec: timeFor(p.id) }))
     .sort((a, b) => b.sec - a.sec || a.name.localeCompare(b.name, 'no'))
   if (!kandidater.length) return null
-  const passer = kandidater.filter(k => fitsPosition(inn, positionForSlot(positionOf(k.id))))
+  const passer = kandidater.filter(k => fitsPosition(inn, positionForSlot(positionOf(k.id), SPILLFORM)))
   const ut = passer[0] || kandidater[0]
   if (ut.sec - inn.sec < FORSLAG_GAP) return null
   return { inn, ut, planlagt: false }

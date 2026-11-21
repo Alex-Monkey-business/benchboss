@@ -1,6 +1,6 @@
 <script setup>
 import Spot from '../components/Spot.vue'
-import { computed, onMounted, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useAuth } from '../stores/auth'
 import { useSeasons } from '../composables/useSeasons'
 import { usePlayers } from '../composables/usePlayers'
@@ -10,9 +10,12 @@ import { useSeasonTeams } from '../composables/useSeasonTeams'
 import { useCoaches } from '../composables/useCoaches'
 import Sheet from '../components/Sheet.vue'
 import BackLink from '../components/BackLink.vue'
+import LagBane from '../components/LagBane.vue'
+import { useOppstilling } from '../composables/useOppstilling'
+import { PLAYERS_ON_PITCH_OPTIONS } from '../lib/formations'
 import { meldEvent } from '../lib/sporing'
 
-const { isParent } = useAuth()
+const { isParent, activeCohort } = useAuth()
 const { activeSeason, fetchSeasons } = useSeasons()
 const { players, fetchPlayers, addPlayer, updatePlayer } = usePlayers()
 const { fetchPlayerSeasonTeams, isLoanEligible } = usePlayerSeasonTeams()
@@ -29,7 +32,25 @@ const seasonId = computed(() => activeSeason.value?.id ?? null)
 const TEAM_OPTIONS = computed(() =>
   [{ value: '', label: 'Ingen' }, ...seasonTeams.value.map(t => ({ value: t.slug, label: t.name }))])
 
+// Liste eller bane. Bare for trenere: banen viser posisjonene, og nivået
+// lekker gjennom hvem som står hvor. Valget huskes på telefonen.
+const { hent: hentOppstilling } = useOppstilling()
+const VISNING = 'bb-tropp-visning'
+const visning = ref((() => { try { return localStorage.getItem(VISNING) === 'bane' ? 'bane' : 'liste' } catch { return 'liste' } })())
+watch(visning, v => { try { localStorage.setItem(VISNING, v) } catch { /* privat modus */ } })
+const visBane = computed(() => canEdit.value && visning.value === 'bane' && !editing.value)
+const spillform = computed(() => {
+  const n = activeCohort.value?.players_on_pitch
+  return PLAYERS_ON_PITCH_OPTIONS.includes(n) ? n : 7
+})
+function velgVisning(v) {
+  if (v === visning.value) return
+  visning.value = v
+  meldEvent('tropp_visning', { visning: v })
+}
+
 onMounted(async () => {
+  if (canEdit.value) hentOppstilling()
   await Promise.all([fetchSeasons(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchCoaches()])
   ready.value = true
 })
@@ -127,6 +148,18 @@ async function handleAdd() {
         </button>
       </div>
 
+      <div v-if="canEdit && players.length && !editing" class="visning" role="tablist" aria-label="Visning">
+        <button
+          v-for="o in [{ v: 'liste', l: 'Liste' }, { v: 'bane', l: 'Bane' }]"
+          :key="o.v"
+          type="button"
+          role="tab"
+          :aria-selected="visning === o.v"
+          :class="['visning__valg', { 'visning__valg--aktiv': visning === o.v }]"
+          @click="velgVisning(o.v)"
+        >{{ o.l }}</button>
+      </div>
+
       <div v-if="!ready"></div>
 
       <div v-else-if="canEdit && players.length === 0" class="ds-empty">
@@ -152,6 +185,13 @@ async function handleAdd() {
             </template>
           </p>
           <p v-if="teamPlayers(t.slug).length === 0" class="teamcard__empty">Ingen spillere lagt til ennå.</p>
+          <LagBane
+            v-else-if="visBane && t.id"
+            :team="t"
+            :spillere="teamPlayers(t.slug)"
+            :spillform="spillform"
+            :kan-endre="canEdit"
+          />
           <div v-else class="roster">
             <span v-for="p in teamPlayers(t.slug)" :key="p.id" class="chip chip--team">
               <router-link v-if="canEdit" :to="`/spiller/${p.id}`" class="chip__name">{{ p.name }}</router-link>
@@ -219,6 +259,23 @@ async function handleAdd() {
   margin-bottom: var(--ds-space-md);
 }
 .tropp-actions > .ds-btn:last-child { margin-left: auto; }
+/* Liste | Bane: samme bryter som Kommende | Tidligere på Kamper. */
+.visning {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
+  padding: 4px; margin-bottom: var(--ds-space-md);
+  background: var(--ds-color-bg-subtle);
+  border-radius: var(--ds-radius-full);
+}
+.visning__valg {
+  min-height: 40px; border: 0; border-radius: var(--ds-radius-full);
+  background: transparent; color: var(--ds-color-text-secondary);
+  font: inherit; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold);
+  cursor: pointer; transition: background .15s ease, color .15s ease, box-shadow .15s ease;
+}
+.visning__valg--aktiv {
+  background: var(--ds-color-bg-elevated); color: var(--ds-color-text-primary);
+  box-shadow: var(--ds-shadow-xs);
+}
 .tropp-hint { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); }
 .add-link {
   display: inline-flex; align-items: center; gap: 6px;
