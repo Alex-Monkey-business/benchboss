@@ -1,7 +1,6 @@
 <script setup>
 import Spot from '../components/Spot.vue'
 import { computed, onMounted, ref, watch } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import { useSeasons } from '../composables/useSeasons'
 import { usePlayers } from '../composables/usePlayers'
@@ -26,8 +25,6 @@ const { fetchPlayerLevels, levelFor } = usePlayerLevels()
 const { coaches, fetchCoaches } = useCoaches()
 const { show: showToast } = useToast()
 
-const route = useRoute()
-const router = useRouter()
 const canEdit = computed(() => !isParent.value)
 // Spillerne vi allerede har, tegnes med en gang; hentingen friskes opp bak.
 const ready = ref(players.value.length > 0)
@@ -58,12 +55,6 @@ onMounted(async () => {
   if (canEdit.value) { hentOppstilling(); fetchPlayerLevels() }
   await Promise.all([fetchSeasons(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchCoaches()])
   ready.value = true
-  // Fra «Sett opp lagene» på Hjem: arket står oppe med en gang. Parameteren
-  // tas bort, så tilbake-knappen ikke åpner det på nytt.
-  if (route.query['nye-lag'] !== undefined) {
-    router.replace({ query: {} })
-    if (canEdit.value && !activeHasOwnTeams.value) openNyeLag()
-  }
 })
 
 // Trenernavnet på lagkortet blir en lenke til trenerprofilen — samme grep som

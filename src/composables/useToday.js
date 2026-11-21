@@ -63,7 +63,7 @@ export function forhentHjem() {
 }
 
 export function useToday() {
-  const { coach, preferredTeam, preferredCupTeam, activeCohort, isParent } = useAuth()
+  const { coach, preferredTeam, preferredCupTeam, activeCohort } = useAuth()
   const { usesReferees } = useFeatures()
   const { dismissed } = useDismissedReminders()
   const { activeSeason, ensureSeasons } = useSeasons()
@@ -75,7 +75,7 @@ export function useToday() {
   const { cupTeams } = useCupTeams()
   const { cupFirst, fetchSerieStatus } = useCupFirst()
   const { days: treningsdager, fetchWeek } = useTrainingWeek()
-  const { seasonTeams, teamsFromDb, fetchSeasonTeams, activeHasOwnTeams } = useSeasonTeams()
+  const { seasonTeams, teamsFromDb, fetchSeasonTeams } = useSeasonTeams()
   const matchMode = useMatchMode()
 
   // ── Hvilket lag trener JEG? ────────────────────────────────────────────────
@@ -227,28 +227,7 @@ export function useToday() {
     return nextMatch.value?.id || null
   })
 
-  // Lagene for en ny sesong. Settes opp én gang, så det er et punkt under
-  // «Å ordne», ikke en fast knapp: det vises når sesongen arver fjorårets lag
-  // og ingen kamp er spilt ennå, og forsvinner når lagene er laget. Skjules
-  // det, er det fordi kullet beholder lagene; nøkkelen er per sesong.
-  const nyeLagPunkt = computed(() => {
-    const s = activeSeason.value
-    if (isParent.value || !coach.value || !s || !seasonTeams.value.length || activeHasOwnTeams.value) return null
-    if (matches.value.some(m => m.season_id === s.id && m.home_score != null)) return null
-    const key = `nye-lag:${s.id}`
-    if (dismissed.value.has(key)) return null
-    return {
-      kind: 'nye-lag',
-      key,
-      tone: 'soft',
-      dismissable: true,
-      title: `Sett opp lagene for ${s.name}`,
-      body: 'Lagene fra forrige sesong gjelder til du lager nye',
-      to: '/serie/tropp?nye-lag=1'
-    }
-  })
-
-  const reminders = computed(() => [...(nyeLagPunkt.value ? [nyeLagPunkt.value] : []), ...buildReminders({
+  const reminders = computed(() => buildReminders({
     today: todayIso.value,
     matches: matches.value,
     coachId: coach.value?.id,
@@ -270,7 +249,7 @@ export function useToday() {
     // Kampene som ble spilt før kullet fantes i appen er historikk, ikke
     // etterslep.
     sinceIso: (activeCohort.value?.created_at || '').slice(0, 10) || null
-  })])
+  }))
 
   // Neste forekomst av en ukedag etter i dag. Ingen sluttdato å klippe mot
   // lenger: uka løper til noen endrer den, så det finnes alltid en neste.

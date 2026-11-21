@@ -21,6 +21,7 @@ import OtherTeamsList from '../components/today/OtherTeamsList.vue'
 import WeekList from '../components/today/WeekList.vue'
 import OnboardingCards from '../components/today/OnboardingCards.vue'
 import { useOnboarding } from '../composables/useOnboarding'
+import { useSeasonTeams } from '../composables/useSeasonTeams'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import { dagLink } from '../lib/trainingLinks'
 import { hentDagensOppmote, dagensOppmoteLagret } from '../composables/useTreningsOkt'
@@ -120,6 +121,14 @@ const varSkjelett = ref(loading.value)
 watch(loading, v => { if (v) varSkjelett.value = true })
 
 const matchToday = computed(() => todayMatches.value.length > 0 || todayCupMatches.value.length > 0)
+
+// Snarvei til lagene utenom sesong. Lagene er satt opp på nytt (A, B, C), og
+// uten kamper på planen finnes ingen annen vei til dem fra Hjem. Kommer neste
+// kamp, overtar kampkortet og snarveien går.
+const { seasonTeams } = useSeasonTeams()
+const visLagene = computed(() =>
+  isCoach.value && !onboardingActive.value && !matchToday.value && !nextMatch.value && seasonTeams.value.length > 0)
+const lagNavn = computed(() => seasonTeams.value.map(t => t.name).join(' · '))
 const cupMatchesToday = computed(() => (showCupEntry.value ? todayCupMatches.value.length : 0))
 
 // Neste kamp er hovedsaken, og den får alltid kortet sitt — med hva som
@@ -223,6 +232,16 @@ function coachNamesForMatch(matchId) {
         <svg class="hjem-delinn__ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="8" r="3" /><circle cx="17" cy="8" r="3" /><path d="M2 20c0-3 2.2-5 5-5s5 2 5 5" /><path d="M12 20c0-3 2.2-5 5-5s5 2 5 5" /></svg>
         <span class="hjem-delinn__tekst">
           <span class="hjem-delinn__tittel">Del inn</span>
+        </span>
+        <svg class="hjem-delinn__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+      </RouterLink>
+
+      <!-- Lagene. Bare utenom sesong, bare for trenere. -->
+      <RouterLink v-if="visLagene" to="/serie/tropp" class="hjem-delinn hjem-delinn--rolig ds-anim-fade-up ds-anim-delay-2">
+        <svg class="hjem-delinn__ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><line x1="12" y1="4" x2="12" y2="20" /><circle cx="12" cy="12" r="2.5" /></svg>
+        <span class="hjem-delinn__tekst">
+          <span class="hjem-delinn__tittel">Lagene</span>
+          <span class="hjem-delinn__linje">{{ lagNavn }}</span>
         </span>
         <svg class="hjem-delinn__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
       </RouterLink>
@@ -371,6 +390,8 @@ function coachNamesForMatch(matchId) {
   background: var(--ds-color-accent);
   color: var(--ds-color-accent-text);
 }
+/* Snarveien til lagene: samme kort, nøytral flis. Én aksent på skjermen. */
+.hjem-delinn--rolig .hjem-delinn__ikon { background: var(--ds-color-bg-subtle); color: var(--ds-color-text-primary); }
 .hjem-delinn__pil { flex: none; width: 20px; height: 20px; color: var(--ds-color-text-tertiary); }
 .hjem-delinn__tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 .hjem-delinn__tittel { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); line-height: 1.3; }
