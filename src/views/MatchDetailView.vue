@@ -23,7 +23,7 @@ import TeamCrest from '../components/TeamCrest.vue'
 import { useKlubbmerke } from '../composables/useKlubbmerke'
 import { relativeDateLabel, isPast, trimAbbrevDots } from '../lib/dateLabels'
 import { matchCta, harOppstilling } from '../lib/matchCta'
-import { teamSlugFromName, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, isPlayed, teamLabel, isOurs } from '../lib/matchMeta'
+import { teamSlugFromName, teamSlugs, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, isPlayed, teamLabel, isOurs } from '../lib/matchMeta'
 import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 import { meldEvent } from '../lib/sporing'
 import { lanegrense } from '../lib/lanegrense'
@@ -38,7 +38,10 @@ const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
 const { players, fetchPlayers, addPlayer, getPlayerById } = usePlayers()
 const { fetchPlayerSeasonTeams, isLoanEligible, teamForSeason } = usePlayerSeasonTeams()
-const { seasonTeams } = useSeasonTeams()
+const { seasonTeams, teamsForSeason } = useSeasonTeams()
+// Laget spilleren var på i kampens sesong. players.primary_team er laget NÅ;
+// en kamp fra i fjor skal ha fjorårets tropp.
+const lagAv = p => teamForSeason(p, match.value?.season_id)
 const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals()
 const { session: mmSession, stints: mmStintsAll, statusByMatch, fetchSession: fetchMmSession, fetchStints: fetchMmStints } = useMatchMode()
 const { seasons, ensureSeasons } = useSeasons()
@@ -414,7 +417,7 @@ async function togglePlayer(playerId) {
 const teamSquad = computed(() => {
   const colors = teamColors.value
   return players.value
-    .filter(p => p.primary_team && colors.includes(p.primary_team))
+    .filter(p => lagAv(p) && colors.includes(lagAv(p)))
     .slice()
     .sort((a, b) => a.name.localeCompare(b.name, 'no'))
 })
@@ -496,7 +499,7 @@ const grense = computed(() => {
   const m = match.value
   if (!m || teamColors.value.length !== 1) return null
   return lanegrense(m, teamColors.value[0], {
-    teams: seasonTeams.value,
+    teams: teamsForSeason(m.season_id),
     matches: matches.value,
     alder: ageClass(activeCohort.value?.birth_year, Number(m.match_date.slice(0, 4))),
     lagForKamp: teamColorsForMatch,
@@ -513,7 +516,7 @@ function medSist(playerId) {
 // de som ikke var med sist, og derfor ikke teller mot grensa.
 function tellerIkke(p) {
   if (!grense.value || medSist(p.id)) return false
-  return grense.value.fra.some(f => f.slug === p.primary_team)
+  return grense.value.fra.some(f => f.slug === lagAv(p))
 }
 const brukteFraGiver = computed(() => {
   if (!grense.value) return 0
@@ -580,13 +583,13 @@ function getConflictForPlayer(p, currentMatchId, currentDate) {
   if (guestMatch) return describeMatch(guestMatch)
 
   // 2. Implicit: player's primary team plays same day
-  if (p.primary_team) {
+  if (lagAv(p)) {
     const primaryMatch = matches.value.find(m => {
       if (m.id === currentMatchId) return false
       if (m.match_date !== currentDate) return false
-      const homeColor = isOurs(m.home_team) ? teamSlugFromName(m.home_team) : null
-      const awayColor = isOurs(m.away_team) ? teamSlugFromName(m.away_team) : null
-      return homeColor === p.primary_team || awayColor === p.primary_team
+      const homeColor = isOurs(m.home_team) ? teamSlugFromName(m.home_team, m.season_id) : null
+      const awayColor = isOurs(m.away_team) ? teamSlugFromName(m.away_team, m.season_id) : null
+      return homeColor === lagAv(p) || awayColor === lagAv(p)
     })
     if (primaryMatch) return describeMatch(primaryMatch)
   }
@@ -603,9 +606,9 @@ const availablePlayers = computed(() => {
     // Always show players already selected on this match (so they can be removed)
     if (matchPlayerIds.value.includes(p.id)) return true
     // Players without a primary team can hospitate anywhere
-    if (!p.primary_team) return true
+    if (!lagAv(p)) return true
     // Hide if the player's primary team is one of the Halsen teams playing this match
-    return !matchTeams.includes(p.primary_team)
+    return !matchTeams.includes(lagAv(p))
   })
 
   // Sort: non-conflict first, then conflict; tiebreaker alphabetical
@@ -860,7 +863,7 @@ async function quickAddPlayer() {
   if (p) {
     // Hvis spilleren har et lag som ikke er en av Halsens lag i kampen,
     // er de en lånespiller → registrer dem automatisk slik.
-    if (p.primary_team && !teamColors.value.includes(p.primary_team)) {
+    if (lagAv(p) && !teamColors.value.includes(lagAv(p))) {
       const currentIds = [...matchPlayerIds.value]
       if (!currentIds.includes(p.id)) {
         currentIds.push(p.id)
@@ -885,15 +888,17 @@ const eligiblePlayers = computed(() => {
   const guestIds = new Set(matchPlayerIds.value)
   return players.value.filter(p => {
     if (guestIds.has(p.id)) return true
-    if (!p.primary_team) return true
-    return matchTeams.includes(p.primary_team)
+    if (!lagAv(p)) return true
+    return matchTeams.includes(lagAv(p))
   })
 })
 
+// Lagene i kampens sesong, i visningsrekkefølge.
+const lagIKampen = computed(() => teamSlugs(match.value?.season_id))
 const playersByTeam = computed(() => {
-  const groups = { gronn: [], rod: [], hvit: [], other: [] }
+  const groups = Object.fromEntries([...lagIKampen.value, 'other'].map(k => [k, []]))
   for (const p of [...eligiblePlayers.value].sort((a, b) => a.name.localeCompare(b.name))) {
-    const t = p.primary_team || 'other'
+    const t = lagAv(p) || 'other'
     if (groups[t]) groups[t].push(p)
     else groups.other.push(p)
   }
@@ -1291,7 +1296,7 @@ function focusSummaryGroup() {
             <button
               v-for="p in teamSquad"
               :key="p.id"
-              :data-team="p.primary_team"
+              :data-team="lagAv(p)"
               :class="['squad-pill', { 'squad-pill--out': matchAbsenceIds.includes(p.id) }]"
               :title="matchAbsenceIds.includes(p.id) ? 'Fravær — trykk for å ta tilbake' : 'Trykk for å melde fravær'"
               @click="handleToggleAbsence(p.id)"
@@ -1320,7 +1325,7 @@ function focusSummaryGroup() {
                   class="referee-pill loan-pill referee-pill--selected"
                   @click="togglePlayer(p.id)"
                 >
-                  {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabel(p.primary_team) }}</span>
+                  {{ p.name }}<span v-if="lagAv(p)" class="hospitant-pill__team"> · {{ teamLabel(lagAv(p)) }}</span>
                   <span v-if="tellerIkke(p)" class="med-sist">Teller ikke</span>
                   <span v-if="extraCount(p.id)" class="extra-badge" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
                 </button>
@@ -1337,7 +1342,7 @@ function focusSummaryGroup() {
                   :class="['referee-pill loan-pill', { 'referee-pill--selected': matchPlayerIds.includes(p.id) }]"
                   @click="togglePlayer(p.id)"
                 >
-                  {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabel(p.primary_team) }}</span>
+                  {{ p.name }}<span v-if="lagAv(p)" class="hospitant-pill__team"> · {{ teamLabel(lagAv(p)) }}</span>
                   <span v-if="tellerIkke(p)" class="med-sist">Teller ikke</span>
                   <span v-if="extraCount(p.id)" class="extra-badge" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
                 </button>
@@ -1360,7 +1365,7 @@ function focusSummaryGroup() {
                   ]"
                   @click="togglePlayer(p.id)"
                 >
-                  {{ p.name }}<span v-if="p.primary_team" class="hospitant-pill__team"> · {{ teamLabel(p.primary_team) }}</span>
+                  {{ p.name }}<span v-if="lagAv(p)" class="hospitant-pill__team"> · {{ teamLabel(lagAv(p)) }}</span>
                   <span v-if="tellerIkke(p)" class="med-sist">Teller ikke</span>
                   <span v-if="!playerConflicts[p.id] && extraCount(p.id)" class="extra-badge" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
                   <span v-if="playerConflicts[p.id]" class="hospitant-pill__conflict" :title="`Også kamp ${playerConflicts[p.id].time || 'samme dag'} mot ${playerConflicts[p.id].opponent}`">
@@ -1464,7 +1469,7 @@ function focusSummaryGroup() {
               type="button"
               :class="[
                 'referee-pill scorer-pill',
-                s.player?.primary_team ? `scorer-pill--${s.player.primary_team}` : ''
+                s.player && lagAv(s.player) ? `scorer-pill--${lagAv(s.player)}` : ''
               ]"
               @click="openScorerSheet(s.player_id)"
             >
@@ -1657,7 +1662,7 @@ function focusSummaryGroup() {
 
         <template v-else>
           <div class="scorer-picker">
-            <template v-for="team in ['gronn', 'rod', 'hvit', 'other']" :key="team">
+            <template v-for="team in [...lagIKampen, 'other']" :key="team">
               <div
                 v-if="playersByTeam[team].length"
                 class="scorer-picker__group"
@@ -1672,7 +1677,7 @@ function focusSummaryGroup() {
                     type="button"
                     :class="[
                       'scorer-picker__chip',
-                      p.primary_team ? `scorer-picker__chip--${p.primary_team}` : '',
+                      lagAv(p) ? `scorer-picker__chip--${lagAv(p)}` : '',
                       { 'scorer-picker__chip--active': lastTappedPlayerId === p.id },
                       { 'scorer-picker__chip--has-goals': goalCountForPlayer(p.id) > 0 }
                     ]"
@@ -1707,7 +1712,7 @@ function focusSummaryGroup() {
           />
           <div class="scorer-form__team-row">
             <button
-              v-for="team in ['gronn', 'rod', 'hvit']"
+              v-for="team in seasonTeams.map(t => t.slug)"
               :key="team"
               type="button"
               :class="[

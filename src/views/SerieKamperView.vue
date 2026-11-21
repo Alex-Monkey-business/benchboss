@@ -7,7 +7,7 @@ import { useCoaches } from '../composables/useCoaches'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
 import { useCups } from '../composables/useCups'
 import { relativeDateLabel, isToday, localISODate } from '../lib/dateLabels'
-import { teamColorsForMatch as teamColors, isHomeMatch, isOurMatch, teamLabel } from '../lib/matchMeta'
+import { teamColorsForMatch as teamColors, isHomeMatch, isOurMatch, teamLabel, teamSlugs } from '../lib/matchMeta'
 import { buildWeekAhead } from '../lib/weekAhead'
 import TeamFilter from '../components/TeamFilter.vue'
 import { useTeamFilter } from '../composables/useTeamFilter'
@@ -85,7 +85,7 @@ const counts = computed(() => {
   const list = ourMatches.value.filter(m =>
     timeFilter.value === 'past' ? m.match_date < today.value : m.match_date >= today.value
   )
-  const c = { alle: list.length, gronn: 0, rod: 0, hvit: 0 }
+  const c = { alle: list.length, ...Object.fromEntries(teamSlugs().map(k => [k, 0])) }
   list.forEach(m => teamColors(m).forEach(color => { if (c[color] !== undefined) c[color]++ }))
   return c
 })

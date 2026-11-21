@@ -21,7 +21,7 @@ const { players, fetchPlayers, updatePlayer, deletePlayer } = usePlayers()
 const { fetchPlayerSeasonTeams, teamForSeason, isLoanEligible, setLoanEligible, playerSeasonTeams } = usePlayerSeasonTeams()
 const { ensurePlayerStats, statsFor, matchesFor } = usePlayerStats()
 const { seasons, viewingSeason, fetchSeasons } = useSeasons()
-const { seasonTeams } = useSeasonTeams()
+const { seasonTeams, seasonTeam } = useSeasonTeams()
 const { fetchPlayerLevels, levelFor, setLevel } = usePlayerLevels()
 const { show: showToast } = useToast()
 
@@ -46,7 +46,7 @@ const positions = computed(() => playerPositions(player.value))
 const level = computed(() => (player.value ? levelFor(player.value.id) : null))
 const teamNow = computed(() => {
   const slug = teamForSeason(player.value, seasonId.value)
-  return seasonTeams.value.find(t => t.slug === slug) || null
+  return seasonTeam(slug)
 })
 
 // Spilletid finnes bare for kamper som faktisk ble kjørt i kampmodus. Uten den
@@ -66,7 +66,7 @@ const teamHistory = computed(() => {
       const row = playerSeasonTeams.value.find(
         r => r.player_id === player.value.id && r.season_id === s.id)
       if (!row?.team) return null
-      const team = seasonTeams.value.find(t => t.slug === row.team)
+      const team = seasonTeam(row.team)
       return { id: s.id, season: s.name, team: team?.name || row.team, accent: team?.accent || 'paper' }
     })
     .filter(Boolean)

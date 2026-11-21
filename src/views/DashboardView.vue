@@ -15,7 +15,7 @@ import SeasonPicker from '../components/SeasonPicker.vue'
 import NyKampSheet from '../components/NyKampSheet.vue'
 import { useStaggerOnce } from '../composables/useStaggerOnce'
 import { relativeDateLabel, isToday, localISODate } from '../lib/dateLabels'
-import { teamColorsForMatch, isOurs, isOurMatch as isOurMatchMeta } from '../lib/matchMeta'
+import { teamColorsForMatch, isOurs, isOurMatch as isOurMatchMeta, teamSlugs } from '../lib/matchMeta'
 
 
 const playStagger = useStaggerOnce('dashboard-matches')
@@ -126,7 +126,7 @@ const venueFilteredMatches = computed(() => {
 
 const counts = computed(() => {
   const list = venueFilteredMatches.value
-  const c = { alle: list.length, gronn: 0, rod: 0, hvit: 0 }
+  const c = { alle: list.length, ...Object.fromEntries(teamSlugs().map(k => [k, 0])) }
   list.forEach(m => {
     const colors = getTeamColors(m)
     colors.forEach(color => {

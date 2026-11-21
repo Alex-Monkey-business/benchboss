@@ -75,7 +75,7 @@ const oppmoteRader = computed(() => {
 const clubShort = computed(() => activeCohort.value?.club_name?.split(' ')[0] || 'Klubben')
 const TEAM_KEYS = computed(() => teamSlugs())
 const isOursTeam = isOurs
-const colorOf = name => teamSlugFromName(name) || null
+const colorOf = name => teamSlugFromName(name, viewingSeason.value?.id) || null
 
 const ourMatches = computed(() => matches.value.filter(isOurMatch))
 

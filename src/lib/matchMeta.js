@@ -11,8 +11,16 @@ function clubKey() {
   return useAuth().activeCohort.value?.club_key || ''
 }
 
-function teams() {
-  return useSeasonTeams().seasonTeams.value
+// Alle kullets lag, alle sesonger. Slug er unik per kull, så navn og farge
+// for en kamp fra i fjor finnes selv om lagene er byttet ut.
+function allTeams() {
+  return useSeasonTeams().allTeams.value
+}
+
+// Lagene i sesongen som vises, eller i en bestemt sesong.
+function teams(seasonId) {
+  const st = useSeasonTeams()
+  return seasonId ? st.teamsForSeason(seasonId) : st.viewingTeams.value
 }
 
 // Kretsens oppsett skriver «Halsen Rød» og «Sandefjord BK RØD» om hverandre;
@@ -29,10 +37,28 @@ export function isOurs(name) {
 
 // Lagstreng → slug på et av kullets lag. Lengste navn først, så «Stag 1» ikke
 // stjeler «Stag 10». Tom streng når ingen treffer.
-export function teamSlugFromName(name) {
+export function teamSlugFromName(name, seasonId = null) {
   const n = norm(name)
   if (!n) return ''
-  const list = [...teams()].sort((a, b) => norm(b.name).length - norm(a.name).length)
+  // Med sesong: bare den sesongens lag. I år kan kretsen kalle B-laget
+  // «Grønn», og da skal ikke fjorårets Grønn stjele kampen.
+  if (seasonId) return slugIn(n, teams(seasonId))
+  // Uten: lagene som vises først, så de andre sesongene. En kamp fra i fjor
+  // heter «Halsen Grønn» selv om lagene i år er A, B og C.
+  return slugIn(n, teams()) || slugIn(n, allTeams())
+}
+
+// Ord for ord, ikke bit av et ord: laget «A» skal ikke treffe «Halsen».
+// Lange navn sammenlignes som før.
+function inneholder(n, del) {
+  if (!del) return false
+  if (del.length > 2) return n.includes(del)
+  const esc = del.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+  return new RegExp(`(^|[^a-z0-9])${esc}($|[^a-z0-9])`).test(n)
+}
+
+function slugIn(n, liste) {
+  const list = [...liste].sort((a, b) => norm(b.name).length - norm(a.name).length)
 
   // FIKS-navnet først. Det ER strengen kampene kommer med, så treffet er
   // eksakt. Kortnavnet vårt («Brun») finnes ikke alltid som sammenhengende
@@ -42,24 +68,23 @@ export function teamSlugFromName(name) {
     if (fn && n === fn) return t.slug
   }
   for (const t of list) {
-    const tn = norm(t.name)
-    if (tn && n.includes(tn)) return t.slug
-    if (t.slug && n.includes(norm(t.slug))) return t.slug
+    if (inneholder(n, norm(t.name))) return t.slug
+    if (t.slug && inneholder(n, norm(t.slug))) return t.slug
   }
   return ''
 }
 
 export function teamLabel(slug) {
-  return teams().find(t => t.slug === slug)?.name || ''
+  return allTeams().find(t => t.slug === slug)?.name || ''
 }
 
 export function teamAccent(slug) {
-  return teams().find(t => t.slug === slug)?.accent || ''
+  return allTeams().find(t => t.slug === slug)?.accent || ''
 }
 
-// Alle lag-slugs i kullet, i visningsrekkefølge.
-export function teamSlugs() {
-  return teams().map(t => t.slug)
+// Lag-slugs i sesongen som vises (eller en bestemt sesong), i visningsrekkefølge.
+export function teamSlugs(seasonId = null) {
+  return teams(seasonId).map(t => t.slug)
 }
 
 // Våre lag som er med i kampen (1 for vanlig kamp, 2 for intern kamp).
@@ -67,11 +92,11 @@ export function teamColorsForMatch(match) {
   if (!match) return []
   const colors = []
   if (isOurs(match.home_team)) {
-    const c = teamSlugFromName(match.home_team)
+    const c = teamSlugFromName(match.home_team, match.season_id)
     if (c) colors.push(c)
   }
   if (isOurs(match.away_team)) {
-    const c = teamSlugFromName(match.away_team)
+    const c = teamSlugFromName(match.away_team, match.season_id)
     if (c && !colors.includes(c)) colors.push(c)
   }
   return colors

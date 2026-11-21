@@ -1,5 +1,5 @@
 <script setup>
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
 
 const props = defineProps({
@@ -12,11 +12,18 @@ const props = defineProps({
 
 const emit = defineEmits(['update:modelValue'])
 
-const { seasonTeams } = useSeasonTeams()
+// Lagene i sesongen som vises: i fjor Grønn, Rød, Hvit, i år A, B, C.
+const { viewingTeams } = useSeasonTeams()
 const filters = computed(() => [
   ...(props.utenAlle ? [] : [{ key: 'alle', label: 'Alle' }]),
-  ...seasonTeams.value.map(t => ({ key: t.slug, label: t.name }))
+  ...viewingTeams.value.map(t => ({ key: t.slug, label: t.name }))
 ])
+// Et valgt lag som ikke finnes i sesongen, ville gitt en tom liste uten
+// synlig filter. Tilbake til alle.
+watch(() => viewingTeams.value.map(t => t.slug).join(), () => {
+  const k = props.modelValue
+  if (k && k !== 'alle' && !viewingTeams.value.some(t => t.slug === k)) emit('update:modelValue', 'alle')
+}, { immediate: true })
 function velg(key) {
   emit('update:modelValue', props.utenAlle && props.modelValue === key ? 'alle' : key)
 }

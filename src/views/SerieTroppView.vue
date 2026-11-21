@@ -14,12 +14,14 @@ import LagBane from '../components/LagBane.vue'
 import { useOppstilling } from '../composables/useOppstilling'
 import { PLAYERS_ON_PITCH_OPTIONS } from '../lib/formations'
 import { meldEvent } from '../lib/sporing'
+import { usePlayerLevels, LEVELS } from '../composables/usePlayerLevels'
 
 const { isParent, activeCohort } = useAuth()
 const { activeSeason, fetchSeasons } = useSeasons()
 const { players, fetchPlayers, addPlayer, updatePlayer } = usePlayers()
 const { fetchPlayerSeasonTeams, isLoanEligible } = usePlayerSeasonTeams()
-const { seasonTeams } = useSeasonTeams()
+const { seasonTeams, activeHasOwnTeams, createTeamsForSeason } = useSeasonTeams()
+const { fetchPlayerLevels, levelFor } = usePlayerLevels()
 const { coaches, fetchCoaches } = useCoaches()
 const { show: showToast } = useToast()
 
@@ -50,7 +52,7 @@ function velgVisning(v) {
 }
 
 onMounted(async () => {
-  if (canEdit.value) hentOppstilling()
+  if (canEdit.value) { hentOppstilling(); fetchPlayerLevels() }
   await Promise.all([fetchSeasons(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchCoaches()])
   ready.value = true
 })
@@ -72,8 +74,11 @@ const byName = (a, b) => a.name.localeCompare(b.name, 'no')
 function teamPlayers(slug) {
   return players.value.filter(p => p.primary_team === slug).sort(byName)
 }
-const unplaced = computed(() =>
-  [...players.value].filter(p => !p.primary_team).sort(byName))
+// Ikke plassert: uten lag, eller på et lag som ikke finnes i sesongen.
+const unplaced = computed(() => {
+  const slugs = new Set(seasonTeams.value.map(t => t.slug))
+  return [...players.value].filter(p => !p.primary_team || !slugs.has(p.primary_team)).sort(byName)
+})
 // Lånespiller-status er trenerinformasjon. Foreldre ser hverken stjerner eller
 // forklaringen på hva de betyr.
 const eligible = p => canEdit.value && isLoanEligible(p, seasonId.value)
@@ -105,6 +110,64 @@ async function remove(playerId) {
   showToast(`${p.name.split(' ')[0]} tatt av laget`, 'success', 5000, {
     action: { label: 'Angre', handler: () => settLag(playerId, lag) }
   })
+}
+
+// ── Nye lag for sesongen ─────────────────────────────────────────────────────
+// Lagene gjelder til en sesong får egne. Arver sesongen fra en tidligere, kan
+// treneren sette opp nye: A, B og C når lagene meldes på etter nivå.
+const visNyeLag = ref(false)
+const nyeLagNavn = ref([])
+const nyeLagFeil = ref('')
+const lagrerNyeLag = ref(false)
+function openNyeLag() {
+  nyeLagNavn.value = [...LEVELS]
+  nyeLagFeil.value = ''
+  visNyeLag.value = true
+}
+async function lagNyeLag() {
+  const navn = nyeLagNavn.value.map(n => n.trim()).filter(Boolean)
+  if (!navn.length || !seasonId.value) return
+  lagrerNyeLag.value = true
+  nyeLagFeil.value = ''
+  try {
+    await createTeamsForSeason(activeCohort.value?.id, seasonId.value, navn)
+    await Promise.all([fetchPlayers(), fetchPlayerSeasonTeams()])
+    meldEvent('nye_lag', { antall: navn.length })
+    visNyeLag.value = false
+    showToast(`${navn.join(', ')} gjelder fra ${activeSeason.value?.name || 'denne sesongen'}`, 'success')
+  } catch (e) {
+    nyeLagFeil.value = e?.message || 'Fikk ikke laget lagene. Prøv igjen.'
+  } finally {
+    lagrerNyeLag.value = false
+  }
+}
+
+// ── Fordel etter nivå ────────────────────────────────────────────────────────
+// Nivå A på laget som heter A, og så videre. Heter lagene noe annet, går
+// nivåene på lagene i rekkefølge. Bare de som ikke er plassert flyttes:
+// det treneren har bestemt selv, står.
+const lagForNiva = computed(() => {
+  const m = new Map()
+  LEVELS.forEach((niva, i) => {
+    const t = seasonTeams.value.find(x => x.name.trim().toUpperCase() === niva) || seasonTeams.value[i]
+    if (t) m.set(niva, t.slug)
+  })
+  return m
+})
+const kanFordeles = computed(() => unplaced.value.filter(p => lagForNiva.value.has(levelFor(p.id))))
+async function fordelEtterNiva() {
+  const flytt = kanFordeles.value.map(p => ({ id: p.id, for_: p.primary_team ?? null, til: lagForNiva.value.get(levelFor(p.id)) }))
+  if (!flytt.length) return
+  const igjen = unplaced.value.length - flytt.length
+  const ok = await Promise.all(flytt.map(f => settLag(f.id, f.til)))
+  const antall = ok.filter(Boolean).length
+  meldEvent('lag_fordelt_niva', { antall })
+  if (!antall) return
+  showToast(
+    igjen ? `${antall} fordelt. ${igjen} uten nivå står igjen.` : `${antall} fordelt etter nivå`,
+    'success', 6000,
+    { action: { label: 'Angre', handler: () => Promise.all(flytt.map(f => settLag(f.id, f.for_))) } }
+  )
 }
 
 // Ny spiller
@@ -142,6 +205,9 @@ async function handleAdd() {
           <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
           Ny spiller
         </button>
+        <button v-else-if="kanFordeles.length" type="button" class="ds-btn ds-btn--primary ds-btn--sm" @click="fordelEtterNiva">
+          Fordel etter nivå
+        </button>
         <span v-else-if="unplaced.length" class="tropp-hint">{{ unplaced.length }} ikke plassert</span>
         <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" @click="editing = !editing">
           {{ editing ? 'Ferdig' : 'Rediger tropp' }}
@@ -172,7 +238,7 @@ async function handleAdd() {
       <template v-else>
         <section v-for="t in seasonTeams" :key="t.slug" class="teamcard" :data-accent="t.accent" :data-team="t.slug">
           <header class="teamcard__head">
-            <span class="teamcard__dot"></span>
+            <span v-if="t.accent" class="teamcard__dot"></span>
             <span class="teamcard__name">{{ t.name }}</span>
             <span class="teamcard__count">{{ teamPlayers(t.slug).length }}</span>
           </header>
@@ -223,13 +289,49 @@ async function handleAdd() {
                   :aria-label="`Sett ${p.name} på ${t.name}`"
                   :title="t.name"
                   @click="assign(p.id, t.slug)"
-                ></button>
+                ><template v-if="!t.accent">{{ t.name.slice(0, 2) }}</template></button>
               </span>
             </span>
           </div>
         </section>
+
+        <div v-if="canEdit && !editing && !activeHasOwnTeams && activeSeason" class="nye-lag">
+          <button type="button" class="ds-btn ds-btn--ghost" @click="openNyeLag">Nye lag for {{ activeSeason.name }}</button>
+        </div>
       </template>
     </div>
+
+    <Sheet :show="visNyeLag" :title="`Nye lag for ${activeSeason?.name || 'sesongen'}`" @close="visNyeLag = false">
+      <p class="nye-lag__tekst">
+        Lagene og kampene fra tidligere sesonger blir stående som de er.
+        Alle spillerne tas av lagene, og du fordeler dem på nytt.
+      </p>
+      <div class="nye-lag__liste">
+        <div v-for="(n, i) in nyeLagNavn" :key="i" class="nye-lag__rad">
+          <input v-model="nyeLagNavn[i]" class="ds-input" :aria-label="`Lag ${i + 1}`" />
+          <button
+            v-if="nyeLagNavn.length > 1"
+            type="button"
+            class="nye-lag__fjern"
+            :aria-label="`Fjern ${n || 'laget'}`"
+            @click="nyeLagNavn.splice(i, 1)"
+          >×</button>
+        </div>
+      </div>
+      <button type="button" class="add-link" @click="nyeLagNavn.push('')">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Lag
+      </button>
+      <p v-if="nyeLagFeil" class="nye-lag__feil" role="alert">{{ nyeLagFeil }}</p>
+      <div class="sheet-actions">
+        <button class="ds-btn ds-btn--secondary" @click="visNyeLag = false">Avbryt</button>
+        <button
+          class="ds-btn ds-btn--primary"
+          :disabled="lagrerNyeLag || !nyeLagNavn.some(n => n.trim())"
+          @click="lagNyeLag"
+        >Lag nye lag</button>
+      </div>
+    </Sheet>
 
     <Sheet :show="showAdd" title="Ny spiller" @close="showAdd = false">
       <div class="ds-form-group">
@@ -252,6 +354,17 @@ async function handleAdd() {
 </template>
 
 <style scoped>
+.nye-lag { display: flex; justify-content: center; margin-top: var(--ds-space-xl); }
+.nye-lag__tekst { margin: 0 0 var(--ds-space-lg); color: var(--ds-color-text-secondary); font-size: var(--ds-text-sm); line-height: 1.5; }
+.nye-lag__liste { display: flex; flex-direction: column; gap: var(--ds-space-sm); margin-bottom: var(--ds-space-md); }
+.nye-lag__rad { display: flex; align-items: center; gap: var(--ds-space-sm); }
+.nye-lag__rad .ds-input { flex: 1; }
+.nye-lag__fjern {
+  width: 44px; height: 44px; flex: none; border: 0; border-radius: var(--ds-radius-full);
+  background: transparent; color: var(--ds-color-text-tertiary); font-size: 22px; cursor: pointer;
+}
+.nye-lag__fjern:hover { background: var(--ds-color-bg-subtle); color: var(--ds-color-text-primary); }
+.nye-lag__feil { margin: var(--ds-space-md) 0 0; color: var(--ds-color-danger, #C0392B); font-size: var(--ds-text-sm); }
 .cmd-muted { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); padding: var(--ds-space-sm) 2px; }
 
 .tropp-actions {
@@ -365,7 +478,7 @@ async function handleAdd() {
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
 }
-.chip--team { background: var(--accent-bg); color: var(--accent-text); border-color: var(--accent-border, transparent); }
+.chip--team { background: var(--accent-bg, var(--ds-color-bg-subtle)); color: var(--accent-text, var(--ds-color-text-primary)); border-color: var(--accent-border, transparent); }
 .chip--muted {
   background: var(--ds-color-bg-subtle); color: var(--ds-color-text-secondary);
   padding-right: 4px;
@@ -397,6 +510,13 @@ async function handleAdd() {
   box-shadow: 0 0 0 1px var(--ds-color-border-light);
 }
 .chip__dot:hover { transform: scale(1.15); }
+/* Lag uten farge (A, B, C): navnet i prikken, nøytral flate. */
+.chip__dot:not([data-accent]) {
+  width: auto; min-width: 28px; height: 28px; padding: 0 6px;
+  background: var(--ds-color-bg-elevated); color: var(--ds-color-text-primary);
+  font: inherit; font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold);
+  box-shadow: 0 0 0 1px var(--ds-color-border-strong);
+}
 
 .chip__star { color: var(--ds-color-warning); font-size: 11px; margin: 0 -2px 0 1px; }
 

@@ -25,7 +25,7 @@ let lasterPagar = null
 export function useOnboarding() {
   const { activeCohort, isCoach, isAdmin, isPlatformAdmin, coach } = useAuth()
   const { players, fetchPlayers } = usePlayers()
-  const { seasonTeams, teamsFromDb, reloadTeams, invalidateTeamCoaches } = useSeasonTeams()
+  const { seasonTeams, teamsFromDb, reloadTeams, invalidateTeamCoaches, activeHasOwnTeams } = useSeasonTeams()
   const { matches } = useMatches()
   const { activeSeason, seasons } = useSeasons()
 
@@ -58,8 +58,11 @@ export function useOnboarding() {
   // Steget er gjort når HVERT lag har noen på seg.
   const lagMedSpillere = computed(() => new Set(players.value.map(p => p.primary_team).filter(Boolean)))
   const lagUtenSpillere = computed(() => seasonTeams.value.filter(t => !lagMedSpillere.value.has(t.slug)))
+  // Et kull som har avsluttet en sesong, er forbi oppstarten: nye lag for en ny
+  // sesong (A, B, C) står tomme til treneren fordeler, og det gjøres i Tropp.
   const playersDone = computed(() =>
-    seasonTeams.value.length ? players.value.length > 0 && !lagUtenSpillere.value.length : players.value.length > 0
+    seasons.value.some(s => s.status === 'settled') ||
+    (seasonTeams.value.length ? players.value.length > 0 && !lagUtenSpillere.value.length : players.value.length > 0)
   )
   // Å invitere de andre trenerne er IKKE et oppsettsteg. Sten vil prøve appen
   // før han drar med seg trenerteamet, og et kort som maser om det tar plass
@@ -121,7 +124,9 @@ export function useOnboarding() {
         name: trimmed,
         slug: slugify(trimmed),
         accent: ACCENTS[position % ACCENTS.length],
-        position
+        position,
+        // Har sesongen egne lag, hører det nye laget til dem.
+        from_season_id: activeHasOwnTeams.value ? activeSeason.value?.id ?? null : null
       })
       .select()
       .single()

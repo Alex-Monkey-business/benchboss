@@ -105,7 +105,8 @@ export function useToday() {
       if (fromSeason) return fromSeason
     }
     // 2. Ditt eget medlemskort. Ikke sesongbevisst, men ekte data om deg.
-    if (preferredTeam.value) return new Set([preferredTeam.value])
+    //    Bare om laget finnes i år: fjorårets «Grønn» skal ikke skjule A, B og C.
+    if (preferredTeam.value && seasonTeams.value.some(t => t.slug === preferredTeam.value)) return new Set([preferredTeam.value])
     // 3. Den statiske lag-configen (lib/seasonTeams.js) — et hardkodet
     //    øyeblikksbilde, siste utvei før vi gjetter på kamptilordninger.
     return teamByName(seasonTeams.value) || new Set()

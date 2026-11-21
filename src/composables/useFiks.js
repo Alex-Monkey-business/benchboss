@@ -56,7 +56,7 @@ async function fetchWithTimeout(url, options = {}, ms = 12000) {
 
 export function useFiks() {
   const { activeCohort, refreshMember, coach, isPlatformAdmin } = useAuth()
-  const { seasonTeams, reloadTeams, invalidateTeamCoaches } = useSeasonTeams()
+  const { seasonTeams, reloadTeams, invalidateTeamCoaches, activeHasOwnTeams } = useSeasonTeams()
   const { matches, bulkAddMatches, backfillDefaultCoaches } = useMatches()
   const { activeSeason } = useSeasons()
 
@@ -210,7 +210,8 @@ export function useFiks() {
           accent: accentFor(t.name, start + i),
           position: start + i,
           fiks_team_id: Number(t.fiksId),
-          fiks_name: t.name
+          fiks_name: t.name,
+          from_season_id: activeHasOwnTeams.value ? activeSeason.value?.id ?? null : null
         }
       })
       const { data, error } = await supabase.from('teams').insert(rows).select()
