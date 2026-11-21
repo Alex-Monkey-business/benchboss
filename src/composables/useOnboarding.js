@@ -125,8 +125,9 @@ export function useOnboarding() {
         slug: slugify(trimmed),
         accent: ACCENTS[position % ACCENTS.length],
         position,
-        // Har sesongen egne lag, hører det nye laget til dem.
-        from_season_id: activeHasOwnTeams.value ? activeSeason.value?.id ?? null : null
+        // Har sesongen egne lag, hører det nye laget til dem. Bare med når
+        // den er satt: før migrasjonen finnes ikke kolonnen.
+        ...(activeHasOwnTeams.value && activeSeason.value?.id ? { from_season_id: activeSeason.value.id } : {})
       })
       .select()
       .single()

@@ -211,7 +211,7 @@ export function useFiks() {
           position: start + i,
           fiks_team_id: Number(t.fiksId),
           fiks_name: t.name,
-          from_season_id: activeHasOwnTeams.value ? activeSeason.value?.id ?? null : null
+          ...(activeHasOwnTeams.value && activeSeason.value?.id ? { from_season_id: activeSeason.value.id } : {})
         }
       })
       const { data, error } = await supabase.from('teams').insert(rows).select()
