@@ -27,16 +27,17 @@ const FORMATIONS = {
     { id: 'd2', role: 'field',  x: 70, y: 68 },
     { id: 'gk', role: 'keeper', x: 50, y: 89 }
   ],
-  // 9er: 3-3-2.
+  // 9er: 3-4-1. To sentrale midtbaner og vinger, én spiss. Slot-ID-ene for
+  // midtbanen er m1, m2, m4, m3 fra venstre: m1–m3 betyr det samme som i 7er.
   9: [
-    { id: 'f1', role: 'field',  x: 35, y: 15 },
-    { id: 'f2', role: 'field',  x: 65, y: 15 },
-    { id: 'm1', role: 'field',  x: 20, y: 40 },
-    { id: 'm2', role: 'field',  x: 50, y: 40 },
-    { id: 'm3', role: 'field',  x: 80, y: 40 },
-    { id: 'd1', role: 'field',  x: 25, y: 65 },
-    { id: 'd2', role: 'field',  x: 50, y: 67 },
-    { id: 'd3', role: 'field',  x: 75, y: 65 },
+    { id: 'f1', role: 'field',  x: 50, y: 14 },
+    { id: 'm1', role: 'field',  x: 14, y: 40 },
+    { id: 'm2', role: 'field',  x: 38, y: 43 },
+    { id: 'm4', role: 'field',  x: 62, y: 43 },
+    { id: 'm3', role: 'field',  x: 86, y: 40 },
+    { id: 'd1', role: 'field',  x: 25, y: 66 },
+    { id: 'd2', role: 'field',  x: 50, y: 68 },
+    { id: 'd3', role: 'field',  x: 75, y: 66 },
     { id: 'gk', role: 'keeper', x: 50, y: 89 }
   ],
   // 11er: 4-3-3.

@@ -25,7 +25,7 @@ const props = defineProps({
 const { laste, lagre } = useOppstilling()
 const { show: showToast } = useToast()
 
-const FORMASJONSNAVN = { 5: '1-2-1', 7: '2-3-1', 9: '3-3-2', 11: '4-3-3' }
+const FORMASJONSNAVN = { 5: '1-2-1', 7: '2-3-1', 9: '3-4-1', 11: '4-3-3' }
 const formasjon = computed(() => formationFor(props.spillform))
 const formasjonsnavn = computed(() => FORMASJONSNAVN[props.spillform] || '')
 const lasteNa = computed(() => laste(props.team.id, props.spillform))

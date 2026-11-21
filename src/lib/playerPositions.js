@@ -48,7 +48,7 @@ const SLOTS = {
   3: { f1: 'angrep', m1: 'venstre_ving', m3: 'hoyre_ving' },
   5: { gk: 'keeper', d1: 'stopper', m1: 'venstre_ving', m3: 'hoyre_ving', f1: 'angrep' },
   7: { gk: 'keeper', d1: 'stopper', d2: 'stopper', m1: 'venstre_ving', m2: 'sentral', m3: 'hoyre_ving', f1: 'angrep' },
-  9: { gk: 'keeper', d1: 'venstre_back', d2: 'stopper', d3: 'hoyre_back', m1: 'venstre_ving', m2: 'sentral', m3: 'hoyre_ving', f1: 'angrep', f2: 'angrep' },
+  9: { gk: 'keeper', d1: 'venstre_back', d2: 'stopper', d3: 'hoyre_back', m1: 'venstre_ving', m2: 'sentral', m4: 'sentral', m3: 'hoyre_ving', f1: 'angrep' },
   11: { gk: 'keeper', d1: 'venstre_back', d2: 'stopper', d3: 'stopper', d4: 'hoyre_back', m1: 'sentral', m2: 'sentral', m3: 'sentral', f1: 'venstre_ving', f2: 'angrep', f3: 'hoyre_ving' }
 }
 
