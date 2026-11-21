@@ -252,12 +252,14 @@ async function handleAdd() {
             </template>
           </p>
           <p v-if="teamPlayers(t.slug).length === 0" class="teamcard__empty">Ingen spillere lagt til ennå.</p>
+          <!-- Uten id (demo) kan justeringer ikke lagres; banen vises likevel,
+               så Bane-fanen aldri står aktiv over en liste. -->
           <LagBane
-            v-else-if="visBane && t.id"
+            v-else-if="visBane"
             :team="t"
             :spillere="teamPlayers(t.slug)"
             :spillform="spillform"
-            :kan-endre="canEdit"
+            :kan-endre="canEdit && !!t.id"
           />
           <div v-else class="roster">
             <span v-for="p in teamPlayers(t.slug)" :key="p.id" class="chip chip--team">

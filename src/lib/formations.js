@@ -31,10 +31,11 @@ const FORMATIONS = {
   // midtbanen er m1, m2, m4, m3 fra venstre: m1–m3 betyr det samme som i 7er.
   9: [
     { id: 'f1', role: 'field',  x: 50, y: 14 },
-    { id: 'm1', role: 'field',  x: 14, y: 40 },
-    { id: 'm2', role: 'field',  x: 38, y: 43 },
-    { id: 'm4', role: 'field',  x: 62, y: 43 },
-    { id: 'm3', role: 'field',  x: 86, y: 40 },
+    // Over midtsirkelen, så navnene under ikke legger seg oppå streken.
+    { id: 'm1', role: 'field',  x: 14, y: 38 },
+    { id: 'm2', role: 'field',  x: 38, y: 35 },
+    { id: 'm4', role: 'field',  x: 62, y: 35 },
+    { id: 'm3', role: 'field',  x: 86, y: 38 },
     { id: 'd1', role: 'field',  x: 25, y: 66 },
     { id: 'd2', role: 'field',  x: 50, y: 68 },
     { id: 'd3', role: 'field',  x: 75, y: 66 },
