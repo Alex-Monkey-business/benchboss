@@ -2,7 +2,7 @@
 // De to siste testcasene (Bruk som dagens grupper, Del inn uten trening) er
 // flyt og ligger i grupper-test.mjs.
 //   node scripts/fordeling-test.mjs
-import { lagGjenger, iGjengene, antallLag, trekkLag, baner, plasser, trenerePerBane, gjengNavn, delInn } from '../src/lib/grupper.js'
+import { spredKeepere, lagGjenger, iGjengene, antallLag, trekkLag, baner, plasser, trenerePerBane, gjengNavn, delInn } from '../src/lib/grupper.js'
 let feilet = 0
 const ok = (l, c, x = '') => { if (!c) feilet++; console.log(`${c ? 'OK  ' : 'FEIL'} ${l}${x ? '  — ' + x : ''}`) }
 const kull = (a, b, c) => [
@@ -196,6 +196,36 @@ const rene = g => g.every(x => !(x.nivaer.includes('A') && x.nivaer.includes('C'
   }
   const navn = Object.keys(brudd)
   ok('tusen tilfeldige oppmøter: alle reglene holder', !navn.length, navn.map(n => `${n}: ${brudd[n]}`).join(' | '))
+}
+// Keepere: aldri to på samme lag (Alex, 21. nov).
+{
+  let brudd = ''
+  for (let k = 1; k <= 1000 && !brudd; k++) {
+    const n = 8 + (k % 22)
+    const keepere = 1 + (k % 4)
+    const nivaer = ['A', 'B', 'C', null]
+    const sp = Array.from({ length: n }, (_, i) => ({ id: `s${String(i).padStart(2, '0')}`, niva: nivaer[(i * 7 + k) % 4], keeper: i < keepere }))
+    for (const type of ['mix', 'diff']) {
+      const l = delInn({ spillere: sp, form: 'lag', type, antall: 2 + (k % 4), seed: k })
+      const per = l.enheter.map(e => e.spillere.filter(id => sp.find(s => s.id === id).keeper).length)
+      const tak = Math.ceil(keepere / l.enheter.length)
+      const str = l.enheter.map(e => e.spillere.length)
+      const alle = l.enheter.flatMap(e => e.spillere)
+      if (Math.max(...per) > tak) brudd = `${type} k=${k}: keepere ${per.join()}`
+      else if (Math.max(...str) - Math.min(...str) > 1) brudd = `${type} k=${k}: størrelser ${str.join()}`
+      else if (new Set(alle).size !== n) brudd = `${type} k=${k}: noen borte`
+    }
+  }
+  ok('tusen trekninger: aldri to keepere på samme lag, like store lag', !brudd, brudd)
+  const lag = spredKeepere([['k1', 'k2', 'a'], ['b', 'c', 'd']], [
+    { id: 'k1', niva: 'A', keeper: true }, { id: 'k2', niva: 'C', keeper: true },
+    { id: 'a', niva: 'B' }, { id: 'b', niva: 'A' }, { id: 'c', niva: 'C' }, { id: 'd', niva: 'B' }
+  ])
+  ok('keeperen bytter med en utespiller på samme nivå', lag[0].includes('c') && lag[1].includes('k2'), JSON.stringify(lag))
+  const med = kull(6, 9, 6).map((s, i) => ({ ...s, keeper: i % 5 === 0 }))
+  const g1 = delInn({ spillere: med, form: 'grupper', seed: 3 }).enheter.map(e => e.spillere.join()).join('|')
+  const g2 = delInn({ spillere: kull(6, 9, 6), form: 'grupper', seed: 3 }).enheter.map(e => e.spillere.join()).join('|')
+  ok('grupper røres ikke av keeperregelen', g1 === g2)
 }
 console.log(feilet ? `${feilet} feil` : 'Alt grønt')
 process.exit(feilet ? 1 : 0)

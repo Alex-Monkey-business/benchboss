@@ -28,6 +28,7 @@ import { useDelInn } from '../composables/useDelInn'
 import { useToast } from '../composables/useToast'
 import { useAuth } from '../stores/auth'
 import { delInn, kortnavn } from '../lib/grupper'
+import { playerPositions } from '../lib/playerPositions'
 import { meldEvent } from '../lib/sporing'
 import OppmoteGrid from '../components/OppmoteGrid.vue'
 import Sheet from '../components/Sheet.vue'
@@ -104,7 +105,7 @@ const erHer = id => (id in ventSp.value ? ventSp.value[id] : baseSpillere.value.
 const sortert = computed(() => [...players.value].sort((a, b) => a.name.localeCompare(b.name, 'no')))
 // Sortert på id: rekkefølgen styrer trekningen og skal være lik på alle telefonene.
 const her = computed(() => [
-  ...players.value.filter(p => erHer(p.id)).map(p => ({ id: p.id, niva: levelFor(p.id) })),
+  ...players.value.filter(p => erHer(p.id)).map(p => ({ id: p.id, niva: levelFor(p.id), keeper: playerPositions(p).includes('keeper') })),
   ...gjester.value.map(g => ({ id: g.id, niva: g.niva || null }))
 ].sort((a, b) => (a.id < b.id ? -1 : 1)))
 

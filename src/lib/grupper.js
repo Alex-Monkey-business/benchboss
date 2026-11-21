@@ -263,7 +263,8 @@ export function gjengNavn(g) {
   return n.length > 1 ? `${n.slice(0, -1).join(', ')} og ${n[n.length - 1]}` : n[0]
 }
 
-// spillere: [{ id, niva }], trenere: [id] — riggeren er allerede tatt ut.
+// spillere: [{ id, niva, keeper }], trenere: [id] — riggeren er allerede tatt ut.
+// På lag spres keeperne (spredKeepere).
 // runde: trenerrotasjonen fra trening til trening.
 // Returnerer [{ id, nivaer, spillere: [id], trenere: [id] }], A først.
 // antall: valgt med − og +. Uten det styrer spillerne: én gjeng per nivå som
@@ -493,6 +494,37 @@ export function plasser(niva, gjenger, lag) {
   return { gjeng, lag: lagI }
 }
 
+// Keeperne spres: aldri to keepere på samme lag (Alex, 21. nov). Flere
+// keepere enn lag gir så jevnt som mulig. En keeper som må flytte, bytter
+// plass med en utespiller på laget uten keeper — helst på samme nivå, så
+// lagene er like sterke og like store etterpå.
+// lag: [[id]], spillere: [{ id, niva, keeper }]. Returnerer ny liste.
+export function spredKeepere(lag, spillere) {
+  const ut = lag.map(l => [...l])
+  const info = Object.fromEntries(spillere.map(s => [s.id, s]))
+  const erKeeper = id => !!info[id]?.keeper
+  const rang = id => RANG[nivaTil(info[id] || {})]
+  const antall = l => l.filter(erKeeper).length
+  const totalt = ut.reduce((n, l) => n + antall(l), 0)
+  if (totalt < 2 || ut.length < 2) return ut
+  const tak = Math.ceil(totalt / ut.length)
+  for (let vakt = 0; vakt < totalt * ut.length; vakt++) {
+    const fra = ut.findIndex(l => antall(l) > tak || (antall(l) > 1 && ut.some(m => antall(m) < antall(l) - 1)))
+    if (fra < 0) break
+    let til = -1
+    ut.forEach((l, i) => { if (i !== fra && (til < 0 || antall(l) < antall(ut[til]))) til = i })
+    if (til < 0 || antall(ut[til]) >= antall(ut[fra]) - 1) break
+    const keeper = ut[fra].filter(erKeeper).sort((a, b) => (a < b ? -1 : 1)).pop()
+    const kandidater = ut[til].filter(id => !erKeeper(id))
+    if (!kandidater.length) { ut[fra].splice(ut[fra].indexOf(keeper), 1); ut[til].push(keeper); continue }
+    const bytte = kandidater.reduce((best, id) =>
+      Math.abs(rang(id) - rang(keeper)) < Math.abs(rang(best) - rang(keeper)) ? id : best)
+    ut[fra][ut[fra].indexOf(keeper)] = bytte
+    ut[til][ut[til].indexOf(bytte)] = keeper
+  }
+  return ut
+}
+
 // ── Del inn ─────────────────────────────────────────────────────────────────
 //
 // Én motor for all inndeling: kjøreplanen (gruppene og lagene når oppmøtet
@@ -541,7 +573,7 @@ export function delInn({ spillere = [], trenere = [], form = 'grupper', type = n
   const visNiva = d => (type === 'diff' && !nivaer ? [] : d.nivaer)
   const deler = form === 'grupper' && type === 'diff'
     ? lagGjenger(spillere, trenere, runde, seed, N, TOLERANSE[balanse] ?? 3)
-    : lagGrupper(spillere, N, type, seed).map(somDel)
+    : (form === 'lag' ? spredKeepere(lagGrupper(spillere, N, type, seed), spillere) : lagGrupper(spillere, N, type, seed)).map(somDel)
 
   if (form === 'grupper') {
     const tr = type === 'diff' ? deler.map(d => d.trenere) : fordelTrenere(deler.map(() => ({ niva: null })), trenere, runde)

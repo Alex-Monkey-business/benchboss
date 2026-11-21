@@ -34,6 +34,14 @@ if ! node scripts/fordeling-test.mjs > /dev/null; then
 fi
 si "${GREEN}fordeling ok${OFF}"
 
+# Laget på banen: plasseringen og byttene. Rene regler, sekunder.
+if ! node scripts/oppstilling-test.mjs > /dev/null; then
+  si "${RED}Oppstillingen bryter reglene. Push avbrutt.${OFF}"
+  node scripts/oppstilling-test.mjs | grep FEIL
+  exit 1
+fi
+si "${GREEN}oppstilling ok${OFF}"
+
 # 2. Hele flyten. Krever den lokale basen. Er den ikke oppe, sier vi det rett
 #    ut i stedet for å late som vi har dekningen.
 if ! docker ps --format '{{.Names}}' 2>/dev/null | grep -q supabase_db_halsen-dommerutlegg; then
