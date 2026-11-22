@@ -8,6 +8,7 @@ import { navHidden, hjemKlar } from './lib/shell'
 import BottomNav from './components/BottomNav.vue'
 import ToastNotification from './components/ToastNotification.vue'
 import IosInstallBanner from './components/IosInstallBanner.vue'
+import SjefenHilsen from './components/SjefenHilsen.vue'
 
 const route = useRoute()
 const router = useRouter()
@@ -104,6 +105,7 @@ const showDemo = computed(() => !isSupabaseConfigured)
     </main>
     <ToastNotification :toasts="toasts" />
     <IosInstallBanner :above-nav="showNav" />
+    <SjefenHilsen />
   </div>
 </template>
 
