@@ -83,6 +83,9 @@ const tilbakeTil = '/trening'
   <div class="okt">
     <nav class="okt__bar">
       <BackLink :to="tilbakeTil" label="Trening" historikk />
+      <RouterLink v-if="isCoach && session" :to="planLink(session.id)" class="ds-icon-btn plan__planlegg" :aria-label="drills.length ? 'Planlegg treninga' : 'Legg til øvelser'">
+        <Ikon navn="rediger" aria-hidden="true" />
+      </RouterLink>
     </nav>
 
     <p v-if="!isCoach" class="okt__tom">Kjøreplanen er for trenerne.</p>
@@ -91,8 +94,9 @@ const tilbakeTil = '/trening'
     <div v-else class="plan">
       <h1 class="okt__h1 okt__tittel">{{ session.title || 'Trening' }}</h1>
       <RouterLink to="/del-inn" class="plan__delinn">
+        <Ikon navn="personer" class="plan__delinn-ikon" aria-hidden="true" />
         <span class="plan__delinn-tekst"><strong>Del inn</strong></span>
-        <Ikon navn="pil-hoyre" aria-hidden="true" />
+        <Ikon navn="videre" aria-hidden="true" />
       </RouterLink>
       <button
         v-if="rigg.utstyr.length || rigg.stasjoner.length"
@@ -111,13 +115,12 @@ const tilbakeTil = '/trening'
           <span v-if="minutter" class="fase__min">{{ minutter }} min</span>
         </div>
         <OvelseRader :kort="kort" :meta="metaFor" @apne="apne" />
+        <RouterLink v-if="!drills.length" :to="planLink(session.id)" class="ds-link plan__tom-legg">
+          <Ikon navn="pluss" vekt="bold" aria-hidden="true" />
+          Legg til øvelser
+        </RouterLink>
       </section>
 
-      <div class="plan__fot">
-        <RouterLink :to="planLink(session.id)" class="ds-btn ds-btn--secondary plan__planlegg">
-          {{ drills.length ? 'Planlegg treninga' : 'Legg til øvelser' }}
-        </RouterLink>
-      </div>
     </div>
 
     <Sheet :show="visRigg" title="Rigg" @close="visRigg = false">
@@ -147,6 +150,7 @@ const tilbakeTil = '/trening'
 }
 
 .okt__bar {
+  display: flex; align-items: center; justify-content: space-between;
   max-width: var(--ds-content-max);
   margin: 0 auto;
   padding: var(--ds-space-md) var(--ds-space-lg) 0;
@@ -266,8 +270,8 @@ const tilbakeTil = '/trening'
 }
 .rigg__navn { color: var(--ds-color-text-primary); min-width: 0; }
 .rigg__n { flex: none; font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); font-variant-numeric: tabular-nums; }
-.plan__fot { padding: 0 var(--ds-space-lg) var(--ds-space-xl); }
-.plan__planlegg { width: 100%; }
+.plan__tom-legg { margin: var(--ds-space-md) var(--ds-space-lg) 0; }
+.plan__planlegg { margin-right: calc(var(--ds-space-12) * -1); text-decoration: none; }
 .plan { max-width: var(--ds-content-max); margin: 0 auto; padding: var(--ds-space-lg) 0 0; }
 .plan__lokal {
   margin: 0 var(--ds-space-lg) var(--ds-space-sm);
@@ -480,13 +484,14 @@ const tilbakeTil = '/trening'
 .plan__delinn {
   display: flex; align-items: center; gap: var(--ds-space-md);
   min-height: 64px; margin: 0 var(--ds-space-lg) var(--ds-space-sm);
-  padding: var(--ds-space-md) var(--ds-space-lg);
+  padding: 0 var(--ds-space-20);
   border-radius: var(--ds-radius-lg);
   background: var(--ds-color-accent); color: var(--ds-color-accent-text);
   text-decoration: none;
   -webkit-tap-highlight-color: transparent;
 }
 .plan__delinn svg { flex: none; width: 20px; height: 20px; }
+.plan__delinn .plan__delinn-ikon { width: 24px; height: 24px; }
 .plan__delinn-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--ds-space-2xs); }
 .plan__delinn-tekst strong { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); }
 .plan__delinn-tekst span { font-size: var(--ds-text-sm); opacity: .85; }

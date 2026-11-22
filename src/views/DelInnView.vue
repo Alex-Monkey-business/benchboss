@@ -667,7 +667,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
   letter-spacing: var(--ds-tracking-tight); color: var(--ds-color-text-primary);
 }
 .del__opps-linje { display: flex; align-items: center; gap: var(--ds-space-12); min-height: 28px; font-size: var(--ds-text-md); color: var(--ds-color-text-secondary); }
-.del__endre { font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); text-decoration: underline; text-underline-offset: 3px; }
+.del__endre { display: inline-flex; align-items: center; min-height: 32px; padding: 0 var(--ds-space-12); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-subtle); font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
 
 /* Innstillingene: like rader med navnet til venstre og valget til høyre. */
 .del__styr { display: flex; flex-direction: column; margin-top: var(--ds-space-sm); }

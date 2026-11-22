@@ -881,7 +881,7 @@ function formatMatchDate(dateStr) {
   color: var(--ds-color-accent);
 }
 
-.inline-action { margin-top: var(--ds-space-sm); border-top: 1px solid var(--ds-color-border-light); width: 100%; }.inline-action:hover {
+.inline-action { margin-top: var(--ds-space-md); }.inline-action:hover {
   opacity: 0.7;
 }
 

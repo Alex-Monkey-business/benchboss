@@ -737,7 +737,7 @@ onUnmounted(() => { document.removeEventListener('visibilitychange', vedRetur) }
           <div v-else-if="editDayId === s.id" class="plan">
             <div class="plan__topp">
               <span class="plan__tittel">Planlegg treninga</span>
-              <button type="button" class="ds-btn ds-btn--primary ds-btn--sm" @click="dagId ? ferdig(s) : (editDayId = null)">Ferdig</button>
+              <button type="button" class="ds-link" @click="dagId ? ferdig(s) : (editDayId = null)">Ferdig</button>
             </div>
 
             <ul v-if="drillsFor(s).length" class="plan__liste">
@@ -771,7 +771,7 @@ onUnmounted(() => { document.removeEventListener('visibilitychange', vedRetur) }
               {{ tidslinjer[s.id].slutt.tekst }}
             </p>
 
-            <button type="button" class="ds-btn ds-btn--secondary knapp--legg" @click="openPicker(s)">
+            <button type="button" class="ds-link knapp--legg" @click="openPicker(s)">
               <Ikon navn="pluss" vekt="bold" />
               Legg til øvelse
             </button>
@@ -780,10 +780,10 @@ onUnmounted(() => { document.removeEventListener('visibilitychange', vedRetur) }
           <!-- Foten: lesemodus har én vei videre — en ordentlig knapp, ikke en
                tekstlenke med blyant. Planmodus har dagen selv (ukedag, lengde, fokus). -->
           <div class="dag__foot">
-            <button v-if="editDayId === s.id" type="button" class="ds-btn ds-btn--ghost dag__action" @click="openDayForm(s)">
+            <button v-if="editDayId === s.id" type="button" class="ds-link dag__action" @click="openDayForm(s)">
               Rediger dagen
             </button>
-            <button v-else type="button" class="ds-btn ds-btn--secondary" @click="editDayId = s.id">
+            <button v-else type="button" class="ds-link" @click="editDayId = s.id">
               {{ drillsFor(s).length ? 'Planlegg treninga' : 'Legg til øvelser' }}
             </button>
           </div>
@@ -793,7 +793,7 @@ onUnmounted(() => { document.removeEventListener('visibilitychange', vedRetur) }
       <!-- Å legge til en dag er å forlenge lista, så handlinga står som siste
            linje i den, ikke som enda en boks. «Lim inn plan» bor i arket for
            ny dag: den brukes sjelden, og da er det nettopp en ny dag du vil ha. -->
-      <button v-if="!dagId" type="button" class="uke__legg-til" @click="openNewDay">
+      <button v-if="!dagId" type="button" class="ds-link uke__legg-til" @click="openNewDay">
         <Ikon navn="pluss" aria-hidden="true" />
         Legg til dag
       </button>
@@ -1544,11 +1544,11 @@ Torsdag
 .plan__sum--over { color: var(--ds-color-text-primary); }
 
 
-.knapp--legg { width: 100%; margin-top: var(--ds-space-md); }
+.knapp--legg { margin-top: var(--ds-space-md); }
 .knapp--legg svg { width: 16px; height: 16px; }
 
 /* Ghost-knappen har egen innmarg; trekk den ut så teksten står på linje med innholdet. */
-.dag__action { margin-left: calc(var(--ds-space-sm) * -1); }
+.dag__action { margin-left: 0; }
 
 /* ---- Arket for én øvelse i planen ---- */
 .rad-ark__hvor {
@@ -1611,27 +1611,9 @@ Torsdag
 
 
 /* ---- Bunn ---- */
-.uke__legg-til {
-  display: inline-flex;
-  align-items: center;
-  gap: var(--ds-space-sm);
-  min-height: 48px;
-  margin: var(--ds-space-sm) 0 var(--ds-space-2xl);
-  padding: 0 var(--ds-space-sm);
-  margin-left: calc(var(--ds-space-sm) * -1);
-  background: none;
-  border: 0;
-  border-radius: var(--ds-radius-md);
-  font: inherit;
-  font-size: var(--ds-text-md);
-  font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-primary);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  transition: background-color 150ms ease, transform 150ms ease;
-}
+.uke__legg-til { margin: var(--ds-space-md) 0 var(--ds-space-2xl); }
 
-.uke__legg-til svg { width: 20px; height: 20px; }
+.uke__legg-til svg { width: 16px; height: 16px; }
 
 @media (hover: hover) and (pointer: fine) {
   .uke__legg-til:hover { background: var(--ds-color-bg-subtle); }

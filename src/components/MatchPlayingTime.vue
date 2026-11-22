@@ -421,4 +421,4 @@ function share(sec) { return clock.value ? Math.round((sec / clock.value) * 100)
   justify-content: flex-end;
 }
 
-.adj__link { border-bottom: 1px solid var(--ds-color-border); }</style>
+.adj__link { margin-bottom: var(--ds-space-sm); }</style>

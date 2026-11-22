@@ -1,8 +1,9 @@
 <script setup>
 import Ikon from './Ikon.vue'
-import { ref, watch, nextTick, onMounted, onUnmounted, computed } from 'vue'
+import { ref, watch, nextTick, onMounted, onUnmounted, computed, useSlots } from 'vue'
 import { laasScroll, slippScroll } from '../lib/scrollLock'
 import { registrerLag } from '../lib/tilbake'
+import { bakInn, bakUt } from '../lib/arkBak'
 
 const props = defineProps({
   show: { type: Boolean, default: false },
@@ -20,6 +21,11 @@ const props = defineProps({
 })
 
 const emit = defineEmits(['close'])
+const slots = useSlots()
+// Stort ark: fyller nesten hele skjermen på mobil.
+const erStor = computed(() => (props.stor === 'auto'
+  ? (props.tall || !!slots.media || (!!slots.footer && !!slots.default))
+  : !!props.stor))
 
 const isMobile = ref(false)
 const bodyRef = ref(null)
@@ -114,9 +120,19 @@ onMounted(() => {
 
 // Siden bak står stille mens arket er åpent (se scrollLock).
 let laast = false
+let bak = false
 function settLaas(apen) {
-  if (apen && !laast) { laasScroll(); laast = true }
-  if (!apen && laast) { slippScroll(); laast = false }
+  if (apen && !laast) {
+    // Glir et stort ark fortsatt ut, legges siden bak tilbake først: låsen
+    // under leser scrollposisjonen.
+    laasScroll(); laast = true
+    // Etter låsen: effekten leser hvor langt siden var scrollet fra den.
+    if (erStor.value && window.matchMedia('(max-width: 768px)').matches) bak = bakInn()
+  }
+  if (!apen && laast) {
+    laast = false
+    if (bak) { bak = false; bakUt(slippScroll) } else slippScroll()
+  }
 }
 watch(() => props.show, settLaas, { immediate: true })
 
@@ -160,7 +176,7 @@ watch(() => props.show, (val) => {
     <div v-if="show" class="ds-overlay ds-sheet-overlay" :style="overlayStyle" @click.self="emit('close')">
       <div
         class="ds-sheet"
-        :class="{ 'ds-sheet--stor': stor === 'auto' ? (tall || !!$slots.media || (!!$slots.footer && !!$slots.default)) : !!stor, 'ds-sheet--media': !!$slots.media, 'ds-sheet--dragging': dragging, 'ds-sheet--tall': tall, 'ds-sheet--footer': !!$slots.footer }"
+        :class="{ 'ds-sheet--stor': erStor, 'ds-sheet--media': !!$slots.media, 'ds-sheet--dragging': dragging, 'ds-sheet--tall': tall, 'ds-sheet--footer': !!$slots.footer }"
         :style="sheetStyle"
         role="dialog"
         aria-modal="true"

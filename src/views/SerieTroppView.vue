@@ -87,13 +87,7 @@ const unplaced = computed(() => {
 // forklaringen på hva de betyr.
 const eligible = p => canEdit.value && isLoanEligible(p, seasonId.value)
 
-// Hurtig lag-bytte (chip-prikkene / ×)
-async function assign(playerId, team) {
-  await updatePlayer(playerId, { primary_team: team })
-  meldEvent('lag_endret', { flate: 'spiller', satt: true })
-}
-// Av laget med én gang; Angre i varslinga setter spilleren tilbake på samme
-// lag. Feiler lagringen, står spilleren der igjen.
+// Bytter lag med én gang. Feiler lagringen, står spilleren der igjen.
 async function settLag(playerId, team) {
   const p = players.value.find(x => x.id === playerId)
   const for_ = p?.primary_team ?? null
@@ -105,17 +99,19 @@ async function settLag(playerId, team) {
   }
   return !!ok
 }
-async function remove(playerId) {
-  const p = players.value.find(x => x.id === playerId)
-  const lag = p?.primary_team
-  if (!p || !lag) return
-  if (!(await settLag(playerId, null))) return
-  meldEvent('lag_endret', { flate: 'spiller', satt: false })
-  showToast(`${p.name.split(' ')[0]} tatt av laget`, 'success', 5000, {
-    action: { label: 'Angre', handler: () => settLag(playerId, lag) }
-  })
+// Opp og ned mellom lagene i redigering. Rekkefølgen er lagene slik de
+// står på skjermen, med «Ikke plassert» nederst.
+const IKKE_PLASSERT = { slug: null, name: 'Ikke plassert' }
+function nabo(slug, retning) {
+  const rekke = [...seasonTeams.value, IKKE_PLASSERT]
+  const i = slug ? rekke.findIndex(t => t.slug === slug) : rekke.length - 1
+  return i < 0 ? null : rekke[i + retning] || null
 }
-
+async function flytt(p, slug, retning) {
+  const til = nabo(slug, retning)
+  if (!til) return
+  if (await settLag(p.id, til.slug)) meldEvent('lag_endret', { flate: 'tropp', satt: !!til.slug })
+}
 // ── Nye lag for sesongen ─────────────────────────────────────────────────────
 // Lagene gjelder til en sesong får egne. Arver sesongen fra en tidligere, kan
 // treneren sette opp nye: A, B og C når lagene meldes på etter nivå.
@@ -268,12 +264,22 @@ async function handleAdd() {
             :spillform="spillform"
             :kan-endre="canEdit && !!t.id"
           />
+          <ul v-else-if="editing" class="flytt">
+            <li v-for="p in teamPlayers(t.slug)" :key="p.id" class="flytt__rad">
+              <span class="flytt__navn">{{ p.name }}<span v-if="eligible(p)" class="chip__star" title="Egnet som lånespiller">★</span></span>
+              <button type="button" class="ds-icon-btn flytt__pil" :disabled="!nabo(t.slug, -1)" :aria-label="nabo(t.slug, -1) ? `Flytt ${p.name} opp til ${nabo(t.slug, -1).name}` : 'Øverste lag'" @click="flytt(p, t.slug, -1)">
+                <Ikon navn="pil-opp" vekt="bold" />
+              </button>
+              <button type="button" class="ds-icon-btn flytt__pil" :aria-label="`Flytt ${p.name} ned til ${nabo(t.slug, 1).name}`" @click="flytt(p, t.slug, 1)">
+                <Ikon navn="pil-ned" vekt="bold" />
+              </button>
+            </li>
+          </ul>
           <div v-else class="roster">
             <span v-for="p in teamPlayers(t.slug)" :key="p.id" class="chip chip--team">
               <router-link v-if="canEdit" :to="`/spiller/${p.id}`" class="chip__name">{{ p.name }}</router-link>
               <template v-else>{{ p.name }}</template>
               <span v-if="eligible(p)" class="chip__star" title="Egnet som lånespiller">★</span>
-              <button v-if="editing" type="button" class="chip__x" :aria-label="`Ta ${p.name} av laget`" @click="remove(p.id)">×</button>
             </span>
           </div>
         </section>
@@ -283,24 +289,22 @@ async function handleAdd() {
             <span class="teamcard__name">Ikke plassert</span>
             <span class="teamcard__count">{{ unplaced.length }}</span>
           </header>
-          <div class="roster">
+          <ul v-if="editing" class="flytt">
+            <li v-for="p in unplaced" :key="p.id" class="flytt__rad">
+              <span class="flytt__navn">{{ p.name }}<span v-if="eligible(p)" class="chip__star" title="Egnet som lånespiller">★</span></span>
+              <button type="button" class="ds-icon-btn flytt__pil" :disabled="!nabo(null, -1)" :aria-label="nabo(null, -1) ? `Flytt ${p.name} opp til ${nabo(null, -1).name}` : 'Ingen lag'" @click="flytt(p, null, -1)">
+                <Ikon navn="pil-opp" vekt="bold" />
+              </button>
+              <button type="button" class="ds-icon-btn flytt__pil" disabled aria-label="Nederst">
+                <Ikon navn="pil-ned" vekt="bold" />
+              </button>
+            </li>
+          </ul>
+          <div v-else class="roster">
             <span v-for="p in unplaced" :key="p.id" class="chip chip--muted">
               <router-link v-if="canEdit" :to="`/spiller/${p.id}`" class="chip__name">{{ p.name }}</router-link>
               <template v-else>{{ p.name }}</template>
               <span v-if="eligible(p)" class="chip__star" title="Egnet som lånespiller">★</span>
-              <span v-if="editing" class="chip__assign">
-                <button
-                  v-for="t in seasonTeams"
-                  :key="t.slug"
-                  type="button"
-                  class="chip__dot"
-                  :data-accent="t.accent"
-                  :data-team="t.slug"
-                  :aria-label="`Sett ${p.name} på ${t.name}`"
-                  :title="t.name"
-                  @click="assign(p.id, t.slug)"
-                ><template v-if="!t.accent">{{ t.name.slice(0, 2) }}</template></button>
-              </span>
             </span>
           </div>
         </section>
@@ -404,8 +408,7 @@ async function handleAdd() {
   --accent-text: var(--ds-color-text-primary);
   --accent-border: var(--ds-color-border-strong);
 }
-[data-accent="paper"] .teamcard__dot,
-[data-accent="paper"] .chip__dot {
+[data-accent="paper"] .teamcard__dot {
   background: var(--ds-color-bg-elevated);
   border: 1px solid var(--ds-color-border-strong);
   box-shadow: none;
@@ -456,6 +459,20 @@ async function handleAdd() {
 .teamcard__empty { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); margin: 0; }
 
 .roster { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }
+/* Redigering: én rad per spiller, med opp og ned mellom lagene. */
+.flytt { list-style: none; margin: 0; padding: 0; }
+.flytt__rad {
+  display: flex; align-items: center; gap: var(--ds-space-sm);
+  min-height: 56px;
+  border-bottom: 1px solid var(--ds-color-border-light, var(--ds-color-border));
+}
+.flytt__rad:last-child { border-bottom: 0; }
+.flytt__navn { flex: 1; min-width: 0; font-size: var(--ds-text-md); font-weight: var(--ds-weight-medium); color: var(--ds-color-text-primary); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.flytt__navn .chip__star { margin-left: var(--ds-space-xs); }
+.flytt__pil { background: var(--ds-color-bg-subtle); color: var(--ds-color-text-primary); }
+.flytt__pil svg { width: 18px; height: 18px; }
+.flytt__pil:disabled { opacity: .35; cursor: default; }
+.teamcard--muted .flytt__pil { background: var(--ds-color-bg-elevated); }
 .chip {
   position: relative;
   display: inline-flex; align-items: center; gap: var(--ds-space-xs);
@@ -481,33 +498,7 @@ async function handleAdd() {
 .chip__name:hover { text-decoration: underline; }
 /* Hele chipen er trykkflata, ikke bare navnet. */
 .chip__name::after { content: ''; position: absolute; inset: 0; border-radius: inherit; }
-.chip__x, .chip__assign { position: relative; z-index: 1; }
 
-.chip__x {
-  display: grid; place-items: center;
-  width: 32px; height: 32px; margin: 0 calc(var(--ds-space-12) * -1) 0 calc(var(--ds-space-xs) * -1); padding: 0;
-  border: none; border-radius: 50%;
-  background: transparent; color: inherit; opacity: 0.55;
-  font-size: var(--ds-text-sm); line-height: 1; cursor: pointer;
-}
-.chip__x:hover { opacity: 1; }
-
-.chip__assign { display: inline-flex; align-items: center; gap: var(--ds-space-xs); margin-left: var(--ds-space-xs); }
-.chip__dot {
-  width: 24px; height: 24px; padding: 0; flex: none;
-  background: var(--accent-text);
-  border: 2px solid var(--ds-color-bg-elevated);
-  border-radius: 50%; cursor: pointer;
-  box-shadow: 0 0 0 1px var(--ds-color-border-light);
-}
-.chip__dot:hover { transform: scale(1.15); }
-/* Lag uten farge (A, B, C): navnet i prikken, nøytral flate. */
-.chip__dot:not([data-accent]) {
-  width: auto; min-width: 28px; height: 28px; padding: 0 var(--ds-space-sm);
-  background: var(--ds-color-bg-elevated); color: var(--ds-color-text-primary);
-  font: inherit; font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold);
-  box-shadow: 0 0 0 1px var(--ds-color-border-strong);
-}
 
 .chip__star { color: var(--ds-color-warning); font-size: var(--ds-text-2xs); margin: 0 calc(var(--ds-space-2xs) * -1) 0 1px; }
 

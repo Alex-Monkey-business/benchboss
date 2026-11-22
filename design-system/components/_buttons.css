@@ -220,25 +220,35 @@
 /* ---- Tekstknapp ----
    Én form for handlinger som står som tekst («Sett posisjon», «Legg til»):
    understreket, 44 px høy trykkflate, samme størrelse og vekt overalt. */
+/* Stille knapp: alt som ikke er hovedhandlingen på skjermen. En rolig pille
+   uten understrek. Før var dette understreket tekst, som så ut som en lenke
+   på en nettside. */
 .ds-link {
   display: inline-flex;
   align-items: center;
   gap: var(--ds-space-sm);
   min-height: 44px;
-  padding: 0;
+  padding: 0 var(--ds-space-md);
   border: 0;
-  background: transparent;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-subtle);
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
+  font-weight: var(--ds-weight-semibold);
   color: var(--ds-color-text-primary);
-  text-decoration: underline;
-  text-underline-offset: 3px;
+  text-decoration: none;
+  white-space: nowrap;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1), background-color 0.15s ease;
 }
-.ds-link:focus-visible { outline: none; box-shadow: var(--ds-shadow-focus); border-radius: var(--ds-radius-sm); }
-.ds-link--farlig { color: var(--ds-color-error); }
+.ds-link svg { flex: none; width: 16px; height: 16px; }
+.ds-link:active { transform: scale(0.97); background: var(--ds-color-bg-hover); }
+.ds-link:disabled { opacity: 0.5; cursor: default; }
+/* På en flate som selv er dempet, løftes pilla i stedet. */
+.ds-link--lys { background: var(--ds-color-bg-elevated); box-shadow: var(--ds-shadow-xs); }
+.ds-link:focus-visible { outline: none; box-shadow: var(--ds-shadow-focus); }
+.ds-link--farlig { background: transparent; color: var(--ds-color-error); }
 @media (prefers-reduced-motion: reduce) {
-  .ds-icon-btn { transition: none; }
+  .ds-icon-btn, .ds-link { transition: none; }
 }
