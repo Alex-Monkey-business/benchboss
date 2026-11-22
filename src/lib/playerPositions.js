@@ -85,6 +85,54 @@ export function playerPrimary(player) {
   return Array.isArray(player?.primary_positions) ? player.primary_positions.filter(v => mine.includes(v)) : []
 }
 
+// ── Primær og sekundær, slik trenerne sier det ───────────────────────────────
+// To nedtrekkslister i stedet for et rutenett. «Back» og «Ving» betyr begge
+// sider; venstre og høyre kan også velges hver for seg. Lagres som før:
+// positions = alt spilleren kan, primary_positions = primærvalget.
+export const POSITION_VALG = [
+  { value: 'keeper',       label: 'Keeper',             kort: 'Keeper',      gruppe: 'Keeper',   sett: ['keeper'] },
+  { value: 'back',         label: 'Back, begge sider',  kort: 'Back',        gruppe: 'Forsvar',  sett: ['venstre_back', 'hoyre_back'] },
+  { value: 'venstre_back', label: 'Venstre back',       kort: 'Venstre back', gruppe: 'Forsvar', sett: ['venstre_back'] },
+  { value: 'hoyre_back',   label: 'Høyre back',         kort: 'Høyre back',  gruppe: 'Forsvar',  sett: ['hoyre_back'] },
+  { value: 'stopper',      label: 'Stopper',            kort: 'Stopper',     gruppe: 'Forsvar',  sett: ['stopper'] },
+  { value: 'sentral',      label: 'Sentral midt',       kort: 'Sentral midt', gruppe: 'Midtbane', sett: ['sentral'] },
+  { value: 'ving',         label: 'Ving, begge sider',  kort: 'Ving',        gruppe: 'Midtbane', sett: ['venstre_ving', 'hoyre_ving'] },
+  { value: 'venstre_ving', label: 'Venstre ving',       kort: 'Venstre ving', gruppe: 'Midtbane', sett: ['venstre_ving'] },
+  { value: 'hoyre_ving',   label: 'Høyre ving',         kort: 'Høyre ving',  gruppe: 'Midtbane', sett: ['hoyre_ving'] },
+  { value: 'angrep',       label: 'Spiss',              kort: 'Spiss',       gruppe: 'Angrep',   sett: ['angrep'] }
+]
+const VALG = Object.fromEntries(POSITION_VALG.map(v => [v.value, v]))
+
+export function valgKort(value) {
+  return VALG[value]?.kort || ''
+}
+export function valgSett(value) {
+  return VALG[value]?.sett || []
+}
+
+// Et sett posisjoner som valg, i fast rekkefølge. Begge sider samles til
+// «Back»/«Ving». De gamle grove verdiene (forsvar, ving) har ikke noe valg.
+function tilValg(liste) {
+  const har = new Set(liste)
+  const ut = []
+  for (const v of POSITION_VALG) {
+    if (v.sett.every(x => har.has(x))) { ut.push(v.value); v.sett.forEach(x => har.delete(x)) }
+  }
+  return ut
+}
+
+// { primar, sekundar } for nedtrekkslistene. Uten lagret primær er første
+// gruppe primær og neste sekundær.
+export function playerValg(player) {
+  const prim = playerPrimary(player)
+  const mine = playerPositions(player)
+  if (prim.length) {
+    return { primar: tilValg(prim)[0] || '', sekundar: tilValg(mine.filter(v => !prim.includes(v)))[0] || '' }
+  }
+  const alle = tilValg(mine)
+  return { primar: alle[0] || '', sekundar: alle[1] || '' }
+}
+
 export function isKeeper(player) {
   return playerPositions(player).includes('keeper')
 }

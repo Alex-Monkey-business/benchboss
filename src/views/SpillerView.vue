@@ -8,7 +8,7 @@ import { usePlayerLevels, LEVELS } from '../composables/usePlayerLevels'
 import { useSeasons } from '../composables/useSeasons'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
 import { useToast } from '../composables/useToast'
-import { GAMLE_POSITIONS, POSITION_RADER, playerPositions, playerPrimary, positionLabel } from '../lib/playerPositions'
+import { POSITION_VALG, playerValg, valgKort, valgSett } from '../lib/playerPositions'
 import { shortRelativeDate } from '../lib/dateLabels'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
@@ -42,10 +42,7 @@ watch(viewingSeason, async (s) => {
 })
 
 const stats = computed(() => statsFor(route.params.id))
-const positions = computed(() => playerPositions(player.value))
-const primaere = computed(() => playerPrimary(player.value))
-// Primær først, ellers fast rekkefølge.
-const visPosisjoner = computed(() => [...primaere.value, ...positions.value.filter(v => !primaere.value.includes(v))])
+const valgNa = computed(() => playerValg(player.value))
 const level = computed(() => (player.value ? levelFor(player.value.id) : null))
 const teamNow = computed(() => {
   const slug = teamForSeason(player.value, seasonId.value)
@@ -82,8 +79,8 @@ const recentMatches = computed(() => matchesFor(route.params.id).slice(0, 5))
 const editing = ref(false)
 const editName = ref('')
 const editTeam = ref('')
-const editPositions = ref([])
-const editPrimary = ref([])
+const editPrimar = ref('')
+const editSekundar = ref('')
 const editLoan = ref(false)
 const editLevel = ref(null)
 const toDelete = ref(false)
@@ -96,26 +93,16 @@ function openEdit() {
   if (!player.value) return
   editName.value = player.value.name
   editTeam.value = player.value.primary_team || ''
-  editPositions.value = [...positions.value]
-  editPrimary.value = playerPrimary(player.value)
+  editPrimar.value = valgNa.value.primar
+  editSekundar.value = valgNa.value.sekundar
   editLoan.value = isLoanEligible(player.value, seasonId.value)
   editLevel.value = level.value
   editing.value = true
 }
-const gamleValgt = computed(() => GAMLE_POSITIONS.filter(o => editPositions.value.includes(o.value)))
-// Tre trinn per trykk: av → posisjon → primær → av. Primær er det appen
-// foretrekker når den plasserer laget.
-function togglePosition(value) {
-  const på = editPositions.value.includes(value)
-  const primær = editPrimary.value.includes(value)
-  if (!på) editPositions.value.push(value)
-  else if (!primær && !GAMLE_POSITIONS.some(g => g.value === value)) editPrimary.value.push(value)
-  else {
-    editPositions.value = editPositions.value.filter(v => v !== value)
-    editPrimary.value = editPrimary.value.filter(v => v !== value)
-  }
-}
-const posTilstand = v => editPrimary.value.includes(v) ? 'primær' : editPositions.value.includes(v) ? 'på' : 'av'
+// Gruppene i nedtrekkslistene. Sekundær kan ikke være det samme som primær.
+const VALG_GRUPPER = [...new Set(POSITION_VALG.map(v => v.gruppe))]
+  .map(g => ({ navn: g, valg: POSITION_VALG.filter(v => v.gruppe === g) }))
+watch(editPrimar, v => { if (!v || v === editSekundar.value) editSekundar.value = '' })
 async function save() {
   const name = editName.value.trim()
   if (!name || !player.value || saving.value) return
@@ -125,7 +112,8 @@ async function save() {
     // players.loan_eligible holdes i sync til kolonnen droppes.
     await updatePlayer(player.value.id, {
       name, primary_team: editTeam.value, loan_eligible: editLoan.value,
-      positions: editPositions.value, primary_positions: editPrimary.value
+      positions: [...new Set([...valgSett(editPrimar.value), ...valgSett(editSekundar.value)])],
+      primary_positions: valgSett(editPrimar.value)
     })
     await setLoanEligible(player.value.id, seasonId.value, editLoan.value, editTeam.value)
     if (!(await setLevel(player.value.id, editLevel.value))) {
@@ -173,14 +161,9 @@ async function confirmDelete() {
 
       <section class="sp__section">
         <h2 class="ds-section-label sp__h2">Posisjoner</h2>
-        <div v-if="positions.length" class="sp__tags">
-          <span
-            v-for="v in visPosisjoner"
-            :key="v"
-            class="sp__tag"
-            :class="{ 'sp__tag--primar': primaere.includes(v) }"
-            :aria-label="primaere.includes(v) ? `${positionLabel(v)}, primær` : undefined"
-          >{{ positionLabel(v) }}</span>
+        <div v-if="valgNa.primar" class="sp__tags">
+          <span class="sp__tag sp__tag--primar" :aria-label="`${valgKort(valgNa.primar)}, primær`">{{ valgKort(valgNa.primar) }}</span>
+          <span v-if="valgNa.sekundar" class="sp__tag">{{ valgKort(valgNa.sekundar) }}</span>
         </div>
         <template v-else>
           <p class="sp__muted">Ingen posisjoner.</p>
@@ -278,37 +261,24 @@ async function confirmDelete() {
           <option v-for="opt in TEAM_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
         </select>
       </div>
-      <div class="ds-form-group">
-        <label class="ds-label ds-label--optional">Posisjoner</label>
-        <!-- Står som banen: spiss øverst, keeper nederst. -->
-        <div class="posbane">
-          <template v-for="(rad, r) in POSITION_RADER" :key="r">
-            <template v-for="(v, k) in rad" :key="`${r}-${k}`">
-              <button
-                v-if="v"
-                type="button"
-                class="poschip"
-                :class="{ 'poschip--sekundar': posTilstand(v) === 'på', 'poschip--on': posTilstand(v) === 'primær' }"
-                :aria-pressed="posTilstand(v) === 'av' ? 'false' : 'true'"
-                :aria-label="posTilstand(v) === 'primær' ? `${positionLabel(v)}, primær` : positionLabel(v)"
-                @click="togglePosition(v)"
-              >{{ positionLabel(v) }}</button>
-              <span v-else aria-hidden="true"></span>
-            </template>
-          </template>
+      <div class="posvalg">
+        <div class="ds-form-group">
+          <label class="ds-label ds-label--optional" for="pos-primar">Primær</label>
+          <select id="pos-primar" v-model="editPrimar" class="ds-input">
+            <option value="">Ingen</option>
+            <optgroup v-for="g in VALG_GRUPPER" :key="g.navn" :label="g.navn">
+              <option v-for="v in g.valg" :key="v.value" :value="v.value">{{ v.label }}</option>
+            </optgroup>
+          </select>
         </div>
-        <p class="posforklaring">Trykk igjen for primær.</p>
-        <!-- De gamle grove posisjonene står til treneren tar dem bort. -->
-        <div v-if="gamleValgt.length" class="posgamle">
-          <span class="posgamle__tekst">Fra før:</span>
-          <button
-            v-for="o in gamleValgt"
-            :key="o.value"
-            type="button"
-            class="poschip poschip--sekundar poschip--liten"
-            :aria-label="`Fjern ${o.label}`"
-            @click="togglePosition(o.value)"
-          >{{ o.label }} ×</button>
+        <div class="ds-form-group">
+          <label class="ds-label ds-label--optional" for="pos-sekundar">Sekundær</label>
+          <select id="pos-sekundar" v-model="editSekundar" class="ds-input" :disabled="!editPrimar">
+            <option value="">Ingen</option>
+            <optgroup v-for="g in VALG_GRUPPER" :key="g.navn" :label="g.navn">
+              <option v-for="v in g.valg" :key="v.value" :value="v.value" :disabled="v.value === editPrimar">{{ v.label }}</option>
+            </optgroup>
+          </select>
         </div>
       </div>
       <div class="ds-form-group">
@@ -449,17 +419,6 @@ async function confirmDelete() {
 .sp__histteam { color: var(--ds-color-text-tertiary); }
 
 /* Samme velger som i troppen — to kolonner, femte valg i full bredde. */
-/* Like høye knapper: «Venstre back» bryter på smale telefoner, og da sto
-   raden ujevn. Alle rader får samme høyde, teksten står i midten. */
-.posbane { display: grid; grid-template-columns: repeat(3, 1fr); grid-auto-rows: 1fr; gap: var(--ds-space-sm); }
-.posbane .poschip {
-  display: flex; align-items: center; justify-content: center;
-  min-height: 48px; padding: 8px 6px; text-align: center; line-height: 1.2;
-  border-radius: var(--ds-radius-lg);
-}
-.posgamle { display: flex; flex-wrap: wrap; align-items: center; gap: var(--ds-space-sm); margin-top: var(--ds-space-md); }
-.posgamle__tekst { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); }
-.poschip--liten { padding: 6px 12px; }
 .poschips { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ds-space-sm); }
 .poschips .poschip:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .poschips--tre { grid-template-columns: repeat(3, 1fr); }
@@ -478,13 +437,9 @@ async function confirmDelete() {
   background: var(--ds-color-accent);
   color: var(--ds-color-accent-text);
 }
-/* Valgt, men ikke primær: aksentkant, ingen fyll. Fylt = primær. */
-.poschip--sekundar {
-  border-color: var(--ds-color-accent);
-  background: var(--ds-color-accent-light, var(--ds-color-bg-elevated));
-  color: var(--ds-color-text-primary);
-}
-.posforklaring { margin: var(--ds-space-sm) 0 0; font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary); }
+/* Primær og sekundær i hvert sitt felt, under hverandre: «Back, begge sider»
+   får ikke plass i et halvt felt på telefon. */
+.posvalg { display: flex; flex-direction: column; }
 /* Primær på spillersida: fylt lapp, først i rekka. */
 .sp__tag--primar { background: var(--ds-color-accent); border-color: var(--ds-color-accent); color: var(--ds-color-accent-text); }
 
