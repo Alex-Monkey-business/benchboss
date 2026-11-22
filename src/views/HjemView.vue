@@ -11,11 +11,10 @@ import { useCupFirst } from '../composables/useCupFirst'
 import { useAuth } from '../stores/auth'
 import TodayMatchCard from '../components/today/TodayMatchCard.vue'
 import CupEntryCard from '../components/today/CupEntryCard.vue'
-import TodayTrainingCard from '../components/today/TodayTrainingCard.vue'
+import HjemKort from '../components/today/HjemKort.vue'
 import ReminderList from '../components/today/ReminderList.vue'
 import TerminlisteCard from '../components/today/TerminlisteCard.vue'
 import { useTerminlisteVarsel } from '../composables/useTerminlisteVarsel'
-import NextTrainingCard from '../components/today/NextTrainingCard.vue'
 import NextMatchCard from '../components/today/NextMatchCard.vue'
 import OtherTeamsList from '../components/today/OtherTeamsList.vue'
 import WeekList from '../components/today/WeekList.vue'
@@ -24,6 +23,7 @@ import { useOnboarding } from '../composables/useOnboarding'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import { dagLink } from '../lib/trainingLinks'
+import { daysUntil, WEEKDAY_LABELS, isoWeekday, weekdayDateLabel } from '../lib/dateLabels'
 import { hentDagensOppmote, dagensOppmoteLagret } from '../composables/useTreningsOkt'
 
 const {
@@ -105,11 +105,6 @@ onMounted(async () => {
   sjekkNarLedig()
 })
 
-const dateLine = computed(() => {
-  const s = new Date(today.value + 'T12:00:00').toLocaleDateString('nb-NO', { weekday: 'long', day: 'numeric', month: 'long' })
-  return s.charAt(0).toUpperCase() + s.slice(1)
-})
-
 const hasToday = computed(() =>
   todayMatches.value.length > 0 || todayCupMatches.value.length > 0 || !!todayTraining.value
 )
@@ -128,7 +123,6 @@ const matchToday = computed(() => todayMatches.value.length > 0 || todayCupMatch
 const { seasonTeams } = useSeasonTeams()
 const visLagene = computed(() =>
   isCoach.value && !onboardingActive.value && !matchToday.value && !nextMatch.value && seasonTeams.value.length > 0)
-const lagNavn = computed(() => seasonTeams.value.map(t => t.name).join(' · '))
 const cupMatchesToday = computed(() => (showCupEntry.value ? todayCupMatches.value.length : 0))
 
 // Neste kamp er hovedsaken, og den får alltid kortet sitt — med hva som
@@ -142,24 +136,47 @@ const { forvarm } = useKlubbmerke()
 watch([todayMatches, nextMatch], ([idag, neste]) =>
   forvarm([...(idag || []).flatMap(m => [m.home_team, m.away_team]), neste?.opponent]), { immediate: true })
 
-// Står kampen som kort, skal den ikke stå som rad også.
-const weekItems = computed(() =>
-  heroMatch.value ? weekAhead.value.filter(i => i.to !== heroMatch.value.to) : weekAhead.value
-)
+// Én hovedsak: det nærmeste av neste trening og neste kamp. Er noe i dag,
+// står dagens kort der i stedet. Resten ligger under «Denne uka».
+const hovedsak = computed(() => {
+  if (hasToday.value) return null
+  const k = []
+  if (nextTraining.value) k.push({ kind: 'training', date: nextTraining.value.date })
+  if (heroMatch.value) k.push({ kind: 'match', date: heroMatch.value.date })
+  return k.sort((a, b) => a.date.localeCompare(b.date))[0] || null
+})
 
-// Treningskortet er fortsatt for det uka IKKE dekker. En sammenslått
-// treningsrad dekker flere treninger — da må alle målene med, ellers dukker
-// «neste trening» opp igjen som eget kort for noe uka allerede viser.
-const weekTargets = computed(() => new Set(weekItems.value.flatMap(i => i.targets || [i.to])))
+// Det som står som kort, skal ikke stå som rad også.
+const weekItems = computed(() => {
+  const h = hovedsak.value
+  if (!h) return weekAhead.value
+  const til = h.kind === 'match' ? heroMatch.value.to : dagLink(nextTraining.value.session.id)
+  return weekAhead.value.filter(i => i.to !== til || i.kind === 'training-week')
+})
 
-const upNext = computed(() => {
-  const items = []
-  const t = nextTraining.value
-  if (!hasToday.value && t && !weekTargets.value.has(dagLink(t.session.id))) {
-    items.push({ kind: 'training', date: t.date })
-  }
-  if (heroMatch.value) items.push({ kind: 'match', date: heroMatch.value.date })
-  return items.sort((a, b) => a.date.localeCompare(b.date))
+// Hjem er et blikk, ikke planen: lengden og antallet. Øvelsene står på Trening.
+function varighet(min) {
+  if (!min) return ''
+  const t = Math.floor(min / 60), m = min % 60
+  return !t ? `${m} min` : m ? `${t} t ${m} min` : `${t} t`
+}
+function treningLinje(session, oppmote) {
+  const deler = []
+  const tid = varighet(session.duration_min)
+  if (tid) deler.push(tid)
+  const n = (session.drills || []).filter(d => d?.text).length
+  if (oppmote != null) deler.push(`${oppmote} her`)
+  else if (n) deler.push(`${n} ${n === 1 ? 'øvelse' : 'øvelser'}`)
+  return deler
+}
+// «Trening tirsdag». Lenger fram enn en uke står datoen også.
+const nesteTreningTittel = computed(() => {
+  const d = nextTraining.value?.date
+  if (!d) return 'Trening'
+  const dager = daysUntil(d)
+  if (dager === 1) return 'Trening i morgen'
+  if (dager > 6) return `Trening ${weekdayDateLabel(d).toLowerCase()}`
+  return `Trening ${WEEKDAY_LABELS[isoWeekday(new Date(d + 'T12:00:00')) - 1].toLowerCase()}`
 })
 
 // Står kampen alt under «Å ordne» (dommer mangler), skal den ikke stå som
@@ -170,7 +187,7 @@ const otherTeamsItems = computed(() => {
 })
 
 const showEmpty = computed(() =>
-  ready.value && !loading.value && !onboardingActive.value && !hasToday.value && weekItems.value.length === 0 && upNext.value.length === 0 && reminders.value.length === 0 && !showCupEntry.value
+  ready.value && !loading.value && !onboardingActive.value && !hasToday.value && !hovedsak.value && weekItems.value.length === 0 && reminders.value.length === 0 && !showCupEntry.value
 )
 
 function coachNamesForMatch(matchId) {
@@ -185,7 +202,6 @@ function coachNamesForMatch(matchId) {
   <div class="desktop-container">
     <header class="hjem-hero px-lg ds-anim-fade-up">
       <h1 class="hjem-hero__greeting">{{ greeting }}</h1>
-      <p class="hjem-hero__date">{{ dateLine }}</p>
     </header>
 
     <div v-if="identityIncomplete" class="px-lg">
@@ -219,32 +235,36 @@ function coachNamesForMatch(matchId) {
         @legg-inn-spillere="leggInnSpillere"
       />
 
-      <TodayTrainingCard
+      <!-- Trenere går rett til opptellingen, eller kjøreplanen når den er lagret. -->
+      <HjemKort
         v-if="todayTraining"
-        :session="todayTraining"
-        :til="isCoach ? `/trening/okt/${todayTraining.id}` : null"
-        :oppmote="isCoach ? dagensOppmote : undefined"
-        class="ds-anim-fade-up ds-anim-delay-2"
+        :to="isCoach ? `/trening/okt/${todayTraining.id}` : dagLink(todayTraining.id)"
+        tittel="Trening i dag"
+        :linje="treningLinje(todayTraining, isCoach ? dagensOppmote : undefined)"
+        class="today-training ds-anim-fade-up ds-anim-delay-1"
       />
 
-      <!-- Del inn. Bare for trenere. -->
-      <RouterLink v-if="isCoach && !onboardingActive" to="/del-inn" class="hjem-delinn ds-anim-fade-up ds-anim-delay-2">
-        <svg class="hjem-delinn__ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="8" r="3" /><circle cx="17" cy="8" r="3" /><path d="M2 20c0-3 2.2-5 5-5s5 2 5 5" /><path d="M12 20c0-3 2.2-5 5-5s5 2 5 5" /></svg>
-        <span class="hjem-delinn__tekst">
-          <span class="hjem-delinn__tittel">Del inn</span>
-        </span>
-        <svg class="hjem-delinn__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
-      </RouterLink>
+      <!-- Det neste som skjer: ett kort. -->
+      <HjemKort
+        v-if="hovedsak?.kind === 'training'"
+        :to="dagLink(nextTraining.session.id)"
+        :tittel="nesteTreningTittel"
+        :linje="treningLinje(nextTraining.session)"
+        class="next-training ds-anim-fade-up ds-anim-delay-1"
+      />
+      <NextMatchCard
+        v-else-if="hovedsak?.kind === 'match'"
+        :event="nextMatch"
+        :prep="prepFor(nextMatch.id)"
+        class="ds-anim-fade-up ds-anim-delay-1"
+      />
 
-      <!-- Lagene. Bare utenom sesong, bare for trenere. -->
-      <RouterLink v-if="visLagene" to="/serie/tropp" class="hjem-delinn hjem-delinn--rolig ds-anim-fade-up ds-anim-delay-2">
-        <svg class="hjem-delinn__ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><line x1="12" y1="4" x2="12" y2="20" /><circle cx="12" cy="12" r="2.5" /></svg>
-        <span class="hjem-delinn__tekst">
-          <span class="hjem-delinn__tittel">Lagene</span>
-          <span class="hjem-delinn__linje">{{ lagNavn }}</span>
-        </span>
-        <svg class="hjem-delinn__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
-      </RouterLink>
+      <HjemKort
+        v-if="showEmpty"
+        bilde="ingen"
+        tittel="Ingenting på planen"
+        class="ds-anim-fade-up ds-anim-delay-1"
+      />
 
       <CupEntryCard
         v-if="showCupEntry && cupNear"
@@ -269,52 +289,55 @@ function coachNamesForMatch(matchId) {
         </span>
       </RouterLink>
 
-      <!-- Det som kommer: nærmeste hendelse øverst -->
-      <template v-for="item in upNext" :key="item.kind">
-        <NextTrainingCard
-          v-if="item.kind === 'training'"
-          :session="nextTraining.session"
-          :date="nextTraining.date"
-          class="ds-anim-fade-up ds-anim-delay-1"
-        />
-        <NextMatchCard
-          v-else
-          :event="nextMatch"
-          :prep="prepFor(nextMatch.id)"
-          class="ds-anim-fade-up ds-anim-delay-2"
-        />
-      </template>
+      <!-- Del inn er det trenerne gjør oftest: den eneste fylte knappen på Hjem. -->
+      <RouterLink v-if="isCoach && !onboardingActive" to="/del-inn" class="hjem-delinn ds-anim-fade-up ds-anim-delay-2">
+        <svg class="hjem-delinn__ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="8" r="3" /><circle cx="17" cy="8" r="3" /><path d="M2 20c0-3 2.2-5 5-5s5 2 5 5" /><path d="M12 20c0-3 2.2-5 5-5s5 2 5 5" /></svg>
+        <span class="hjem-delinn__tittel">Del inn</span>
+        <svg class="hjem-delinn__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+      </RouterLink>
 
-      <!-- Resten av uka — bare dager med innhold, ingen fyll -->
-      <section v-if="weekItems.length" class="ds-anim-fade-up ds-anim-delay-2">
-        <h2 class="hjem-section-kicker">Denne uka</h2>
-        <WeekList :items="weekItems" />
-      </section>
+      <!-- Alt annet er rolige rader. De med innhold under åpner seg på trykk. -->
+      <div v-if="!onboardingActive || weekItems.length" class="hjem-rader ds-anim-fade-up ds-anim-delay-3">
+        <!-- Lagene. Bare utenom sesong, bare for trenere. -->
+        <RouterLink v-if="visLagene" to="/serie/tropp" class="hjem-rad">
+          <svg class="hjem-rad__ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3L3 6l2 4 3-1.5V21h8V8.5L19 10l2-4-5.5-3a3.5 3.5 0 0 1-7 0z" /></svg>
+          <span class="hjem-rad__tittel">Lagene</span>
+          <svg class="hjem-rad__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18" /></svg>
+        </RouterLink>
 
-      <!-- Under onboarding er «Å ordne» støy: det eneste å ordne er å komme i gang. -->
-      <section v-if="reminders.length && !onboardingActive" class="ds-anim-fade-up ds-anim-delay-3">
-        <h2 class="hjem-section-kicker">Å ordne</h2>
-        <ReminderList :reminders="reminders" />
-      </section>
+        <!-- Under onboarding er «Å ordne» støy: det eneste å ordne er å komme i gang. -->
+        <details v-if="reminders.length && !onboardingActive" class="hjem-fold">
+          <summary class="hjem-rad">
+            <span class="hjem-rad__tall hjem-rad__tall--varsel">{{ reminders.length }}</span>
+            <span class="hjem-rad__tittel">Å ordne</span>
+            <svg class="hjem-rad__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18" /></svg>
+          </summary>
+          <ReminderList :reminders="reminders" class="hjem-fold__innhold" />
+        </details>
 
-      <!-- Klubben ellers, sist: dette er lag du IKKE trener. Seksjonen lå
-           øverst og ledet hele skjermen på dager uten kamp — stikk i strid
-           med at den skal ligge der «uten å ta fokus». -->
-      <section v-if="otherTeamsItems.length && !onboardingActive" class="ds-anim-fade-up ds-anim-delay-3">
-        <h2 class="hjem-section-kicker">Andre lag</h2>
-        <OtherTeamsList :items="otherTeamsItems" />
-      </section>
+        <!-- Resten av uka — bare dager med innhold, ingen fyll -->
+        <details v-if="weekItems.length" class="hjem-fold">
+          <summary class="hjem-rad">
+            <span class="hjem-rad__tall">{{ weekItems.length }}</span>
+            <span class="hjem-rad__tittel">Denne uka</span>
+            <svg class="hjem-rad__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18" /></svg>
+          </summary>
+          <WeekList :items="weekItems" class="hjem-fold__innhold" />
+        </details>
+
+        <!-- Klubben ellers, sist: dette er lag du IKKE trener. -->
+        <details v-if="otherTeamsItems.length && !onboardingActive" class="hjem-fold">
+          <summary class="hjem-rad">
+            <span class="hjem-rad__tall">{{ otherTeamsItems.length }}</span>
+            <span class="hjem-rad__tittel">Andre lag</span>
+            <svg class="hjem-rad__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18" /></svg>
+          </summary>
+          <OtherTeamsList :items="otherTeamsItems" class="hjem-fold__innhold" />
+        </details>
+      </div>
 
       <!-- Cupen langt fram: en rad man finner, ikke et kort som leder. -->
-      <section v-if="showCupEntry && !cupNear && !onboardingActive" class="ds-anim-fade-up ds-anim-delay-3">
-        <h2 class="hjem-section-kicker">Senere</h2>
-        <CupEntryCard :cup="activeCup" compact />
-      </section>
-
-      <div v-if="showEmpty" class="ds-empty ds-anim-fade-up ds-anim-delay-1">
-        <Spot name="empty" class="ds-empty__illo" />
-        <h3 class="ds-empty__title">Ingenting på planen</h3>
-      </div>
+      <CupEntryCard v-if="showCupEntry && !cupNear && !onboardingActive" :cup="activeCup" compact class="ds-anim-fade-up ds-anim-delay-3" />
     </div>
   </div>
 </template>
@@ -350,96 +373,90 @@ function coachNamesForMatch(matchId) {
   font-size: var(--ds-text-sm);
 }
 
-/* Del inn brukes hver trening og skal være lett å treffe — men en hel
-   aksentflate konkurrerte med knappen på neste kamp. Nå et løftet kort med
-   en aksentflis: like stort trykkmål, én aksent på skjermen i stedet for to. */
+/* Del inn er det trenerne gjør oftest, og den eneste fylte aksenten på Hjem.
+   Pila i kortet over er dempet av samme grunn. */
 .hjem-delinn {
   display: flex;
   align-items: center;
-  gap: var(--ds-space-md);
-  min-height: 80px;
-  padding: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-md) var(--ds-space-md);
+  gap: 14px;
+  min-height: 64px;
+  padding: 0 20px;
   border-radius: var(--ds-radius-lg);
-  background: var(--ds-color-bg-elevated);
-  border: var(--ds-border-width) solid var(--ds-color-border);
-  box-shadow: var(--ds-shadow-sm);
-  color: var(--ds-color-text-primary);
-  text-decoration: none;
-  -webkit-tap-highlight-color: transparent;
-  transition:
-    transform var(--ds-duration-fast) var(--ds-ease-out),
-    border-color var(--ds-duration-fast) var(--ds-ease-out),
-    box-shadow var(--ds-duration-fast) var(--ds-ease-out);
-}
-.hjem-delinn:active { transform: scale(0.99); }
-@media (hover: hover) and (pointer: fine) {
-  .hjem-delinn:hover { border-color: var(--ds-color-border-strong); box-shadow: var(--ds-shadow-md); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hjem-delinn { transition: none; }
-  .hjem-delinn:active { transform: none; }
-}
-/* Flisa: selve ikonet, med polstring og fyll — ingen ekstra markup. */
-.hjem-delinn__ikon {
-  flex: none;
-  box-sizing: border-box;
-  width: 48px;
-  height: 48px;
-  padding: 12px;
-  border-radius: 14px;
   background: var(--ds-color-accent);
   color: var(--ds-color-accent-text);
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: transform 160ms cubic-bezier(0.23, 1, 0.32, 1);
 }
-/* Snarveien til lagene: samme kort, nøytral flis. Én aksent på skjermen. */
-.hjem-delinn--rolig .hjem-delinn__ikon { background: var(--ds-color-bg-subtle); color: var(--ds-color-text-primary); }
-.hjem-delinn__pil { flex: none; width: 20px; height: 20px; color: var(--ds-color-text-tertiary); }
-.hjem-delinn__tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.hjem-delinn__tittel { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); line-height: 1.3; }
-.hjem-delinn__linje { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; }
+.hjem-delinn:active { transform: scale(0.97); }
+.hjem-delinn__ikon, .hjem-delinn__pil { flex: none; width: 24px; height: 24px; }
+.hjem-delinn__pil { width: 20px; height: 20px; }
+.hjem-delinn__tittel { flex: 1; font-size: 1.125rem; font-weight: var(--ds-weight-semibold); }
+
+/* Radene: én høyde, én form. Strek mellom, ingen bokser. */
+.hjem-rader { display: flex; flex-direction: column; }
+.hjem-rader > * + * { border-top: 1px solid var(--ds-color-border); }
+.hjem-rad {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-md);
+  min-height: 60px;
+  font-size: 1.0625rem;
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-primary);
+  text-decoration: none;
+  cursor: pointer;
+  list-style: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.hjem-rad::-webkit-details-marker { display: none; }
+.hjem-rad__ikon { flex: none; width: 24px; height: 24px; }
+.hjem-rad__tittel { flex: 1; min-width: 0; }
+.hjem-rad__pil {
+  flex: none; width: 20px; height: 20px;
+  color: var(--ds-color-text-tertiary);
+  transition: transform 200ms cubic-bezier(0.23, 1, 0.32, 1);
+}
+.hjem-fold[open] > .hjem-rad .hjem-rad__pil { transform: rotate(90deg); }
+.hjem-rad__tall {
+  flex: none;
+  min-width: 24px; height: 24px; padding: 0 6px; box-sizing: border-box;
+  border-radius: var(--ds-radius-full);
+  background: var(--ds-color-bg-subtle);
+  color: var(--ds-color-text-secondary);
+  display: flex; align-items: center; justify-content: center;
+  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-bold);
+  font-variant-numeric: tabular-nums;
+}
+.hjem-rad__tall--varsel { background: var(--ds-color-warm-bg); color: var(--ds-color-warm-text); }
+.hjem-fold__innhold { padding-bottom: var(--ds-space-md); }
 
 .hjem-hero {
-  padding-top: var(--ds-space-xl);
-  padding-bottom: var(--ds-space-lg);
+  padding-top: var(--ds-space-2xl);
+  padding-bottom: var(--ds-space-xl);
 }
 
 .hjem-hero__greeting {
   margin: 0;
   font-family: var(--ds-font-heading);
-  font-size: 2rem;
+  font-size: 2.125rem;
   font-weight: var(--ds-weight-bold);
-  letter-spacing: -0.02em;
-  line-height: 1.15;
+  letter-spacing: -0.025em;
+  line-height: 1.1;
   color: var(--ds-color-text-primary);
 }
 
-.hjem-hero__date {
-  margin: 6px 0 0;
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-tertiary);
-}
-
-/* Rytme: tett innenfor en gruppe (kortene øverst, radene i en seksjon),
-   luft før hver ny seksjon. Før var alt 16 + 8, og seksjonene klistret seg
-   til kortet over. */
+/* Mye luft mellom de tre delene: kortet, Del inn, radene. */
 .hjem-stack {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: 20px;
   padding-bottom: var(--ds-space-2xl);
 }
 
-.hjem-stack > section:not(:first-child) {
-  margin-top: 20px;
-}
-
-.hjem-section-kicker {
-  margin: 0 0 12px;
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-xs);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ds-color-text-tertiary);
+@media (prefers-reduced-motion: reduce) {
+  .hjem-delinn, .hjem-rad__pil { transition: none; }
+  .hjem-delinn:active { transform: none; }
 }
 
 /* «Denne uka»-radene bor i components/today/WeekList.vue */

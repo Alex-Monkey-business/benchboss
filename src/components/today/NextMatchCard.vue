@@ -1,5 +1,5 @@
 <script setup>
-import Spot from '../Spot.vue'
+import HjemBilde from './HjemBilde.vue'
 import { computed } from 'vue'
 import { weekdayDateLabel } from '../../lib/dateLabels'
 import { teamLabel } from '../../lib/matchMeta'
@@ -90,6 +90,7 @@ const detailLine = computed(() => {
          HTML og gir uforutsigbare trykk, så lenka dekker nå lesedelen og
          handlingen står for seg. -->
     <router-link :to="event.to" class="next-match__link">
+    <HjemBilde navn="kamp" />
     <div class="next-match__row">
     <div class="next-match__body">
     <div class="next-match__top">
@@ -110,9 +111,6 @@ const detailLine = computed(() => {
     <span class="next-match__detail">{{ detailLine }}</span>
     </div>
 
-    <!-- Samme drakt for alle lag: alle Halsen-lagene spiller i klubbens drakt,
-         uansett lagnavn. Flaten viser laget, bildet viser kamp. -->
-    <Spot name="match" class="next-match__illo" :size="64" play="auto" />
     </div>
 
     <!-- Utenfor tekstkolonnen: mangelen gjelder hele kampen, ikke bare
@@ -138,10 +136,14 @@ const detailLine = computed(() => {
 .next-match {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  padding: var(--ds-space-lg);
+  gap: 12px;
+  padding: 12px;
+  border-radius: 24px;
+  box-shadow: var(--ds-shadow-md);
   text-decoration: none;
 }
+/* Teksten står litt inn fra bildeflaten, som i treningskortet. */
+.next-match__row, .next-match__missing { padding: 0 8px; }
 
 /* Lagflaten. Rammen går bort når flaten bærer kortet, som treningskortene.
    Hvit ER hvit: kortet står hvitt med ramme, som før. En nøytral flate ble
@@ -227,15 +229,6 @@ const detailLine = computed(() => {
   min-width: 0;
 }
 
-.next-match__illo {
-  --spot-size: 64px;
-}
-
-/* Under 380px stjeler bildet for mye fra motstandernavnet. */
-@media (max-width: 379px) {
-  .next-match__illo { --spot-size: 56px; }
-}
-
 .next-match__top {
   display: flex;
   align-items: center;
@@ -303,7 +296,4 @@ const detailLine = computed(() => {
    padding er lg. Da brekker «Onsdag 19 aug · 18:00» midt i. Strammere ramme
    gir 16px tilbake til innholdet — samme regel for alle tre, så de ikke
    begynner å oppføre seg ulikt igjen. */
-@media (max-width: 360px) {
-  .next-match { padding: var(--ds-space-md); }
-}
 </style>
