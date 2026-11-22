@@ -822,9 +822,9 @@ function formatMatchDate(dateStr) {
   font-size: var(--ds-text-xs);
   font-weight: 600;
   text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   color: var(--ds-color-text-tertiary);
-  padding: 0 var(--ds-space-xs);
+  padding: 0;
   margin-bottom: var(--ds-space-sm);
 }
 

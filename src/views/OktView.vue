@@ -184,7 +184,9 @@ const tilbakeTil = '/trening'
 .okt__h1 {
   font-family: var(--ds-font-heading);
   font-size: var(--ds-text-2xl);
-  font-weight: var(--ds-weight-bold);
+  font-weight: var(--ds-weight-black);
+  letter-spacing: var(--ds-tracking-tight);
+  line-height: var(--ds-leading-tight);
   color: var(--ds-color-text-primary);
   margin: 0;
 }

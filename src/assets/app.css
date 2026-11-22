@@ -29,6 +29,11 @@
   position: relative;
 }
 
+/* Under en tilbakelenke står tittelen tett på lenka, ikke en hel luke under. */
+.desktop-container > .page-header:not(:first-child) {
+  padding-top: var(--ds-space-sm);
+}
+
 .page-header__title {
   font-family: var(--ds-font-heading);
   font-size: var(--ds-text-2xl);

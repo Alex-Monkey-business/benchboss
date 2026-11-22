@@ -495,7 +495,7 @@ const PARENTS = [
 .sk-eyebrow {
   margin: var(--ds-space-xl) 0 var(--ds-space-sm);
   font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.06em; text-transform: uppercase;
+  letter-spacing: 0.08em; text-transform: uppercase;
   color: var(--ds-color-text-tertiary);
 }
 .sk-eyebrow:first-of-type { margin-top: 0; }

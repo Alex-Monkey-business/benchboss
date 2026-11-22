@@ -317,8 +317,9 @@ function getCoachesForMatchList(matchId) {
 <style scoped>
 .kamper-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--ds-space-md); }
 .kamper-header > :first-child { min-width: 0; flex: 1; }
+.kamper-header :deep(.page-header__title) { white-space: nowrap; }
 .kamper-header__ny {
-  flex-shrink: 0; min-height: 44px; padding: 0 var(--ds-space-lg); gap: var(--ds-space-sm);
+  flex-shrink: 0; min-height: 44px; padding: 0 var(--ds-space-md); gap: var(--ds-space-xs);
   border-radius: var(--ds-radius-full);
 }
 .kamper-header__ny svg { width: 16px; height: 16px; }

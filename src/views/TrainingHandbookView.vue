@@ -111,10 +111,10 @@ function open(slug) {
 
 .handbook__title {
   font-family: var(--ds-font-heading);
-  font-size: clamp(2.2rem, 7vw, 3.2rem);
-  font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-tighter);
-  line-height: 1.05;
+  font-size: var(--ds-text-2xl);
+  font-weight: var(--ds-weight-black);
+  letter-spacing: var(--ds-tracking-tight);
+  line-height: var(--ds-leading-tight);
   color: var(--ds-color-text-primary);
   margin: 0;
 }

@@ -1943,7 +1943,7 @@ const summary = computed(() =>
 .mm__loading, .mm__empty { color: var(--ds-color-text-tertiary); padding: var(--ds-space-xl) var(--ds-space-lg); text-align: center; }
 .mm__empty--inline { padding: var(--ds-space-md); }
 
-.mm__h1 { font-family: var(--ds-font-heading); font-size: var(--ds-text-2xl); font-weight: var(--ds-weight-bold); color: var(--ds-color-text-primary); margin: 0; }
+.mm__h1 { font-family: var(--ds-font-heading); font-size: var(--ds-text-2xl); font-weight: var(--ds-weight-black); letter-spacing: var(--ds-tracking-tight); line-height: var(--ds-leading-tight); color: var(--ds-color-text-primary); margin: 0; }
 .mm__sub { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); margin: var(--ds-space-xs) 0 0; }
 .mm__setup-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--ds-space-md); }
 .mm__saved {

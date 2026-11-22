@@ -107,7 +107,7 @@ async function tilBanken(id) {
 .bla__merke {
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-medium);
-  letter-spacing: 0.06em;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--ds-color-text-tertiary);
 }

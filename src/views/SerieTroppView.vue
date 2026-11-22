@@ -39,6 +39,8 @@ const TEAM_OPTIONS = computed(() =>
 // lekker gjennom hvem som står hvor. Banen er standard; valget huskes på
 // telefonen.
 const { hent: hentOppstilling } = useOppstilling()
+// Kom du fra Hjem, går tilbakelenka dit. Ellers til Admin.
+const tilbake = window.history.state?.back === '/' ? { to: '/', label: 'Hjem' } : { to: '/admin', label: 'Admin' }
 const VISNING = 'bb-tropp-visning'
 const visning = ref((() => { try { return localStorage.getItem(VISNING) === 'liste' ? 'liste' : 'bane' } catch { return 'bane' } })())
 watch(visning, v => { try { localStorage.setItem(VISNING, v) } catch { /* privat modus */ } })
@@ -193,37 +195,41 @@ async function handleAdd() {
 
 <template>
   <div class="desktop-container">
-    <div v-if="canEdit" class="px-lg" style="padding-top: var(--ds-space-md);">
-      <BackLink to="/admin" label="Admin" />
+    <div v-if="canEdit" class="tropp-nav">
+      <BackLink :to="tilbake.to" :label="tilbake.label" />
+      <button v-if="editing" type="button" class="ds-link tropp-nav__ferdig" @click="editing = false">Ferdig</button>
+      <button v-else-if="!ready || players.length" type="button" class="ds-icon-btn tropp-nav__rediger" aria-label="Rediger tropp" @click="editing = true">
+        <Ikon navn="rediger" />
+      </button>
     </div>
     <div class="page-header">
       <h1 class="page-header__title">Tropp</h1>
-      <p class="page-header__subtitle">{{ activeSeason?.name || 'Serie' }}</p>
+      <p class="page-header__subtitle">
+        {{ activeSeason?.name || 'Serie' }}<template v-if="canEdit && !editing && unplaced.length"> · {{ unplaced.length }} ikke plassert</template>
+      </p>
     </div>
 
     <div class="px-lg">
-      <div v-if="canEdit && (!ready || players.length)" class="tropp-actions">
-        <button v-if="editing" type="button" class="ds-link add-link" @click="openAdd">
+      <div v-if="canEdit && editing" class="tropp-actions">
+        <button type="button" class="ds-link add-link" @click="openAdd">
           <Ikon navn="pluss" vekt="bold" :size="14" />
           Ny spiller
         </button>
-        <button v-else-if="kanFordeles.length" type="button" class="ds-btn ds-btn--primary ds-btn--sm" @click="fordelEtterNiva">
+      </div>
+      <div v-else-if="canEdit && kanFordeles.length" class="tropp-actions">
+        <button type="button" class="ds-btn ds-btn--primary tropp-actions__fordel" @click="fordelEtterNiva">
           Fordel etter nivå
-        </button>
-        <span v-else-if="unplaced.length" class="tropp-hint">{{ unplaced.length }} ikke plassert</span>
-        <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" @click="editing = !editing">
-          {{ editing ? 'Ferdig' : 'Rediger tropp' }}
         </button>
       </div>
 
-      <div v-if="canEdit && players.length && !editing" class="visning" role="tablist" aria-label="Visning">
+      <div v-if="canEdit && players.length && !editing" class="ds-pills ds-pills--bred visning" role="tablist" aria-label="Visning">
         <button
           v-for="o in [{ v: 'liste', l: 'Liste' }, { v: 'bane', l: 'Bane' }]"
           :key="o.v"
           type="button"
           role="tab"
           :aria-selected="visning === o.v"
-          :class="['visning__valg', { 'visning__valg--aktiv': visning === o.v }]"
+          class="ds-pill"
           @click="velgVisning(o.v)"
         >{{ o.l }}</button>
       </div>
@@ -371,29 +377,14 @@ async function handleAdd() {
 .nye-lag__feil { margin: var(--ds-space-md) 0 0; color: var(--ds-color-danger, #C0392B); font-size: var(--ds-text-sm); }
 .cmd-muted { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); padding: var(--ds-space-sm) var(--ds-space-2xs); }
 
-.tropp-actions {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md);
-  margin-bottom: var(--ds-space-md);
+.tropp-nav {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: var(--ds-space-md) var(--ds-space-lg) 0;
 }
-.tropp-actions > .ds-btn:last-child { margin-left: auto; }
-/* Liste | Bane: samme bryter som Kommende | Tidligere på Kamper. */
-.visning {
-  display: grid; grid-template-columns: 1fr 1fr; gap: var(--ds-space-xs);
-  padding: var(--ds-space-xs); margin-bottom: var(--ds-space-md);
-  background: var(--ds-color-bg-subtle);
-  border-radius: var(--ds-radius-full);
-}
-.visning__valg {
-  min-height: 40px; border: 0; border-radius: var(--ds-radius-full);
-  background: transparent; color: var(--ds-color-text-secondary);
-  font: inherit; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold);
-  cursor: pointer; transition: background .15s ease, color .15s ease, box-shadow .15s ease;
-}
-.visning__valg--aktiv {
-  background: var(--ds-color-bg-elevated); color: var(--ds-color-text-primary);
-  box-shadow: var(--ds-shadow-xs);
-}
-.tropp-hint { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); }
+.tropp-nav__rediger { margin-right: calc(var(--ds-space-12) * -1); }
+.tropp-actions { display: flex; align-items: center; margin-bottom: var(--ds-space-md); }
+.tropp-actions__fordel { width: 100%; }
+.visning { margin-bottom: var(--ds-space-md); }
 
 .edit-hint {
   color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm);

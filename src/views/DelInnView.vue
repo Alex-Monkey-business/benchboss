@@ -453,30 +453,35 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
     <!-- ── 3. INNDELING ─────────────────────────────────────────── -->
     <section v-else class="del__side del__side--inndeling">
       <button type="button" class="del__oppsummering" @click="gaTil('oppmote')">
-        <span class="del__opps-tekst">
-          <strong>{{ oktNavn }}</strong>
+        <strong class="del__opps-tittel">{{ oktNavn }}</strong>
+        <span class="del__opps-linje">
           <span>{{ her.length }} {{ her.length === 1 ? 'spiller' : 'spillere' }}</span>
+          <span class="del__endre">Endre</span>
         </span>
-        <span class="del__endre">Endre</span>
       </button>
 
-      <div class="del__fane" role="tablist" aria-label="Grupper eller lag">
-        <button type="button" role="tab" :class="['del__fane-knapp', { 'del__fane-knapp--aktiv': form === 'grupper' }]" :aria-selected="form === 'grupper' ? 'true' : 'false'" @click="velgForm('grupper')">Grupper</button>
-        <button type="button" role="tab" :class="['del__fane-knapp', { 'del__fane-knapp--aktiv': form === 'lag' }]" :aria-selected="form === 'lag' ? 'true' : 'false'" @click="velgForm('lag')">Lag</button>
+      <div class="ds-pills ds-pills--bred" role="tablist" aria-label="Grupper eller lag">
+        <button type="button" role="tab" class="ds-pill del__fane-knapp" :aria-selected="form === 'grupper' ? 'true' : 'false'" @click="velgForm('grupper')">Grupper</button>
+        <button type="button" role="tab" class="ds-pill del__fane-knapp" :aria-selected="form === 'lag' ? 'true' : 'false'" @click="velgForm('lag')">Lag</button>
       </div>
 
       <div class="del__styr">
-        <div class="del__seg" role="group" aria-label="Nivå">
-          <button type="button" :class="['del__seg-knapp', { 'del__seg-knapp--pa': v.type === 'diff' }]" :aria-pressed="v.type === 'diff' ? 'true' : 'false'" @click="velgType('diff')">Diff</button>
-          <button type="button" :class="['del__seg-knapp', { 'del__seg-knapp--pa': v.type === 'mix' }]" :aria-pressed="v.type === 'mix' ? 'true' : 'false'" @click="velgType('mix')">Mix</button>
+        <div class="del__styr-rad">
+          <span>Nivå</span>
+          <div class="ds-pills" role="group" aria-label="Nivå">
+            <button type="button" class="ds-pill del__seg-knapp" :aria-pressed="v.type === 'diff' ? 'true' : 'false'" @click="velgType('diff')">Diff</button>
+            <button type="button" class="ds-pill del__seg-knapp" :aria-pressed="v.type === 'mix' ? 'true' : 'false'" @click="velgType('mix')">Mix</button>
+          </div>
         </div>
-        <Steg :verdi="resultat.antall" :min="min" :maks="maks" :navn="form === 'lag' ? 'Antall lag' : 'Antall grupper'" @endre="velgAntall" />
+        <div class="del__styr-rad">
+          <span>{{ form === 'lag' ? 'Antall lag' : 'Antall grupper' }}</span>
+          <Steg :verdi="resultat.antall" :min="min" :maks="maks" :navn="form === 'lag' ? 'Antall lag' : 'Antall grupper'" @endre="velgAntall" />
+        </div>
+        <button v-if="form === 'grupper' && v.type === 'diff'" type="button" role="switch" class="del__styr-rad del__bryter" :aria-checked="likeStore ? 'true' : 'false'" @click="vekslLikeStore">
+          <span>Like store grupper</span>
+          <span :class="['bryter', { 'bryter--pa': likeStore }]" aria-hidden="true"><span class="bryter__knott" /></span>
+        </button>
       </div>
-
-      <button v-if="form === 'grupper' && v.type === 'diff'" type="button" role="switch" class="del__bryter" :aria-checked="likeStore ? 'true' : 'false'" @click="vekslLikeStore">
-        <span>Like store grupper</span>
-        <span :class="['bryter', { 'bryter--pa': likeStore }]" aria-hidden="true"><span class="bryter__knott" /></span>
-      </button>
 
       <p v-if="endretAvAnnen" class="del__linje" aria-live="polite">
         <span v-if="endretAvAnnen" class="del__delt">{{ endretAvAnnen }}</span>
@@ -527,8 +532,8 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
       <form class="gjest__ny" @submit.prevent="leggTilGjest">
         <input v-model="nyGjest.navn" class="ds-input gjest__input" type="text" placeholder="Navn" aria-label="Navn på gjesten" autocomplete="off" enterkeyhint="done" />
         <p class="ds-eyebrow del__eyebrow del__eyebrow--tett">Nivå</p>
-        <div class="del__seg del__seg--bred" role="group" aria-label="Nivå">
-          <button v-for="n in ['A', 'B', 'C']" :key="n" type="button" :class="['del__seg-knapp', { 'del__seg-knapp--pa': nyGjest.niva === n }]" :aria-pressed="nyGjest.niva === n ? 'true' : 'false'" @click="nyGjest.niva = n">{{ n }}</button>
+        <div class="ds-pills ds-pills--bred" role="group" aria-label="Nivå">
+          <button v-for="n in ['A', 'B', 'C']" :key="n" type="button" class="ds-pill del__seg-knapp" :aria-pressed="nyGjest.niva === n ? 'true' : 'false'" @click="nyGjest.niva = n">{{ n }}</button>
         </div>
       </form>
       <template #footer>
@@ -566,8 +571,8 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 .del__side { max-width: var(--ds-content-max); margin: 0 auto; padding: var(--ds-space-md) var(--ds-space-lg) 0; }
 .del__h1 {
   margin: 0 0 var(--ds-space-lg);
-  font-size: 28px; line-height: 1.15; font-weight: var(--ds-weight-bold);
-  letter-spacing: -0.01em; color: var(--ds-color-text-primary);
+  font-family: var(--ds-font-heading); font-size: var(--ds-text-2xl); line-height: var(--ds-leading-tight); font-weight: var(--ds-weight-black);
+  letter-spacing: var(--ds-tracking-tight); color: var(--ds-color-text-primary);
 }
 .del__h2 { margin: var(--ds-space-xl) 0 var(--ds-space-sm); font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
 .del__teller { margin: calc(-1 * var(--ds-space-md)) 0 var(--ds-space-lg); font-size: var(--ds-text-md); color: var(--ds-color-text-secondary); font-variant-numeric: tabular-nums; }
@@ -650,58 +655,34 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 .gjest__ny { display: flex; flex-direction: column; gap: var(--ds-space-md); }
 .gjest__input { min-height: 52px; font-size: var(--ds-text-md); }
 
-/* Steg 3 */
+/* Steg 3: tittelen er økta, og hele blokka tar deg tilbake til oppmøtet. */
 .del__oppsummering {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md);
-  width: 100%; min-height: 56px; margin-bottom: var(--ds-space-md); padding: 0 var(--ds-space-lg);
-  border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-lg);
-  background: var(--ds-color-bg-elevated);
-  font-size: var(--ds-text-md); color: var(--ds-color-text-secondary); text-align: left;
-  cursor: pointer; -webkit-tap-highlight-color: transparent;
-}
-.del__opps-tekst { display: flex; flex-direction: column; gap: var(--ds-space-2xs); padding: var(--ds-space-12) 0; }
-.del__opps-tekst strong { font-size: var(--ds-text-md); color: var(--ds-color-text-primary); font-weight: var(--ds-weight-semibold); }
-.del__opps-tekst span { font-size: var(--ds-text-sm); }
-.del__endre { flex: none; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); text-decoration: underline; text-underline-offset: 3px; }
-
-.del__fane {
-  display: grid; grid-template-columns: 1fr 1fr;
-  border-bottom: 1px solid var(--ds-color-border);
-}
-.del__fane-knapp {
-  position: relative; min-height: 48px;
-  border: 0; background: transparent;
-  font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-tertiary);
-  cursor: pointer;
-  transition: color .15s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.del__fane-knapp::after {
-  content: ''; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px;
-  background: var(--ds-color-text-primary);
-  transform: scaleX(0); transition: transform .2s ease;
-}
-.del__fane-knapp--aktiv { color: var(--ds-color-text-primary); }
-.del__fane-knapp--aktiv::after { transform: scaleX(1); }
-
-.del__styr { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md); margin-top: var(--ds-space-lg); }
-.del__seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; padding: var(--ds-space-xs); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-subtle, var(--ds-color-bg-elevated)); }
-.del__seg--bred { display: grid; }
-.del__seg-knapp {
-  min-height: 44px; min-width: 64px; padding: 0 var(--ds-space-md);
-  border: 0; border-radius: var(--ds-radius-full); background: transparent;
-  font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-secondary);
-  cursor: pointer; -webkit-tap-highlight-color: transparent;
-  transition: background-color .15s ease, color .15s ease;
-}
-.del__seg-knapp--pa { background: var(--ds-color-accent); color: var(--ds-color-accent-text); }
-
-.del__bryter {
-  display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md);
-  width: 100%; min-height: 52px; margin-top: var(--ds-space-sm); padding: 0;
+  display: flex; flex-direction: column; align-items: flex-start; gap: var(--ds-space-xs);
+  width: 100%; margin-bottom: var(--ds-space-lg); padding: 0;
   border: 0; background: transparent; text-align: left;
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.del__opps-tittel {
+  font-family: var(--ds-font-heading); font-size: var(--ds-text-2xl); line-height: var(--ds-leading-tight); font-weight: var(--ds-weight-black);
+  letter-spacing: var(--ds-tracking-tight); color: var(--ds-color-text-primary);
+}
+.del__opps-linje { display: flex; align-items: center; gap: var(--ds-space-12); min-height: 28px; font-size: var(--ds-text-md); color: var(--ds-color-text-secondary); }
+.del__endre { font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Innstillingene: like rader med navnet til venstre og valget til høyre. */
+.del__styr { display: flex; flex-direction: column; margin-top: var(--ds-space-sm); }
+.del__styr-rad {
+  display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md);
+  min-height: 68px;
+  border-bottom: 1px solid var(--ds-color-border-light, var(--ds-color-border));
   font-size: var(--ds-text-md); color: var(--ds-color-text-primary);
+}
+.del__styr-rad:last-child { border-bottom: 0; }
+.del__styr .del__seg-knapp { min-width: 64px; justify-content: center; font-size: var(--ds-text-sm); }
+.del__bryter {
+  width: 100%; padding: 0;
+  border-width: 0 0 1px; border-style: solid; background: transparent; text-align: left;
+  font-family: inherit;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
 .bryter { position: relative; flex: none; width: 50px; height: 30px; border-radius: 15px; background: var(--ds-color-border); transition: background-color .2s ease; }
@@ -744,7 +725,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
   flex: none; display: grid; place-items: center;
   min-width: 32px; height: 28px; padding: 0 var(--ds-space-sm);
   border-radius: var(--ds-radius-full);
-  background: var(--ds-color-accent); color: var(--ds-color-accent-text);
+  background: var(--ds-color-bg-subtle); color: var(--ds-color-text-primary);
   font-size: var(--ds-text-xs, 12px); font-weight: var(--ds-weight-bold);
 }
 .kort__tittel { min-width: 0; font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }

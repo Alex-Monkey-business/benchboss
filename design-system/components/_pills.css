@@ -67,6 +67,7 @@
    flaten er mørkere enn sporet. Samme uttrykk som Del inn sin Diff/Mix. */
 .ds-pill--active,
 .ds-pill[aria-selected="true"],
+.ds-pill[aria-pressed="true"],
 .ds-pill--active:hover {
   background: var(--ds-color-accent);
   color: var(--ds-color-accent-text);
@@ -87,3 +88,7 @@
 }
 
 /* Pillen er selv 44 px høy — fingerens minstemål. */
+
+/* Full bredde: to–tre like store valg som bytter visning på en skjerm. */
+.ds-pills--bred { display: grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 100%; }
+.ds-pills--bred .ds-pill { justify-content: center; font-size: var(--ds-text-sm); }
