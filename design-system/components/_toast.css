@@ -32,7 +32,7 @@ body:has(.ds-sheet-overlay) .ds-toast-container {
   display: inline-flex;
   align-items: center;
   gap: var(--ds-space-sm);
-  padding: 10px var(--ds-space-md);
+  padding: var(--ds-space-12) var(--ds-space-md);
   background: var(--ds-color-text-primary);
   color: var(--ds-color-text-inverse);
   border-radius: var(--ds-radius-md);
@@ -69,8 +69,8 @@ body:has(.ds-sheet-overlay) .ds-toast-container {
    grønt forsvant. Større enn de andre, to linjer, tommel i ring — det er en
    liten feiring, ikke en systemmelding. */
 .ds-toast--kudos {
-  gap: 14px;
-  padding: 14px 18px 14px 14px;
+  gap: var(--ds-space-md);
+  padding: var(--ds-space-md) var(--ds-space-20) var(--ds-space-md) var(--ds-space-md);
   background: var(--ds-color-text-primary);
   color: var(--ds-color-text-inverse);
   border-radius: var(--ds-radius-lg);
@@ -90,7 +90,7 @@ body:has(.ds-sheet-overlay) .ds-toast-container {
 
 .ds-toast__thumb { width: 22px; height: 22px; }
 
-.ds-toast__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ds-toast__text { display: flex; flex-direction: column; gap: var(--ds-space-2xs); min-width: 0; }
 
 .ds-toast--kudos .ds-toast__msg {
   font-size: var(--ds-text-base);
@@ -110,8 +110,8 @@ body:has(.ds-sheet-overlay) .ds-toast-container {
 .ds-toast__action {
   flex-shrink: 0;
   min-height: 36px;
-  margin: -6px -8px -6px 4px;
-  padding: 0 12px;
+  margin: calc(var(--ds-space-sm) * -1) calc(var(--ds-space-sm) * -1) calc(var(--ds-space-sm) * -1) var(--ds-space-xs);
+  padding: 0 var(--ds-space-12);
   border: 1px solid rgba(255, 255, 255, 0.55);
   border-radius: var(--ds-radius-sm);
   background: rgba(255, 255, 255, 0.14);

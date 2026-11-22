@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from './Ikon.vue'
 // − 3 +: antall grupper eller lag. Ett trykk er ett mer eller ett mindre.
 const props = defineProps({
   verdi: { type: Number, required: true },
@@ -13,19 +14,19 @@ const til = v => { if (v >= props.min && v <= props.maks) emit('endre', v) }
 <template>
   <div class="steg" role="group" :aria-label="navn">
     <button type="button" class="steg__knapp" aria-label="Færre" :disabled="verdi <= min" @click="til(verdi - 1)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+      <Ikon navn="minus" vekt="bold" aria-hidden="true" />
     </button>
     <span class="steg__tall" aria-live="polite">{{ verdi }}</span>
     <button type="button" class="steg__knapp" aria-label="Flere" :disabled="verdi >= maks" @click="til(verdi + 1)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+      <Ikon navn="pluss" vekt="bold" aria-hidden="true" />
     </button>
   </div>
 </template>
 
 <style scoped>
 .steg {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 3px;
+  display: inline-flex; align-items: center; gap: var(--ds-space-xs);
+  padding: var(--ds-space-xs);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-subtle, var(--ds-color-bg-elevated));
 }

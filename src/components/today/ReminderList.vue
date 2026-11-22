@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../Ikon.vue'
 import { useRouter } from 'vue-router'
 import { useDismissedReminders } from '../../composables/useDismissedReminders'
 import { meldEvent } from '../../lib/sporing'
@@ -45,7 +46,7 @@ function skjul(reminder) {
         aria-label="Skjul påminnelse"
         @click="skjul(r)"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="6" y1="6" x2="18" y2="18"/><line x1="6" y1="18" x2="18" y2="6"/></svg>
+        <Ikon navn="kryss" />
       </button>
     </div>
   </div>
@@ -87,8 +88,8 @@ function skjul(reminder) {
   min-width: 0;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px var(--ds-space-md);
+  gap: var(--ds-space-12);
+  padding: var(--ds-space-12) var(--ds-space-md);
   background: transparent;
   border: none;
   text-align: left;

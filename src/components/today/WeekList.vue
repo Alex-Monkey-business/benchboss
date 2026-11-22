@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../Ikon.vue'
 // Ukeliste — «Denne uka» på Hjem (trenere, tappbar) og /serie (foreldre, read-only).
 defineProps({
   items: { type: Array, default: () => [] },
@@ -59,7 +60,7 @@ function sub(item) {
         <span class="ds-row__title">{{ title(item) }}</span>
         <span v-if="sub(item)" class="ds-row__sub">{{ sub(item) }}</span>
       </div>
-      <svg v-if="interactive" class="ds-row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      <Ikon navn="pil-hoyre" v-if="interactive" class="ds-row__chevron" />
       <!-- Økta får hele bredden under dagen; ved siden av datokolonnen ble
            navnene klippet til «Eggs (transi…» på en Samsung. -->
     </component>

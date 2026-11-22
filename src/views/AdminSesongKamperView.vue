@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useSeasons } from '../composables/useSeasons'
 import { useMatches } from '../composables/useMatches'
@@ -413,8 +414,8 @@ function formatMatchDate(dateStr) {
           </button>
         </div>
 
-        <button class="inline-action" @click="showNewSeason = true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <button class="ds-link inline-action" @click="showNewSeason = true">
+          <Ikon navn="pluss" vekt="bold" :size="14" />
           Ny sesong
         </button>
       </div>
@@ -447,10 +448,7 @@ function formatMatchDate(dateStr) {
             aria-label="Endre tidspunkt"
             @click="openEditDateTime(m)"
           >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M12 20h9"/>
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4 12.5-12.5z"/>
-            </svg>
+            <Ikon navn="rediger" />
           </button>
         </div>
       </div>
@@ -618,10 +616,10 @@ function formatMatchDate(dateStr) {
 
       <button class="action-row" @click="showAddMatch = true">
         <span class="action-row__icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+          <Ikon navn="pluss" vekt="bold" :size="18" />
         </span>
         <span class="action-row__label">Legg til kamp manuelt</span>
-        <svg class="action-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        <Ikon navn="pil-hoyre" vekt="bold" :size="16" class="action-row__chevron" />
       </button>
 
       </div>
@@ -631,10 +629,10 @@ function formatMatchDate(dateStr) {
     <div v-if="matches.length > 0" class="px-lg mb-lg">
       <button class="action-row" :disabled="backfilling" @click="handleBackfillCoaches">
         <span class="action-row__icon">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg>
+          <Ikon navn="person" :size="18" />
         </span>
         <span class="action-row__label">{{ backfilling ? 'Setter trenere …' : 'Sett trenere på kamper som mangler' }}</span>
-        <svg class="action-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        <Ikon navn="pil-hoyre" vekt="bold" :size="16" class="action-row__chevron" />
       </button>
     </div>
 
@@ -642,7 +640,7 @@ function formatMatchDate(dateStr) {
     <div v-if="matches.length > 0" class="px-lg mb-lg">
       <div class="danger-zone">
         <button class="danger-btn" @click="showDeleteAllDialog = true">
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+          <Ikon navn="slett" :size="16" />
           Slett alle {{ matches.length }} kamper i {{ viewingSeason?.name }}
         </button>
       </div>
@@ -766,7 +764,7 @@ function formatMatchDate(dateStr) {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   padding: var(--ds-space-md);
   text-align: left;
   background: var(--ds-color-bg);
@@ -792,7 +790,7 @@ function formatMatchDate(dateStr) {
 .fiks-rad {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   padding: var(--ds-space-sm) 0;
   border-top: 1px solid var(--ds-color-border);
 }
@@ -826,15 +824,15 @@ function formatMatchDate(dateStr) {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ds-color-text-tertiary);
-  padding: 0 4px;
-  margin-bottom: 8px;
+  padding: 0 var(--ds-space-xs);
+  margin-bottom: var(--ds-space-sm);
 }
 
 .season-active {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-bottom: 16px;
+  padding-bottom: var(--ds-space-md);
 }
 .season-active__name {
   font-weight: 600;
@@ -844,18 +842,18 @@ function formatMatchDate(dateStr) {
 .season-active__meta {
   font-size: var(--ds-text-xs);
   color: var(--ds-color-text-tertiary);
-  margin-top: 2px;
+  margin-top: var(--ds-space-2xs);
 }
 
 .season-list {
   border-top: 1px solid var(--ds-color-border-light);
-  padding-top: 12px;
-  margin-bottom: 12px;
+  padding-top: var(--ds-space-12);
+  margin-bottom: var(--ds-space-12);
 }
 .season-list__label {
   font-size: var(--ds-text-xs);
   color: var(--ds-color-text-tertiary);
-  margin-bottom: 8px;
+  margin-bottom: var(--ds-space-sm);
 }
 .season-item {
   display: flex;
@@ -863,7 +861,7 @@ function formatMatchDate(dateStr) {
   justify-content: space-between;
   width: 100%;
   min-height: 44px;
-  padding: 10px 12px;
+  padding: var(--ds-space-12) var(--ds-space-12);
   background: var(--ds-color-bg-subtle);
   border: 1px solid transparent;
   border-radius: var(--ds-radius-sm);
@@ -875,7 +873,7 @@ function formatMatchDate(dateStr) {
   text-align: left;
 }
 .season-item + .season-item {
-  margin-top: 6px;
+  margin-top: var(--ds-space-sm);
 }
 .season-item:hover {
   background: var(--ds-color-accent-light);
@@ -883,33 +881,16 @@ function formatMatchDate(dateStr) {
   color: var(--ds-color-accent);
 }
 
-.inline-action {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  border: none;
-  background: none;
-  color: var(--ds-color-accent);
-  font-size: var(--ds-text-sm);
-  font-weight: 600;
-  cursor: pointer;
-  min-height: 44px;
-  padding: 0;
-  margin-top: var(--ds-space-sm);
-  border-top: 1px solid var(--ds-color-border-light);
-  width: 100%;
-  transition: opacity 0.15s;
-}
-.inline-action:hover {
+.inline-action { margin-top: var(--ds-space-sm); border-top: 1px solid var(--ds-color-border-light); width: 100%; }.inline-action:hover {
   opacity: 0.7;
 }
 
 .action-row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--ds-space-md);
   width: 100%;
-  padding: 14px 16px;
+  padding: var(--ds-space-md) var(--ds-space-md);
   background: var(--ds-color-bg-elevated);
   border: var(--ds-border-width) solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
@@ -949,19 +930,19 @@ function formatMatchDate(dateStr) {
 
 .danger-zone {
   text-align: center;
-  padding: 4px 0;
+  padding: var(--ds-space-xs) 0;
 }
 .danger-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--ds-space-sm);
   border: none;
   background: none;
   color: var(--ds-color-text-tertiary);
   font-size: var(--ds-text-xs);
   font-weight: 500;
   cursor: pointer;
-  padding: 8px 16px;
+  padding: var(--ds-space-sm) var(--ds-space-md);
   border-radius: var(--ds-radius-sm);
   transition: all 0.15s;
 }
@@ -974,19 +955,19 @@ function formatMatchDate(dateStr) {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--ds-space-sm);
   margin-top: var(--ds-space-lg);
 }
 
 .match-list-card {
-  padding: 4px 0;
+  padding: var(--ds-space-xs) 0;
 }
 
 .match-row {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: var(--ds-space-12);
+  padding: var(--ds-space-12) var(--ds-space-12);
   border-radius: var(--ds-radius-sm);
   transition: background 0.15s;
 }
@@ -1023,7 +1004,7 @@ function formatMatchDate(dateStr) {
   flex: 1;
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--ds-space-sm);
   font-size: var(--ds-text-sm);
   min-width: 0;
 }
@@ -1039,7 +1020,7 @@ function formatMatchDate(dateStr) {
 }
 
 .match-row__vs {
-  font-size: 0.6875rem;
+  font-size: var(--ds-text-2xs);
   color: var(--ds-color-text-tertiary);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -1052,7 +1033,7 @@ function formatMatchDate(dateStr) {
   justify-content: center;
   width: 44px;
   height: 44px;
-  margin: -6px -8px -6px 0;
+  margin: calc(var(--ds-space-sm) * -1) calc(var(--ds-space-sm) * -1) calc(var(--ds-space-sm) * -1) 0;
   padding: 0;
   border: none;
   border-radius: 6px;

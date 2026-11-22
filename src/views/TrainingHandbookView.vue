@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 import Spot from '../components/Spot.vue'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
@@ -53,9 +54,7 @@ function open(slug) {
           <span class="handbook-card__title">{{ p.title }}</span>
           <span class="handbook-card__lead">{{ p.lead }}</span>
         </span>
-        <svg class="handbook-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="9 18 15 12 9 6"/>
-        </svg>
+        <Ikon navn="pil-hoyre" class="handbook-card__chevron" />
       </button>
     </div>
   </div>
@@ -63,7 +62,7 @@ function open(slug) {
 
 <style scoped>
 .handbook__opphav {
-  margin: 10px 0 0;
+  margin: var(--ds-space-12) 0 0;
   font-size: var(--ds-text-xs);
   color: var(--ds-color-text-secondary);
 }
@@ -184,9 +183,9 @@ function open(slug) {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ds-space-xs);
   min-width: 0;
-  padding-top: 2px;
+  padding-top: var(--ds-space-2xs);
 }
 
 .handbook-card__title {

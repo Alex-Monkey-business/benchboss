@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 import Spot from '../components/Spot.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useSeasons } from '../composables/useSeasons'
@@ -204,7 +205,7 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
               </div>
               <div v-if="coachNamesForMatch(m.id)" class="match-card__meta">
                 <span class="match-card__meta-item">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="4"/><path d="M20 21a8 8 0 10-16 0"/></svg>
+                  <Ikon navn="person" />
                   {{ coachNamesForMatch(m.id) }}
                 </span>
               </div>
@@ -235,25 +236,25 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);
   color: var(--ds-color-text-secondary);
-  margin: var(--ds-space-lg) 2px var(--ds-space-sm);
+  margin: var(--ds-space-lg) var(--ds-space-2xs) var(--ds-space-sm);
 }
 .day-label--today { color: var(--ds-color-warm-text); }
 .list { display: flex; flex-direction: column; gap: var(--ds-space-sm); }
 
 /* Read-only kort — ingen lenke, ingen hover-løft */
 .serie-mcard { padding: var(--ds-space-lg); }
-.serie-mcard .match-card__teams { margin-bottom: 10px; }
+.serie-mcard .match-card__teams { margin-bottom: var(--ds-space-12); }
 .serie-mcard .match-card__meta:empty { display: none; }
 
 /* Lag-tag + hvor-tag + resultat (kopiert fra MatchCard, scoped der) */
 .match-card__team-tag {
   display: inline-block;
-  font-size: 0.6875rem;
+  font-size: var(--ds-text-2xs);
   font-weight: 600;
-  padding: 1px 6px;
+  padding: 1px var(--ds-space-sm);
   border-radius: var(--ds-radius-full);
   letter-spacing: 0.02em;
-  margin-right: 4px;
+  margin-right: var(--ds-space-xs);
   /* Nøytral grunnform for lag uten egen lagfarge (andre kull enn Halsen). */
   background: var(--ds-color-bg-subtle);
   color: var(--ds-color-text-secondary);
@@ -267,9 +268,9 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
 }
 .match-card__venue-tag {
   display: inline-block;
-  font-size: 0.6875rem;
+  font-size: var(--ds-text-2xs);
   font-weight: 500;
-  padding: 1px 6px;
+  padding: 1px var(--ds-space-sm);
   border-radius: var(--ds-radius-full);
   letter-spacing: 0.02em;
   background: var(--ds-color-bg-subtle);
@@ -283,27 +284,27 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
   font-variant-numeric: tabular-nums;
   letter-spacing: -0.01em;
   line-height: 1.2;
-  padding: 0 2px;
+  padding: 0 var(--ds-space-2xs);
 }
 
 .time-tabs {
   display: flex;
-  gap: 24px;
+  gap: var(--ds-space-lg);
   border-bottom: 1px solid var(--ds-color-border-light);
   margin-bottom: var(--ds-space-md);
 }
 .time-tabs__option {
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--ds-space-sm);
   min-height: 44px;
-  padding: 12px 0;
+  padding: var(--ds-space-12) 0;
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--ds-color-text-tertiary);
   font-family: var(--ds-font-body);
-  font-size: 0.9375rem;
+  font-size: var(--ds-text-sm);
   font-weight: 600;
   cursor: pointer;
   transition: color 0.15s ease, border-color 0.15s ease;
@@ -317,7 +318,7 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
 }
 /* Tallet er tall, ikke en brikke — samme som i Kamper. */
 .time-tabs__count {
-  font-size: 0.8125rem;
+  font-size: var(--ds-text-xs);
   font-weight: 500;
   color: var(--ds-color-text-tertiary);
   font-variant-numeric: tabular-nums;

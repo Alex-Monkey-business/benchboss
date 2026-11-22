@@ -322,7 +322,7 @@ function nårTekst(iso) {
     <div class="px-lg feil-seksjon">
       <div class="feil-hode">
         <h2 class="ds-section-label">Krasj</h2>
-        <button type="button" class="feil-bytt" @click="visKvitterte = !visKvitterte; hentFeil({ inkluderKvitterte: visKvitterte })">
+        <button type="button" class="ds-link feil-bytt" @click="visKvitterte = !visKvitterte; hentFeil({ inkluderKvitterte: visKvitterte })">
           {{ visKvitterte ? 'Bare ubehandlede' : 'Vis kvitterte også' }}
         </button>
       </div>
@@ -362,7 +362,7 @@ function nårTekst(iso) {
           <template v-if="form.club_name">
             <div class="plattform-valgt">
               <span class="plattform-valgt__navn">{{ form.club_name }}</span>
-              <button type="button" class="plattform-tekstknapp" @click="nullstillKlubb">Bytt</button>
+              <button type="button" class="ds-link plattform-tekstknapp" @click="nullstillKlubb">Bytt</button>
             </div>
 
             <label class="plattform-label" for="nk-club-short">Kortnavn <span class="plattform-muted">slik det står i terminlista</span></label>
@@ -387,7 +387,7 @@ function nårTekst(iso) {
               </li>
             </ul>
 
-            <button type="button" class="plattform-tekstknapp" @click="friTekst = true">
+            <button type="button" class="ds-link plattform-tekstknapp" @click="friTekst = true">
               Finner ikke klubben — skriv navnet selv
             </button>
           </template>
@@ -400,7 +400,7 @@ function nårTekst(iso) {
             <label class="plattform-label" for="nk-club-short">Kortnavn <span class="plattform-muted">slik det står i terminlista</span></label>
             <input id="nk-club-short" v-model="form.club_short_name" type="text" class="plattform-input" :placeholder="form.club_name.split(' ')[0] || 'Stag'" autocapitalize="words" />
 
-            <button type="button" class="plattform-tekstknapp" @click="friTekst = false">Søk på fotball.no likevel</button>
+            <button type="button" class="ds-link plattform-tekstknapp" @click="friTekst = false">Søk på fotball.no likevel</button>
           </template>
         </template>
 
@@ -419,11 +419,6 @@ function nårTekst(iso) {
 <style scoped>
 .feil-seksjon { margin-top: var(--ds-space-2xl); }
 .feil-hode { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-md); }
-.feil-bytt {
-  background: none; border: 0; padding: 0; cursor: pointer;
-  font: inherit; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
-  text-decoration: underline; text-underline-offset: 3px;
-}
 .feil-sak {
   margin-top: var(--ds-space-md);
   padding: var(--ds-space-md);
@@ -448,7 +443,7 @@ function nårTekst(iso) {
 .feil-sak__stack { margin-top: var(--ds-space-sm); font-size: var(--ds-text-sm); }
 .feil-sak__stack pre {
   margin: var(--ds-space-xs) 0 0; overflow-x: auto;
-  font-size: 11px; line-height: 1.5; color: var(--ds-color-text-secondary);
+  font-size: var(--ds-text-2xs); line-height: 1.5; color: var(--ds-color-text-secondary);
 }
 .feil-sak__kvitter {
   margin-top: var(--ds-space-sm); background: none; border: 0; padding: 0; cursor: pointer;
@@ -501,7 +496,7 @@ function nårTekst(iso) {
 .plattform-row__main {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   min-width: 0;
 }
 
@@ -564,7 +559,7 @@ function nårTekst(iso) {
   height: 18px;
   object-fit: contain;
   vertical-align: -3px;
-  margin-right: 4px;
+  margin-right: var(--ds-space-xs);
 }
 
 .plattform-valgt {
@@ -587,18 +582,7 @@ function nårTekst(iso) {
   white-space: nowrap;
 }
 
-.plattform-tekstknapp {
-  align-self: flex-start;
-  min-height: 44px;
-  padding: var(--ds-space-xs) 0;
-  background: none;
-  border: 0;
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-secondary);
-  cursor: pointer;
-}
-
+.plattform-tekstknapp { align-self: flex-start; }
 .plattform-treff {
   list-style: none;
   margin: 0;
@@ -612,7 +596,7 @@ function nårTekst(iso) {
   width: 100%;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   padding: var(--ds-space-md);
   text-align: left;
   background: var(--ds-color-bg-elevated);

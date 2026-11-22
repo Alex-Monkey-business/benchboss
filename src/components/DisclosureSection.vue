@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from './Ikon.vue'
 import { ref, watch, onMounted } from 'vue'
 
 const props = defineProps({
@@ -56,9 +57,7 @@ function toggle() {
       >{{ summary || emptyText }}</span>
       <span v-else></span>
       <span class="disclosure__chevron" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="6 9 12 15 18 9"/>
-        </svg>
+        <Ikon navn="pil-ned" :size="18" />
       </span>
     </button>
     <div class="disclosure__body">
@@ -89,7 +88,7 @@ function toggle() {
   grid-template-columns: auto 1fr auto;
   align-items: center;
   gap: var(--ds-space-md);
-  padding: 14px 16px;
+  padding: var(--ds-space-md) var(--ds-space-md);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -112,7 +111,7 @@ function toggle() {
 }
 
 .disclosure__label {
-  font-size: 14px;
+  font-size: var(--ds-text-sm);
   font-weight: 600;
   letter-spacing: 0.01em;
   color: var(--ds-color-text-secondary);
@@ -120,7 +119,7 @@ function toggle() {
 }
 
 .disclosure__summary {
-  font-size: 14px;
+  font-size: var(--ds-text-sm);
   font-weight: 500;
   color: var(--ds-color-text);
   text-align: right;
@@ -143,7 +142,7 @@ function toggle() {
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 6px;
+  gap: var(--ds-space-sm);
   overflow: hidden;
   white-space: normal;
 }
@@ -182,7 +181,7 @@ function toggle() {
 }
 
 .disclosure--open .disclosure__inner {
-  padding: 4px 16px var(--ds-space-lg);
+  padding: var(--ds-space-xs) var(--ds-space-md) var(--ds-space-lg);
 }
 
 @media (prefers-reduced-motion: reduce) {

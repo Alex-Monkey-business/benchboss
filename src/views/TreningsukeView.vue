@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 import Spot from '../components/Spot.vue'
 import { useContent } from '../composables/useContent'
 // TRENINGSUKA — uka på én side, én dag åpen.
@@ -669,7 +670,7 @@ onUnmounted(() => { document.removeEventListener('visibilitychange', vedRetur) }
             <span class="dag__meta">
               <span v-if="s.duration_min" class="dag__len">{{ formatDuration(s.duration_min) }}</span>
             </span>
-            <svg v-if="!dagId" class="dag__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <Ikon navn="pil-hoyre" vekt="bold" v-if="!dagId" class="dag__chevron" />
           </span>
           <!-- Lukket: øvelsene. Fokuset er grunnen til at de
                ligger der, og står når dagen er åpen. -->
@@ -707,7 +708,7 @@ onUnmounted(() => { document.removeEventListener('visibilitychange', vedRetur) }
               <button type="button" class="steg__hode" @click="visDrill(s, r.i)">
                 <span class="steg__navnlinje">
                   <span class="steg__navn">{{ r.d.text }}</span>
-                  <svg class="steg__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                  <Ikon navn="pil-hoyre" vekt="bold" class="steg__pil" />
                 </span>
                 <!-- Diff/mix og tid er to korte, faste opplysninger — de deler
                      linje og står i ro. Temaet er det eneste som varierer i
@@ -757,10 +758,10 @@ onUnmounted(() => { document.removeEventListener('visibilitychange', vedRetur) }
                 </button>
                 <span class="rad__piler">
                   <button type="button" class="pil pil--opp" :disabled="i === 0" aria-label="Flytt opp" @click="moveDrill(s, i, 'up')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="18 15 12 9 6 15"/></svg>
+                    <Ikon navn="pil-opp" vekt="bold" />
                   </button>
                   <button type="button" class="pil pil--ned" :disabled="i === drillsFor(s).length - 1" aria-label="Flytt ned" @click="moveDrill(s, i, 'down')">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+                    <Ikon navn="pil-ned" vekt="bold" />
                   </button>
                 </span>
               </li>
@@ -771,7 +772,7 @@ onUnmounted(() => { document.removeEventListener('visibilitychange', vedRetur) }
             </p>
 
             <button type="button" class="ds-btn ds-btn--secondary knapp--legg" @click="openPicker(s)">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <Ikon navn="pluss" vekt="bold" />
               Legg til øvelse
             </button>
           </div>
@@ -793,7 +794,7 @@ onUnmounted(() => { document.removeEventListener('visibilitychange', vedRetur) }
            linje i den, ikke som enda en boks. «Lim inn plan» bor i arket for
            ny dag: den brukes sjelden, og da er det nettopp en ny dag du vil ha. -->
       <button v-if="!dagId" type="button" class="uke__legg-til" @click="openNewDay">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
+        <Ikon navn="pluss" aria-hidden="true" />
         Legg til dag
       </button>
 
@@ -810,7 +811,7 @@ onUnmounted(() => { document.removeEventListener('visibilitychange', vedRetur) }
           <span class="uke__sted-tittel">Øvelsesbank</span>
           <span class="uke__sted-under">{{ exercises.length ? `${exercises.length} øvelser` : 'Finn øvelser til dagene' }}</span>
         </span>
-        <svg class="uke__sted-pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+        <Ikon navn="pil-hoyre" class="uke__sted-pil" aria-hidden="true" />
       </router-link>
       <router-link v-if="hasHandbook" to="/trening/handbok" class="uke__sted">
         <Spot name="book" class="uke__sted-illo" :size="44" />
@@ -818,7 +819,7 @@ onUnmounted(() => { document.removeEventListener('visibilitychange', vedRetur) }
           <span class="uke__sted-tittel">Håndbok</span>
           <span class="uke__sted-under">{{ principles.length }} prinsipper</span>
         </span>
-        <svg class="uke__sted-pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+        <Ikon navn="pil-hoyre" class="uke__sted-pil" aria-hidden="true" />
       </router-link>
     </section>
 
@@ -943,15 +944,15 @@ Torsdag
         <div class="rad-ark__valg">
           <button type="button" class="valg" @click="visRadOvelse">
             <span>Vis øvelsen</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <Ikon navn="pil-hoyre" />
           </button>
           <button type="button" class="valg valg--bytt" @click="startBytte">
             <span>Bytt ut med en annen øvelse</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <Ikon navn="pil-hoyre" />
           </button>
           <button v-for="mal in andreDager" :key="mal.id" type="button" class="valg" @click="flyttTilDag(mal)">
             <span>Flytt til {{ mal.title.toLowerCase() }}</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <Ikon navn="pil-hoyre" />
           </button>
           <button type="button" class="valg valg--fjern" @click="removeDrill(radDag, rad.i)">
             <span>Fjern fra dagen</span>
@@ -1043,7 +1044,7 @@ Torsdag
 
 .dag__idag {
   display: inline-flex; align-items: center; flex-shrink: 0;
-  height: 22px; padding: 0 10px;
+  height: 22px; padding: 0 var(--ds-space-12);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-accent); color: var(--ds-color-accent-text);
   font-family: var(--ds-font-body);
@@ -1075,7 +1076,7 @@ Torsdag
 .dag__meta {
   display: flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--ds-space-sm);
   flex-shrink: 0;
   margin-left: auto;
   font-size: var(--ds-text-xs);
@@ -1131,7 +1132,7 @@ Torsdag
    Nå er hierarkiet vekt og størrelse, som resten av appen. */
 .dag__focus {
   display: block;
-  margin-top: 6px;
+  margin-top: var(--ds-space-sm);
   font-size: var(--ds-text-md);
   line-height: 1.5;
   color: var(--ds-color-text-secondary);
@@ -1147,7 +1148,7 @@ Torsdag
 
 .dag__resten {
   display: block;
-  margin-top: 5px;
+  margin-top: var(--ds-space-xs);
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-regular);
   line-height: 1.55;
@@ -1167,7 +1168,7 @@ Torsdag
   overflow: hidden;
 }
 
-.dag__okt { margin-top: 14px; }
+.dag__okt { margin-top: var(--ds-space-md); }
 
 .dag__focus--empty {
   color: var(--ds-color-text-tertiary);
@@ -1178,10 +1179,10 @@ Torsdag
 .dag__start {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--ds-space-12);
   min-height: 44px;
   margin: 0 var(--ds-space-lg) var(--ds-space-lg);
-  padding: 0 18px;
+  padding: 0 var(--ds-space-20);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
@@ -1249,7 +1250,7 @@ Torsdag
 .steg:last-child::before { display: none; }
 
 .steg__klokke {
-  padding: 4px 22px 0 0;
+  padding: var(--ds-space-xs) var(--ds-space-lg) 0 0;
   text-align: right;
   font-family: var(--ds-font-display-sans);
   font-size: var(--ds-text-xs);
@@ -1284,7 +1285,7 @@ Torsdag
   width: 100%;
   min-height: 44px;
   margin: 0;
-  padding: 0 0 2px;
+  padding: 0 0 var(--ds-space-2xs);
   border: none;
   background: none;
   text-align: left;
@@ -1318,7 +1319,7 @@ Torsdag
 
 .steg__pil {
   flex: none;
-  margin: 3px 0 0 auto;
+  margin: var(--ds-space-xs) 0 0 auto;
   width: 15px;
   height: 15px;
   color: var(--ds-color-text-tertiary);
@@ -1333,8 +1334,8 @@ Torsdag
   display: flex;
   flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
-  margin-top: 4px;
+  gap: var(--ds-space-12);
+  margin-top: var(--ds-space-xs);
   font-size: var(--ds-text-sm);
   line-height: 1.45;
   letter-spacing: -0.005em;
@@ -1347,7 +1348,7 @@ Torsdag
 }
 
 .steg__sum {
-  padding-top: 3px;
+  padding-top: var(--ds-space-xs);
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);
   letter-spacing: -0.005em;
@@ -1361,9 +1362,9 @@ Torsdag
 .ovelse__badge {
   flex-shrink: 0;
   align-self: center;
-  padding: 2px 7px;
+  padding: var(--ds-space-2xs) var(--ds-space-sm);
   border-radius: var(--ds-radius-full);
-  font-size: 0.65rem;
+  font-size: var(--ds-text-2xs);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -1466,9 +1467,9 @@ Torsdag
   position: absolute;
   right: 4px;
   bottom: 4px;
-  padding: 1px 5px;
+  padding: 1px var(--ds-space-xs);
   border-radius: var(--ds-radius-sm);
-  font-size: 0.6875rem;
+  font-size: var(--ds-text-2xs);
   font-weight: var(--ds-weight-medium);
   font-variant-numeric: tabular-nums;
   background: rgba(10, 10, 10, 0.72);
@@ -1478,7 +1479,7 @@ Torsdag
 .rad__tekst {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--ds-space-xs);
   min-width: 0;
 }
 
@@ -1659,7 +1660,7 @@ Torsdag
 .uke__sted-tekst {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   flex: 1;
   min-width: 0;
 }
@@ -1711,7 +1712,7 @@ Torsdag
 /* ---- Ukedagsvelger ---- */
 /* Sju like kolonner: uka står på én linje på alle bredder. Med flex-wrap
    falt søndag ned alene og ble strukket over hele arket. */
-.weekday-picker { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.weekday-picker { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: var(--ds-space-xs); }
 
 .weekday-pill {
   min-width: 0;
@@ -1788,13 +1789,13 @@ Torsdag
 
 .paste-input { width: 100%; font-size: var(--ds-text-sm); line-height: 1.5; resize: vertical; }
 
-.paste-preview { display: flex; flex-direction: column; gap: 4px; margin-top: var(--ds-space-md); }
+.paste-preview { display: flex; flex-direction: column; gap: var(--ds-space-xs); margin-top: var(--ds-space-md); }
 
 .paste-preview__row {
   display: flex;
   align-items: baseline;
   gap: var(--ds-space-sm);
-  padding: 10px 12px;
+  padding: var(--ds-space-12) var(--ds-space-12);
   background: var(--ds-color-bg-subtle);
   border-radius: var(--ds-radius-md);
 }

@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../Ikon.vue'
 import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { supabase, isSupabaseConfigured } from '../../supabase'
 import { useAuth } from '../../stores/auth'
@@ -315,7 +316,7 @@ async function sendInvite() {
       <span class="onb-card__body">
         <span class="onb-card__title">Sett opp lagene</span>
       </span>
-      <svg class="onb-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      <Ikon navn="pil-hoyre" class="onb-card__chevron" />
     </button>
 
     <!-- 2. Spillere -->
@@ -330,7 +331,7 @@ async function sendInvite() {
           {{ lagUtenSpillere.length === 1 ? 'mangler spillere' : 'mangler spillere' }}.
         </span>
       </span>
-      <svg class="onb-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      <Ikon navn="pil-hoyre" class="onb-card__chevron" />
     </button>
 
     <!-- 3. Trenere -->
@@ -339,7 +340,7 @@ async function sendInvite() {
       <span class="onb-card__body">
         <span class="onb-card__title">Inviter trenerne</span>
       </span>
-      <svg class="onb-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      <Ikon navn="pil-hoyre" class="onb-card__chevron" />
     </button>
 
     <!-- 4. Kampprogram -->
@@ -359,7 +360,7 @@ async function sendInvite() {
         <span class="onb-card__title">{{ henter ? 'Henter kampene …' : 'Prøv å hente kampene igjen' }}</span>
         <span class="onb-card__lead">Fikk ikke kontakt med fotball.no.</span>
       </span>
-      <svg class="onb-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      <Ikon navn="pil-hoyre" class="onb-card__chevron" />
     </button>
 
     <router-link v-else-if="!matchesDone" to="/admin/sesong-kamper" class="ds-card ds-card--interactive onb-card" :class="{ 'onb-card--muted': !playersDone }">
@@ -368,7 +369,7 @@ async function sendInvite() {
         <span class="onb-card__title">Last opp terminlista</span>
         <span class="onb-card__lead">Excel-fila fra kretsen{{ activeSeason ? ` → ${activeSeason.name}` : '' }}</span>
       </span>
-      <svg class="onb-card__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      <Ikon navn="pil-hoyre" class="onb-card__chevron" />
     </router-link>
 
     <!-- Lag -->
@@ -383,7 +384,7 @@ async function sendInvite() {
         <div v-for="t in seasonTeams" :key="t.id" class="onb-team">
           <input v-model="drafts[t.id]" class="ds-input" :aria-label="`Navn på ${t.name}`" @blur="saveTeam(t)" @keydown.enter="saveTeam(t)" />
           <button type="button" class="onb-team__remove" :disabled="busy" aria-label="Fjern lag" @click="deleteTeam(t)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            <Ikon navn="kryss" />
           </button>
         </div>
 
@@ -411,8 +412,8 @@ async function sendInvite() {
           <ul class="onb-players">
             <li v-for="p in parsed" :key="p.name" class="onb-player onb-player--enkel">
               <span class="onb-player__name">{{ p.name }}</span>
-              <button type="button" class="onb-player__fjern" :aria-label="`Fjern ${p.name}`" @click="fjern(p.name)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <button type="button" class="ds-icon-btn onb-player__fjern" :aria-label="`Fjern ${p.name}`" @click="fjern(p.name)">
+                <Ikon navn="kryss" />
               </button>
             </li>
           </ul>
@@ -426,7 +427,7 @@ async function sendInvite() {
         </div>
 
         <!-- Egen jobb, egen inngang. -->
-        <button type="button" class="onb-lenke" @click="fileInput?.click()">
+        <button type="button" class="ds-link onb-lenke" @click="fileInput?.click()">
           Last opp fil
         </button>
         <input ref="fileInput" type="file" accept=".xlsx,.xls,.csv" hidden @change="pickFile" />
@@ -448,8 +449,8 @@ async function sendInvite() {
                 :aria-expanded="filApen === r.name"
                 @click="filApen = filApen === r.name ? null : r.name"
               >{{ r.team ? teamName(r.team) : 'Velg lag' }}</button>
-              <button type="button" class="onb-player__fjern" :aria-label="`Fjern ${r.name}`" @click="fjernFilRad(r)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+              <button type="button" class="ds-icon-btn onb-player__fjern" :aria-label="`Fjern ${r.name}`" @click="fjernFilRad(r)">
+                <Ikon navn="kryss" />
               </button>
             </div>
             <p v-if="!r.team && r.kilde" class="onb-player__ukjent">«{{ r.kilde }}» er ikke et av lagene</p>
@@ -553,7 +554,7 @@ async function sendInvite() {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   min-width: 0;
 }
 
@@ -647,7 +648,7 @@ async function sendInvite() {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ds-space-xs);
   /* dvh, ikke vh: på iOS krymper ikke vh når tastaturet kommer opp, så
      lista ville holdt 40 % av HELE skjermen i under halve den synlige. Resten
      av appen bruker dvh — dette var det ene stedet som ikke gjorde det. */
@@ -661,7 +662,7 @@ async function sendInvite() {
      dette fortsatt en flex-rad, ble chipsene presset inn ved siden av navnet. */
   display: flex;
   flex-direction: column;
-  padding: 8px 10px;
+  padding: var(--ds-space-sm) var(--ds-space-12);
   background: var(--ds-color-bg-elevated);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-md);
@@ -681,7 +682,7 @@ async function sendInvite() {
      til et annet lag — den kan ikke være halvparten av en fingertupp. */
   min-height: 44px;
   flex-shrink: 0;
-  padding: 3px 10px;
+  padding: var(--ds-space-xs) var(--ds-space-12);
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);
@@ -756,7 +757,7 @@ async function sendInvite() {
 }
 
 .onb-chip__tall {
-  margin-left: 6px;
+  margin-left: var(--ds-space-sm);
   font-variant-numeric: tabular-nums;
   color: var(--ds-color-text-tertiary);
 }
@@ -785,38 +786,14 @@ async function sendInvite() {
 
 .onb-player--enkel { flex-direction: row; align-items: center; justify-content: space-between; }
 
-.onb-player__fjern {
-  min-width: 44px;
-  min-height: 44px;
-  display: grid;
-  place-items: center;
-  flex-shrink: 0;
-  background: none;
-  border: 0;
-  color: var(--ds-color-text-tertiary);
-  cursor: pointer;
-}
 
-.onb-player__fjern svg { width: 16px; height: 16px; }
 
 .onb-player__ukjent {
-  margin: 2px 0 0;
+  margin: var(--ds-space-2xs) 0 0;
   font-size: var(--ds-text-xs);
   color: var(--ds-color-warning);
 }
 
 .onb-players--fil { max-height: 46dvh; }
 
-.onb-lenke {
-  margin-top: var(--ds-space-sm);
-  padding: var(--ds-space-sm) 0;
-  min-height: 44px;
-  background: none;
-  border: 0;
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-secondary);
-  text-decoration: underline;
-  text-align: left;
-  cursor: pointer;
-}
-</style>
+.onb-lenke { margin-top: var(--ds-space-sm); text-align: left; }</style>

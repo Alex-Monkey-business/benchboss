@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../Ikon.vue'
 import { teamLabel } from '../../lib/matchMeta'
 import { weekdayDateLabel } from '../../lib/dateLabels'
 
@@ -49,7 +50,7 @@ function sub(item) {
         <span class="ds-row__title other-row__title">{{ line(item) }}</span>
         <span class="ds-row__sub">{{ sub(item) }}</span>
       </span>
-      <svg class="ds-row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+      <Ikon navn="pil-hoyre" class="ds-row__chevron" />
     </router-link>
   </div>
 </template>
@@ -62,7 +63,7 @@ function sub(item) {
   display: flex;
   flex-direction: column;
   align-items: stretch;
-  gap: 4px;
+  gap: var(--ds-space-xs);
   flex-shrink: 0;
   min-width: 52px;
 }

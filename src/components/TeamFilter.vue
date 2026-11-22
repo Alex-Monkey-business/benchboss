@@ -48,7 +48,7 @@ function velg(key) {
 .team-pill {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--ds-space-sm);
 }
 
 .team-pill__dot {

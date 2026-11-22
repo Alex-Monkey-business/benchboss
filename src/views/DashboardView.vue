@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 import { useKlubbmerke } from '../composables/useKlubbmerke'
 import Spot from '../components/Spot.vue'
 import { ref, computed, onMounted, watch } from 'vue'
@@ -214,7 +215,7 @@ function getCoachesForMatchList(matchId) {
         aria-label="Ny kamp"
         @click="visNyKamp = true"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+        <Ikon navn="pluss" vekt="bold" aria-hidden="true" />
         <span class="kamper-header__ny-tekst">Kamp</span>
       </button>
     </div>
@@ -317,7 +318,7 @@ function getCoachesForMatchList(matchId) {
 .kamper-header { display: flex; align-items: flex-start; justify-content: space-between; gap: var(--ds-space-md); }
 .kamper-header > :first-child { min-width: 0; flex: 1; }
 .kamper-header__ny {
-  flex-shrink: 0; min-height: 44px; padding: 0 var(--ds-space-lg); gap: 6px;
+  flex-shrink: 0; min-height: 44px; padding: 0 var(--ds-space-lg); gap: var(--ds-space-sm);
   border-radius: var(--ds-radius-full);
 }
 .kamper-header__ny svg { width: 16px; height: 16px; }
@@ -335,7 +336,7 @@ function getCoachesForMatchList(matchId) {
 .day-header {
   margin: 0;
   /* Samme innmarg som teksten i kortet under, så dagen og lagene står på linje. */
-  padding: 4px var(--ds-space-md) 8px;
+  padding: var(--ds-space-xs) var(--ds-space-md) var(--ds-space-sm);
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);
@@ -346,20 +347,20 @@ function getCoachesForMatchList(matchId) {
 
 .day-header--today { color: var(--ds-color-warm-text); }
 
-.mlist { display: flex; flex-direction: column; gap: 10px; }
+.mlist { display: flex; flex-direction: column; gap: var(--ds-space-12); }
 
 .filter-row {
   display: flex;
   align-items: center;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--ds-space-sm);
 }
 
 .filter-row__divider {
   width: 1px;
   height: 18px;
   background: var(--ds-color-border);
-  margin: 0 4px;
+  margin: 0 var(--ds-space-xs);
   flex-shrink: 0;
 }
 
@@ -369,7 +370,7 @@ function getCoachesForMatchList(matchId) {
 
 .time-tabs {
   display: flex;
-  gap: 24px;
+  gap: var(--ds-space-lg);
   padding: 0 var(--ds-space-lg);
   border-bottom: 1px solid var(--ds-color-border-light);
   margin-bottom: var(--ds-space-md);
@@ -378,15 +379,15 @@ function getCoachesForMatchList(matchId) {
 .time-tabs__option {
   display: inline-flex;
   align-items: baseline;
-  gap: 6px;
+  gap: var(--ds-space-sm);
   min-height: 44px;
-  padding: 12px 0;
+  padding: var(--ds-space-12) 0;
   border: 0;
   border-bottom: 2px solid transparent;
   background: transparent;
   color: var(--ds-color-text-tertiary);
   font-family: var(--ds-font-body);
-  font-size: 0.9375rem;
+  font-size: var(--ds-text-sm);
   font-weight: 600;
   cursor: pointer;
   transition: color 0.15s ease, border-color 0.15s ease;
@@ -403,7 +404,7 @@ function getCoachesForMatchList(matchId) {
 
 /* Tallet er tall, ikke en brikke. */
 .time-tabs__count {
-  font-size: 0.8125rem;
+  font-size: var(--ds-text-xs);
   font-weight: 500;
   color: var(--ds-color-text-tertiary);
   font-variant-numeric: tabular-nums;

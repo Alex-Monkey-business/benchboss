@@ -162,7 +162,7 @@ async function lagre() {
 
 .nk__pills .ds-pill {
   min-height: 38px;
-  padding: 8px 16px;
+  padding: var(--ds-space-sm) var(--ds-space-md);
 }
 
 .nk__felt .ds-input { min-height: 48px; }

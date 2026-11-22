@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from './Ikon.vue'
 // ÉN ØVELSE, ÉN VISNING.
 //
 // Banken og treningsdagen viste den samme øvelsen på to måter: banken som
@@ -201,7 +202,7 @@ const harInnhold = computed(() =>
     </section>
 
     <a v-if="lenke" :href="lenke.url" target="_blank" rel="noopener" class="ex-lenke">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      <Ikon navn="lenke" />
       {{ lenke.label || lenke.url }}
     </a>
 
@@ -228,9 +229,9 @@ const harInnhold = computed(() =>
 
 .ex-badge {
   flex-shrink: 0;
-  font-size: 0.6875rem;
+  font-size: var(--ds-text-2xs);
   font-weight: 600;
-  padding: 2px 7px;
+  padding: var(--ds-space-2xs) var(--ds-space-sm);
   border-radius: var(--ds-radius-full);
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -240,14 +241,14 @@ const harInnhold = computed(() =>
 .ex-badge--mix { background: transparent; color: var(--ds-badge-text); box-shadow: inset 0 0 0 1px currentColor; }
 
 .ex-view__category {
-  font-size: 0.6875rem;
+  font-size: var(--ds-text-2xs);
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   color: var(--ds-color-text-tertiary);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-full);
-  padding: 2px 8px;
+  padding: var(--ds-space-2xs) var(--ds-space-sm);
 }
 
 /* Avsenderen, ikke en grense: øvelsen er klubbens og kan brukes av alle. */
@@ -257,7 +258,7 @@ const harInnhold = computed(() =>
   background: var(--ds-color-bg-subtle);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-full);
-  padding: 2px 8px;
+  padding: var(--ds-space-2xs) var(--ds-space-sm);
 }
 
 .ex-view__tema {
@@ -298,7 +299,7 @@ a.ex-view__kilde { text-decoration: underline; text-underline-offset: 2px; }
   display: flex;
   justify-content: space-between;
   gap: var(--ds-space-md);
-  margin-top: 6px;
+  margin-top: var(--ds-space-sm);
   font-size: var(--ds-text-xs);
   color: var(--ds-color-text-tertiary);
 }
@@ -443,7 +444,7 @@ a.ex-view__kilde { text-decoration: underline; text-underline-offset: 2px; }
 .ex-lenke {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--ds-space-sm);
   max-width: 100%;
   font-size: var(--ds-text-sm);
   font-weight: 500;

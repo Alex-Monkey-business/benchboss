@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { usePlayers } from '../composables/usePlayers'
@@ -193,8 +194,8 @@ async function confirmDelete() {
   <div class="desktop-container">
     <div class="sp__nav">
       <BackLink to="/serie/tropp" label="Tropp" />
-      <button v-if="player" type="button" class="sp__rediger" aria-label="Rediger spiller" @click="openEdit">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16v4z" /><path d="M13 7l4 4" /></svg>
+      <button v-if="player" type="button" class="ds-icon-btn sp__rediger" aria-label="Rediger spiller" @click="openEdit">
+        <Ikon navn="rediger" aria-hidden="true" />
       </button>
     </div>
 
@@ -218,7 +219,7 @@ async function confirmDelete() {
             <span class="sp__posrad"><span class="sp__prikk sp__prikk--fylt" aria-hidden="true"></span>{{ valgKort(valgNa.primar) }}</span>
             <span v-if="valgNa.sekundar" class="sp__posrad"><span class="sp__prikk" aria-hidden="true"></span>{{ valgKort(valgNa.sekundar) }}</span>
           </div>
-          <button v-else type="button" class="sp__inline-action" @click="openEdit">Sett posisjon</button>
+          <button v-else type="button" class="ds-link sp__inline-action" @click="openEdit">Sett posisjon</button>
         </div>
         <svg class="sp__bane" role="img" :aria-label="baneTekst" width="104" height="148" viewBox="0 0 104 148" fill="none">
           <rect class="sp__bane-flate" x="1" y="1" width="102" height="146" rx="10" />
@@ -289,7 +290,7 @@ async function confirmDelete() {
                 <span class="sp__matchname">{{ m.home_team }} – {{ m.away_team }}</span>
                 <span class="sp__matchdate">{{ kampLinje(m) }}</span>
               </span>
-              <svg class="sp__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18" /></svg>
+              <Ikon navn="pil-hoyre" class="sp__pil" aria-hidden="true" />
             </router-link>
           </li>
         </ul>
@@ -396,16 +397,8 @@ async function confirmDelete() {
   display: flex; align-items: center; justify-content: space-between;
   padding: var(--ds-space-md) var(--ds-space-lg) 0;
 }
-.sp__rediger {
-  flex: none; width: 44px; height: 44px; margin-right: -12px;
-  display: flex; align-items: center; justify-content: center;
-  border: 0; border-radius: var(--ds-radius-full); background: transparent;
-  color: var(--ds-color-text-secondary); cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.sp__rediger svg { width: 20px; height: 20px; }
+.sp__rediger { margin-right: calc(var(--ds-space-12) * -1); }.sp__rediger svg { width: 20px; height: 20px; }
 @media (hover: hover) and (pointer: fine) {
-  .sp__rediger:hover { background: var(--ds-color-bg-subtle); }
 }
 
 .sp {
@@ -415,7 +408,7 @@ async function confirmDelete() {
 
 .sp__kort {
   display: flex; align-items: stretch; gap: var(--ds-space-md);
-  padding: 20px;
+  padding: var(--ds-space-20);
   background: var(--ds-color-bg-elevated);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-xl);
@@ -424,22 +417,22 @@ async function confirmDelete() {
 .sp__topp { display: flex; flex-direction: column; gap: var(--ds-space-sm); }
 .sp__name {
   margin: 0; font-family: var(--ds-font-heading);
-  font-size: 2rem; line-height: 1.1; font-weight: var(--ds-weight-bold); letter-spacing: -0.02em;
+  font-size: var(--ds-text-2xl); line-height: 1.1; font-weight: var(--ds-weight-bold); letter-spacing: -0.02em;
   overflow-wrap: anywhere;
 }
 /* Én pilleform på hele sida. */
 .sp__tags { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }
 .sp__tag {
-  display: inline-flex; align-items: center; height: 32px; padding: 0 12px;
+  display: inline-flex; align-items: center; height: 32px; padding: 0 var(--ds-space-12);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-subtle); color: var(--ds-color-text-secondary);
-  font-size: 0.9375rem; font-weight: var(--ds-weight-medium); white-space: nowrap;
+  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium); white-space: nowrap;
 }
 .sp__tag--lag { font-weight: var(--ds-weight-semibold); }
 .sp__tag--lag[data-lag="rod"] { background: var(--ds-team-rod-bg); color: var(--ds-team-rod); }
 .sp__tag--lag[data-lag="gronn"] { background: var(--ds-team-gronn-bg); color: var(--ds-team-gronn); }
 
-.sp__pos { display: flex; flex-direction: column; gap: 4px; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+.sp__pos { display: flex; flex-direction: column; gap: var(--ds-space-xs); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 .sp__posrad { display: flex; align-items: center; gap: var(--ds-space-sm); }
 /* Fylt er første valg. Ring er andre valg. Samme tegn som på banen. */
 .sp__prikk { flex: none; width: 12px; height: 12px; box-sizing: border-box; border-radius: 50%; border: 2px solid var(--ds-color-accent); }
@@ -462,10 +455,10 @@ async function confirmDelete() {
   font-size: 3.25rem; line-height: 1; font-weight: var(--ds-weight-bold);
   letter-spacing: -0.03em; font-variant-numeric: tabular-nums;
 }
-.sp__stort-tekst { font-size: 1.0625rem; color: var(--ds-color-text-secondary); }
+.sp__stort-tekst { font-size: var(--ds-text-md); color: var(--ds-color-text-secondary); }
 
-.sp__soyler { display: flex; flex-direction: column; gap: 12px; }
-.sp__soyle { display: flex; flex-direction: column; gap: 6px; }
+.sp__soyler { display: flex; flex-direction: column; gap: var(--ds-space-12); }
+.sp__soyle { display: flex; flex-direction: column; gap: var(--ds-space-sm); }
 .sp__soyle-tekst {
   display: flex; justify-content: space-between; gap: var(--ds-space-md);
   font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
@@ -481,7 +474,7 @@ async function confirmDelete() {
 }
 .sp__fyll--lag { background: var(--ds-color-border-strong); animation-delay: 80ms; }
 @keyframes sp-voks { from { transform: scaleX(0); } }
-.sp__merknad { margin: 0; font-size: 0.9375rem; color: var(--ds-color-text-secondary); }
+.sp__merknad { margin: 0; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 .sp__merknad--tall { margin-top: calc(var(--ds-space-sm) - var(--ds-space-lg)); font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); }
 
 .sp__tall {
@@ -491,31 +484,22 @@ async function confirmDelete() {
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
 }
-.sp__tallrute { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.sp__tallrute { display: flex; flex-direction: column; align-items: center; gap: var(--ds-space-xs); }
 .sp__tallrute + .sp__tallrute { border-left: 1px solid var(--ds-color-border); }
-.sp__tallnum { font-size: 1.5rem; line-height: 1.1; font-weight: var(--ds-weight-bold); font-variant-numeric: tabular-nums; }
+.sp__tallnum { font-size: var(--ds-text-xl); line-height: 1.1; font-weight: var(--ds-weight-bold); font-variant-numeric: tabular-nums; }
 .sp__tallnavn { font-size: var(--ds-text-xs); color: var(--ds-color-text-tertiary); }
 
 /* Handlingen hører til der mangelen er, ikke bare i blyanten øverst. */
-.sp__inline-action {
-  align-self: flex-start;
-  display: inline-flex; align-items: center; min-height: 44px; padding: 0;
-  border: 0; background: transparent; cursor: pointer;
-  font-family: var(--ds-font-body); font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium); color: var(--ds-color-text-primary);
-  text-decoration: underline; text-underline-offset: 3px;
-  -webkit-tap-highlight-color: transparent;
-}
-
+.sp__inline-action { align-self: flex-start; }
 /* Én radhøyde. */
 .sp__matches, .sp__history { list-style: none; margin: calc(var(--ds-space-sm) * -1) 0 0; padding: 0; }
 .sp__match {
-  display: flex; align-items: center; gap: 12px; min-height: 64px;
+  display: flex; align-items: center; gap: var(--ds-space-12); min-height: 64px;
   text-decoration: none; color: inherit;
   border-bottom: 1px solid var(--ds-color-border);
 }
 .sp__matches li:last-child .sp__match { border-bottom: 0; }
-.sp__matchtekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.sp__matchtekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--ds-space-2xs); }
 .sp__matchname {
   font-size: var(--ds-text-md); font-weight: var(--ds-weight-medium);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
@@ -533,21 +517,21 @@ async function confirmDelete() {
 .sp__histteam { color: var(--ds-color-text-tertiary); }
 
 /* ── Rediger: alle felt 52 px høye, 12 px hjørner ─────────────────────────── */
-.red { display: flex; flex-direction: column; gap: 20px; }
+.red { display: flex; flex-direction: column; gap: var(--ds-space-20); }
 .red__felt { display: flex; flex-direction: column; gap: var(--ds-space-sm); }
-.red__navn { font-size: 0.9375rem; font-weight: var(--ds-weight-medium); color: var(--ds-color-text-secondary); }
+.red__navn { font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium); color: var(--ds-color-text-secondary); }
 .red__input {
   height: 52px; box-sizing: border-box; padding: 0 var(--ds-space-md); width: 100%;
   border: 1px solid var(--ds-color-border-strong); border-radius: 12px;
   background: var(--ds-color-bg-elevated); color: var(--ds-color-text-primary);
-  font-family: var(--ds-font-body); font-size: 1.0625rem;
+  font-family: var(--ds-font-body); font-size: var(--ds-text-md);
 }
 .red__input:focus-visible { outline: none; border-color: var(--ds-color-accent); box-shadow: var(--ds-shadow-focus); }
-.red :deep(.velger) { min-height: 52px; border: 1px solid var(--ds-color-border-strong); border-radius: 12px; font-size: 1.0625rem; }
+.red :deep(.velger) { min-height: 52px; border: 1px solid var(--ds-color-border-strong); border-radius: 12px; font-size: var(--ds-text-md); }
 
 /* Lag og Nivå: samme velger, ett spor med ett fylt valg. */
 .poschips {
-  display: grid; gap: 4px; height: 52px; box-sizing: border-box; padding: 4px;
+  display: grid; gap: var(--ds-space-xs); height: 52px; box-sizing: border-box; padding: var(--ds-space-xs);
   border-radius: 12px; background: var(--ds-color-bg-subtle);
 }
 .poschips--tre { grid-template-columns: repeat(3, minmax(0, 1fr)); }
@@ -565,10 +549,10 @@ async function confirmDelete() {
 
 .red__bryter {
   display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md);
-  min-height: 52px; font-size: 1.0625rem;
+  min-height: 52px; font-size: var(--ds-text-md);
 }
 .red__switch {
-  flex: none; width: 52px; height: 32px; padding: 3px; box-sizing: border-box;
+  flex: none; width: 52px; height: 32px; padding: var(--ds-space-xs); box-sizing: border-box;
   border: 0; border-radius: var(--ds-radius-full); cursor: pointer;
   background: var(--ds-color-border-strong);
   display: flex; align-items: center;
@@ -584,8 +568,8 @@ async function confirmDelete() {
 .red__switch[aria-checked="true"] .red__knott { transform: translateX(20px); }
 .red__switch:focus-visible { outline: none; box-shadow: var(--ds-shadow-focus); }
 
-.red__bunn { display: flex; flex-direction: column; gap: 4px; }
-.red__lagre { width: 100%; min-height: 52px; border-radius: 12px; font-size: 1.0625rem; }
+.red__bunn { display: flex; flex-direction: column; gap: var(--ds-space-xs); }
+.red__lagre { width: 100%; min-height: 52px; border-radius: 12px; font-size: var(--ds-text-md); }
 .red__slett {
   min-height: 44px; border: 0; background: transparent; cursor: pointer;
   font-family: var(--ds-font-body); font-size: var(--ds-text-md); font-weight: var(--ds-weight-medium);

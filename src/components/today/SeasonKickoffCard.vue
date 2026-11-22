@@ -46,7 +46,7 @@ const dateLine = computed(() => {
   align-items: center;
   justify-content: space-between;
   gap: var(--ds-space-sm);
-  margin-bottom: 2px;
+  margin-bottom: var(--ds-space-2xs);
 }
 
 .kickoff__kicker {
@@ -59,7 +59,7 @@ const dateLine = computed(() => {
 .kickoff__when {
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);
-  padding: 3px 10px;
+  padding: var(--ds-space-xs) var(--ds-space-12);
   border-radius: var(--ds-radius-full);
   border: 1px solid var(--ds-color-border);
   color: var(--ds-color-text-secondary);

@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 // TRENERPROFIL — speiler /spiller/:id.
 //
 // Ingen rolle-meta på ruta, som spillerprofilen: guarden er fail-closed, så
@@ -210,7 +211,7 @@ async function save() {
         </p>
         <template v-else>
           <p class="tr__muted">Ikke satt på et lag.</p>
-          <button type="button" class="tr__inline-action" @click="openEdit">Sett lag</button>
+          <button type="button" class="ds-link tr__inline-action" @click="openEdit">Sett lag</button>
         </template>
       </section>
 
@@ -226,7 +227,7 @@ async function save() {
         </ul>
         <template v-else>
           <p class="tr__muted">Ingen ansvarsområder.</p>
-          <button v-if="supportsResponsibilities" type="button" class="tr__inline-action" @click="openEdit">Sett ansvar</button>
+          <button v-if="supportsResponsibilities" type="button" class="ds-link tr__inline-action" @click="openEdit">Sett ansvar</button>
         </template>
       </section>
 
@@ -304,8 +305,8 @@ async function save() {
                 <span class="tr__pick-name">{{ a.name }}</span>
                 <span class="tr__pick-note">{{ a.note }}</span>
               </span>
-              <svg v-if="form.areas.includes(a.name)" class="tr__pick-check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              <svg v-else class="tr__pick-plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <Ikon navn="hake" vekt="bold" v-if="form.areas.includes(a.name)" class="tr__pick-check" />
+              <Ikon navn="pluss" vekt="bold" v-else class="tr__pick-plus" />
             </button>
           </div>
         </div>
@@ -378,7 +379,7 @@ async function save() {
 }
 
 .tr__sub {
-  margin: 2px 0 0;
+  margin: var(--ds-space-2xs) 0 0;
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
 }
@@ -411,19 +412,7 @@ async function save() {
   color: var(--ds-color-text-tertiary);
 }
 
-.tr__inline-action {
-  margin-top: var(--ds-space-sm);
-  padding: 0;
-  border: none;
-  background: none;
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-primary);
-  text-decoration: underline;
-  cursor: pointer;
-}
-
+.tr__inline-action { margin-top: var(--ds-space-sm); }
 .tr__seasonrow {
   display: flex;
   align-items: center;
@@ -441,7 +430,7 @@ async function save() {
   min-width: 88px;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   padding: var(--ds-space-md);
   border: 1.5px solid var(--ds-color-border);
   border-radius: var(--ds-radius-md);
@@ -464,7 +453,7 @@ async function save() {
   align-items: center;
   justify-content: space-between;
   gap: var(--ds-space-md);
-  padding: 11px 0;
+  padding: var(--ds-space-12) 0;
   text-decoration: none;
   color: inherit;
   border-bottom: 1px solid var(--ds-color-border);
@@ -532,7 +521,7 @@ async function save() {
 .tr__picker {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--ds-space-sm);
 }
 
 .tr__pick {
@@ -540,7 +529,7 @@ async function save() {
   align-items: center;
   gap: var(--ds-space-sm);
   width: 100%;
-  padding: 11px 12px;
+  padding: var(--ds-space-12) var(--ds-space-12);
   border: 1px solid transparent;
   border-radius: var(--ds-radius-md);
   background: var(--ds-color-bg-subtle);
@@ -584,7 +573,7 @@ async function save() {
 .tr__pick--on .tr__pick-check { color: var(--ds-color-accent); }
 
 .tr__pill {
-  padding: 9px 14px;
+  padding: var(--ds-space-sm) var(--ds-space-md);
   border-radius: var(--ds-radius-full);
   border: 1px solid var(--ds-color-border);
   background: var(--ds-color-bg-elevated);

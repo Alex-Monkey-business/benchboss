@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuth } from '../stores/auth'
@@ -128,7 +129,7 @@ const links = computed(() => [
         class="admin-row"
       >
         <span class="admin-row__label">{{ link.label }}</span>
-        <svg class="admin-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        <Ikon navn="pil-hoyre" vekt="bold" :size="16" class="admin-row__chevron" />
       </router-link>
       </div>
     </div>
@@ -202,7 +203,7 @@ const links = computed(() => [
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: var(--ds-space-sm);
 }
 
 .admin-kull__merke {
@@ -230,10 +231,10 @@ const links = computed(() => [
   position: relative;
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--ds-space-md);
   width: 100%;
   min-height: 56px;
-  padding: 12px 16px;
+  padding: var(--ds-space-12) var(--ds-space-md);
   cursor: pointer;
   transition: background-color 150ms var(--ds-ease-default);
   text-align: left;
@@ -278,15 +279,15 @@ const links = computed(() => [
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ds-color-text-tertiary);
-  padding: 0 4px;
-  margin-bottom: 8px;
+  padding: 0 var(--ds-space-xs);
+  margin-bottom: var(--ds-space-sm);
 }
 
 .admin-account-card {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 14px 16px;
+  gap: var(--ds-space-md);
+  padding: var(--ds-space-md) var(--ds-space-md);
   background: var(--ds-color-bg-elevated);
   border: var(--ds-border-width) solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
@@ -303,7 +304,7 @@ const links = computed(() => [
   justify-content: center;
   font-weight: 700;
   font-family: var(--ds-font-heading);
-  font-size: 1rem;
+  font-size: var(--ds-text-base);
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -329,13 +330,13 @@ const links = computed(() => [
 
 .admin-account-card__logout {
   align-self: flex-start;
-  margin: -8px 0 -12px -8px;
+  margin: calc(var(--ds-space-sm) * -1) 0 calc(var(--ds-space-12) * -1) calc(var(--ds-space-sm) * -1);
   min-height: 44px;
   background: transparent;
   border: 0;
   border-radius: var(--ds-radius-md);
-  padding: 0 8px;
-  font-size: 0.8125rem;
+  padding: 0 var(--ds-space-sm);
+  font-size: var(--ds-text-xs);
   color: var(--ds-color-warm-text);
   cursor: pointer;
   font-family: var(--ds-font-body);
@@ -369,7 +370,7 @@ const links = computed(() => [
   padding: 0;
   background: var(--ds-color-bg-subtle);
   border-radius: var(--ds-radius-full);
-  gap: 2px;
+  gap: var(--ds-space-2xs);
 }
 
 /* Brekker gruppa over flere rader, er den løse chips, ikke ett omslag:
@@ -378,7 +379,7 @@ const links = computed(() => [
 .theme-toggle--wrap {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--ds-space-sm);
   padding: 0;
   background: transparent;
   border-radius: 0;
@@ -402,7 +403,7 @@ const links = computed(() => [
   border: 0;
   background: transparent;
   min-height: 44px;
-  padding: 0 16px;
+  padding: 0 var(--ds-space-md);
   border-radius: var(--ds-radius-full);
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-sm);

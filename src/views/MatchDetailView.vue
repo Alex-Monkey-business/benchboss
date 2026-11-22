@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 import BackLink from '../components/BackLink.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -1018,15 +1019,11 @@ function focusSummaryGroup() {
       <button
         v-if="!isLocked"
         type="button"
-        class="md-icon-btn"
+        class="ds-icon-btn md-icon-btn"
         aria-label="Mer"
         @click="showMatchMenu = true"
       >
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="5" cy="12" r="1"/>
-          <circle cx="12" cy="12" r="1"/>
-          <circle cx="19" cy="12" r="1"/>
-        </svg>
+        <Ikon navn="mer" vekt="bold" />
       </button>
     </div>
 
@@ -1081,21 +1078,11 @@ function focusSummaryGroup() {
         @click="runPrimaryCta"
       >
         <span v-if="primaryCta.icon === 'live'" class="match-mode-cta__dot" aria-hidden="true"></span>
-        <svg v-else-if="primaryCta.icon === 'result'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="9"/><path d="M12 7l4.5 3.3-1.7 5.3H9.2L7.5 10.3z"/>
-        </svg>
-        <svg v-else-if="primaryCta.icon === 'play'" viewBox="0 0 24 24" fill="currentColor" stroke="none">
-          <polygon points="6 4 20 12 6 20 6 4"/>
-        </svg>
-        <svg v-else-if="primaryCta.icon === 'clock'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="9"/><polyline points="12 7 12 12 15 14"/>
-        </svg>
-        <svg v-else-if="primaryCta.icon === 'grid'" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M20.38 3.46 16 2a4 4 0 0 1-8 0L3.62 3.46a2 2 0 0 0-1.34 2.23l.58 3.47a1 1 0 0 0 .99.84H6v10c0 1.1.9 2 2 2h8a2 2 0 0 0 2-2V10h2.15a1 1 0 0 0 .99-.84l.58-3.47a2 2 0 0 0-1.34-2.23z"/>
-        </svg>
-        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="6" y1="20" x2="6" y2="14"/><line x1="12" y1="20" x2="12" y2="8"/><line x1="18" y1="20" x2="18" y2="11"/>
-        </svg>
+        <Ikon navn="ball" v-else-if="primaryCta.icon === 'result'" />
+        <Ikon navn="spill" v-else-if="primaryCta.icon === 'play'" />
+        <Ikon navn="klokke" v-else-if="primaryCta.icon === 'clock'" />
+        <Ikon navn="drakt" v-else-if="primaryCta.icon === 'grid'" />
+        <Ikon navn="statistikk" v-else />
         {{ primaryCta.label }}
       </button>
     </div>
@@ -1142,20 +1129,14 @@ function focusSummaryGroup() {
               :class="['referee-pill referee-pill--other', { 'referee-pill--selected': customReferee }]"
               @click="showCustomReferee"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
+              <Ikon navn="pluss" vekt="bold" />
               Ny dommer
             </button>
           </div>
 
           <!-- Mangler dommer — én knapp -->
           <button v-else-if="!isLocked" type="button" class="picker-trigger" @click="showRefereePicker = true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
+            <Ikon navn="pluss" vekt="bold" />
             Velg dommer
           </button>
 
@@ -1164,15 +1145,11 @@ function focusSummaryGroup() {
               <div class="referee-contact__phone">{{ formatPhone(selectedReferee.phone) }}</div>
               <div class="referee-contact__actions">
                 <a :href="telHref" class="contact-btn contact-btn--neutral">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72 12.84 12.84 0 00.7 2.81 2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45 12.84 12.84 0 002.81.7A2 2 0 0122 16.92z"/>
-                  </svg>
+                  <Ikon navn="telefon" />
                   Ring
                 </a>
                 <a :href="smsHref" class="contact-btn contact-btn--neutral">
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                    <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/>
-                  </svg>
+                  <Ikon navn="melding" />
                   SMS
                 </a>
                 <button type="button" class="contact-btn contact-btn--vipps" @click="openVipps">
@@ -1231,18 +1208,13 @@ function focusSummaryGroup() {
               @click="selectPayer(c.id)"
             >
               <span class="payer-btn__name">{{ c.name }}</span>
-              <svg v-if="expense?.paid_by === c.id" style="width: 14px; height: 14px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="20 6 9 17 4 12"/>
-              </svg>
+              <Ikon navn="hake" vekt="bold" v-if="expense?.paid_by === c.id" style="width: 14px; height: 14px;" />
             </button>
           </div>
 
           <!-- Ingen utlegger — én knapp -->
           <button v-else-if="!isLocked" type="button" class="picker-trigger" @click="showPayerPicker = true">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-              <line x1="12" y1="5" x2="12" y2="19"/>
-              <line x1="5" y1="12" x2="19" y2="12"/>
-            </svg>
+            <Ikon navn="pluss" vekt="bold" />
             Velg hvem som la ut
           </button>
         </div>
@@ -1484,10 +1456,7 @@ function focusSummaryGroup() {
               class="referee-pill referee-pill--other"
               @click="openScorerSheet()"
             >
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="12" y1="5" x2="12" y2="19"/>
-                <line x1="5" y1="12" x2="19" y2="12"/>
-              </svg>
+              <Ikon navn="pluss" vekt="bold" />
               Scorer
             </button>
           </div>
@@ -1843,24 +1812,8 @@ function focusSummaryGroup() {
   padding-top: var(--ds-space-sm);
 }
 
-.md-icon-btn {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 44px;
-  height: 44px;
-  margin-left: -10px;
-  border: 0;
-  border-radius: 50%;
-  background: transparent;
-  color: var(--ds-color-text-primary);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.md-top .md-icon-btn { margin-left: 0; margin-right: -10px; }
+.md-icon-btn { margin-left: calc(var(--ds-space-12) * -1); }.md-top .md-icon-btn { margin-left: 0; margin-right: calc(var(--ds-space-12) * -1); }
 .md-skel__back { display: flex; align-items: center; min-height: 44px; }
-.md-icon-btn svg { width: 22px; height: 22px; }
-.md-icon-btn:active { background: var(--ds-color-bg-subtle); }
 
 .hero {
   margin-top: var(--ds-space-md);
@@ -1880,7 +1833,7 @@ function focusSummaryGroup() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 10px;
+  gap: var(--ds-space-12);
   min-width: 0;
   text-align: center;
 }
@@ -1897,9 +1850,9 @@ function focusSummaryGroup() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: var(--ds-space-sm);
   min-width: 84px;
-  padding: 8px 0 0;
+  padding: var(--ds-space-sm) 0 0;
   margin: 0;
   border: 0;
   background: transparent;
@@ -1937,7 +1890,7 @@ function focusSummaryGroup() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   min-width: 0;
 }
 
@@ -1958,7 +1911,7 @@ function focusSummaryGroup() {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--ds-space-sm);
   width: 100%;
   padding: 0 var(--ds-space-lg);
   border: 1.5px solid var(--ds-color-accent);
@@ -2015,27 +1968,27 @@ function focusSummaryGroup() {
 
 
 .edit-datetime-form {
-  margin-top: 12px;
+  margin-top: var(--ds-space-12);
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--ds-space-12);
 }
 
 .edit-datetime-form__row {
   display: flex;
-  gap: 12px;
+  gap: var(--ds-space-12);
 }
 
 .edit-datetime-form__group {
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ds-space-xs);
 }
 
 .edit-datetime-form__actions {
   display: flex;
-  gap: 8px;
+  gap: var(--ds-space-sm);
   justify-content: flex-end;
 }
 
@@ -2056,16 +2009,16 @@ function focusSummaryGroup() {
 .referee-pills {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--ds-space-sm);
 }
 
 .referee-pill {
-  padding: 6px 14px;
+  padding: var(--ds-space-sm) var(--ds-space-md);
   border: 1.5px solid var(--ds-color-border);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
   font-family: var(--ds-font-body);
-  font-size: 0.8125rem;
+  font-size: var(--ds-text-xs);
   font-weight: 500;
   color: var(--ds-color-text-secondary);
   cursor: pointer;
@@ -2094,7 +2047,7 @@ function focusSummaryGroup() {
   border-style: dashed;
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--ds-space-xs);
 }
 
 .referee-pill--other svg {
@@ -2106,13 +2059,13 @@ function focusSummaryGroup() {
 .picker-trigger {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: var(--ds-space-sm);
+  padding: var(--ds-space-sm) var(--ds-space-md);
   border: 1.5px dashed var(--ds-color-border);
   border-radius: var(--ds-radius-full);
   background: transparent;
   font-family: var(--ds-font-body);
-  font-size: 0.8125rem;
+  font-size: var(--ds-text-xs);
   font-weight: 500;
   color: var(--ds-color-text-secondary);
   cursor: pointer;
@@ -2138,8 +2091,8 @@ function focusSummaryGroup() {
 .picker-result {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  padding: 7px 8px 7px 14px;
+  gap: var(--ds-space-12);
+  padding: var(--ds-space-sm) var(--ds-space-sm) var(--ds-space-sm) var(--ds-space-md);
   border: 1px solid var(--ds-color-border-light);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
@@ -2154,34 +2107,34 @@ function focusSummaryGroup() {
 }
 
 .picker-result__name {
-  font-size: 0.875rem;
+  font-size: var(--ds-text-sm);
   font-weight: 600;
   color: var(--ds-color-text-primary);
 }
 
 .picker-result__change {
-  font-size: 0.75rem;
+  font-size: var(--ds-text-2xs);
   font-weight: 600;
   color: var(--ds-color-text-tertiary);
-  padding: 4px 10px;
+  padding: var(--ds-space-xs) var(--ds-space-12);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-subtle, var(--ds-color-border-light));
 }
 
 /* Referee contact block (phone + Ring/SMS/Vipps) */
 .referee-contact {
-  margin-top: 16px;
-  padding: 12px 14px;
+  margin-top: var(--ds-space-md);
+  padding: var(--ds-space-12) var(--ds-space-md);
   border: 1px solid var(--ds-color-border-light);
   border-radius: var(--ds-radius-md);
   background: var(--ds-color-bg-elevated);
 }
 
 .referee-contact__phone {
-  font-size: 0.875rem;
+  font-size: var(--ds-text-sm);
   font-weight: 600;
   color: var(--ds-color-text-primary);
-  margin-bottom: 10px;
+  margin-bottom: var(--ds-space-12);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
 }
@@ -2189,45 +2142,45 @@ function focusSummaryGroup() {
 .referee-contact__actions {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--ds-space-sm);
 }
 
 .referee-contact__hint {
-  margin-top: 12px;
-  font-size: 0.8125rem;
+  margin-top: var(--ds-space-12);
+  font-size: var(--ds-text-xs);
   color: var(--ds-color-text-tertiary);
   font-style: italic;
 }
 
 .custom-referee-form {
-  margin-top: 12px;
+  margin-top: var(--ds-space-12);
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--ds-space-sm);
 }
 
 .custom-referee-form__actions {
   display: flex;
-  gap: 8px;
+  gap: var(--ds-space-sm);
   justify-content: flex-end;
 }
 
 .referee-contact__empty-title {
-  font-size: 0.875rem;
+  font-size: var(--ds-text-sm);
   font-weight: 600;
   color: var(--ds-color-text-primary);
-  margin-bottom: 2px;
+  margin-bottom: var(--ds-space-2xs);
 }
 
 .referee-contact__empty-subtitle {
-  font-size: 0.75rem;
+  font-size: var(--ds-text-2xs);
   color: var(--ds-color-text-tertiary);
-  margin-bottom: 10px;
+  margin-bottom: var(--ds-space-12);
 }
 
 .referee-add-phone__row {
   display: flex;
-  gap: 8px;
+  gap: var(--ds-space-sm);
   align-items: stretch;
 }
 
@@ -2237,19 +2190,19 @@ function focusSummaryGroup() {
 }
 
 .referee-contact__hint-amount {
-  margin-top: 8px;
-  font-size: 0.75rem;
+  margin-top: var(--ds-space-sm);
+  font-size: var(--ds-text-2xs);
   color: var(--ds-color-text-tertiary);
 }
 
 .contact-btn {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  padding: 8px 14px;
+  gap: var(--ds-space-sm);
+  padding: var(--ds-space-sm) var(--ds-space-md);
   border-radius: var(--ds-radius-md);
   font-family: var(--ds-font-body);
-  font-size: 0.8125rem;
+  font-size: var(--ds-text-xs);
   font-weight: 600;
   text-decoration: none;
   border: 1.5px solid transparent;
@@ -2293,14 +2246,14 @@ function focusSummaryGroup() {
 .payer-grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--ds-space-sm);
 }
 
 .payer-btn {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 9px 14px;
+  gap: var(--ds-space-sm);
+  padding: var(--ds-space-sm) var(--ds-space-md);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
@@ -2356,7 +2309,7 @@ function focusSummaryGroup() {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 6px;
+  gap: var(--ds-space-sm);
   min-width: 0;
   flex: 1;
   max-width: 120px;
@@ -2382,14 +2335,14 @@ function focusSummaryGroup() {
 }
 
 .score-edit__dash {
-  font-size: 1.5rem;
+  font-size: var(--ds-text-xl);
   font-weight: 500;
   color: var(--ds-color-text-tertiary);
-  margin-top: 16px;
+  margin-top: var(--ds-space-md);
 }
 
 .score-edit__team {
-  font-size: 0.75rem;
+  font-size: var(--ds-text-2xs);
   color: var(--ds-color-text-tertiary);
   text-align: center;
   line-height: 1.25;
@@ -2415,8 +2368,8 @@ function focusSummaryGroup() {
 
 /* Hospitanter */
 .hospitant-empty {
-  margin-top: 10px;
-  font-size: 0.8125rem;
+  margin-top: var(--ds-space-12);
+  font-size: var(--ds-text-xs);
   color: var(--ds-color-text-tertiary);
   font-style: italic;
 }
@@ -2441,7 +2394,7 @@ function focusSummaryGroup() {
 
 /* ─── Kamptropp: laget (frafall) + lånespiller-grupper ──────────────── */
 .sub-section__count {
-  margin-left: 8px;
+  margin-left: var(--ds-space-sm);
   font-weight: var(--ds-weight-regular);
   font-size: var(--ds-text-xs);
   color: var(--ds-color-text-tertiary);
@@ -2449,11 +2402,11 @@ function focusSummaryGroup() {
 
 /* Laget-chips — lagfarget (egen tropp), trykk veksler frafall */
 .squad-pill {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 14px;
+  display: inline-flex; align-items: center; gap: var(--ds-space-sm);
+  padding: var(--ds-space-sm) var(--ds-space-md);
   border: 1.5px solid transparent; border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-subtle); color: var(--ds-color-text-secondary);
-  font-family: var(--ds-font-body); font-size: 0.8125rem; font-weight: var(--ds-weight-semibold);
+  font-family: var(--ds-font-body); font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold);
   cursor: pointer; transition: all 0.15s ease; -webkit-tap-highlight-color: transparent;
 }
 .squad-pill[data-team="gronn"] { background: var(--ds-team-gronn-bg); color: var(--ds-team-gronn); }
@@ -2468,7 +2421,7 @@ function focusSummaryGroup() {
 }
 .squad-pill__out-tag {
   text-decoration: none;
-  font-size: 0.625rem;
+  font-size: var(--ds-text-2xs);
   font-weight: var(--ds-weight-bold);
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -2479,21 +2432,21 @@ function focusSummaryGroup() {
 .loan-group { margin-top: var(--ds-space-sm); }
 .loan-group:first-child { margin-top: 0; }
 .loan-group__label {
-  display: flex; align-items: center; gap: 5px;
+  display: flex; align-items: center; gap: var(--ds-space-xs);
   font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold);
   color: var(--ds-color-text-secondary);
   margin-bottom: var(--ds-space-sm);
 }
 .loan-group__label--muted { color: var(--ds-color-text-tertiary); }
-.loan-group__star { color: var(--ds-color-warning); font-size: 12px; }
+.loan-group__star { color: var(--ds-color-warning); font-size: var(--ds-text-2xs); }
 
 /* Ekstra-kamper-badge på lånespiller-chip */
 .extra-badge {
   display: inline-grid; place-items: center;
-  min-width: 18px; height: 18px; padding: 0 5px; margin-left: 2px;
+  min-width: 18px; height: 18px; padding: 0 var(--ds-space-xs); margin-left: var(--ds-space-2xs);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-subtle); color: var(--ds-color-text-secondary);
-  font-size: 0.6875rem; font-weight: var(--ds-weight-bold); font-variant-numeric: tabular-nums;
+  font-size: var(--ds-text-2xs); font-weight: var(--ds-weight-bold); font-variant-numeric: tabular-nums;
 }
 .referee-pill--selected .extra-badge { background: rgba(255,255,255,0.22); color: #fff; }
 
@@ -2524,15 +2477,15 @@ function focusSummaryGroup() {
 }
 .lanegrense--over .lanegrense__tall strong { color: var(--ds-color-warm-text); }
 .lanegrense__tekst {
-  margin: 2px 0 0;
+  margin: var(--ds-space-2xs) 0 0;
   font-size: var(--ds-text-xs);
   color: var(--ds-color-text-tertiary);
   text-wrap: pretty;
 }
 .lanegrense--over .lanegrense__tekst { color: var(--ds-color-text-secondary); }
 .med-sist {
-  margin-left: 4px;
-  font-size: 0.625rem;
+  margin-left: var(--ds-space-xs);
+  font-size: var(--ds-text-2xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -2543,21 +2496,21 @@ function focusSummaryGroup() {
 .match-menu {
   display: flex;
   flex-direction: column;
-  gap: 4px;
-  padding: 4px 0;
+  gap: var(--ds-space-xs);
+  padding: var(--ds-space-xs) 0;
 }
 
 .match-menu__item {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--ds-space-md);
   width: 100%;
-  padding: 14px 4px;
+  padding: var(--ds-space-md) var(--ds-space-xs);
   background: transparent;
   border: none;
   border-radius: 10px;
   font-family: var(--ds-font-body);
-  font-size: 0.9375rem;
+  font-size: var(--ds-text-sm);
   font-weight: 500;
   color: var(--ds-color-text-primary);
   text-align: left;
@@ -2627,7 +2580,7 @@ function focusSummaryGroup() {
 .detail-disclosures {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--ds-space-12);
 }
 
 .detail-disclosures :deep(.disclosure) {
@@ -2643,7 +2596,7 @@ function focusSummaryGroup() {
 }
 
 .detail-disclosures :deep(.disclosure__header) {
-  padding: 16px var(--ds-space-md);
+  padding: var(--ds-space-md) var(--ds-space-md);
   min-height: 56px;
 }
 
@@ -2664,39 +2617,39 @@ function focusSummaryGroup() {
   color: var(--ds-color-text-secondary);
 }
 
-.detail-disclosures :deep(.disclosure__summary--rich) { gap: 8px; }
+.detail-disclosures :deep(.disclosure__summary--rich) { gap: var(--ds-space-sm); }
 
 .detail-disclosures :deep(.disclosure--open .disclosure__inner) {
   padding: 0 var(--ds-space-md) var(--ds-space-lg);
 }
 
 .sub-section {
-  padding-top: 16px;
+  padding-top: var(--ds-space-md);
 }
 
 .sub-section:first-child {
-  padding-top: 4px;
+  padding-top: var(--ds-space-xs);
 }
 
 .sub-section + .sub-section {
-  margin-top: 20px;
-  padding-top: 4px;
+  margin-top: var(--ds-space-20);
+  padding-top: var(--ds-space-xs);
 }
 
 .sub-section__label {
   display: flex;
   align-items: baseline;
-  gap: 8px;
-  font-size: 0.8125rem;
+  gap: var(--ds-space-sm);
+  font-size: var(--ds-text-xs);
   font-weight: 600;
   letter-spacing: 0;
   text-transform: none;
   color: var(--ds-color-text-secondary);
-  margin-bottom: 8px;
+  margin-bottom: var(--ds-space-sm);
 }
 
 .sub-section__hint {
-  font-size: 0.6875rem;
+  font-size: var(--ds-text-2xs);
   font-weight: 500;
   letter-spacing: 0;
   text-transform: none;
@@ -2705,27 +2658,27 @@ function focusSummaryGroup() {
 }
 
 .sub-section__label--soft {
-  font-size: 0.75rem;
+  font-size: var(--ds-text-2xs);
   letter-spacing: 0;
   font-weight: 500;
   color: var(--ds-color-text-tertiary);
-  margin-bottom: 8px;
+  margin-bottom: var(--ds-space-sm);
 }
 
 /* ─── Målscorere ──────────────────────────────────────────────────────── */
 .scorer-pills {
-  margin-bottom: 10px;
+  margin-bottom: var(--ds-space-12);
 }
 
 .scorer-pill {
   position: relative;
-  padding-left: 18px;
+  padding-left: var(--ds-space-20);
 }
 
 .scorer-pill__count {
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  margin-left: 4px;
+  margin-left: var(--ds-space-xs);
 }
 
 /* Scorer-edit-sheet ─ vis spillerinfo + fjern-knapper */
@@ -2733,8 +2686,8 @@ function focusSummaryGroup() {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 10px;
-  padding: 16px 14px;
+  gap: var(--ds-space-12);
+  padding: var(--ds-space-md) var(--ds-space-md);
   border: 1px solid var(--ds-color-border-light);
   border-radius: var(--ds-radius-md);
   background: var(--ds-color-bg-elevated);
@@ -2743,11 +2696,11 @@ function focusSummaryGroup() {
 .scorer-edit-summary__chip {
   display: inline-flex;
   align-items: center;
-  padding: 4px 10px 4px 22px;
+  padding: var(--ds-space-xs) var(--ds-space-12) var(--ds-space-xs) var(--ds-space-lg);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg);
   border: 1px solid var(--ds-color-border);
-  font-size: 0.8125rem;
+  font-size: var(--ds-text-xs);
   font-weight: 600;
   color: var(--ds-color-text-primary);
   position: relative;
@@ -2773,7 +2726,7 @@ function focusSummaryGroup() {
 }
 
 .scorer-edit-summary__text {
-  font-size: 0.875rem;
+  font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
   line-height: 1.4;
 }
@@ -2807,8 +2760,8 @@ function focusSummaryGroup() {
 }
 
 .scorers-block__hint {
-  margin-top: 10px;
-  font-size: 0.75rem;
+  margin-top: var(--ds-space-12);
+  font-size: var(--ds-text-2xs);
   color: var(--ds-color-warm-text, var(--ds-color-text-tertiary));
   font-style: italic;
 }
@@ -2817,12 +2770,12 @@ function focusSummaryGroup() {
 .scorer-form {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  margin-top: 12px;
+  gap: var(--ds-space-md);
+  margin-top: var(--ds-space-12);
 }
 
 .scorer-form__label {
-  font-size: 0.75rem;
+  font-size: var(--ds-text-2xs);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -2832,32 +2785,32 @@ function focusSummaryGroup() {
 .scorer-picker {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--ds-space-12);
 }
 
 .scorer-picker__group-label {
-  font-size: 0.6875rem;
+  font-size: var(--ds-text-2xs);
   font-weight: 600;
   letter-spacing: 0.04em;
   text-transform: uppercase;
   color: var(--ds-color-text-tertiary);
-  margin-bottom: 6px;
+  margin-bottom: var(--ds-space-sm);
 }
 
 .scorer-picker__row {
   display: flex;
   flex-wrap: wrap;
-  gap: 6px;
+  gap: var(--ds-space-sm);
 }
 
 .scorer-picker__chip {
-  padding: 10px 16px 10px 26px;
+  padding: var(--ds-space-12) var(--ds-space-md) var(--ds-space-12) var(--ds-space-lg);
   min-height: 44px;
   border: 1.5px solid var(--ds-color-border);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
   font-family: var(--ds-font-body);
-  font-size: 0.9375rem;
+  font-size: var(--ds-text-sm);
   font-weight: 500;
   color: var(--ds-color-text-secondary);
   cursor: pointer;
@@ -2886,7 +2839,7 @@ function focusSummaryGroup() {
 
 .scorer-picker__chip-count {
   font-weight: 700;
-  margin-left: 4px;
+  margin-left: var(--ds-space-xs);
   font-variant-numeric: tabular-nums;
 }
 
@@ -2923,13 +2876,13 @@ function focusSummaryGroup() {
   align-self: flex-start;
   color: var(--ds-color-accent);
   min-height: 44px;
-  padding: 10px 16px;
-  font-size: 0.9375rem;
+  padding: var(--ds-space-12) var(--ds-space-md);
+  font-size: var(--ds-text-sm);
 }
 
 .scorer-form__hint {
-  margin: 0 0 4px;
-  font-size: 0.8125rem;
+  margin: 0 0 var(--ds-space-xs);
+  font-size: var(--ds-text-xs);
   color: var(--ds-color-text-tertiary);
   line-height: 1.4;
 }
@@ -2937,17 +2890,17 @@ function focusSummaryGroup() {
 .scorer-form__bottom {
   display: flex;
   flex-direction: column;
-  gap: 10px;
-  margin-top: 10px;
-  padding-top: 14px;
+  gap: var(--ds-space-12);
+  margin-top: var(--ds-space-12);
+  padding-top: var(--ds-space-md);
   border-top: 1px solid var(--ds-color-border-light);
 }
 
 .scorer-form__remove {
   min-height: 48px;
-  font-size: 0.9375rem;
+  font-size: var(--ds-text-sm);
   font-weight: 600;
-  padding: 12px 20px;
+  padding: var(--ds-space-12) var(--ds-space-20);
   border-radius: var(--ds-radius-md);
   width: 100%;
   color: var(--ds-color-error);
@@ -2956,9 +2909,9 @@ function focusSummaryGroup() {
 
 .scorer-form__done {
   min-height: 52px;
-  font-size: 1rem;
+  font-size: var(--ds-text-base);
   font-weight: 600;
-  padding: 14px 20px;
+  padding: var(--ds-space-md) var(--ds-space-20);
   border-radius: var(--ds-radius-md);
   width: 100%;
 }
@@ -2966,8 +2919,8 @@ function focusSummaryGroup() {
 .scorer-form__newplayer {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  padding: 12px;
+  gap: var(--ds-space-sm);
+  padding: var(--ds-space-12);
   border: 1px dashed var(--ds-color-border);
   border-radius: 10px;
   background: var(--ds-color-bg-elevated);
@@ -2975,20 +2928,20 @@ function focusSummaryGroup() {
 
 .scorer-form__team-row {
   display: flex;
-  gap: 6px;
+  gap: var(--ds-space-sm);
 }
 
 .scorer-form__newplayer-actions {
   display: flex;
-  gap: 8px;
+  gap: var(--ds-space-sm);
   justify-content: flex-end;
 }
 
 .scorer-form__actions {
   display: flex;
   align-items: center;
-  gap: 8px;
-  margin-top: 4px;
+  gap: var(--ds-space-sm);
+  margin-top: var(--ds-space-xs);
 }
 
 .scorer-form__spacer { flex: 1; }
@@ -3009,8 +2962,8 @@ function focusSummaryGroup() {
 .report-meta {
   display: flex;
   justify-content: space-between;
-  margin-top: 8px;
-  font-size: 0.75rem;
+  margin-top: var(--ds-space-sm);
+  font-size: var(--ds-text-2xs);
   color: var(--ds-color-text-tertiary);
   font-variant-numeric: tabular-nums;
 }
@@ -3022,33 +2975,33 @@ function focusSummaryGroup() {
 .report-save-btn {
   flex: 1;
   min-height: 48px;
-  font-size: 0.9375rem;
+  font-size: var(--ds-text-sm);
   font-weight: 600;
-  padding: 12px 20px;
+  padding: var(--ds-space-12) var(--ds-space-20);
   border-radius: var(--ds-radius-md);
 }
 
 .report-cancel-btn {
   min-height: 48px;
-  font-size: 0.9375rem;
+  font-size: var(--ds-text-sm);
   font-weight: 500;
-  padding: 12px 20px;
+  padding: var(--ds-space-12) var(--ds-space-20);
   border-radius: var(--ds-radius-md);
 }
 
 .report-edit-actions {
   display: flex;
-  gap: 10px;
-  margin-top: 12px;
+  gap: var(--ds-space-12);
+  margin-top: var(--ds-space-12);
 }
 
 .report-edit-link {
   margin-left: auto;
   background: transparent;
   border: none;
-  padding: 4px 8px;
+  padding: var(--ds-space-xs) var(--ds-space-sm);
   font-family: var(--ds-font-body);
-  font-size: 0.75rem;
+  font-size: var(--ds-text-2xs);
   font-weight: 500;
   color: var(--ds-color-accent);
   cursor: pointer;
@@ -3070,11 +3023,11 @@ function focusSummaryGroup() {
 
 .report-read {
   margin: 0;
-  padding: 14px 16px;
+  padding: var(--ds-space-md) var(--ds-space-md);
   border-radius: var(--ds-radius-md);
   background: var(--ds-color-bg, var(--ds-color-bg-elevated));
   border: 1px solid var(--ds-color-border-light);
-  font-size: 0.9375rem;
+  font-size: var(--ds-text-sm);
   line-height: 1.55;
   color: var(--ds-color-text-primary);
   white-space: pre-wrap;

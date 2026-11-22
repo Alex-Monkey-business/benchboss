@@ -307,7 +307,7 @@ async function saveReport() {
 }
 .hero__side {
   display: flex; flex-direction: column; align-items: center;
-  gap: 10px; min-width: 0; text-align: center;
+  gap: var(--ds-space-12); min-width: 0; text-align: center;
 }
 .hero__team {
   font-size: var(--ds-text-sm);
@@ -318,7 +318,7 @@ async function saveReport() {
 }
 .hero__mid {
   display: flex; flex-direction: column; align-items: center;
-  gap: 6px; min-width: 84px; padding: 8px 0 0;
+  gap: var(--ds-space-sm); min-width: 84px; padding: var(--ds-space-sm) 0 0;
 }
 .hero__big {
   font-family: var(--ds-font-display-sans);
@@ -344,7 +344,7 @@ async function saveReport() {
   color: var(--ds-color-text-tertiary);
 }
 
-.cmd-sections { display: flex; flex-direction: column; gap: 10px; padding-bottom: var(--ds-space-xl); }
+.cmd-sections { display: flex; flex-direction: column; gap: var(--ds-space-12); padding-bottom: var(--ds-space-xl); }
 .cmd-section {
   background: var(--ds-color-bg-subtle);
   border-radius: var(--ds-radius-lg);
@@ -365,16 +365,16 @@ async function saveReport() {
 }
 .cmd-headbtn { margin-right: calc(-1 * var(--ds-space-sm)); }
 .cmd-full { width: 100%; margin-top: var(--ds-space-xs); }
-.cmd-actions { display: flex; justify-content: flex-end; gap: 8px; }
+.cmd-actions { display: flex; justify-content: flex-end; gap: var(--ds-space-sm); }
 .cmd-readscore { font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); margin: 0; }
 .cmd-readmuted { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); margin: 0; }
 
 /* Resultat-skjema – identisk med seriekamper (skjuler tallfelt-pilene) */
-.result-form { display: flex; align-items: center; gap: 8px; }
+.result-form { display: flex; align-items: center; gap: var(--ds-space-sm); }
 .result-input {
   width: 64px; min-height: var(--ds-btn-h); text-align: center;
   font-variant-numeric: tabular-nums;
-  font-weight: 600; font-size: 1rem;
+  font-weight: 600; font-size: var(--ds-text-base);
   -moz-appearance: textfield;
 }
 .result-input::-webkit-outer-spin-button,
@@ -382,10 +382,10 @@ async function saveReport() {
   -webkit-appearance: none;
   margin: 0;
 }
-.result-dash { font-size: 1.125rem; font-weight: 700; color: var(--ds-color-text-tertiary); }
+.result-dash { font-size: var(--ds-text-md); font-weight: 700; color: var(--ds-color-text-tertiary); }
 .result-save { margin-left: auto; }
 
-.cmd-pills { display: flex; flex-wrap: wrap; gap: 8px; }
+.cmd-pills { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }
 .cmd-scorer__count { font-weight: var(--ds-weight-bold); }
 
 .cmd-textarea { width: 100%; min-height: 120px; resize: vertical; line-height: 1.5; }
@@ -397,6 +397,6 @@ async function saveReport() {
 }
 
 .scorer-form { padding-top: var(--ds-space-sm); }
-.cmd-picker { display: flex; flex-wrap: wrap; gap: 8px; }
-.cmd-sheet-bottom { display: flex; gap: 8px; margin-top: var(--ds-space-lg); }
+.cmd-picker { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }
+.cmd-sheet-bottom { display: flex; gap: var(--ds-space-sm); margin-top: var(--ds-space-lg); }
 </style>

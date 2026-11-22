@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../Ikon.vue'
 import { computed } from 'vue'
 
 // Inngangen til cup-modulen mens en cup er aktiv. Ingen egen meny-fane —
@@ -37,7 +38,7 @@ const pill = computed(() => {
       <span class="ds-row__title">{{ cup.name }}</span>
       <span v-if="dateRange || cup.venue" class="ds-row__sub">{{ dateRange }}<template v-if="dateRange && cup.venue"> · </template>{{ cup.venue }}</span>
     </span>
-    <svg class="ds-row__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    <Ikon navn="pil-hoyre" class="ds-row__chevron" />
   </router-link>
   <router-link v-else to="/cup" class="ds-card ds-card--interactive cup-entry">
     <div class="cup-entry__top">
@@ -65,13 +66,13 @@ const pill = computed(() => {
   align-items: center;
   justify-content: space-between;
   gap: var(--ds-space-sm);
-  margin-bottom: 2px;
+  margin-bottom: var(--ds-space-2xs);
 }
 
 .cup-entry__when {
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);
-  padding: 3px 10px;
+  padding: var(--ds-space-xs) var(--ds-space-12);
   border-radius: var(--ds-radius-full);
   border: 1px solid var(--ds-color-border);
   color: var(--ds-color-text-secondary);

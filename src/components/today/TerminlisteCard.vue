@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../Ikon.vue'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { trimAbbrevDots, weekdayDateLabel } from '../../lib/dateLabels'
@@ -38,7 +39,7 @@ const forste = computed(() => {
       <span class="terminliste-kort__sub">{{ forste }}</span>
       <span v-if="antallFlyttet + antallNye > 1" class="terminliste-kort__sub">Se alle endringene fra fotball.no</span>
     </span>
-    <svg class="terminliste-kort__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+    <Ikon navn="pil-hoyre" class="terminliste-kort__chevron" />
   </button>
 </template>
 
@@ -58,7 +59,7 @@ const forste = computed(() => {
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--ds-space-xs);
 }
 
 .terminliste-kort__tittel {

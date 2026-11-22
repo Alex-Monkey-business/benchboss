@@ -48,7 +48,7 @@ const RESULT_LABEL = { w: 'V', d: 'U', l: 'T' }
   display: flex;
   flex-wrap: wrap;
   min-width: 0;
-  gap: 3px;
+  gap: var(--ds-space-xs);
   list-style: none;
   margin: 0;
   padding: 0;
@@ -63,7 +63,7 @@ const RESULT_LABEL = { w: 'V', d: 'U', l: 'T' }
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 10px;
+  font-size: var(--ds-text-2xs);
   font-weight: var(--ds-weight-bold);
   letter-spacing: 0;
   font-variant-numeric: tabular-nums;

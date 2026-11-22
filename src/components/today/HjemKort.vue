@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../Ikon.vue'
 // Det ene store kortet på Hjem: det neste som skjer. Bilde øverst, én tittel,
 // én linje, pil. Brukes for dagens trening, neste trening og tom plan.
 // Kampkortene har egne handlinger og bruker bare bildeflaten (HjemBilde).
@@ -22,7 +23,7 @@ defineProps({
         <span v-if="linje.length" class="hjem-kort__linje"><template v-for="(d, i) in linje" :key="i"><template v-if="i"> · </template><span class="hjem-kort__del">{{ d }}</span></template></span>
       </span>
       <span v-if="to" class="hjem-kort__pil" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+        <Ikon navn="videre" />
       </span>
     </span>
   </component>
@@ -33,7 +34,7 @@ defineProps({
   display: flex;
   flex-direction: column;
   gap: var(--ds-space-md);
-  padding: 12px;
+  padding: var(--ds-space-12);
   border-radius: 24px;
   background: var(--ds-color-bg-elevated);
   border: var(--ds-border-width) solid var(--ds-color-border);
@@ -48,13 +49,13 @@ defineProps({
 .hjem-kort__bunn {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 0 8px 8px;
+  gap: var(--ds-space-12);
+  padding: 0 var(--ds-space-sm) var(--ds-space-sm);
 }
-.hjem-kort__tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.hjem-kort__tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--ds-space-xs); }
 .hjem-kort__tittel {
   font-family: var(--ds-font-heading);
-  font-size: 1.25rem;
+  font-size: var(--ds-text-lg);
   font-weight: var(--ds-weight-semibold);
   letter-spacing: -0.01em;
   line-height: 1.25;

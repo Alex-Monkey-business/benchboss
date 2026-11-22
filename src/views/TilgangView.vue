@@ -465,7 +465,7 @@ onMounted(load)
 .tilgang-row__main {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   min-width: 0;
 }
 
@@ -616,7 +616,7 @@ onMounted(load)
 }
 
 .tilgang-row__team {
-  margin-left: 6px;
+  margin-left: var(--ds-space-sm);
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);
   color: var(--ds-color-text-tertiary);

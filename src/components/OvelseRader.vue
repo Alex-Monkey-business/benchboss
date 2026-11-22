@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from './Ikon.vue'
 // Øvelsene i kjøreplanen: nummer, navn og hvordan den kjøres. Et trykk
 // åpner øvelsen.
 defineProps({
@@ -17,7 +18,7 @@ const emit = defineEmits(['apne'])
           <span class="rad__navn">{{ k.d.text }}</span>
           <span class="rad__meta">{{ meta(k) }}</span>
         </span>
-        <svg class="rad__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+        <Ikon navn="pil-hoyre" vekt="bold" class="rad__pil" aria-hidden="true" />
       </button>
     </li>
   </ol>
@@ -44,7 +45,7 @@ const emit = defineEmits(['apne'])
   color: var(--ds-color-text-primary);
   font-variant-numeric: tabular-nums;
 }
-.rad__tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.rad__tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--ds-space-xs); }
 .rad__navn { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); line-height: 1.3; }
 .rad__meta { font-size: var(--ds-text-sm); line-height: 1.4; color: var(--ds-color-text-secondary); }
 .rad__pil { flex: none; width: 20px; height: 20px; color: var(--ds-color-text-tertiary); }

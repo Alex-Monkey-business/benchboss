@@ -198,7 +198,7 @@ function pickCategory(value) {
   background: var(--ds-color-bg-elevated);
   color: var(--ds-color-text-secondary);
   border-radius: var(--ds-radius-full);
-  padding: 8px 14px;
+  padding: var(--ds-space-sm) var(--ds-space-md);
   font-size: var(--ds-text-sm);
   cursor: pointer;
   transition: border-color var(--ds-duration-fast) var(--ds-ease-out),
@@ -220,7 +220,7 @@ function pickCategory(value) {
 .cat-pill {
   border: 1px solid var(--ds-color-border);
   background: var(--ds-color-bg-elevated);
-  padding: 7px 12px;
+  padding: var(--ds-space-sm) var(--ds-space-12);
   border-radius: var(--ds-radius-full);
   font-size: var(--ds-text-xs);
   font-weight: 600;
@@ -238,8 +238,8 @@ function pickCategory(value) {
 
 .type-toggle {
   display: inline-flex;
-  gap: 4px;
-  padding: 3px;
+  gap: var(--ds-space-xs);
+  padding: var(--ds-space-xs);
   background: var(--ds-color-bg-subtle);
   border-radius: var(--ds-radius-full);
 }
@@ -247,7 +247,7 @@ function pickCategory(value) {
 .type-toggle__opt {
   border: none;
   background: transparent;
-  padding: 6px 14px;
+  padding: var(--ds-space-sm) var(--ds-space-md);
   border-radius: var(--ds-radius-full);
   font-size: var(--ds-text-xs);
   font-weight: 600;

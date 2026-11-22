@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from './Ikon.vue'
 import { ref, watch, nextTick, onMounted, onUnmounted, computed } from 'vue'
 import { laasScroll, slippScroll } from '../lib/scrollLock'
 import { registrerLag } from '../lib/tilbake'
@@ -168,11 +169,8 @@ watch(() => props.show, (val) => {
              filmen, tittelen og kroppen. Lukk-krysset ligger utenfor
              scrolleren, festet i hjørnet, så det står der også når filmen har
              scrollet ut av bildet. -->
-        <button v-if="$slots.media" type="button" class="ds-sheet__close ds-sheet__close--float" @click="emit('close')" aria-label="Lukk">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18"/>
-            <line x1="6" y1="6" x2="18" y2="18"/>
-          </svg>
+        <button v-if="$slots.media" type="button" class="ds-icon-btn ds-sheet__close ds-sheet__close--float" @click="emit('close')" aria-label="Lukk">
+          <Ikon navn="kryss" :size="18" />
         </button>
         <div ref="scrollRef" :class="$slots.media ? 'ds-sheet__scroll' : 'ds-sheet__stack'">
           <div v-if="$slots.media" class="ds-sheet__media">
@@ -180,11 +178,8 @@ watch(() => props.show, (val) => {
           </div>
           <div v-if="title" class="ds-sheet__header" :class="{ 'ds-sheet__header--media': !!$slots.media }">
             <h3 class="ds-sheet__title">{{ title }}</h3>
-            <button v-if="!$slots.media" type="button" class="ds-sheet__close" @click="emit('close')" aria-label="Lukk">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
-              </svg>
+            <button v-if="!$slots.media" type="button" class="ds-icon-btn ds-sheet__close" @click="emit('close')" aria-label="Lukk">
+              <Ikon navn="kryss" :size="18" />
             </button>
           </div>
           <div ref="bodyRef" class="ds-sheet__body">

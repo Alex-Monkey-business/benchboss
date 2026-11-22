@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from './Ikon.vue'
 import { ref, computed, watch } from 'vue'
 import { useExercises, groupByCategory, kullAlder, passerAlder, ovelsensVideo, EXERCISE_CATEGORIES } from '../composables/useExercises'
 import { useAuth } from '../stores/auth'
@@ -174,7 +175,7 @@ function varighet(ex) {
       />
 
       <button v-if="canCreate" type="button" class="picker-create" @click="startNew">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <Ikon navn="pluss" vekt="bold" />
         <span>Lag «{{ newName }}»</span>
       </button>
 
@@ -237,8 +238,8 @@ function varighet(ex) {
                   <template v-if="ex.type && ex.type !== 'none'">{{ ex.type === 'diff' ? 'Diff' : 'Mix' }}<template v-if="ex.tema"> · </template></template>{{ ex.tema }}
                 </span>
               </span>
-              <svg v-if="isInSession(ex) && !replaceName" class="picker-row__check" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              <svg v-else-if="!replaceName" class="picker-row__plus" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              <Ikon navn="hake" vekt="bold" v-if="isInSession(ex) && !replaceName" class="picker-row__check" />
+              <Ikon navn="pluss" vekt="bold" v-else-if="!replaceName" class="picker-row__plus" />
             </button>
           </div>
         </div>
@@ -252,7 +253,7 @@ function varighet(ex) {
       <!-- Redigering og sletting hører hjemme i banken, ikke her. -->
       <router-link to="/trening/ovelser" class="picker-bank-link" @click="emit('close')">
         Rediger øvelser i banken
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        <Ikon navn="pil-hoyre" />
       </router-link>
     </template>
   </Sheet>
@@ -279,7 +280,7 @@ function varighet(ex) {
   align-items: center;
   gap: var(--ds-space-sm);
   width: 100%;
-  padding: 12px;
+  padding: var(--ds-space-12);
   margin-bottom: var(--ds-space-sm);
   background: var(--ds-color-bg-elevated);
   border: 1px dashed var(--ds-color-border-strong);
@@ -314,9 +315,9 @@ function varighet(ex) {
 /* Chipsene: én rad som ruller, kant til kant som hyllene i banken. */
 .picker-kat {
   display: flex;
-  gap: 6px;
+  gap: var(--ds-space-sm);
   margin: 0 calc(-1 * var(--ds-space-lg)) var(--ds-space-md);
-  padding: 2px var(--ds-space-lg);
+  padding: var(--ds-space-2xs) var(--ds-space-lg);
   overflow-x: auto;
   scrollbar-width: none;
   -webkit-overflow-scrolling: touch;
@@ -328,9 +329,9 @@ function varighet(ex) {
   flex: none;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: var(--ds-space-xs);
   min-height: 36px;
-  padding: 0 12px;
+  padding: 0 var(--ds-space-12);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
@@ -361,8 +362,8 @@ function varighet(ex) {
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ds-color-text-tertiary);
-  padding: 0 4px;
-  margin-bottom: 6px;
+  padding: 0 var(--ds-space-xs);
+  margin-bottom: var(--ds-space-sm);
 }
 
 .picker-list {
@@ -379,8 +380,8 @@ function varighet(ex) {
   gap: var(--ds-space-sm);
   width: 100%;
   min-height: 64px;
-  padding: 8px 4px;
-  margin: 0 -4px;
+  padding: var(--ds-space-sm) var(--ds-space-xs);
+  margin: 0 calc(var(--ds-space-xs) * -1);
   background: none;
   border: none;
   border-bottom: 1px solid var(--ds-color-border-light);
@@ -411,9 +412,9 @@ function varighet(ex) {
   position: absolute;
   right: 4px;
   bottom: 4px;
-  padding: 1px 5px;
+  padding: 1px var(--ds-space-xs);
   border-radius: var(--ds-radius-sm);
-  font-size: 0.6875rem;
+  font-size: var(--ds-text-2xs);
   font-weight: var(--ds-weight-medium);
   font-variant-numeric: tabular-nums;
   background: rgba(10, 10, 10, 0.72);
@@ -427,7 +428,7 @@ function varighet(ex) {
 .picker-row__body {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: var(--ds-space-xs);
   min-width: 0;
 }
 
@@ -473,7 +474,7 @@ function varighet(ex) {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: var(--ds-space-xs);
   margin-top: var(--ds-space-md);
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);

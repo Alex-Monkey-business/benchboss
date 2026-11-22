@@ -105,7 +105,7 @@ const PARENTS = [
         <h1 class="auth__title">Sjekk innboksen</h1>
         <p class="auth__sub">
           Kode sendt til <strong>alex@benchboss.no</strong>
-          <button type="button" class="auth__link">Endre</button>
+          <button type="button" class="ds-link auth__link">Endre</button>
         </p>
         <div class="auth__pin"><PinInput :length="6" autocomplete="one-time-code" /></div>
         <button class="ds-btn ds-btn--ghost ds-btn--sm">Send på nytt om 48 s</button>
@@ -117,7 +117,7 @@ const PARENTS = [
         <h1 class="auth__title">Sjekk innboksen</h1>
         <p class="auth__sub">
           Kode sendt til <strong>alex@benchboss.no</strong>
-          <button type="button" class="auth__link">Endre</button>
+          <button type="button" class="ds-link auth__link">Endre</button>
         </p>
         <div class="auth__pin"><PinInput :length="6" :error="true" autocomplete="one-time-code" /></div>
         <p class="auth__error">Feil kode. Prøv igjen.</p>
@@ -258,7 +258,7 @@ const PARENTS = [
               <button type="button" class="sk-team__x" :aria-label="`Fjern ${t.name}`">×</button>
             </div>
           </div>
-          <button type="button" class="auth__link sk-add">Legg til lag</button>
+          <button type="button" class="ds-link auth__link sk-add">Legg til lag</button>
         </div>
 
         <div class="ds-form-group">
@@ -420,7 +420,7 @@ const PARENTS = [
   flex: none; width: 36px; height: 36px;
   border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-md);
   background: var(--ds-color-bg-elevated); color: var(--ds-color-text-secondary);
-  font-size: 20px; line-height: 1; cursor: pointer;
+  font-size: var(--ds-text-lg); line-height: 1; cursor: pointer;
 }
 .sk__select-wrap { flex: 1; min-width: 0; }
 .sk__select {
@@ -463,12 +463,7 @@ const PARENTS = [
   font-size: var(--ds-text-md); color: var(--ds-color-text-secondary);
   line-height: 1.5;
 }
-.auth__link {
-  margin-left: 6px; padding: 0; border: 0; background: transparent;
-  color: var(--ds-color-accent); font: inherit; font-weight: var(--ds-weight-semibold);
-  cursor: pointer; text-decoration: underline;
-}
-.auth__field { margin: 0; }
+.auth__link { margin-left: var(--ds-space-sm); }.auth__field { margin: 0; }
 .auth__cta { width: 100%; }
 .auth__pin { display: flex; justify-content: center; }
 .auth__error {
@@ -530,7 +525,7 @@ const PARENTS = [
 .sk-row:first-child, .sk-member:first-child { border-top: 0; }
 .sk-club .sk-row:first-of-type { border-top: 0; }
 .sk-row__main, .sk-member__main {
-  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px;
+  flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--ds-space-2xs);
 }
 .sk-row__name {
   font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold);
@@ -615,6 +610,6 @@ const PARENTS = [
 .sk-team__x {
   flex: none; width: 32px; height: 32px; padding: 0;
   border: 0; background: transparent; cursor: pointer;
-  color: var(--ds-color-text-tertiary); font-size: 20px; line-height: 1;
+  color: var(--ds-color-text-tertiary); font-size: var(--ds-text-lg); line-height: 1;
 }
 </style>

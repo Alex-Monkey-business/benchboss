@@ -136,14 +136,14 @@ const detailLine = computed(() => {
 .next-match {
   display: flex;
   flex-direction: column;
-  gap: 12px;
-  padding: 12px;
+  gap: var(--ds-space-12);
+  padding: var(--ds-space-12);
   border-radius: 24px;
   box-shadow: var(--ds-shadow-md);
   text-decoration: none;
 }
 /* Teksten står litt inn fra bildeflaten, som i treningskortet. */
-.next-match__row, .next-match__missing { padding: 0 8px; }
+.next-match__row, .next-match__missing { padding: 0 var(--ds-space-sm); }
 
 /* Lagflaten. Rammen går bort når flaten bærer kortet, som treningskortene.
    Hvit ER hvit: kortet står hvitt med ramme, som før. En nøytral flate ble
@@ -162,7 +162,7 @@ const detailLine = computed(() => {
 .next-match__link {
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--ds-space-12);
   text-decoration: none;
   color: inherit;
   -webkit-tap-highlight-color: transparent;
@@ -177,7 +177,7 @@ const detailLine = computed(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
+  gap: var(--ds-space-sm);
   width: 100%;
   padding: 0 var(--ds-space-lg);
   border: 1.5px solid var(--ds-color-accent);
@@ -234,13 +234,13 @@ const detailLine = computed(() => {
   align-items: center;
   justify-content: space-between;
   gap: var(--ds-space-sm);
-  margin-bottom: 2px;
+  margin-bottom: var(--ds-space-2xs);
 }
 
 .next-match__tags {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--ds-space-sm);
   min-width: 0;
 }
 
@@ -270,7 +270,7 @@ const detailLine = computed(() => {
 .next-match__missing {
   display: flex;
   align-items: flex-start;
-  gap: 8px;
+  gap: var(--ds-space-sm);
   /* Ingen margin-top: kolonnen har allerede gap. To lag luft ble dobbelt. */
   /* xs, ikke sm: dette er en merknad på kampen, ikke overskriften. I sm brakk
      linja i to og slo motstandernavnet i vekt. Fargen gjør jobben. */
@@ -285,7 +285,7 @@ const detailLine = computed(() => {
 .next-match__missing-dot {
   width: 6px;
   height: 6px;
-  margin-top: 5px;
+  margin-top: var(--ds-space-xs);
   border-radius: 50%;
   flex-shrink: 0;
   background: var(--ds-color-warm);

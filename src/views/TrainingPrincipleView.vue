@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 import { computed } from 'vue'
 import Spot from '../components/Spot.vue'
 import { useRoute, useRouter } from 'vue-router'
@@ -48,7 +49,7 @@ function goTo(slug) {
 
     <nav class="principle__pager">
       <button v-if="prev" type="button" class="principle__pager-btn" @click="goTo(prev.slug)">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+        <Ikon navn="pil-venstre" />
         <span class="principle__pager-meta">
           <span class="principle__pager-label">Forrige</span>
           <span class="principle__pager-title">{{ prev.title }}</span>
@@ -61,7 +62,7 @@ function goTo(slug) {
           <span class="principle__pager-label">Neste</span>
           <span class="principle__pager-title">{{ next.title }}</span>
         </span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+        <Ikon navn="pil-hoyre" />
       </button>
       <span v-else></span>
     </nav>
@@ -223,7 +224,7 @@ function goTo(slug) {
   gap: var(--ds-space-sm);
   background: transparent;
   border: 0;
-  padding: 4px;
+  padding: var(--ds-space-xs);
   cursor: pointer;
   font-family: var(--ds-font-body);
   color: var(--ds-color-text-secondary);
@@ -245,7 +246,7 @@ function goTo(slug) {
 .principle__pager-meta {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   min-width: 0;
 }
 

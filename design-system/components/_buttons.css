@@ -189,3 +189,56 @@
   width: 18px;
   height: 18px;
 }
+
+/* ---- Ikonknapp ----
+   Én form for alle knapper som bare er et ikon (lukk, tilbake, rediger,
+   fjern): 44 px trykkflate, rundt, 20 px ikon, ingen ramme. Stedet som bruker
+   den setter bare plasseringen (marg). */
+.ds-icon-btn {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 0;
+  border: 0;
+  border-radius: var(--ds-radius-full);
+  background: transparent;
+  color: var(--ds-color-text-secondary);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color var(--ds-duration-fast) var(--ds-ease-out), color var(--ds-duration-fast) var(--ds-ease-out);
+}
+.ds-icon-btn svg { width: 20px; height: 20px; }
+.ds-icon-btn:active { background: var(--ds-color-bg-subtle); }
+.ds-icon-btn:focus-visible { outline: none; box-shadow: var(--ds-shadow-focus); }
+@media (hover: hover) and (pointer: fine) {
+  .ds-icon-btn:hover { background: var(--ds-color-bg-subtle); color: var(--ds-color-text-primary); }
+}
+
+/* ---- Tekstknapp ----
+   Én form for handlinger som står som tekst («Sett posisjon», «Legg til»):
+   understreket, 44 px høy trykkflate, samme størrelse og vekt overalt. */
+.ds-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--ds-space-sm);
+  min-height: 44px;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  font-family: var(--ds-font-body);
+  font-size: var(--ds-text-sm);
+  font-weight: var(--ds-weight-medium);
+  color: var(--ds-color-text-primary);
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.ds-link:focus-visible { outline: none; box-shadow: var(--ds-shadow-focus); border-radius: var(--ds-radius-sm); }
+.ds-link--farlig { color: var(--ds-color-error); }
+@media (prefers-reduced-motion: reduce) {
+  .ds-icon-btn { transition: none; }
+}

@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from './Ikon.vue'
 import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 
 // Et felt med en kort meny rett under, i stedet for telefonens egen
@@ -118,7 +119,7 @@ onBeforeUnmount(() => { if (apen.value) apen.value = false })
     @keydown="tast"
   >
     <span class="velger__verdi">{{ valgt ? valgt.label : tom }}</span>
-    <svg class="velger__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
+    <Ikon navn="pil-ned" class="velger__pil" aria-hidden="true" />
   </button>
 
   <Teleport to="body">
@@ -141,7 +142,7 @@ onBeforeUnmount(() => { if (apen.value) apen.value = false })
           @click="velg(v)"
         >
           <span>{{ v.label }}</span>
-          <svg v-if="v.value === modelValue" class="velger-meny__hake" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12" /></svg>
+          <Ikon navn="hake" vekt="bold" v-if="v.value === modelValue" class="velger-meny__hake" aria-hidden="true" />
         </li>
       </ul>
     </Transition>
@@ -169,7 +170,7 @@ onBeforeUnmount(() => { if (apen.value) apen.value = false })
 
 .velger-meny {
   position: fixed; z-index: calc(var(--ds-z-modal, 1000) + 10);
-  margin: 0; padding: 4px; list-style: none; overflow-y: auto; overscroll-behavior: contain;
+  margin: 0; padding: var(--ds-space-xs); list-style: none; overflow-y: auto; overscroll-behavior: contain;
   background: var(--ds-color-bg-elevated);
   border: var(--ds-border-width) solid var(--ds-color-border-light);
   border-radius: var(--ds-radius-lg);

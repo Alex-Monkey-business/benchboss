@@ -172,7 +172,7 @@ function onDemo(role) {
           </svg>
           {{ googleBusy ? 'Åpner Google …' : 'Fortsett med Google' }}
         </button>
-        <button v-if="!showEmail" type="button" class="login-link" @click="showEmail = true">Annen e-post</button>
+        <button v-if="!showEmail" type="button" class="ds-link login-link" @click="showEmail = true">Annen e-post</button>
         <form v-if="showEmail" class="login-form" @submit.prevent="onSend">
           <label class="login-label" for="login-email">E-post</label>
           <input
@@ -237,10 +237,10 @@ function onDemo(role) {
         </div>
 
         <div class="login-actions">
-          <button type="button" class="login-link" :disabled="sending" @click="onResend">
+          <button type="button" class="ds-link login-link" :disabled="sending" @click="onResend">
             {{ sending ? 'Sender …' : 'Send på nytt' }}
           </button>
-          <button type="button" class="login-link" @click="onBackToEmail">Bytt e-post</button>
+          <button type="button" class="ds-link login-link" @click="onBackToEmail">Bytt e-post</button>
         </div>
       </div>
 
@@ -399,17 +399,6 @@ function onDemo(role) {
   gap: var(--ds-space-lg);
 }
 
-.login-link {
-  padding: var(--ds-space-xs) 0;
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-secondary);
-  background: none;
-  border: none;
-  cursor: pointer;
-  text-decoration: underline;
-  text-underline-offset: 3px;
-}
 
 .login-link:disabled {
   opacity: 0.5;
@@ -450,7 +439,7 @@ function onDemo(role) {
 }
 
 .login-content { width: 100%; display: flex; flex-direction: column; align-items: center; gap: 44px; margin-block: auto; padding-block: 38px; }
-.login-footer { margin: 0; color: var(--ds-color-text-secondary); font-size: 12px; letter-spacing: .01em; }
+.login-footer { margin: 0; color: var(--ds-color-text-secondary); font-size: var(--ds-text-2xs); letter-spacing: .01em; }
 .login-footer__lenke { color: inherit; text-decoration: underline; text-underline-offset: 2px; }
 .login-footer__lenke:hover { color: var(--ds-color-text-primary); }
 .login-sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip-path: inset(50%); white-space: nowrap; border: 0; }
@@ -458,7 +447,7 @@ function onDemo(role) {
 .login-link, .login-demo__role { min-height: 44px; }
 .login-link:focus-visible, .login-button:focus-visible, .login-demo__role:focus-visible { outline: 2px solid var(--ds-color-text-primary); outline-offset: 4px; }
 .login-hint { overflow-wrap: anywhere; }
-@media (max-height: 650px) { .login-content { gap: 28px; padding-block: 0; } }
+@media (max-height: 650px) { .login-content { gap: var(--ds-space-xl); padding-block: 0; } }
 
 /* ---- Steg-overgang ---- */
 .step-fade-enter-active {
@@ -493,8 +482,8 @@ function onDemo(role) {
 </style>
 
 <style scoped>
-.login-step--email { gap: 16px; }
-.login-google { display: flex; align-items: center; justify-content: center; gap: 12px; width: fit-content; max-width: 100%; padding: 0 22px; min-height: 52px; border: 1px solid var(--ds-color-border); border-radius: 10px; background: var(--ds-color-bg-elevated); color: var(--ds-color-text-primary); font: 500 15px var(--ds-font-body); cursor: pointer; transition: background 180ms, transform 180ms; }
+.login-step--email { gap: var(--ds-space-md); }
+.login-google { display: flex; align-items: center; justify-content: center; gap: var(--ds-space-12); width: fit-content; max-width: 100%; padding: 0 var(--ds-space-lg); min-height: 52px; border: 1px solid var(--ds-color-border); border-radius: 10px; background: var(--ds-color-bg-elevated); color: var(--ds-color-text-primary); font: 500 15px var(--ds-font-body); cursor: pointer; transition: background 180ms, transform 180ms; }
 .login-google:hover { background: var(--ds-color-bg-hover); }
 .login-google:active { transform: scale(.985); }
 .login-google:focus-visible { outline: 2px solid var(--ds-color-accent); outline-offset: 4px; }

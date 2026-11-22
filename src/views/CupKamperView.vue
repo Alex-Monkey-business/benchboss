@@ -142,7 +142,7 @@ const groups = computed(() => {
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);
   color: var(--ds-color-text-secondary);
-  margin: var(--ds-space-lg) 2px var(--ds-space-sm);
+  margin: var(--ds-space-lg) var(--ds-space-2xs) var(--ds-space-sm);
 }
 .list { display: flex; flex-direction: column; gap: var(--ds-space-sm); }
 
@@ -160,7 +160,7 @@ const groups = computed(() => {
   .cup-mcard:hover { transform: translateY(-1px); }
 }
 .cup-mcard:active { transform: scale(0.98); transition-duration: 100ms; }
-.cup-mcard__lag { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 4px; }
+.cup-mcard__lag { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--ds-space-xs); }
 .cup-mcard__rad { display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-md); }
 .cup-mcard__navn {
   min-width: 0;
@@ -188,7 +188,7 @@ const groups = computed(() => {
 .cup-mcard__tid--tba { color: var(--ds-color-text-tertiary); }
 .cup-mcard__meta {
   flex-basis: 100%;
-  margin-top: 8px;
+  margin-top: var(--ds-space-sm);
   font-size: var(--ds-text-xs);
   color: var(--ds-color-text-tertiary);
 }

@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 // ETT REFERAT — lesing, ingenting annet.
 //
 // Punkter som ikke er vedtak, men noe noen skal finne ut av, er markert åpne
@@ -87,7 +88,7 @@ function dateLabel(iso) {
         <p class="punkt__text">{{ p.text }}</p>
         <router-link v-if="p.visLenke" :to="p.link.to" class="punkt__link">
           {{ p.link.label }}
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+          <Ikon navn="pil-hoyre" />
         </router-link>
       </div>
     </section>
@@ -148,7 +149,7 @@ function dateLabel(iso) {
 .seksjon__heading {
   display: inline-block;
   margin: 0 0 var(--ds-space-lg);
-  padding: 4px 12px;
+  padding: var(--ds-space-xs) var(--ds-space-12);
   border-radius: var(--ds-radius-full);
   background: var(--accent-bg);
   color: var(--accent-text);
@@ -175,8 +176,8 @@ function dateLabel(iso) {
 .punkt__flag {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 4px;
+  gap: var(--ds-space-sm);
+  margin-bottom: var(--ds-space-xs);
   font-family: var(--ds-font-display-sans);
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-semibold);
@@ -203,8 +204,8 @@ function dateLabel(iso) {
 .punkt__link {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  margin-top: 6px;
+  gap: var(--ds-space-xs);
+  margin-top: var(--ds-space-sm);
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);
   color: var(--ds-color-text-secondary);

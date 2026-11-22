@@ -178,7 +178,7 @@
 .om a.om__inn {
   display: inline-block;
   margin-top: var(--ds-space-3xl);
-  padding: 14px var(--ds-space-xl);
+  padding: var(--ds-space-md) var(--ds-space-xl);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-accent);
   color: var(--ds-color-accent-text);

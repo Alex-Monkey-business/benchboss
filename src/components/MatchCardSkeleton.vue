@@ -60,15 +60,15 @@ defineProps({
   display: flex;
   justify-content: space-between;
   align-items: center;
-  margin-bottom: 10px;
+  margin-bottom: var(--ds-space-12);
 }
 
 .match-skel__teams {
   display: grid;
   grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  column-gap: 14px;
-  margin-bottom: 14px;
+  column-gap: var(--ds-space-md);
+  margin-bottom: var(--ds-space-md);
 }
 
 .match-skel__teams > :last-child {
@@ -80,20 +80,20 @@ defineProps({
   gap: var(--ds-space-md);
 }
 
-.match-skel-rows { display: flex; flex-direction: column; gap: 10px; }
+.match-skel-rows { display: flex; flex-direction: column; gap: var(--ds-space-12); }
 
 .match-skel-row {
   display: flex;
   align-items: center;
   gap: var(--ds-space-md);
-  padding: 22px var(--ds-space-md);
+  padding: var(--ds-space-lg) var(--ds-space-md);
   background: var(--ds-color-bg-subtle);
   border-radius: var(--ds-radius-lg);
   opacity: 0;
   animation: skel-fade-in 0.35s var(--ds-ease-out) forwards;
 }
 
-.match-skel-row__teams { flex: 1; display: flex; flex-direction: column; gap: 10px; }
+.match-skel-row__teams { flex: 1; display: flex; flex-direction: column; gap: var(--ds-space-12); }
 
 @media (prefers-reduced-motion: reduce) {
   .match-skel, .match-skel-row { animation: none; opacity: 1; }

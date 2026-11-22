@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 // DEL INN — tre steg: trening → oppmøte → inndeling. Delt mellom trenerne.
 //
 // Oppmøtet tas bare her (Alex, 16. nov). Kjøreplanen viser øvelsene.
@@ -365,16 +366,16 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 <template>
   <div class="del">
     <header class="del__bar">
-      <button class="del__ikonknapp" :aria-label="stegNr > 0 ? 'Forrige steg' : 'Tilbake'" @click="tilbake">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6" /></svg>
+      <button class="ds-icon-btn del__ikonknapp" :aria-label="stegNr > 0 ? 'Forrige steg' : 'Tilbake'" @click="tilbake">
+        <Ikon navn="pil-venstre" />
       </button>
       <div v-if="steg" class="del__framdrift" aria-hidden="true">
         <span v-for="(s, i) in STEG" :key="s" :class="['del__strek', { 'del__strek--pa': i <= stegNr }]" />
       </div>
-      <button v-if="steg === 'inndeling' && dag" class="del__ikonknapp" aria-label="Start på nytt" @click="visMeny = true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 1 0 3-6.7" /><polyline points="3 3 3 9 9 9" /></svg>
+      <button v-if="steg === 'inndeling' && dag" class="ds-icon-btn del__ikonknapp" aria-label="Start på nytt" @click="visMeny = true">
+        <Ikon navn="angre" aria-hidden="true" />
       </button>
-      <span v-else class="del__ikonknapp del__ikonknapp--tom" />
+      <span v-else class="ds-icon-btn del__ikonknapp del__ikonknapp--tom" />
     </header>
 
     <p v-if="!isCoach" class="del__tom">Del inn er for trenerne.</p>
@@ -434,12 +435,12 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
         <span v-for="g in gjester" :key="g.id" class="gjest__brikke">
           <span class="gjest__niva">{{ g.niva || '–' }}</span>
           {{ g.navn }}
-          <button type="button" class="gjest__fjern" :aria-label="`Fjern ${g.navn}`" @click="fjernGjest(g.id)">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="6" y1="6" x2="18" y2="18" /><line x1="18" y1="6" x2="6" y2="18" /></svg>
+          <button type="button" class="ds-icon-btn gjest__fjern" :aria-label="`Fjern ${g.navn}`" @click="fjernGjest(g.id)">
+            <Ikon navn="kryss" vekt="bold" aria-hidden="true" />
           </button>
         </span>
         <button type="button" class="gjest__apne" @click="visGjest = true">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+          <Ikon navn="pluss" vekt="bold" aria-hidden="true" />
           Legg til gjest
         </button>
       </div>
@@ -517,7 +518,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
       <!-- Sjelden brukt: en rolig knapp under gruppene, ikke en hovedknapp.
            Bare på Mix: på Diff bestemmer nivået gruppene. -->
       <button v-if="her.length && v.type === 'mix'" type="button" class="del__trekk" @click="trekkPaNytt">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="16 3 21 3 21 8" /><line x1="4" y1="20" x2="21" y2="3" /><polyline points="21 16 21 21 16 21" /><line x1="15" y1="15" x2="21" y2="21" /><line x1="4" y1="4" x2="9" y2="9" /></svg>
+        <Ikon navn="bland" aria-hidden="true" />
         Trekk på nytt
       </button>
     </section>
@@ -556,16 +557,8 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
   position: sticky; top: 0; z-index: var(--ds-z-sticky);
   background: var(--ds-color-bg);
 }
-.del__ikonknapp {
-  flex: none; display: grid; place-items: center; width: 44px; height: 44px;
-  border: none; border-radius: 50%; background: transparent;
-  color: var(--ds-color-text-primary); cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-.del__ikonknapp:active { background: var(--ds-color-bg-hover); }
-.del__ikonknapp svg { width: 22px; height: 22px; }
 .del__ikonknapp--tom { pointer-events: none; }
-.del__framdrift { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; }
+.del__framdrift { flex: 1; display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--ds-space-sm); }
 .del__strek { height: 4px; border-radius: 2px; background: var(--ds-color-border); transition: background-color .25s ease; }
 .del__strek--pa { background: var(--ds-color-text-primary); }
 
@@ -592,7 +585,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
   -webkit-tap-highlight-color: transparent;
 }
 .valg__rad--pa { border-color: var(--ds-color-text-primary); box-shadow: inset 0 0 0 1px var(--ds-color-text-primary); }
-.valg__tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.valg__tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--ds-space-2xs); }
 .valg__tekst strong { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
 .valg__tekst span { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 .valg__radio {
@@ -623,7 +616,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 }
 .del__hoved:disabled { opacity: .4; cursor: default; }
 .del__sekundar {
-  display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%;
+  display: flex; align-items: center; justify-content: center; gap: var(--ds-space-sm); width: 100%;
   min-height: var(--ds-btn-h-lg, 52px);
   border: 1.5px solid var(--ds-color-text-primary); border-radius: var(--ds-radius-lg);
   background: transparent; color: var(--ds-color-text-primary);
@@ -635,8 +628,8 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 /* Steg 2: gjester */
 .gjest { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }
 .gjest__brikke {
-  display: inline-flex; align-items: center; gap: 8px;
-  min-height: 44px; padding: 0 4px 0 6px;
+  display: inline-flex; align-items: center; gap: var(--ds-space-sm);
+  min-height: 44px; padding: 0 var(--ds-space-xs) 0 var(--ds-space-sm);
   border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
   font-size: var(--ds-text-md); color: var(--ds-color-text-primary);
@@ -645,14 +638,8 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
   display: grid; place-items: center; width: 30px; height: 30px; border-radius: 50%;
   background: var(--ds-color-bg-subtle); font-size: var(--ds-text-sm); font-weight: var(--ds-weight-bold);
 }
-.gjest__fjern {
-  display: grid; place-items: center; width: 36px; height: 36px;
-  border: 0; border-radius: 50%; background: transparent;
-  color: var(--ds-color-text-secondary); cursor: pointer;
-}
-.gjest__fjern svg { width: 16px; height: 16px; }
 .gjest__apne {
-  display: inline-flex; align-items: center; gap: 8px;
+  display: inline-flex; align-items: center; gap: var(--ds-space-sm);
   min-height: 44px; padding: 0 var(--ds-space-lg);
   border: 1px solid var(--ds-color-border); border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
@@ -672,7 +659,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
   font-size: var(--ds-text-md); color: var(--ds-color-text-secondary); text-align: left;
   cursor: pointer; -webkit-tap-highlight-color: transparent;
 }
-.del__opps-tekst { display: flex; flex-direction: column; gap: 2px; padding: 10px 0; }
+.del__opps-tekst { display: flex; flex-direction: column; gap: var(--ds-space-2xs); padding: var(--ds-space-12) 0; }
 .del__opps-tekst strong { font-size: var(--ds-text-md); color: var(--ds-color-text-primary); font-weight: var(--ds-weight-semibold); }
 .del__opps-tekst span { font-size: var(--ds-text-sm); }
 .del__endre { flex: none; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); text-decoration: underline; text-underline-offset: 3px; }
@@ -699,10 +686,10 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 .del__fane-knapp--aktiv::after { transform: scaleX(1); }
 
 .del__styr { display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md); margin-top: var(--ds-space-lg); }
-.del__seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; padding: 3px; border-radius: var(--ds-radius-full); background: var(--ds-color-bg-subtle, var(--ds-color-bg-elevated)); }
+.del__seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; gap: 0; padding: var(--ds-space-xs); border-radius: var(--ds-radius-full); background: var(--ds-color-bg-subtle, var(--ds-color-bg-elevated)); }
 .del__seg--bred { display: grid; }
 .del__seg-knapp {
-  min-height: 44px; min-width: 64px; padding: 0 16px;
+  min-height: 44px; min-width: 64px; padding: 0 var(--ds-space-md);
   border: 0; border-radius: var(--ds-radius-full); background: transparent;
   font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-secondary);
   cursor: pointer; -webkit-tap-highlight-color: transparent;
@@ -723,7 +710,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 .bryter--pa .bryter__knott { transform: translateX(20px); }
 
 .del__linje {
-  display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px var(--ds-space-md);
+  display: flex; flex-wrap: wrap; justify-content: space-between; gap: var(--ds-space-xs) var(--ds-space-md);
   margin: var(--ds-space-sm) 0 0;
   font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
 }
@@ -733,7 +720,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 .bane .kortene { padding: 0; }
 .bane + .bane { margin-top: var(--ds-space-md); }
 .bane__hode {
-  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 4px 8px;
+  display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: var(--ds-space-xs) var(--ds-space-sm);
   margin: 0 0 var(--ds-space-sm);
   font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
 }
@@ -755,7 +742,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 .kort[data-farge="Hvit"] { --vest: #FFFFFF; }
 .kort__niva {
   flex: none; display: grid; place-items: center;
-  min-width: 32px; height: 28px; padding: 0 8px;
+  min-width: 32px; height: 28px; padding: 0 var(--ds-space-sm);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-accent); color: var(--ds-color-accent-text);
   font-size: var(--ds-text-xs, 12px); font-weight: var(--ds-weight-bold);
@@ -763,7 +750,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 .kort__tittel { min-width: 0; font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
 .kort__trener { font-weight: var(--ds-weight-regular, 400); color: var(--ds-color-text-secondary); }
 .kort__pluss {
-  flex: none; padding: 2px 10px;
+  flex: none; padding: var(--ds-space-2xs) var(--ds-space-12);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-subtle);
   font-size: var(--ds-text-xs, 12px); font-weight: var(--ds-weight-semibold);
@@ -775,7 +762,7 @@ const oktNavn = computed(() => session.value?.title || 'Uten trening')
 .del__eyebrow { margin: var(--ds-space-xl) 0 var(--ds-space-sm); }
 .del__eyebrow--tett { margin: 0 0 calc(-1 * var(--ds-space-sm)); }
 .del__trekk {
-  display: flex; align-items: center; justify-content: center; gap: 8px;
+  display: flex; align-items: center; justify-content: center; gap: var(--ds-space-sm);
   width: 100%; min-height: 48px; margin-top: var(--ds-space-md);
   border: 0; background: transparent;
   font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold);

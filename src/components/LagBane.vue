@@ -174,7 +174,7 @@ const hint = computed(() => {
       </div>
     </div>
 
-    <button v-if="kanEndre && justert" type="button" class="lb__tilbake" @click="tilbakestill">La appen plassere laget</button>
+    <button v-if="kanEndre && justert" type="button" class="ds-link lb__tilbake" @click="tilbakestill">La appen plassere laget</button>
   </div>
 </template>
 
@@ -302,14 +302,7 @@ const hint = computed(() => {
   font-size: 12px; font-weight: var(--ds-weight-bold);
 }
 
-.lb__tilbake {
-  display: block; margin-top: var(--ds-space-md); padding: 0;
-  border: 0; background: transparent; cursor: pointer;
-  color: var(--ds-color-text-secondary);
-  font: inherit; font-size: var(--ds-text-sm);
-  text-decoration: underline; text-underline-offset: 2px;
-}
-.lb__tilbake:hover { color: var(--ds-color-text-primary); }
+.lb__tilbake { margin-top: var(--ds-space-md); }.lb__tilbake:hover { color: var(--ds-color-text-primary); }
 
 @media (prefers-reduced-motion: reduce) {
   .lb__brikke, .lb__drakt { transition: none; }

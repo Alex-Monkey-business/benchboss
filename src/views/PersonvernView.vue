@@ -208,7 +208,7 @@
   list-style: disc;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--ds-space-sm);
 }
 
 .personvern__list li::marker { color: var(--ds-color-text-tertiary); }

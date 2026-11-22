@@ -11,10 +11,10 @@
   align-items: center;
   justify-content: center;
   height: 22px;
-  padding: 0 8px;
+  padding: 0 var(--ds-space-sm);
   border-radius: var(--ds-radius-full);
   font-family: var(--ds-font-body);
-  font-size: 0.75rem;
+  font-size: var(--ds-text-2xs);
   font-weight: var(--ds-weight-semibold);
   line-height: 1;
   letter-spacing: 0.01em;
@@ -39,7 +39,7 @@
 /* ---- Badge (inline label) ---- */
 .ds-badge {
   display: inline-block;
-  padding: 3px 8px;
+  padding: var(--ds-space-xs) var(--ds-space-sm);
   border-radius: var(--ds-radius-full);
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-medium);
@@ -92,7 +92,7 @@
 .ds-status {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--ds-space-sm);
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-medium);
   letter-spacing: 0;

@@ -30,7 +30,7 @@
 
 .ds-alert__title {
   font-weight: var(--ds-weight-semibold);
-  margin-bottom: 2px;
+  margin-bottom: var(--ds-space-2xs);
 }
 
 /* Variants — tinted bg + matching subtle border */

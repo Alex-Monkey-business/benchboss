@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 import { useKlubbmerke } from '../composables/useKlubbmerke'
 import Spot from '../components/Spot.vue'
 import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
@@ -291,18 +292,18 @@ function coachNamesForMatch(matchId) {
 
       <!-- Del inn er det trenerne gjør oftest: den eneste fylte knappen på Hjem. -->
       <RouterLink v-if="isCoach && !onboardingActive" to="/del-inn" class="hjem-delinn ds-anim-fade-up ds-anim-delay-2">
-        <svg class="hjem-delinn__ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="7" cy="8" r="3" /><circle cx="17" cy="8" r="3" /><path d="M2 20c0-3 2.2-5 5-5s5 2 5 5" /><path d="M12 20c0-3 2.2-5 5-5s5 2 5 5" /></svg>
+        <Ikon navn="personer" class="hjem-delinn__ikon" aria-hidden="true" />
         <span class="hjem-delinn__tittel">Del inn</span>
-        <svg class="hjem-delinn__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+        <Ikon navn="videre" class="hjem-delinn__pil" aria-hidden="true" />
       </RouterLink>
 
       <!-- Alt annet er rolige rader. De med innhold under åpner seg på trykk. -->
       <div v-if="!onboardingActive || weekItems.length" class="hjem-rader ds-anim-fade-up ds-anim-delay-3">
         <!-- Lagene. Bare utenom sesong, bare for trenere. -->
         <RouterLink v-if="visLagene" to="/serie/tropp" class="hjem-rad">
-          <svg class="hjem-rad__ikon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M8.5 3L3 6l2 4 3-1.5V21h8V8.5L19 10l2-4-5.5-3a3.5 3.5 0 0 1-7 0z" /></svg>
+          <Ikon navn="drakt" class="hjem-rad__ikon" aria-hidden="true" />
           <span class="hjem-rad__tittel">Lagene</span>
-          <svg class="hjem-rad__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18" /></svg>
+          <Ikon navn="pil-hoyre" class="hjem-rad__pil" aria-hidden="true" />
         </RouterLink>
 
         <!-- Under onboarding er «Å ordne» støy: det eneste å ordne er å komme i gang. -->
@@ -310,7 +311,7 @@ function coachNamesForMatch(matchId) {
           <summary class="hjem-rad">
             <span class="hjem-rad__tall hjem-rad__tall--varsel">{{ reminders.length }}</span>
             <span class="hjem-rad__tittel">Å ordne</span>
-            <svg class="hjem-rad__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18" /></svg>
+            <Ikon navn="pil-hoyre" class="hjem-rad__pil" aria-hidden="true" />
           </summary>
           <ReminderList :reminders="reminders" class="hjem-fold__innhold" />
         </details>
@@ -320,7 +321,7 @@ function coachNamesForMatch(matchId) {
           <summary class="hjem-rad">
             <span class="hjem-rad__tall">{{ weekItems.length }}</span>
             <span class="hjem-rad__tittel">Denne uka</span>
-            <svg class="hjem-rad__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18" /></svg>
+            <Ikon navn="pil-hoyre" class="hjem-rad__pil" aria-hidden="true" />
           </summary>
           <WeekList :items="weekItems" class="hjem-fold__innhold" />
         </details>
@@ -330,7 +331,7 @@ function coachNamesForMatch(matchId) {
           <summary class="hjem-rad">
             <span class="hjem-rad__tall">{{ otherTeamsItems.length }}</span>
             <span class="hjem-rad__tittel">Andre lag</span>
-            <svg class="hjem-rad__pil" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 6 15 12 9 18" /></svg>
+            <Ikon navn="pil-hoyre" class="hjem-rad__pil" aria-hidden="true" />
           </summary>
           <OtherTeamsList :items="otherTeamsItems" class="hjem-fold__innhold" />
         </details>
@@ -360,7 +361,7 @@ function coachNamesForMatch(matchId) {
 .hjem-cupkort__tekst {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ds-space-xs);
   min-width: 0;
 }
 
@@ -378,9 +379,9 @@ function coachNamesForMatch(matchId) {
 .hjem-delinn {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--ds-space-md);
   min-height: 64px;
-  padding: 0 20px;
+  padding: 0 var(--ds-space-20);
   border-radius: var(--ds-radius-lg);
   background: var(--ds-color-accent);
   color: var(--ds-color-accent-text);
@@ -391,7 +392,7 @@ function coachNamesForMatch(matchId) {
 .hjem-delinn:active { transform: scale(0.97); }
 .hjem-delinn__ikon, .hjem-delinn__pil { flex: none; width: 24px; height: 24px; }
 .hjem-delinn__pil { width: 20px; height: 20px; }
-.hjem-delinn__tittel { flex: 1; font-size: 1.125rem; font-weight: var(--ds-weight-semibold); }
+.hjem-delinn__tittel { flex: 1; font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); }
 
 /* Radene: én høyde, én form. Strek mellom, ingen bokser. */
 .hjem-rader { display: flex; flex-direction: column; }
@@ -401,7 +402,7 @@ function coachNamesForMatch(matchId) {
   align-items: center;
   gap: var(--ds-space-md);
   min-height: 60px;
-  font-size: 1.0625rem;
+  font-size: var(--ds-text-md);
   font-weight: var(--ds-weight-medium);
   color: var(--ds-color-text-primary);
   text-decoration: none;
@@ -420,7 +421,7 @@ function coachNamesForMatch(matchId) {
 .hjem-fold[open] > .hjem-rad .hjem-rad__pil { transform: rotate(90deg); }
 .hjem-rad__tall {
   flex: none;
-  min-width: 24px; height: 24px; padding: 0 6px; box-sizing: border-box;
+  min-width: 24px; height: 24px; padding: 0 var(--ds-space-sm); box-sizing: border-box;
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-subtle);
   color: var(--ds-color-text-secondary);
@@ -450,7 +451,7 @@ function coachNamesForMatch(matchId) {
 .hjem-stack {
   display: flex;
   flex-direction: column;
-  gap: 20px;
+  gap: var(--ds-space-20);
   padding-bottom: var(--ds-space-2xl);
 }
 

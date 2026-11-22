@@ -121,7 +121,7 @@ async function remove(playerId) {
 </template>
 
 <style scoped>
-.cmd-muted { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); padding: var(--ds-space-sm) 2px; }
+.cmd-muted { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); padding: var(--ds-space-sm) var(--ds-space-2xs); }
 
 .tropp-actions {
   display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md);
@@ -171,7 +171,7 @@ async function remove(playerId) {
 .roster { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }
 .chip {
   display: inline-flex; align-items: center; gap: var(--ds-space-xs);
-  padding: 6px var(--ds-space-md);
+  padding: var(--ds-space-sm) var(--ds-space-md);
   border-radius: var(--ds-radius-full);
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
@@ -179,19 +179,19 @@ async function remove(playerId) {
 .chip--team { background: var(--accent-bg); color: var(--accent-text); }
 .chip--muted {
   background: var(--ds-color-bg-subtle); color: var(--ds-color-text-secondary);
-  padding-right: 4px;
+  padding-right: var(--ds-space-xs);
 }
 
 .chip__x {
   display: grid; place-items: center;
-  width: 18px; height: 18px; margin: 0 -4px 0 2px; padding: 0;
+  width: 18px; height: 18px; margin: 0 calc(var(--ds-space-xs) * -1) 0 var(--ds-space-2xs); padding: 0;
   border: none; border-radius: 50%;
   background: transparent; color: inherit; opacity: 0.55;
-  font-size: 15px; line-height: 1; cursor: pointer;
+  font-size: var(--ds-text-sm); line-height: 1; cursor: pointer;
 }
 .chip__x:hover { opacity: 1; }
 
-.chip__assign { display: inline-flex; align-items: center; gap: 5px; margin-left: 4px; }
+.chip__assign { display: inline-flex; align-items: center; gap: var(--ds-space-xs); margin-left: var(--ds-space-xs); }
 .chip__dot {
   width: 18px; height: 18px; padding: 0; flex: none;
   background: var(--accent-text);

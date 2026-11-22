@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 import Spot from '../components/Spot.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAuth } from '../stores/auth'
@@ -348,11 +349,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
     <!-- Varsel: spilte kamper uten resultat -->
     <div v-if="missingResultCount > 0" class="px-lg">
       <div class="missing-result-note">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="9"/>
-          <line x1="12" y1="8" x2="12" y2="12.5"/>
-          <line x1="12" y1="16" x2="12.01" y2="16"/>
-        </svg>
+        <Ikon navn="varsel" />
         {{ missingResultCount }} spilt{{ missingResultCount === 1 ? ' kamp' : 'e kamper' }} mangler resultat
       </div>
     </div>
@@ -505,7 +502,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
       >
         <span class="stat-section-label stat-section-label--bare">Spilletid</span>
         <span class="stat-collapse-head__meta">{{ playtimeCoverage }} {{ playtimeCoverage === 1 ? 'kamp' : 'kamper' }}</span>
-        <svg class="stat-collapse-head__chevron" :class="{ 'stat-collapse-head__chevron--open': showPlaytime }" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        <Ikon navn="pil-ned" :size="18" class="stat-collapse-head__chevron" :class="{ 'stat-collapse-head__chevron--open': showPlaytime }" />
       </button>
       <div v-if="showPlaytime" class="stat-collapse-body ds-anim-fade-up">
         <div v-for="group in playtimeByTeam" :key="group.key" class="playtime-group">
@@ -543,7 +540,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
       >
         <span class="stat-section-label stat-section-label--bare">Oppmøte trening</span>
         <span class="stat-collapse-head__meta">{{ oppmote.okter }} {{ oppmote.okter === 1 ? 'økt' : 'økter' }}</span>
-        <svg class="stat-collapse-head__chevron" :class="{ 'stat-collapse-head__chevron--open': showOppmote }" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg>
+        <Ikon navn="pil-ned" :size="18" class="stat-collapse-head__chevron" :class="{ 'stat-collapse-head__chevron--open': showOppmote }" />
       </button>
       <div v-if="showOppmote" class="stat-collapse-body ds-anim-fade-up">
         <div class="playtime-group">
@@ -609,10 +606,10 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 .playtime-group__head {
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 14px;
+  gap: var(--ds-space-sm);
+  padding: var(--ds-space-sm) var(--ds-space-md);
   background: var(--ds-color-bg-subtle);
-  font-size: 0.6875rem;
+  font-size: var(--ds-text-2xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
@@ -624,9 +621,9 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   display: grid;
   grid-template-columns: minmax(72px, auto) 1fr auto;
   align-items: center;
-  gap: 12px;
+  gap: var(--ds-space-12);
   min-height: 48px;
-  padding: 10px 14px;
+  padding: var(--ds-space-12) var(--ds-space-md);
   border-top: 1px solid var(--ds-color-border-light);
 }
 
@@ -643,7 +640,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 .playtime-row:has(.leaderboard__link:active) { background: var(--ds-color-bg-subtle); }
 
 .playtime-row__name {
-  font-size: 0.875rem;
+  font-size: var(--ds-text-sm);
   font-weight: 500;
   color: var(--ds-color-text-primary);
   white-space: nowrap;
@@ -651,8 +648,8 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 
 .playtime-keeper {
   display: inline-block;
-  margin-left: 6px;
-  font-size: 0.6875rem;
+  margin-left: var(--ds-space-sm);
+  font-size: var(--ds-text-2xs);
   font-weight: var(--ds-weight-medium);
   color: var(--ds-color-warning);
 }
@@ -686,7 +683,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .playtime-row__total {
-  font-size: 0.8125rem;
+  font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-bold);
   color: var(--ds-color-text-primary);
   font-variant-numeric: tabular-nums;
@@ -694,7 +691,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .playtime-row__avg {
-  font-size: 0.625rem;
+  font-size: var(--ds-text-2xs);
   color: var(--ds-color-text-tertiary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -707,14 +704,14 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .standings__form {
-  padding: 0 14px 10px 37px;
-  margin-top: -4px;
+  padding: 0 var(--ds-space-md) var(--ds-space-12) 37px;
+  margin-top: calc(var(--ds-space-xs) * -1);
 }
 
 .stat-skel-stack {
   display: flex;
   flex-direction: column;
-  gap: 14px;
+  gap: var(--ds-space-md);
 }
 
 .stat-skel-card {
@@ -761,8 +758,8 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ds-color-text-tertiary);
-  padding: 0 4px;
-  margin-bottom: 8px;
+  padding: 0 var(--ds-space-xs);
+  margin-bottom: var(--ds-space-sm);
 }
 
 /* Kollapsbar seksjon (Spilletid) — header som toggler, summary til høyre. */
@@ -774,9 +771,9 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 .stat-collapse-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--ds-space-sm);
   width: 100%;
-  padding: 6px 4px;
+  padding: var(--ds-space-sm) var(--ds-space-xs);
   background: transparent;
   border: none;
   cursor: pointer;
@@ -800,19 +797,19 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 
 .stat-collapse-head__chevron--open { transform: rotate(180deg); }
 
-.stat-collapse-body { padding-top: 12px; }
+.stat-collapse-body { padding-top: var(--ds-space-12); }
 
 .missing-result-note {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--ds-space-sm);
   margin-bottom: var(--ds-space-lg);
-  padding: 10px 14px;
+  padding: var(--ds-space-12) var(--ds-space-md);
   border-radius: var(--ds-radius-md);
   background: var(--ds-color-warm-bg);
   color: var(--ds-color-warm-text);
   border: 1px solid var(--ds-color-warm, transparent);
-  font-size: 0.8125rem;
+  font-size: var(--ds-text-xs);
   font-weight: 500;
 }
 
@@ -827,21 +824,21 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   background: var(--ds-color-bg-elevated);
   border: var(--ds-border-width) solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
-  padding: 20px;
+  padding: var(--ds-space-20);
 }
 
 .stat-card-large__top {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-  margin-bottom: 16px;
+  gap: var(--ds-space-12);
+  margin-bottom: var(--ds-space-md);
 }
 
 .stat-card-large__metric {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   text-align: center;
 }
 
@@ -867,7 +864,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .stat-card-large__label {
-  font-size: 0.6875rem;
+  font-size: var(--ds-text-2xs);
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ds-color-text-tertiary);
@@ -878,12 +875,12 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding-top: 14px;
+  padding-top: var(--ds-space-md);
   border-top: 1px solid var(--ds-color-border-light);
 }
 
 .stat-card-large__goals-text {
-  font-size: 0.875rem;
+  font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
@@ -891,10 +888,10 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 
 .stat-card-large__diff {
   font-family: var(--ds-font-heading);
-  font-size: 0.9375rem;
+  font-size: var(--ds-text-sm);
   font-weight: 700;
   font-variant-numeric: tabular-nums;
-  padding: 2px 10px;
+  padding: var(--ds-space-2xs) var(--ds-space-12);
   border-radius: var(--ds-radius-full);
 }
 
@@ -909,9 +906,9 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .stat-empty {
-  padding: 16px 4px;
+  padding: var(--ds-space-md) var(--ds-space-xs);
   text-align: center;
-  font-size: 0.875rem;
+  font-size: var(--ds-text-sm);
   color: var(--ds-color-text-tertiary);
 }
 
@@ -928,20 +925,20 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   display: grid;
   grid-template-columns: 1fr 24px 24px 24px 24px auto auto auto;
   align-items: center;
-  gap: 8px;
-  padding: 10px 14px;
+  gap: var(--ds-space-sm);
+  padding: var(--ds-space-12) var(--ds-space-md);
   font-variant-numeric: tabular-nums;
 }
 
 .standings__header {
-  font-size: 0.6875rem;
+  font-size: var(--ds-text-2xs);
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   color: var(--ds-color-text-tertiary);
   background: var(--ds-color-bg-subtle);
-  padding-top: 8px;
-  padding-bottom: 8px;
+  padding-top: var(--ds-space-sm);
+  padding-bottom: var(--ds-space-sm);
 }
 
 .standings__header > span {
@@ -974,8 +971,8 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 .standings__team {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  font-size: 0.875rem;
+  gap: var(--ds-space-sm);
+  font-size: var(--ds-text-sm);
   font-weight: 500;
   color: var(--ds-color-text-primary);
 }
@@ -1002,7 +999,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 
 .standings__num {
   text-align: center;
-  font-size: 0.875rem;
+  font-size: var(--ds-text-sm);
   color: var(--ds-color-text-primary);
   font-weight: 500;
 }
@@ -1015,7 +1012,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 .standings__goals {
   text-align: right;
   white-space: nowrap;
-  font-size: 0.875rem;
+  font-size: var(--ds-text-sm);
   color: var(--ds-color-text-primary);
   font-weight: 500;
   min-width: 48px;
@@ -1023,9 +1020,9 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .standings__diff {
-  font-size: 0.75rem;
+  font-size: var(--ds-text-2xs);
   font-weight: 600;
-  padding: 2px 8px;
+  padding: var(--ds-space-2xs) var(--ds-space-sm);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-subtle);
   color: var(--ds-color-text-tertiary);
@@ -1046,7 +1043,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 
 .standings__points {
   text-align: center;
-  font-size: 0.9375rem;
+  font-size: var(--ds-text-sm);
   font-weight: 700;
   color: var(--ds-color-text-primary);
   font-variant-numeric: tabular-nums;
@@ -1064,7 +1061,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 .leaderboard__toggle {
   width: 100%;
   min-height: 44px;
-  padding: 10px 14px;
+  padding: var(--ds-space-12) var(--ds-space-md);
   border: none;
   border-top: 1px solid var(--ds-color-border-light);
   background: transparent;
@@ -1081,8 +1078,8 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .leaderboard-empty {
-  padding: 14px 16px;
-  font-size: 0.8125rem;
+  padding: var(--ds-space-md) var(--ds-space-md);
+  font-size: var(--ds-text-xs);
   color: var(--ds-color-text-tertiary);
   background: var(--ds-color-bg-elevated);
   border: 1px dashed var(--ds-color-border);
@@ -1093,9 +1090,9 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 .leaderboard__row {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--ds-space-md);
   min-height: 48px;
-  padding: 12px 14px;
+  padding: var(--ds-space-12) var(--ds-space-md);
   border-bottom: 1px solid var(--ds-color-border-light);
 }
 
@@ -1105,7 +1102,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 
 .leaderboard__rank {
   flex-shrink: 0;
-  font-size: 0.75rem;
+  font-size: var(--ds-text-2xs);
   font-weight: 700;
   color: var(--ds-color-text-tertiary);
   width: 18px;
@@ -1116,16 +1113,16 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 .leaderboard__name {
   flex: 1;
   min-width: 0;
-  font-size: 0.875rem;
+  font-size: var(--ds-text-sm);
   font-weight: 500;
   color: var(--ds-color-text-primary);
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--ds-space-sm);
 }
 
 .leaderboard__count {
-  font-size: 0.8125rem;
+  font-size: var(--ds-text-xs);
   color: var(--ds-color-text-secondary);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -1135,8 +1132,8 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 .leaderboard__head {
   display: flex;
   align-items: center;
-  gap: 14px;
-  padding: 8px 14px;
+  gap: var(--ds-space-md);
+  padding: var(--ds-space-sm) var(--ds-space-md);
   border-bottom: 1px solid var(--ds-color-border-light);
 }
 
@@ -1144,7 +1141,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   width: 56px;
   flex-shrink: 0;
   text-align: right;
-  font-size: 0.8125rem;
+  font-size: var(--ds-text-xs);
   color: var(--ds-color-text-secondary);
   font-variant-numeric: tabular-nums;
 }
@@ -1163,9 +1160,9 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .leaderboard__tag {
-  font-size: 0.6875rem;
+  font-size: var(--ds-text-2xs);
   font-weight: 600;
-  padding: 1px 6px;
+  padding: 1px var(--ds-space-sm);
   border-radius: 4px;
   letter-spacing: 0.02em;
 }
@@ -1197,22 +1194,22 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 @media (max-width: 400px) {
   .standings__header,
   .standings__row {
-    padding-left: 10px;
-    padding-right: 10px;
-    gap: 4px;
+    padding-left: var(--ds-space-12);
+    padding-right: var(--ds-space-12);
+    gap: var(--ds-space-xs);
     grid-template-columns: 1fr 22px 22px 22px 22px auto auto auto;
   }
   .standings__goals {
-    font-size: 0.8125rem;
+    font-size: var(--ds-text-xs);
     min-width: 40px;
   }
   .standings__diff {
     min-width: 32px;
-    padding: 2px 5px;
-    font-size: 0.6875rem;
+    padding: var(--ds-space-2xs) var(--ds-space-xs);
+    font-size: var(--ds-text-2xs);
   }
   .standings__points {
-    font-size: 0.875rem;
+    font-size: var(--ds-text-sm);
     min-width: 20px;
   }
 }
@@ -1222,10 +1219,10 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   .standings__header,
   .standings__row {
     grid-template-columns: 1fr auto auto auto;
-    gap: 10px;
+    gap: var(--ds-space-12);
   }
   .standings__opt { display: none; }
-  .standings__form { padding-left: 10px; }
+  .standings__form { padding-left: var(--ds-space-12); }
 }
 
 </style>

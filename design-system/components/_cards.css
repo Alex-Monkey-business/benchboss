@@ -159,7 +159,7 @@
   align-items: center;
   gap: var(--ds-space-md);
   min-height: 64px;
-  padding: 12px var(--ds-space-md);
+  padding: var(--ds-space-12) var(--ds-space-md);
   background: var(--ds-color-bg-elevated);
   border: var(--ds-border-width) solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
@@ -207,7 +207,7 @@ button.ds-row:active,
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   min-width: 0;
 }
 

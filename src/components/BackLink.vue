@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from './Ikon.vue'
 // Én tilbakelenke for hele appen: 44 px høy, chevron + navnet på skjermen
 // man går tilbake til. `historikk` = gå tilbake i nettleserhistorikken når
 // det finnes en (f.eks. kom fra Hjem), ellers til `to`.
@@ -25,7 +26,7 @@ function klikk(e, navigate) {
 <template>
   <router-link v-slot="{ href, navigate }" :to="to" custom>
     <a :href="href" class="backlink" @click="klikk($event, navigate)">
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="15 18 9 12 15 6" /></svg>
+      <Ikon navn="pil-venstre" aria-hidden="true" />
       <span class="backlink__tekst">{{ label }}</span>
     </a>
   </router-link>
@@ -35,11 +36,11 @@ function klikk(e, navigate) {
 .backlink {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
+  gap: var(--ds-space-xs);
   min-height: 44px;
   max-width: 100%;
-  margin-left: -6px;
-  padding: 0 12px 0 0;
+  margin-left: calc(var(--ds-space-sm) * -1);
+  padding: 0 var(--ds-space-12) 0 0;
   border-radius: var(--ds-radius-full);
   color: var(--ds-color-text-secondary);
   font-family: var(--ds-font-body);

@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 import { ref, computed, onMounted, watch } from 'vue'
 import { useAuth } from '../stores/auth'
 import { useSeasons } from '../composables/useSeasons'
@@ -258,7 +259,7 @@ async function handleExport() {
       <!-- Eksporten er en dommerutlegg-rapport. Uten utlegg er arket tomt. -->
       <div v-if="usesReferees" class="px-lg mb-lg">
         <button class="ds-btn ds-btn--secondary" style="width: 100%;" @click="handleExport">
-          <svg style="width: 18px; height: 18px; margin-right: 6px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+          <Ikon navn="last-ned" style="width: 18px; height: 18px; margin-right: 6px;" />
           Eksporter til Excel
         </button>
       </div>
@@ -298,11 +299,11 @@ async function handleExport() {
             <span class="format__navn">Omganger</span>
             <div class="format__steg" role="group" aria-label="Omganger">
               <button type="button" class="format__knapp" aria-label="Færre omganger" :disabled="format.period_count <= 1 || lagrerFormat" @click="endreOmganger(-1)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                <Ikon navn="minus" vekt="bold" aria-hidden="true" />
               </button>
               <span class="format__tall"><b>{{ format.period_count }}</b></span>
               <button type="button" class="format__knapp" aria-label="Flere omganger" :disabled="format.period_count >= 4 || lagrerFormat" @click="endreOmganger(1)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                <Ikon navn="pluss" vekt="bold" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -310,11 +311,11 @@ async function handleExport() {
             <span class="format__navn">Minutter</span>
             <div class="format__steg" role="group" aria-label="Minutter per omgang">
               <button type="button" class="format__knapp" aria-label="Fem minutter mindre" :disabled="format.period_minutes <= 5 || lagrerFormat" @click="endreMinutter(-5)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                <Ikon navn="minus" vekt="bold" aria-hidden="true" />
               </button>
               <span class="format__tall"><b>{{ format.period_minutes }}</b></span>
               <button type="button" class="format__knapp" aria-label="Fem minutter mer" :disabled="format.period_minutes >= 45 || lagrerFormat" @click="endreMinutter(5)">
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                <Ikon navn="pluss" vekt="bold" aria-hidden="true" />
               </button>
             </div>
           </div>
@@ -378,7 +379,7 @@ async function handleExport() {
 .format { margin-top: var(--ds-space-xl); }
 .format + .dommere { margin-top: var(--ds-space-lg); }
 
-.season-avslutt { margin-top: var(--ds-space-2xl, 48px); }
+.season-avslutt { margin-top: var(--ds-space-2xl, var(--ds-space-2xl)); }
 .format__pills .ds-pill {
   min-width: 52px;
   min-height: 44px;
@@ -417,8 +418,8 @@ async function handleExport() {
 .format__steg {
   display: inline-flex;
   align-items: center;
-  gap: 4px;
-  padding: 3px;
+  gap: var(--ds-space-xs);
+  padding: var(--ds-space-xs);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-subtle);
 }
@@ -472,10 +473,10 @@ async function handleExport() {
 
 .segment {
   display: inline-flex;
-  padding: 3px;
+  padding: var(--ds-space-xs);
   background: var(--ds-color-bg-subtle);
   border-radius: var(--ds-radius-full);
-  gap: 2px;
+  gap: var(--ds-space-2xs);
 }
 
 .segment__valg {
@@ -483,7 +484,7 @@ async function handleExport() {
   border: 0;
   background: transparent;
   min-height: 44px;
-  padding: 0 18px;
+  padding: 0 var(--ds-space-20);
   border-radius: var(--ds-radius-full);
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-sm);
@@ -530,7 +531,7 @@ async function handleExport() {
   font-size: var(--ds-text-xl);
   color: var(--ds-color-text-secondary);
   font-weight: var(--ds-weight-regular);
-  margin-left: 4px;
+  margin-left: var(--ds-space-xs);
 }
 
 .my-balance__meta {

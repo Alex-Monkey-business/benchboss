@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 import { ref, onMounted } from 'vue'
 import { useReferees } from '../composables/useReferees'
 import { useToast } from '../composables/useToast'
@@ -100,13 +101,13 @@ async function confirmDeleteReferee() {
                 <template v-if="r.phone">{{ formatPhone(r.phone) }}</template>
                 <template v-else><span class="referee-row__phone--missing">Ingen telefon</span></template>
               </div>
-              <svg class="referee-row__chevron" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+              <Ikon navn="pil-hoyre" vekt="bold" :size="16" class="referee-row__chevron" />
             </button>
           </div>
         </div>
 
-        <button class="more-inline-action" @click="showAddReferee = true">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <button class="ds-link more-inline-action" @click="showAddReferee = true">
+          <Ikon navn="pluss" vekt="bold" :size="14" />
           Ny dommer
         </button>
       </div>
@@ -138,7 +139,7 @@ async function confirmDeleteReferee() {
       </div>
       <div class="sheet-actions sheet-actions--with-delete">
         <button class="sheet-actions__delete" @click="refereeToDelete = editingReferee" aria-label="Slett dommer">
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2"/></svg>
+          <Ikon navn="slett" :size="18" />
         </button>
         <button class="ds-btn ds-btn--secondary" @click="cancelEditReferee">Avbryt</button>
         <button class="ds-btn ds-btn--primary" @click="saveEditReferee">Lagre</button>
@@ -159,7 +160,7 @@ async function confirmDeleteReferee() {
 
 <style scoped>
 .referee-empty {
-  padding: 24px 4px;
+  padding: var(--ds-space-lg) var(--ds-space-xs);
   text-align: center;
   color: var(--ds-color-text-tertiary);
   font-size: var(--ds-text-sm);
@@ -181,9 +182,9 @@ async function confirmDeleteReferee() {
 .referee-row__main {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--ds-space-12);
   width: 100%;
-  padding: 14px 4px;
+  padding: var(--ds-space-md) var(--ds-space-xs);
   background: transparent;
   border: 0;
   cursor: pointer;
@@ -200,7 +201,7 @@ async function confirmDeleteReferee() {
 }
 
 .referee-row__phone {
-  font-size: 0.8125rem;
+  font-size: var(--ds-text-xs);
   color: var(--ds-color-text-secondary);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
@@ -216,25 +217,7 @@ async function confirmDeleteReferee() {
   flex-shrink: 0;
 }
 
-.more-inline-action {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: transparent;
-  border: 0;
-  min-height: 44px;
-  padding: 0 4px;
-  margin-top: 4px;
-  cursor: pointer;
-  color: var(--ds-color-accent);
-  font-weight: 600;
-  font-size: 0.875rem;
-  font-family: var(--ds-font-body);
-}
-
-.more-inline-action:hover {
-  text-decoration: underline;
-}
+.more-inline-action { margin-top: var(--ds-space-xs); }
 
 /* .sheet-actions bor i app.css. */
 </style>

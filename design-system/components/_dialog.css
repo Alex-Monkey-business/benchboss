@@ -136,26 +136,7 @@
   margin: 0;
 }
 
-.ds-sheet__close {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 32px;
-  height: 32px;
-  border: 0;
-  border-radius: var(--ds-radius-sm);
-  background: transparent;
-  color: var(--ds-color-text-tertiary);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  flex-shrink: 0;
-  -webkit-tap-highlight-color: transparent;
-}
 
-.ds-sheet__close:hover {
-  background: var(--ds-color-bg-subtle);
-  color: var(--ds-color-text-primary);
-}
 
 .ds-sheet__body {
   padding: var(--ds-space-lg);
@@ -252,7 +233,7 @@
     left: 50%;
     width: 36px;
     height: 4px;
-    margin-left: -18px;
+    margin-left: calc(var(--ds-space-20) * -1);
     border-radius: 2px;
     background: var(--ds-color-border-strong, var(--ds-color-border));
     z-index: 2;

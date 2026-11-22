@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../Ikon.vue'
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { teamColorsForMatch, teamLabel, isHomeMatch } from '../../lib/matchMeta'
@@ -125,13 +126,8 @@ function onCta() {
 
     <ul v-if="checklist.length && !done" class="today-match__checklist">
       <li v-for="item in checklist" :key="item.key" class="check-item" :class="{ 'check-item--done': item.done }">
-        <svg v-if="item.done" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="9"/>
-          <polyline points="8.5 12.5 11 15 15.5 9.5"/>
-        </svg>
-        <svg v-else viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
-          <circle cx="12" cy="12" r="9"/>
-        </svg>
+        <Ikon navn="hake-sirkel" v-if="item.done" />
+        <Ikon navn="sirkel" v-else />
         {{ item.label }}
       </li>
     </ul>
@@ -195,7 +191,7 @@ function onCta() {
 .today-match__tags {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--ds-space-sm);
 }
 
 .today-match__kicker {
@@ -258,13 +254,13 @@ function onCta() {
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: var(--ds-space-sm);
 }
 
 .check-item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--ds-space-sm);
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
 }

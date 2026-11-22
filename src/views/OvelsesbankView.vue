@@ -378,13 +378,13 @@ onMounted(async () => {
   color: var(--ds-color-text-primary);
   font-variation-settings: normal;
   font-feature-settings: normal;
-  margin: 0 0 4px;
+  margin: 0 0 var(--ds-space-xs);
 }
 
 .bank__count {
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-tertiary);
-  margin: 4px 0 0;
+  margin: var(--ds-space-xs) 0 0;
   font-variant-numeric: tabular-nums;
 }
 
@@ -443,7 +443,7 @@ onMounted(async () => {
   width: 200px;
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--ds-space-sm);
   padding: 0;
   border: none;
   background: none;
@@ -490,9 +490,9 @@ onMounted(async () => {
   position: absolute;
   left: 8px;
   top: 8px;
-  padding: 2px 7px;
+  padding: var(--ds-space-2xs) var(--ds-space-sm);
   border-radius: var(--ds-radius-full);
-  font-size: 0.6875rem;
+  font-size: var(--ds-text-2xs);
   font-weight: 600;
   letter-spacing: 0.02em;
   text-transform: uppercase;
@@ -507,7 +507,7 @@ onMounted(async () => {
   position: absolute;
   right: 8px;
   bottom: 8px;
-  padding: 2px 6px;
+  padding: var(--ds-space-2xs) var(--ds-space-sm);
   border-radius: var(--ds-radius-full);
   font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-medium);

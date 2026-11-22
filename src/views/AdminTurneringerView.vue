@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 import Spot from '../components/Spot.vue'
 import { ref, computed, onMounted } from 'vue'
 import { useCups } from '../composables/useCups'
@@ -341,7 +342,7 @@ const sorterteKamper = computed(() =>
                     {{ [m.pitch, m.round].filter(Boolean).join(' · ') }}
                   </span>
                 </span>
-                <svg class="turn-rad__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+                <Ikon navn="pil-hoyre" class="turn-rad__chevron" />
               </button>
             </li>
           </ul>
@@ -392,7 +393,7 @@ const sorterteKamper = computed(() =>
           <input :id="`cup-lag-${i}`" v-model="nyCup.teams[i]" class="ds-input" :placeholder="i === 0 ? 'f.eks. Blå' : 'f.eks. Rød'" />
           <button v-if="nyCup.teams.length > 1" type="button" class="turn-slett" @click="fjernLagFelt(i)">Fjern</button>
         </div>
-        <button v-if="nyCup.teams.length < 4" type="button" class="turn-legg-til" @click="leggTilLagFelt">
+        <button v-if="nyCup.teams.length < 4" type="button" class="ds-link turn-legg-til" @click="leggTilLagFelt">
           Legg til lag
         </button>
       </div>
@@ -543,7 +544,7 @@ const sorterteKamper = computed(() =>
   border: 1px solid var(--ds-color-border);
   background: var(--ds-color-bg);
   border-radius: var(--ds-radius-full);
-  padding: 4px 12px;
+  padding: var(--ds-space-xs) var(--ds-space-12);
   font-size: var(--ds-text-xs);
   font-weight: 600;
   cursor: pointer;
@@ -558,7 +559,7 @@ const sorterteKamper = computed(() =>
 .turn-import__tekst {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   min-width: 0;
 }
 
@@ -578,7 +579,7 @@ const sorterteKamper = computed(() =>
   display: flex;
   align-items: center;
   justify-content: flex-end;
-  gap: 8px;
+  gap: var(--ds-space-sm);
   margin-top: var(--ds-space-lg);
 }
 
@@ -593,7 +594,7 @@ const sorterteKamper = computed(() =>
   background: var(--ds-color-bg);
   color: var(--ds-color-text-secondary);
   border-radius: var(--ds-radius-full);
-  padding: 8px 16px;
+  padding: var(--ds-space-sm) var(--ds-space-md);
   font-size: var(--ds-text-sm);
   cursor: pointer;
 }
@@ -650,7 +651,7 @@ const sorterteKamper = computed(() =>
   background: var(--ds-color-bg-subtle);
   color: var(--ds-color-text-secondary);
   border-radius: var(--ds-radius-full);
-  padding: 0 16px;
+  padding: 0 var(--ds-space-md);
   font-family: var(--ds-font-body);
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);
@@ -701,7 +702,7 @@ const sorterteKamper = computed(() =>
 }
 
 .turn-kort__meta {
-  margin: 4px 0 0;
+  margin: var(--ds-space-xs) 0 0;
   color: var(--ds-color-text-secondary);
   font-size: var(--ds-text-sm);
 }
@@ -709,7 +710,7 @@ const sorterteKamper = computed(() =>
 .turn-merke {
   flex: none;
   font-size: var(--ds-text-xs);
-  padding: 4px 10px;
+  padding: var(--ds-space-xs) var(--ds-space-12);
   border-radius: var(--ds-radius-full);
   border: 1px solid var(--ds-color-border);
   color: var(--ds-color-text-secondary);
@@ -729,7 +730,7 @@ const sorterteKamper = computed(() =>
 
 .turn-lag__merke {
   font-size: var(--ds-text-xs);
-  padding: 4px 10px;
+  padding: var(--ds-space-xs) var(--ds-space-12);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-subtle);
   border: 1px solid var(--ds-color-border);
@@ -787,7 +788,7 @@ const sorterteKamper = computed(() =>
 .turn-rad__tekst {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   min-width: 0;
 }
 
@@ -820,15 +821,6 @@ const sorterteKamper = computed(() =>
   margin-bottom: var(--ds-space-sm);
 }
 
-.turn-legg-til {
-  background: none;
-  border: none;
-  padding: 4px 0;
-  color: var(--ds-color-text-primary);
-  font-size: var(--ds-text-sm);
-  text-decoration: underline;
-  cursor: pointer;
-}
 
 .turn-hint {
   margin: var(--ds-space-xs) 0 0;

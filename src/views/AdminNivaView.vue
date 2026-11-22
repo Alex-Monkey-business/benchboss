@@ -122,7 +122,7 @@ async function pick(player, level) {
   display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--ds-space-sm);
 }
 .niva__count {
-  display: flex; flex-direction: column; gap: 2px;
+  display: flex; flex-direction: column; gap: var(--ds-space-2xs);
   padding: var(--ds-space-md);
   background: var(--ds-color-bg-elevated);
   border: var(--ds-border-width) solid var(--ds-color-border);
@@ -173,7 +173,7 @@ async function pick(player, level) {
   color: var(--ds-color-text-primary); text-decoration: none;
 }
 
-.niva__seg { display: flex; gap: 4px; flex: none; }
+.niva__seg { display: flex; gap: var(--ds-space-xs); flex: none; }
 .niva__opt {
   width: 44px; height: 44px; cursor: pointer;
   font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold);

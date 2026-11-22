@@ -199,12 +199,12 @@ function share(sec) { return clock.value ? Math.round((sec / clock.value) * 100)
         </p>
       </template>
       <div class="adj__foot">
-        <button type="button" class="adj__link" @click="closeAdjust">Ferdig</button>
+        <button type="button" class="ds-link adj__link" @click="closeAdjust">Ferdig</button>
       </div>
     </div>
 
     <div v-else-if="!locked && canAdjust" class="pt__foot">
-      <button type="button" class="adj__link" @click="openAdjust">Juster spilletid</button>
+      <button type="button" class="ds-link adj__link" @click="openAdjust">Juster spilletid</button>
     </div>
   </div>
 </template>
@@ -218,13 +218,13 @@ function share(sec) { return clock.value ? Math.round((sec / clock.value) * 100)
 .pt__list {
   display: flex;
   flex-direction: column;
-  gap: 12px;
+  gap: var(--ds-space-12);
 }
 
 .pt__row {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: var(--ds-space-12);
   width: 100%;
   padding: 0;
   border: none;
@@ -246,7 +246,7 @@ function share(sec) { return clock.value ? Math.round((sec / clock.value) * 100)
   border-radius: 50%;
   background: var(--ds-color-bg-sunken);
   color: var(--ds-color-text-secondary);
-  font-size: 0.8125rem;
+  font-size: var(--ds-text-xs);
   font-weight: var(--ds-weight-bold);
 }
 
@@ -271,7 +271,7 @@ function share(sec) { return clock.value ? Math.round((sec / clock.value) * 100)
 .pt__top {
   display: flex;
   align-items: baseline;
-  gap: 7px;
+  gap: var(--ds-space-sm);
 }
 
 .pt__name {
@@ -285,7 +285,7 @@ function share(sec) { return clock.value ? Math.round((sec / clock.value) * 100)
 .pt__goals {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   flex: none;
   color: var(--ds-color-text-secondary);
   align-self: center;
@@ -294,14 +294,14 @@ function share(sec) { return clock.value ? Math.round((sec / clock.value) * 100)
 .pt__ball { width: 15px; height: 15px; display: block; }
 
 .pt__goalcount {
-  font-size: 0.75rem;
+  font-size: var(--ds-text-2xs);
   font-weight: var(--ds-weight-bold);
   font-variant-numeric: tabular-nums;
 }
 
 .pt__keeper {
   flex: none;
-  font-size: 0.6875rem;
+  font-size: var(--ds-text-2xs);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   font-weight: var(--ds-weight-semibold);
@@ -311,7 +311,7 @@ function share(sec) { return clock.value ? Math.round((sec / clock.value) * 100)
 .pt__time {
   flex: 1;
   text-align: right;
-  font-size: 0.875rem;
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
   font-variant-numeric: tabular-nums;
   color: var(--ds-color-text-primary);
@@ -320,7 +320,7 @@ function share(sec) { return clock.value ? Math.round((sec / clock.value) * 100)
 .pt__track {
   display: block;
   height: 4px;
-  margin-top: 6px;
+  margin-top: var(--ds-space-sm);
   border-radius: 2px;
   background: var(--ds-color-bg-sunken);
   overflow: hidden;
@@ -344,10 +344,10 @@ function share(sec) { return clock.value ? Math.round((sec / clock.value) * 100)
 .pt__row--taker .pt__name::after { content: 'får'; }
 .pt__row--giver .pt__name::after,
 .pt__row--taker .pt__name::after {
-  margin-left: 8px;
-  padding: 1px 7px;
+  margin-left: var(--ds-space-sm);
+  padding: 1px var(--ds-space-sm);
   border-radius: var(--ds-radius-full);
-  font-size: 10px;
+  font-size: var(--ds-text-2xs);
   font-weight: var(--ds-weight-bold);
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -358,19 +358,19 @@ function share(sec) { return clock.value ? Math.round((sec / clock.value) * 100)
 .pt__row--dim { opacity: 0.4; }
 
 .pt__foot {
-  margin-top: 16px;
+  margin-top: var(--ds-space-md);
   display: flex;
   justify-content: flex-end;
 }
 
 .adj {
-  margin-top: 16px;
-  padding-top: 14px;
+  margin-top: var(--ds-space-md);
+  padding-top: var(--ds-space-md);
   border-top: 1px solid var(--ds-color-border-light);
 }
 
 .adj__hint {
-  margin: 0 0 10px;
+  margin: 0 0 var(--ds-space-12);
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
 }
@@ -378,26 +378,26 @@ function share(sec) { return clock.value ? Math.round((sec / clock.value) * 100)
 .adj__hint--warn { color: var(--ds-color-warm-text, var(--ds-color-text-tertiary)); }
 
 .adj__pair {
-  margin: 0 0 10px;
+  margin: 0 0 var(--ds-space-12);
   font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
   color: var(--ds-color-text-primary);
 }
 
-.adj__arrow { color: var(--ds-color-text-tertiary); padding: 0 2px; }
+.adj__arrow { color: var(--ds-color-text-tertiary); padding: 0 var(--ds-space-2xs); }
 .adj__tom { color: var(--ds-color-text-tertiary); font-weight: var(--ds-weight-medium); }
 
 .adj__chips {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--ds-space-sm);
 }
 
 /* Full bredde per chip: dette trykkes med tommelen på en telefon, ofte med
    kalde fingre på en sidelinje. */
 .adj__chip {
   flex: 1;
-  padding: 14px 0;
+  padding: var(--ds-space-md) 0;
   border: 1.5px solid var(--ds-color-border);
   border-radius: var(--ds-radius-md);
   background: var(--ds-color-bg-elevated);
@@ -416,21 +416,9 @@ function share(sec) { return clock.value ? Math.round((sec / clock.value) * 100)
 }
 
 .adj__foot {
-  margin-top: 14px;
+  margin-top: var(--ds-space-md);
   display: flex;
   justify-content: flex-end;
 }
 
-.adj__link {
-  padding: 0;
-  border: none;
-  background: none;
-  font-family: var(--ds-font-body);
-  font-size: 0.8125rem;
-  font-weight: var(--ds-weight-semibold);
-  color: var(--ds-color-text-secondary);
-  border-bottom: 1px solid var(--ds-color-border);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-</style>
+.adj__link { border-bottom: 1px solid var(--ds-color-border); }</style>

@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import Spot from '../components/Spot.vue'
 import { useRouter } from 'vue-router'
@@ -314,7 +315,7 @@ function hoppOver() {
 <template>
   <div class="kig" :class="{ 'kig--velkomst': steg === 'velkommen' || steg === 'ferdig' }">
     <div class="kig__inner" :class="{ 'kig__inner--velkomst': steg === 'velkommen' || steg === 'ferdig' }">
-      <button v-if="kanGaTilbake && !laster" type="button" class="kig__tilbake" @click="tilbake">
+      <button v-if="kanGaTilbake && !laster" type="button" class="ds-link kig__tilbake" @click="tilbake">
         Tilbake
       </button>
 
@@ -462,7 +463,7 @@ function hoppOver() {
               @click="toggle(t)"
             >
               <span class="kig__hake" aria-hidden="true">
-                <svg v-if="valgte.has(t.fiksId)" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+                <Ikon navn="hake" vekt="bold" v-if="valgte.has(t.fiksId)" />
               </span>
               <!-- Navnet i appen er det store; fotball.no-navnet bekrefter at det
                    er riktig lag. -->
@@ -474,7 +475,7 @@ function hoppOver() {
           </li>
         </ul>
 
-        <button v-if="!viserAlle && klubb?.teams?.length" type="button" class="kig__lenke" @click="viserAlle = true">
+        <button v-if="!viserAlle && klubb?.teams?.length" type="button" class="ds-link kig__lenke" @click="viserAlle = true">
           Vis alle {{ klubb.teams.length }} lag
         </button>
 
@@ -607,7 +608,7 @@ function hoppOver() {
 .kig__lagtekst {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   min-width: 0;
 }
 
@@ -657,7 +658,7 @@ function hoppOver() {
 }
 
 .kig__arknapp {
-  padding: 12px var(--ds-space-sm);
+  padding: var(--ds-space-12) var(--ds-space-sm);
   font-family: var(--ds-font-display-sans);
   font-size: var(--ds-text-lg);
   font-weight: var(--ds-weight-bold);
@@ -675,17 +676,7 @@ function hoppOver() {
   color: var(--ds-color-accent-text);
 }
 
-.kig__lenke {
-  margin-top: var(--ds-space-md);
-  padding: var(--ds-space-sm) 0;
-  background: none;
-  border: 0;
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-secondary);
-  text-decoration: underline;
-  cursor: pointer;
-}
-
+.kig__lenke { margin-top: var(--ds-space-md); }
 .kig__handling { margin-top: var(--ds-space-xl); }
 
 .kig__inner--velkomst .kig__handling { margin-top: clamp(var(--ds-space-md), 2.5dvh, var(--ds-space-xl)); }
@@ -696,19 +687,7 @@ function hoppOver() {
   font-size: var(--ds-text-lg);
 }
 
-.kig__tilbake {
-  align-self: flex-start;
-  margin-bottom: var(--ds-space-md);
-  padding: var(--ds-space-xs) 0;
-  min-height: 44px;
-  background: none;
-  border: 0;
-  font-family: var(--ds-font-body);
-  font-size: var(--ds-text-sm);
-  color: var(--ds-color-text-secondary);
-  cursor: pointer;
-}
-
+.kig__tilbake { align-self: flex-start; margin-bottom: var(--ds-space-md); }
 .kig__merkelogo {
   align-self: flex-start;
   width: 72px;
@@ -735,8 +714,8 @@ function hoppOver() {
 .kig__kjonn {
   display: grid;
   grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  padding: 4px;
+  gap: var(--ds-space-xs);
+  padding: var(--ds-space-xs);
   margin: 0 0 var(--ds-space-md);
   background: var(--ds-color-bg-subtle);
   border-radius: var(--ds-radius-full);

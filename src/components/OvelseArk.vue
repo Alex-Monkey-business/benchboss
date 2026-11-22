@@ -89,10 +89,10 @@ async function tilBanken(id) {
 .bla {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   min-width: 0;
   min-height: 60px;
-  padding: 10px 14px;
+  padding: var(--ds-space-12) var(--ds-space-md);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-md);
   background: var(--ds-color-bg-elevated);

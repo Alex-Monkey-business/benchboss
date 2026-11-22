@@ -38,12 +38,12 @@ const ovelser = computed(() => props.drills.filter(d => d?.text))
   padding: 0;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: var(--ds-space-12);
 }
 .okt-liste__rader li {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: var(--ds-space-12);
   min-width: 0;
   font-size: var(--ds-text-sm);
   line-height: 1.35;
@@ -58,7 +58,7 @@ const ovelser = computed(() => props.drills.filter(d => d?.text))
   height: 20px;
   border-radius: var(--ds-radius-full);
   background: var(--okt-nr-bg, var(--ds-color-bg-subtle));
-  font-size: 11px;
+  font-size: var(--ds-text-2xs);
   font-weight: var(--ds-weight-semibold);
   font-variant-numeric: tabular-nums;
   color: var(--okt-dempet, var(--ds-color-text-secondary));
@@ -79,7 +79,7 @@ const ovelser = computed(() => props.drills.filter(d => d?.text))
   color: var(--okt-dempet, var(--ds-color-text-tertiary));
 }
 .okt-liste__rader .okt-liste__flere {
-  padding-left: 30px;
+  padding-left: var(--ds-space-xl);
   font-size: var(--ds-text-xs);
   color: var(--okt-dempet, var(--ds-color-text-tertiary));
 }

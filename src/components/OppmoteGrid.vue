@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from './Ikon.vue'
 // Hvem er her: spillerne og trenerne som store brikker. På = her, overstrøket
 // = ikke her. Samme rutenett før økta (hele skjermen) og under økta (i et ark).
 //
@@ -36,7 +37,7 @@ function velg(id) {
         :class="{ 'oppg__navn--borte': !erHer(p.id) }"
         :aria-pressed="erHer(p.id) ? 'true' : 'false'"
         @click="emit('spiller', p.id)"
-      >{{ navn[p.id] }}<svg v-if="erHer(p.id)" class="oppg__x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+      >{{ navn[p.id] }}<Ikon navn="kryss" vekt="bold" v-if="erHer(p.id)" class="oppg__x" aria-hidden="true" /></button>
     </div>
 
     <template v-if="trenere.length">
@@ -50,7 +51,7 @@ function velg(id) {
           :class="{ 'oppg__navn--borte': !trenerHer(c.id), 'oppg__navn--rigger': rigger === c.id }"
           :aria-pressed="trenerHer(c.id) ? 'true' : 'false'"
           @click="emit('trener', c.id)"
-        >{{ trenerNavn[c.id] }}<small v-if="rigger === c.id">Rigger</small><svg v-if="trenerHer(c.id)" class="oppg__x" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round" aria-hidden="true"><path d="M7 7l10 10M17 7L7 17"/></svg></button>
+        >{{ trenerNavn[c.id] }}<small v-if="rigger === c.id">Rigger</small><Ikon navn="kryss" vekt="bold" v-if="trenerHer(c.id)" class="oppg__x" aria-hidden="true" /></button>
       </div>
 
       <button
@@ -61,7 +62,7 @@ function velg(id) {
         @click="velgRigger = !velgRigger"
       >
         <span>Rigger: <strong>{{ rigger ? trenerNavn[rigger] : 'ingen' }}</strong></span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline :points="velgRigger ? '6 15 12 9 18 15' : '9 18 15 12 9 6'"/></svg>
+        <Ikon :navn="velgRigger ? 'pil-opp' : 'pil-hoyre'" vekt="bold" />
       </button>
       <div v-if="riggerValg && velgRigger" class="oppg__valg" role="radiogroup" aria-label="Rigger">
         <button
@@ -107,12 +108,12 @@ function velg(id) {
 .oppg__grid {
   display: flex;
   flex-wrap: wrap;
-  gap: 8px;
+  gap: var(--ds-space-sm);
 }
 .oppg__navn {
-  display: inline-flex; align-items: center; gap: 6px;
+  display: inline-flex; align-items: center; gap: var(--ds-space-sm);
   min-height: 44px;
-  padding: 0 16px;
+  padding: 0 var(--ds-space-md);
   border: 1.5px solid var(--ds-color-accent);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-accent-light, var(--ds-color-bg-elevated));
@@ -126,7 +127,7 @@ function velg(id) {
 }
 .oppg__navn:active { transform: scale(0.96); }
 /* Krysset sier hva et trykk gjør: tar personen ut. Borte-brikkene har det ikke. */
-.oppg__x { width: 14px; height: 14px; margin-right: -4px; flex: none; color: var(--ds-color-text-tertiary); }
+.oppg__x { width: 14px; height: 14px; margin-right: calc(var(--ds-space-xs) * -1); flex: none; color: var(--ds-color-text-tertiary); }
 .oppg__navn--borte {
   border-color: var(--ds-color-border);
   background: transparent;
@@ -154,10 +155,10 @@ function velg(id) {
 .oppg__rigger svg { width: 18px; height: 18px; flex: none; color: var(--ds-color-text-tertiary); }
 
 /* Ett valg, ikke av/på: mindre og rundere enn navnebrikkene over. */
-.oppg__valg { display: flex; flex-wrap: wrap; gap: 8px; }
+.oppg__valg { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }
 .oppg__valg-knapp {
   min-height: 40px;
-  padding: 0 16px;
+  padding: 0 var(--ds-space-md);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);

@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from './Ikon.vue'
 import { ref, computed } from 'vue'
 import { usePwaInstall } from '../composables/usePwaInstall'
 
@@ -73,27 +74,11 @@ function dismiss() {
         <p class="ios-banner__title">{{ copy.title }}</p>
         <p class="ios-banner__text">
           {{ copy.body }}
-          <svg
-            v-if="iosBrowser !== 'webview'"
-            class="ios-banner__share"
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            stroke-width="2"
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            aria-hidden="true"
-          >
-            <path d="M12 3v13" />
-            <path d="m8 7 4-4 4 4" />
-            <path d="M5 12v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
-          </svg>
+          <Ikon navn="del" v-if="iosBrowser !== 'webview'" class="ios-banner__share" aria-hidden="true" />
         </p>
       </div>
-      <button class="ios-banner__close" type="button" aria-label="Lukk" @click="dismiss">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
-        </svg>
+      <button class="ds-icon-btn ios-banner__close" type="button" aria-label="Lukk" @click="dismiss">
+        <Ikon navn="kryss" />
       </button>
 
       <!-- Pila peker på Safaris Del-knapp i verktøylinja nederst. Men er
@@ -101,9 +86,7 @@ function dismiss() {
            pila på en fane i stedet for på knappen. Verre enn ingen pil, for
            den ber deg trykke feil sted. Vises derfor bare uten bunnmeny. -->
       <span v-if="copy.pointDown && !aboveNav" class="ios-banner__arrow" aria-hidden="true">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <line x1="12" y1="4" x2="12" y2="18" /><polyline points="6 13 12 19 18 13" />
-        </svg>
+        <Ikon navn="ned" vekt="bold" />
       </span>
     </div>
   </Transition>
@@ -118,8 +101,8 @@ function dismiss() {
   z-index: 200;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 12px 14px;
+  gap: var(--ds-space-12);
+  padding: var(--ds-space-12) var(--ds-space-md);
   background: var(--ds-color-bg-elevated);
   border: var(--ds-border-width) solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
@@ -152,7 +135,7 @@ function dismiss() {
 }
 
 .ios-banner__text {
-  margin: 2px 0 0;
+  margin: var(--ds-space-2xs) 0 0;
   font-size: var(--ds-text-xs);
   color: var(--ds-color-text-secondary);
   line-height: 1.35;
@@ -166,26 +149,7 @@ function dismiss() {
   color: var(--ds-color-accent);
 }
 
-.ios-banner__close {
-  flex-shrink: 0;
-  align-self: flex-start;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  background: transparent;
-  border: 0;
-  border-radius: var(--ds-radius-sm);
-  color: var(--ds-color-text-tertiary);
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.ios-banner__close svg {
-  width: 16px;
-  height: 16px;
-}
+.ios-banner__close { align-self: flex-start; }
 
 /* Bouncing pointer toward Safari's bottom share button. */
 .ios-banner__arrow {

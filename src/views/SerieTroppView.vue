@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 import Spot from '../components/Spot.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 import { useAuth } from '../stores/auth'
@@ -202,8 +203,8 @@ async function handleAdd() {
 
     <div class="px-lg">
       <div v-if="canEdit && (!ready || players.length)" class="tropp-actions">
-        <button v-if="editing" type="button" class="add-link" @click="openAdd">
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        <button v-if="editing" type="button" class="ds-link add-link" @click="openAdd">
+          <Ikon navn="pluss" vekt="bold" :size="14" />
           Ny spiller
         </button>
         <button v-else-if="kanFordeles.length" type="button" class="ds-btn ds-btn--primary ds-btn--sm" @click="fordelEtterNiva">
@@ -321,8 +322,8 @@ async function handleAdd() {
           >×</button>
         </div>
       </div>
-      <button type="button" class="add-link" @click="nyeLagNavn.push('')">
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+      <button type="button" class="ds-link add-link" @click="nyeLagNavn.push('')">
+        <Ikon navn="pluss" vekt="bold" :size="14" />
         Lag
       </button>
       <p v-if="nyeLagFeil" class="nye-lag__feil" role="alert">{{ nyeLagFeil }}</p>
@@ -364,11 +365,11 @@ async function handleAdd() {
 .nye-lag__rad .ds-input { flex: 1; }
 .nye-lag__fjern {
   width: 44px; height: 44px; flex: none; border: 0; border-radius: var(--ds-radius-full);
-  background: transparent; color: var(--ds-color-text-tertiary); font-size: 22px; cursor: pointer;
+  background: transparent; color: var(--ds-color-text-tertiary); font-size: var(--ds-text-lg); cursor: pointer;
 }
 .nye-lag__fjern:hover { background: var(--ds-color-bg-subtle); color: var(--ds-color-text-primary); }
 .nye-lag__feil { margin: var(--ds-space-md) 0 0; color: var(--ds-color-danger, #C0392B); font-size: var(--ds-text-sm); }
-.cmd-muted { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); padding: var(--ds-space-sm) 2px; }
+.cmd-muted { color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm); padding: var(--ds-space-sm) var(--ds-space-2xs); }
 
 .tropp-actions {
   display: flex; align-items: center; justify-content: space-between; gap: var(--ds-space-md);
@@ -377,8 +378,8 @@ async function handleAdd() {
 .tropp-actions > .ds-btn:last-child { margin-left: auto; }
 /* Liste | Bane: samme bryter som Kommende | Tidligere på Kamper. */
 .visning {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 4px;
-  padding: 4px; margin-bottom: var(--ds-space-md);
+  display: grid; grid-template-columns: 1fr 1fr; gap: var(--ds-space-xs);
+  padding: var(--ds-space-xs); margin-bottom: var(--ds-space-md);
   background: var(--ds-color-bg-subtle);
   border-radius: var(--ds-radius-full);
 }
@@ -393,13 +394,6 @@ async function handleAdd() {
   box-shadow: var(--ds-shadow-xs);
 }
 .tropp-hint { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); }
-.add-link {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: transparent; border: 0; padding: 0; cursor: pointer;
-  color: var(--ds-color-accent);
-  font-family: var(--ds-font-body); font-weight: 600; font-size: var(--ds-text-sm);
-}
-.add-link:hover { text-decoration: underline; }
 
 .edit-hint {
   color: var(--ds-color-text-tertiary); font-size: var(--ds-text-sm);
@@ -475,7 +469,7 @@ async function handleAdd() {
   position: relative;
   display: inline-flex; align-items: center; gap: var(--ds-space-xs);
   min-height: 44px;
-  padding: 6px var(--ds-space-md);
+  padding: var(--ds-space-sm) var(--ds-space-md);
   border: 1px solid transparent;
   border-radius: var(--ds-radius-full);
   font-size: var(--ds-text-sm);
@@ -484,7 +478,7 @@ async function handleAdd() {
 .chip--team { background: var(--accent-bg, var(--ds-color-bg-subtle)); color: var(--accent-text, var(--ds-color-text-primary)); border-color: var(--accent-border, transparent); }
 .chip--muted {
   background: var(--ds-color-bg-subtle); color: var(--ds-color-text-secondary);
-  padding-right: 4px;
+  padding-right: var(--ds-space-xs);
 }
 /* «Ikke plassert»-kortet er selv dempet; chipsene løftes så de ikke blir
    løs tekst på flaten. */
@@ -500,14 +494,14 @@ async function handleAdd() {
 
 .chip__x {
   display: grid; place-items: center;
-  width: 32px; height: 32px; margin: 0 -10px 0 -4px; padding: 0;
+  width: 32px; height: 32px; margin: 0 calc(var(--ds-space-12) * -1) 0 calc(var(--ds-space-xs) * -1); padding: 0;
   border: none; border-radius: 50%;
   background: transparent; color: inherit; opacity: 0.55;
-  font-size: 15px; line-height: 1; cursor: pointer;
+  font-size: var(--ds-text-sm); line-height: 1; cursor: pointer;
 }
 .chip__x:hover { opacity: 1; }
 
-.chip__assign { display: inline-flex; align-items: center; gap: 5px; margin-left: 4px; }
+.chip__assign { display: inline-flex; align-items: center; gap: var(--ds-space-xs); margin-left: var(--ds-space-xs); }
 .chip__dot {
   width: 24px; height: 24px; padding: 0; flex: none;
   background: var(--accent-text);
@@ -518,13 +512,13 @@ async function handleAdd() {
 .chip__dot:hover { transform: scale(1.15); }
 /* Lag uten farge (A, B, C): navnet i prikken, nøytral flate. */
 .chip__dot:not([data-accent]) {
-  width: auto; min-width: 28px; height: 28px; padding: 0 6px;
+  width: auto; min-width: 28px; height: 28px; padding: 0 var(--ds-space-sm);
   background: var(--ds-color-bg-elevated); color: var(--ds-color-text-primary);
   font: inherit; font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold);
   box-shadow: 0 0 0 1px var(--ds-color-border-strong);
 }
 
-.chip__star { color: var(--ds-color-warning); font-size: 11px; margin: 0 -2px 0 1px; }
+.chip__star { color: var(--ds-color-warning); font-size: var(--ds-text-2xs); margin: 0 calc(var(--ds-space-2xs) * -1) 0 1px; }
 
 
 /* .sheet-actions bor i app.css. */

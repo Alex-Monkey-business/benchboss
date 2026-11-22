@@ -116,7 +116,7 @@ const showFoot = computed(() => !!typeNavn.value || !!status.value || !!referee.
   min-width: 0;
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ds-space-xs);
 }
 
 .mrow__team {
@@ -164,15 +164,15 @@ const showFoot = computed(() => !!typeNavn.value || !!status.value || !!referee.
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
-  margin-top: 12px;
+  gap: var(--ds-space-12);
+  margin-top: var(--ds-space-12);
   min-height: 22px;
 }
 
 .mrow__left {
   display: flex;
   flex-wrap: wrap;
-  gap: 0 10px;
+  gap: 0 var(--ds-space-12);
   min-width: 0;
 }
 
@@ -189,12 +189,12 @@ const showFoot = computed(() => !!typeNavn.value || !!status.value || !!referee.
   font-weight: var(--ds-weight-semibold);
 }
 
-.mrow__faces { display: inline-flex; padding-left: 6px; }
+.mrow__faces { display: inline-flex; padding-left: var(--ds-space-sm); }
 
 .mrow__face {
   width: 22px;
   height: 22px;
-  margin-left: -6px;
+  margin-left: calc(var(--ds-space-sm) * -1);
   border-radius: 50%;
   overflow: hidden;
   display: inline-flex;
@@ -202,7 +202,7 @@ const showFoot = computed(() => !!typeNavn.value || !!status.value || !!referee.
   justify-content: center;
   background: var(--ds-color-bg-sunken);
   box-shadow: 0 0 0 2px var(--ds-color-bg-subtle);
-  font-size: 11px;
+  font-size: var(--ds-text-2xs);
   font-weight: var(--ds-weight-semibold);
   color: var(--ds-color-text-secondary);
 }

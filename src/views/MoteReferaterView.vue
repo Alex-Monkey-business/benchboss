@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 // MØTEREFERATER — det vi ble enige om.
 //
 // To blokker, og rekkefølgen er poenget: ansvarsområdene øverst fordi de
@@ -66,7 +67,7 @@ onMounted(async () => {
               <span class="ansvar__name">{{ p.name }}</span>
               <span class="ansvar__areas">{{ p.areas.join(' · ') }}</span>
             </span>
-            <svg class="ansvar__chevron" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            <Ikon navn="pil-hoyre" class="ansvar__chevron" />
           </router-link>
         </li>
       </ul>
@@ -201,7 +202,7 @@ onMounted(async () => {
 .ansvar__body {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   min-width: 0;
 }
 
@@ -232,7 +233,7 @@ onMounted(async () => {
 .referat-kort {
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  gap: var(--ds-space-xs);
   padding: var(--ds-space-lg);
   background: var(--ds-color-bg-elevated);
   border: 1px solid var(--ds-color-border);
@@ -271,7 +272,7 @@ onMounted(async () => {
 }
 
 .referat-kort__open {
-  padding: 2px 8px;
+  padding: var(--ds-space-2xs) var(--ds-space-sm);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-surface);
   border: 1px solid var(--ds-color-border);

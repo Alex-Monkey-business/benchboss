@@ -35,7 +35,7 @@
 /* ---- Input & Textarea ---- */
 .ds-input {
   width: 100%;
-  padding: 11px var(--ds-space-md);
+  padding: var(--ds-space-12) var(--ds-space-md);
   border: var(--ds-border-width) solid var(--ds-color-border);
   border-radius: var(--ds-radius-md);
   font-family: var(--ds-font-body);

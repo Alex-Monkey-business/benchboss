@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from '../components/Ikon.vue'
 // KJØREPLANEN — øvelsene for økta.
 //
 // Oppmøte og inndeling bor i Del inn (Alex, 16. nov): velg trening, hvem er
@@ -91,7 +92,7 @@ const tilbakeTil = '/trening'
       <h1 class="okt__h1 okt__tittel">{{ session.title || 'Trening' }}</h1>
       <RouterLink to="/del-inn" class="plan__delinn">
         <span class="plan__delinn-tekst"><strong>Del inn</strong></span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+        <Ikon navn="pil-hoyre" aria-hidden="true" />
       </RouterLink>
       <button
         v-if="rigg.utstyr.length || rigg.stasjoner.length"
@@ -101,7 +102,7 @@ const tilbakeTil = '/trening'
       >
         <span class="rigg-rad__merke">Rigg</span>
         <span class="rigg-rad__ting">{{ rigg.utstyr.join(', ') || `${rigg.stasjoner.length} øvelser med stasjoner` }}</span>
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="9 18 15 12 9 6" /></svg>
+        <Ikon navn="pil-hoyre" vekt="bold" aria-hidden="true" />
       </button>
 
       <section class="fase">
@@ -152,7 +153,7 @@ const tilbakeTil = '/trening'
 }
 .okt__tittel { padding: 0 var(--ds-space-lg); margin-bottom: var(--ds-space-md); }
 .okt__back {
-  display: grid; place-items: center; width: 44px; height: 44px; margin-left: -12px;
+  display: grid; place-items: center; width: 44px; height: 44px; margin-left: calc(var(--ds-space-12) * -1);
   border: none; border-radius: var(--ds-radius-md); background: transparent;
   color: var(--ds-color-text-secondary); cursor: pointer;
 }
@@ -164,11 +165,11 @@ const tilbakeTil = '/trening'
   color: var(--ds-color-text-primary);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-.okt__dato { margin-left: 6px; font-weight: var(--ds-weight-medium); color: var(--ds-color-text-tertiary); }
+.okt__dato { margin-left: var(--ds-space-sm); font-weight: var(--ds-weight-medium); color: var(--ds-color-text-tertiary); }
 .okt__her {
   margin-left: auto; flex: none;
   min-height: 44px;
-  padding: 0 16px;
+  padding: 0 var(--ds-space-md);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
@@ -196,12 +197,12 @@ const tilbakeTil = '/trening'
   font-variant-numeric: tabular-nums;
 }
 .oppm__teller strong {
-  margin-right: 8px;
+  margin-right: var(--ds-space-sm);
   font-size: 48px; line-height: 1; letter-spacing: -0.02em;
   font-weight: var(--ds-weight-bold); color: var(--ds-color-text-primary);
 }
 .oppm__teller--ark { margin: 0 0 var(--ds-space-lg); }
-.oppm__teller--ark strong { font-size: var(--ds-text-xl); margin-right: 4px; }
+.oppm__teller--ark strong { font-size: var(--ds-text-xl); margin-right: var(--ds-space-xs); }
 
 /* Fast over bunnmenyen, ikke sticky: en sticky knapp følger innholdet når
    du scroller til bunnen av navnelista, og da hopper den. */
@@ -286,17 +287,17 @@ const tilbakeTil = '/trening'
 .fase { scroll-margin-top: 72px; }
 .fase__tag, .okt__tag {
   flex: none; display: inline-flex; align-items: center;
-  height: 28px; padding: 0 12px;
+  height: 28px; padding: 0 var(--ds-space-12);
   border-radius: var(--ds-radius-full);
   background: var(--ds-badge-bg, var(--ds-color-bg-subtle));
   color: var(--ds-badge-text, var(--ds-color-text-primary));
   font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold);
 }
-.fase__endret { margin: -4px 0 var(--ds-space-md); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+.fase__endret { margin: calc(var(--ds-space-xs) * -1) 0 var(--ds-space-md); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 .fase__ovelser { margin-top: var(--ds-space-sm); }
-.fase__ovelser--forst { margin: -8px 0 var(--ds-space-md); }
+.fase__ovelser--forst { margin: calc(var(--ds-space-sm) * -1) 0 var(--ds-space-md); }
 .gjeng__pluss {
-  flex: none; padding: 2px 10px;
+  flex: none; padding: var(--ds-space-2xs) var(--ds-space-12);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
   font-size: var(--ds-text-xs, 12px); font-weight: var(--ds-weight-semibold);
@@ -318,7 +319,7 @@ const tilbakeTil = '/trening'
   font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
 }
 .endre__trekk {
-  flex: none; min-height: 44px; padding: 0 4px;
+  flex: none; min-height: 44px; padding: 0 var(--ds-space-xs);
   border: 0; background: none;
   font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold);
   color: var(--ds-color-text-primary);
@@ -328,16 +329,16 @@ const tilbakeTil = '/trening'
 .endre__hint { margin: var(--ds-space-md) 0 var(--ds-space-lg); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 .okt__antall {
   margin-left: auto; flex: none;
-  min-height: 44px; padding: 0 4px;
+  min-height: 44px; padding: 0 var(--ds-space-xs);
   border: 0; background: none;
   font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
   cursor: pointer;
 }
 .okt__antall strong { color: var(--ds-color-text-primary); font-variant-numeric: tabular-nums; }
-.fase__til { margin: -4px 0 var(--ds-space-md); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+.fase__til { margin: calc(var(--ds-space-xs) * -1) 0 var(--ds-space-md); font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 .fase__endre {
   margin-left: auto; flex: none;
-  min-height: 44px; padding: 0 16px;
+  min-height: 44px; padding: 0 var(--ds-space-md);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
@@ -356,19 +357,19 @@ const tilbakeTil = '/trening'
 .gjeng__niva {
   flex: none;
   display: grid; place-items: center;
-  min-width: 32px; height: 28px; padding: 0 8px;
+  min-width: 32px; height: 28px; padding: 0 var(--ds-space-sm);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-accent); color: var(--ds-color-accent-text);
   font-size: var(--ds-text-xs, 12px); font-weight: var(--ds-weight-bold);
 }
-.gjeng__niva--liten { min-width: 26px; height: 22px; padding: 0 6px; }
+.gjeng__niva--liten { min-width: 26px; height: 22px; padding: 0 var(--ds-space-sm); }
 .gjeng__trener { min-width: 0; font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
 .gjeng__ant { margin-left: auto; flex: none; font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); font-variant-numeric: tabular-nums; }
 .gjeng__navn { margin: var(--ds-space-sm) 0 0; font-size: var(--ds-text-md); line-height: 1.6; color: var(--ds-color-text-primary); }
 
 .bane + .bane { margin-top: var(--ds-space-lg); }
 .bane__hode {
-  display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 8px;
+  display: flex; flex-wrap: wrap; align-items: baseline; gap: var(--ds-space-xs) var(--ds-space-sm);
   margin: 0 0 var(--ds-space-sm);
   font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary);
 }
@@ -378,7 +379,7 @@ const tilbakeTil = '/trening'
   display: block;
   margin: var(--ds-space-xl) auto 0;
   min-height: 44px;
-  border: 0; background: none; padding: 0 16px;
+  border: 0; background: none; padding: 0 var(--ds-space-md);
   font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium);
   color: var(--ds-color-error, var(--ds-color-text-secondary));
   cursor: pointer;
@@ -386,10 +387,10 @@ const tilbakeTil = '/trening'
 
 /* ── Arkene ── */
 .ark__nr { margin: 0; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
-.ark__meta { margin: 4px 0 var(--ds-space-lg); font-size: var(--ds-text-sm); line-height: 1.4; color: var(--ds-color-text-secondary); }
-.antall { display: flex; align-items: center; gap: 12px; margin: calc(-1 * var(--ds-space-sm)) 0 var(--ds-space-lg); }
+.ark__meta { margin: var(--ds-space-xs) 0 var(--ds-space-lg); font-size: var(--ds-text-sm); line-height: 1.4; color: var(--ds-color-text-secondary); }
+.antall { display: flex; align-items: center; gap: var(--ds-space-12); margin: calc(-1 * var(--ds-space-sm)) 0 var(--ds-space-lg); }
 .antall__navn { flex: none; min-width: 64px; font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
-.antall__valg { flex: 1; display: flex; gap: 6px; min-width: 0; }
+.antall__valg { flex: 1; display: flex; gap: var(--ds-space-sm); min-width: 0; }
 .antall__knapp {
   flex: 1 1 0; min-width: 0; min-height: 44px;
   border: 1px solid var(--ds-color-border);
@@ -402,8 +403,8 @@ const tilbakeTil = '/trening'
 .antall__knapp--valgt { border-color: var(--ds-color-accent); background: var(--ds-color-accent); color: var(--ds-color-accent-text); }
 
 .inn {
-  display: flex; flex-direction: column; gap: 2px;
-  padding: 14px 18px;
+  display: flex; flex-direction: column; gap: var(--ds-space-2xs);
+  padding: var(--ds-space-md) var(--ds-space-20);
   border-radius: var(--ds-radius-lg);
   background: var(--ds-color-bg-subtle, var(--ds-color-bg-elevated));
   font-size: var(--ds-text-sm); line-height: 1.45;
@@ -412,10 +413,10 @@ const tilbakeTil = '/trening'
 .inn strong { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary); }
 
 .endre-gr + .endre-gr { margin-top: var(--ds-space-xl); }
-.endre-gr .gjeng__hode { margin-bottom: 10px; }
-.brikker { display: flex; flex-wrap: wrap; gap: 8px; }
+.endre-gr .gjeng__hode { margin-bottom: var(--ds-space-12); }
+.brikker { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }
 .brikke {
-  min-height: 44px; padding: 0 14px;
+  min-height: 44px; padding: 0 var(--ds-space-md);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-full);
   background: var(--ds-color-bg-elevated);
@@ -443,7 +444,7 @@ const tilbakeTil = '/trening'
 .fot__knapp {
   flex: 1 1 0;
   min-height: var(--ds-btn-h-lg);
-  padding: 0 8px;
+  padding: 0 var(--ds-space-sm);
   border: 1px solid transparent;
   border-radius: var(--ds-radius-lg);
   background: var(--ds-color-bg-subtle, var(--ds-color-bg-elevated));
@@ -465,8 +466,8 @@ const tilbakeTil = '/trening'
 .mal { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }
 .mal__knapp {
   flex: 1 1 120px;
-  display: flex; align-items: center; justify-content: center; gap: 10px;
-  min-height: 52px; padding: 0 12px;
+  display: flex; align-items: center; justify-content: center; gap: var(--ds-space-12);
+  min-height: 52px; padding: 0 var(--ds-space-12);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
   background: var(--ds-color-bg-elevated);
@@ -484,7 +485,7 @@ const tilbakeTil = '/trening'
   -webkit-tap-highlight-color: transparent;
 }
 .plan__delinn svg { flex: none; width: 20px; height: 20px; }
-.plan__delinn-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.plan__delinn-tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: var(--ds-space-2xs); }
 .plan__delinn-tekst strong { font-size: var(--ds-text-md); font-weight: var(--ds-weight-semibold); }
 .plan__delinn-tekst span { font-size: var(--ds-text-sm); opacity: .85; }
 .fase__min { margin-left: auto; font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); font-variant-numeric: tabular-nums; }

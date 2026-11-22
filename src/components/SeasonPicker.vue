@@ -1,4 +1,5 @@
 <script setup>
+import Ikon from './Ikon.vue'
 import { ref, computed } from 'vue'
 import { useSeasons } from '../composables/useSeasons'
 import Sheet from './Sheet.vue'
@@ -37,11 +38,7 @@ function pick(seasonId) {
       <span :class="variant === 'title' ? 'page-header__title' : 'season-picker__label'">
         {{ viewingSeason?.name || 'Kampoversikt' }}
       </span>
-      <svg
-        v-if="canSwitch"
-        class="season-picker__chevron"
-        viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
-      ><polyline points="6 9 12 15 18 9"/></svg>
+      <Ikon navn="pil-ned" vekt="bold" v-if="canSwitch" class="season-picker__chevron" />
     </component>
 
     <div v-if="isViewingPast" class="season-picker__past">
@@ -70,11 +67,7 @@ function pick(seasonId) {
             v-else-if="isDbActive(s)"
             class="ds-badge ds-badge--accent season-picker__badge"
           >Aktiv</span>
-          <svg
-            v-if="s.id === viewingSeason?.id"
-            class="season-picker__check"
-            viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"
-          ><polyline points="20 6 9 17 4 12"/></svg>
+          <Ikon navn="hake" vekt="bold" v-if="s.id === viewingSeason?.id" class="season-picker__check" />
         </button>
       </div>
     </Sheet>
@@ -86,14 +79,14 @@ function pick(seasonId) {
   display: flex;
   flex-direction: column;
   align-items: flex-start;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
 }
 
 .season-picker__trigger {
   position: relative;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: var(--ds-space-sm);
   min-height: 44px;
   border: none;
   background: none;
@@ -123,7 +116,7 @@ function pick(seasonId) {
 .season-picker--title .season-picker__chevron {
   width: 20px;
   height: 20px;
-  margin-top: 2px;
+  margin-top: var(--ds-space-2xs);
 }
 .season-picker__trigger:hover .season-picker__chevron {
   color: var(--ds-color-text-primary);
@@ -132,7 +125,7 @@ function pick(seasonId) {
 .season-picker__past {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--ds-space-sm);
   font-size: var(--ds-text-xs);
   font-weight: 500;
   color: var(--ds-color-warm-text);
@@ -155,15 +148,15 @@ function pick(seasonId) {
 .season-picker__list {
   display: flex;
   flex-direction: column;
-  gap: 6px;
+  gap: var(--ds-space-sm);
 }
 .season-picker__item {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: var(--ds-space-sm);
   width: 100%;
   min-height: 52px;
-  padding: 12px;
+  padding: var(--ds-space-12);
   background: var(--ds-color-bg-subtle);
   border: 1px solid transparent;
   border-radius: var(--ds-radius-sm);
@@ -193,7 +186,7 @@ function pick(seasonId) {
   text-overflow: ellipsis;
 }
 .season-picker__badge {
-  font-size: 0.65rem;
+  font-size: var(--ds-text-2xs);
   flex-shrink: 0;
 }
 .season-picker__check {

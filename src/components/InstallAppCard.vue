@@ -27,9 +27,9 @@ const { canPromptInstall, promptInstall } = usePwaInstall()
 .install-card {
   display: flex;
   align-items: center;
-  gap: 14px;
+  gap: var(--ds-space-md);
   width: 100%;
-  padding: 12px 16px;
+  padding: var(--ds-space-12) var(--ds-space-md);
   background: var(--ds-color-bg-elevated);
   border: var(--ds-border-width) solid var(--ds-color-border);
   border-radius: var(--ds-radius-lg);
@@ -54,7 +54,7 @@ const { canPromptInstall, promptInstall } = usePwaInstall()
   flex: 1;
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: var(--ds-space-2xs);
   min-width: 0;
 }
 

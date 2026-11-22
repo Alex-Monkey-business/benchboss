@@ -49,6 +49,7 @@
   --ds-font-numeric:  'Inter', var(--ds-font-display-sans);
 
   /* ---- Font Sizes ---- */
+  --ds-text-2xs:  0.75rem;    /* 12px — minste tekst i appen */
   --ds-text-xs:   0.8125rem;  /* 13px */
   --ds-text-sm:   0.9375rem;  /* 15px */
   --ds-text-base: 1rem;       /* 16px */
