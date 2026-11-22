@@ -78,6 +78,13 @@ export function playerPositions(player) {
   return Array.isArray(player?.positions) ? player.positions : []
 }
 
+// Primærposisjonene: bare de som også står i positions. Tom = ingen
+// forskjell mellom posisjonene, som før primær fantes.
+export function playerPrimary(player) {
+  const mine = playerPositions(player)
+  return Array.isArray(player?.primary_positions) ? player.primary_positions.filter(v => mine.includes(v)) : []
+}
+
 export function isKeeper(player) {
   return playerPositions(player).includes('keeper')
 }
@@ -111,7 +118,12 @@ export function positionCost(player, position) {
   if (position === 'keeper') return keeper ? 0 : 50
   // En ren keeper ute på banen er siste utvei.
   if (keeper && mine.length === 1) return 40
-  if (mine.includes(position)) return 0
+  // Primær først. Har spilleren primære, er de andre posisjonene hans et
+  // hakk bak, på linje med en gammel grov posisjon som passer.
+  if (mine.includes(position)) {
+    const primær = playerPrimary(player)
+    return !primær.length || primær.includes(position) ? 0 : 1
+  }
   if (fitsPosition(player, position)) return 1
   const familie = AV[position]?.familie
   const familier = mine.map(v => AV[v]?.familie).filter(f => f && f !== 'keeper')

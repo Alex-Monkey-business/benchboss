@@ -96,6 +96,10 @@ export function usePlayers() {
     // Fast rekkefølge og bare gyldige verdier — CHECK-constrainten i basen
     // avviser resten, og da vil vi ikke ha kommet dit.
     if ('positions' in payload) payload.positions = normalizePositions(payload.positions)
+    if ('primary_positions' in payload) {
+      const pos = payload.positions ?? players.value.find(p => p.id === id)?.positions ?? []
+      payload.primary_positions = normalizePositions((payload.primary_positions || []).filter(v => pos.includes(v)))
+    }
 
     if (!isSupabaseConfigured) {
       const idx = players.value.findIndex(p => p.id === id)
@@ -104,12 +108,19 @@ export function usePlayers() {
       return players.value[idx]
     }
 
-    const { data, error } = await supabase
+    let { data, error } = await supabase
       .from('players')
       .update(payload)
       .eq('id', id)
       .select()
       .single()
+
+    // Før migrasjonen finnes ikke primary_positions. Da lagres resten, så
+    // navn og posisjoner ikke går tapt for en kolonne som mangler.
+    if (error && 'primary_positions' in payload && /primary_positions/.test(error.message || '')) {
+      const { primary_positions: _, ...uten } = payload
+      ;({ data, error } = await supabase.from('players').update(uten).eq('id', id).select().single())
+    }
 
     if (!error && data) {
       const idx = players.value.findIndex(p => p.id === id)

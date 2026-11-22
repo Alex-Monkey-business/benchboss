@@ -64,5 +64,16 @@ const lag = [
   const b = JSON.stringify(plasserLag(F9, [...lag].reverse(), {}, 9).plasser)
   ok('rekkefølgen inn betyr ingenting', a === b)
 }
+// Primær vinner: to som begge kan stopper og venstre back, får hver sin primær.
+{
+  const pr = (id, primary_positions, ...positions) => ({ id, name: id, positions, primary_positions })
+  const resten = [sp('K', 'keeper'), sp('HB', 'hoyre_back'), sp('VV', 'venstre_ving'), sp('SM', 'sentral'), sp('SM2', 'sentral'), sp('HV', 'hoyre_ving'), sp('SP', 'angrep')]
+  const lag2 = [pr('X', ['stopper'], 'stopper', 'venstre_back'), pr('Y', ['venstre_back'], 'venstre_back', 'stopper'), ...resten]
+  for (const inn of [lag2, [...lag2].reverse()]) {
+    const r = plasserLag(F9, inn, {}, 9)
+    ok('primær stopper står som stopper', r.plasser.d2 === 'X', JSON.stringify(r.plasser))
+    ok('primær venstre back står som venstre back', r.plasser.d1 === 'Y')
+  }
+}
 console.log(feilet ? `${feilet} feil` : 'Alt grønt')
 process.exit(feilet ? 1 : 0)

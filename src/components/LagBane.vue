@@ -25,9 +25,7 @@ const props = defineProps({
 const { laste, lagre } = useOppstilling()
 const { show: showToast } = useToast()
 
-const FORMASJONSNAVN = { 5: '1-2-1', 7: '2-3-1', 9: '3-4-1', 11: '4-3-3' }
 const formasjon = computed(() => formationFor(props.spillform))
-const formasjonsnavn = computed(() => FORMASJONSNAVN[props.spillform] || '')
 const lasteNa = computed(() => laste(props.team.id, props.spillform))
 const justert = computed(() => Object.keys(lasteNa.value).length > 0)
 const oppstilling = computed(() => plasserLag(formasjon.value, props.spillere, lasteNa.value, props.spillform))
@@ -97,10 +95,9 @@ const hint = computed(() => {
 
 <template>
   <div class="lb">
-    <div class="lb__meta">
-      <span class="lb__form">{{ spillform }}er<template v-if="formasjonsnavn"> · {{ formasjonsnavn }}</template></span>
-      <span class="lb__hint" :class="{ 'lb__hint--valgt': valgt }" aria-live="polite">{{ hint }}</span>
-    </div>
+    <!-- Ingen tekst over banen i ro. Linja er der for trenere, tom, så banen
+         ikke hopper ned i det et navn velges og neste trykk skal treffe. -->
+    <p v-if="kanEndre" class="lb__hint" aria-live="polite">{{ hint }}</p>
 
     <div class="lb__bane" :class="{ 'lb__bane--velger': valgt }">
       <svg class="lb__linjer" viewBox="0 0 68 96" aria-hidden="true">
@@ -185,14 +182,10 @@ const hint = computed(() => {
 .lb { max-width: 460px; margin-inline: auto; --gress: #2a7a4b; --gress-lys: #2f8452; --kritt: rgba(255, 255, 255, .62); }
 :global([data-theme="dark"] .lb) { --gress: #1f5c39; --gress-lys: #236441; --kritt: rgba(255, 255, 255, .5); }
 
-.lb__meta {
-  display: flex; align-items: baseline; justify-content: space-between; gap: var(--ds-space-md);
-  margin-bottom: var(--ds-space-sm);
-  font-size: var(--ds-text-sm);
+.lb__hint {
+  min-height: 1.4em; margin: 0 0 var(--ds-space-sm); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-primary);
 }
-.lb__form { flex: none; white-space: nowrap; font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-secondary); font-variant-numeric: tabular-nums; }
-.lb__hint { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ds-color-text-tertiary); text-align: right; transition: color .15s ease; }
-.lb__hint--valgt { color: var(--ds-color-text-primary); font-weight: var(--ds-weight-semibold); }
 
 /* Banen: solide klippestriper i SVG, kritt oppå. Ingen gradient. */
 .lb__bane {
