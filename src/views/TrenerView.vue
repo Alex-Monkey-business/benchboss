@@ -185,6 +185,9 @@ async function save() {
   <div class="desktop-container">
     <div class="tr__nav">
       <BackLink to="/serie/tropp" label="Tropp" />
+      <button v-if="ready && coach" type="button" class="ds-icon-btn tr__rediger" :aria-label="`Rediger ${coach.name}`" @click="openEdit">
+        <Ikon navn="rediger" />
+      </button>
     </div>
 
     <div v-if="!ready" class="tr__muted">Henter trener …</div>
@@ -201,7 +204,6 @@ async function save() {
             <span v-else>Ikke på et lag</span>
           </p>
         </div>
-        <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" @click="openEdit">Rediger</button>
       </header>
 
       <section class="tr__section">
@@ -327,8 +329,10 @@ async function save() {
    Her brukes margin, ikke padding: da følger skillelinja på .tr__section
    innholdet i stedet for å gå fra kant til kant. */
 .tr__nav {
+  display: flex; align-items: center; justify-content: space-between;
   margin: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-lg);
 }
+.tr__rediger { margin-right: calc(var(--ds-space-12) * -1); }
 
 
 

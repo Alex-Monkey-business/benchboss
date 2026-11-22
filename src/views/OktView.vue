@@ -151,7 +151,7 @@ const tilbakeTil = '/trening'
   margin: 0 auto;
   padding: var(--ds-space-md) var(--ds-space-lg) 0;
 }
-.okt__tittel { padding: 0 var(--ds-space-lg); margin-bottom: var(--ds-space-md); }
+.okt__h1.okt__tittel { padding: 0 var(--ds-space-lg); margin-bottom: var(--ds-space-lg); }
 .okt__back {
   display: grid; place-items: center; width: 44px; height: 44px; margin-left: calc(var(--ds-space-12) * -1);
   border: none; border-radius: var(--ds-radius-md); background: transparent;

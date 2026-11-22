@@ -12,7 +12,11 @@ const props = defineProps({
   tall: { type: Boolean, default: false },
   // Tilbake-knappen inni arket: returner true hvis arket tok steget selv
   // (f.eks. fra «Om øvelsen» tilbake til gruppene). Ellers lukkes arket.
-  tilbake: { type: Function, default: null }
+  tilbake: { type: Function, default: null },
+  // Høyde på mobil. 'auto': ark med innhold og fast bunn (skjema) eller film
+  // fyller nesten hele skjermen, små menyer og bekreftelser følger innholdet.
+  // true/false overstyrer.
+  stor: { type: [Boolean, String], default: 'auto' }
 })
 
 const emit = defineEmits(['close'])
@@ -156,7 +160,7 @@ watch(() => props.show, (val) => {
     <div v-if="show" class="ds-overlay ds-sheet-overlay" :style="overlayStyle" @click.self="emit('close')">
       <div
         class="ds-sheet"
-        :class="{ 'ds-sheet--media': !!$slots.media, 'ds-sheet--dragging': dragging, 'ds-sheet--tall': tall, 'ds-sheet--footer': !!$slots.footer }"
+        :class="{ 'ds-sheet--stor': stor === 'auto' ? (tall || !!$slots.media || (!!$slots.footer && !!$slots.default)) : !!stor, 'ds-sheet--media': !!$slots.media, 'ds-sheet--dragging': dragging, 'ds-sheet--tall': tall, 'ds-sheet--footer': !!$slots.footer }"
         :style="sheetStyle"
         role="dialog"
         aria-modal="true"

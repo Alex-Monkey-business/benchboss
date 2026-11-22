@@ -318,13 +318,13 @@ async function confirmDelete() {
         <div class="red__felt">
           <span id="red-lag" class="red__navn">Lag</span>
           <!-- Trykk igjen for å ta spilleren av laget. -->
-          <div class="poschips poschips--lag" role="group" aria-labelledby="red-lag" :style="{ gridTemplateColumns: `repeat(${Math.min(Math.max(seasonTeams.length, 1), 4)}, minmax(0, 1fr))` }">
+          <div class="ds-pills ds-pills--bred poschips poschips--lag" role="group" aria-labelledby="red-lag">
             <button
               v-for="t in seasonTeams"
               :key="t.slug"
               type="button"
-              class="poschip"
-              :class="{ 'poschip--on': editTeam === t.slug }"
+              class="ds-pill poschip"
+              :class="{ 'ds-pill--active': editTeam === t.slug }"
               :aria-pressed="editTeam === t.slug ? 'true' : 'false'"
               @click="editTeam = editTeam === t.slug ? '' : t.slug"
             >{{ t.name }}</button>
@@ -345,13 +345,13 @@ async function confirmDelete() {
         </div>
         <div class="red__felt">
           <span id="red-niva" class="red__navn">Nivå</span>
-          <div class="poschips poschips--tre" role="group" aria-labelledby="red-niva">
+          <div class="ds-pills ds-pills--bred poschips poschips--tre" role="group" aria-labelledby="red-niva">
             <button
               v-for="l in LEVELS"
               :key="l"
               type="button"
-              class="poschip"
-              :class="{ 'poschip--on': editLevel === l }"
+              class="ds-pill poschip"
+              :class="{ 'ds-pill--active': editLevel === l }"
               :aria-pressed="editLevel === l ? 'true' : 'false'"
               @click="editLevel = editLevel === l ? null : l"
             >{{ l }}</button>
@@ -530,21 +530,9 @@ async function confirmDelete() {
 .red :deep(.velger) { min-height: 52px; border: 1px solid var(--ds-color-border-strong); border-radius: 12px; font-size: var(--ds-text-md); }
 
 /* Lag og Nivå: samme velger, ett spor med ett fylt valg. */
-.poschips {
-  display: grid; gap: var(--ds-space-xs); height: 52px; box-sizing: border-box; padding: var(--ds-space-xs);
-  border-radius: 12px; background: var(--ds-color-bg-subtle);
-}
-.poschips--tre { grid-template-columns: repeat(3, minmax(0, 1fr)); }
-.poschip {
-  min-width: 0; padding: 0 var(--ds-space-sm); cursor: pointer;
-  border: 0; border-radius: 8px; background: transparent;
-  font-family: var(--ds-font-body); font-size: var(--ds-text-md); font-weight: var(--ds-weight-medium);
-  color: var(--ds-color-text-secondary);
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  transition: background .15s ease, color .15s ease;
-  -webkit-tap-highlight-color: transparent;
-}
-.poschip--on { background: var(--ds-color-accent); color: var(--ds-color-accent-text); font-weight: var(--ds-weight-semibold); }
+/* Lag og nivå: samme bryter som ellers i appen, i full bredde. */
+.poschips { border-radius: var(--ds-radius-full); }
+.poschip { min-width: 0; }
 .poschip:focus-visible { outline: none; box-shadow: var(--ds-shadow-focus); }
 
 .red__bryter {

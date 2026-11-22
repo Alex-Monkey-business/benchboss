@@ -207,21 +207,29 @@
   background: var(--ds-color-bg-elevated, var(--ds-color-bg));
 }
 
-/* Mobile: bottom sheet */
+/* Mobil: arket kommer opp fra bunnen og fyller nesten hele skjermen når det
+   har et skjema eller en film. En stripe av siden bak står igjen øverst, så
+   du ser hvor du kom fra. Små menyer og bekreftelser følger innholdet. */
 @media (max-width: 768px) {
   .ds-sheet-overlay {
     align-items: flex-end;
   }
   .ds-sheet {
+    --ark-topp: calc(env(safe-area-inset-top, 0px) + 12px);
     width: 100%;
     max-width: 100%;
-    max-height: 90dvh;
-    border-radius: var(--ds-radius-lg) var(--ds-radius-lg) 0 0;
-    border-bottom: 0;
+    max-height: calc(100dvh - var(--ark-topp));
+    border-radius: 28px 28px 0 0;
+    border-width: 1px 0 0;
+    box-shadow: 0 -8px 40px rgba(0, 0, 0, 0.18);
     /* Draget følger fingeren uten forsinkelse; slippet glir tilbake. */
-    transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+    transition: transform 0.3s cubic-bezier(0.32, 0.72, 0, 1);
     touch-action: pan-y;
   }
+  .ds-sheet--stor,
+  .ds-sheet--tall { height: calc(100dvh - var(--ark-topp)); }
+  .ds-sheet--stor .ds-sheet__stack,
+  .ds-sheet--stor .ds-sheet__scroll { flex: 1 1 auto; }
   .ds-sheet--dragging { transition: none; }
 
   /* Gripetaket: sier «dette kan dras». På alle ark — også over filmen, der
@@ -232,9 +240,9 @@
     top: 8px;
     left: 50%;
     width: 36px;
-    height: 4px;
-    margin-left: calc(var(--ds-space-20) * -1);
-    border-radius: 2px;
+    height: 5px;
+    margin-left: -18px;
+    border-radius: 3px;
     background: var(--ds-color-border-strong, var(--ds-color-border));
     z-index: 2;
     pointer-events: none;
@@ -243,15 +251,27 @@
     background: rgba(255, 255, 255, 0.9);
     box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.12);
   }
+  /* Hodet: stor tittel og rund lukkeknapp, uten strek under. */
   .ds-sheet:not(.ds-sheet--media) .ds-sheet__header {
-    padding-top: calc(var(--ds-space-md) + 8px);
+    padding: calc(var(--ds-space-lg) + 4px) var(--ds-space-lg) var(--ds-space-sm);
+    border-bottom: 0;
+  }
+  .ds-sheet:not(.ds-sheet--media) .ds-sheet__title {
+    font-size: var(--ds-text-lg);
+    font-weight: var(--ds-weight-bold);
+    line-height: 1.2;
+  }
+  .ds-sheet__header .ds-sheet__close {
+    margin-right: calc(var(--ds-space-xs) * -1);
+    background: var(--ds-color-bg-subtle);
+    color: var(--ds-color-text-primary);
   }
   .ds-sheet__body {
+    padding-top: var(--ds-space-md);
     padding-bottom: calc(var(--ds-space-lg) + env(safe-area-inset-bottom, 0px));
   }
-  .ds-sheet--tall { height: 90dvh; }
   .ds-sheet--footer .ds-sheet__body { padding-bottom: var(--ds-space-lg); }
-  .ds-sheet__footer { padding-bottom: calc(var(--ds-space-md) + env(safe-area-inset-bottom, 0px)); }
+  .ds-sheet__footer { border-top: 0; padding-bottom: calc(var(--ds-space-md) + env(safe-area-inset-bottom, 0px)); }
 }
 
 /* Animations */
@@ -259,9 +279,11 @@
 .ds-sheet-mobile-leave-active {
   transition: opacity 0.25s ease;
 }
-.ds-sheet-mobile-enter-active .ds-sheet,
+.ds-sheet-mobile-enter-active .ds-sheet {
+  transition: transform 0.42s cubic-bezier(0.32, 0.72, 0, 1);
+}
 .ds-sheet-mobile-leave-active .ds-sheet {
-  transition: transform 0.25s cubic-bezier(0.32, 0.72, 0, 1);
+  transition: transform 0.28s cubic-bezier(0.32, 0.72, 0, 1);
 }
 .ds-sheet-mobile-enter-from,
 .ds-sheet-mobile-leave-to {
