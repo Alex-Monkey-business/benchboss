@@ -1,15 +1,14 @@
 <script setup>
 // Påskeegg (nov. 2026): sjefen i Halsen minner trenerne på bekledningen.
 // Vises én gang per trener per telefon, første gang appen åpnes etter at
-// dette kom ut. Ikke for plattform-admin (han som la det inn), ikke midt i
-// en kamp, og ikke i automatiske tester. `?sjefen=1` viser det uansett.
+// dette kom ut. Ikke midt i en kamp, og ikke i automatiske tester. `?sjefen=1` viser det uansett.
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { useAuth } from '../stores/auth'
 import { laasScroll, slippScroll } from '../lib/scrollLock'
 
 const route = useRoute()
-const { ready, isLoggedIn, isCoach, isPlatformAdmin, activeCohort, coach } = useAuth()
+const { ready, isLoggedIn, isCoach, activeCohort, coach } = useAuth()
 
 const UTE = ['login', 'auth-callback', 'kom-i-gang', 'match-mode']
 const nokkel = computed(() => `bb-sjefen-bekledning:${coach.value?.id || 'ukjent'}`)
@@ -20,7 +19,7 @@ const iHalsen = computed(() => /^halsen/i.test(activeCohort.value?.club_short_na
 const skalVises = computed(() =>
   ready.value && isLoggedIn.value && !!route.name && !UTE.includes(route.name) && !route.meta?.public && (
     tvunget.value ||
-    (isCoach.value && !isPlatformAdmin.value && iHalsen.value && !navigator.webdriver && !sett())
+    (isCoach.value && iHalsen.value && !navigator.webdriver && !sett())
   ))
 
 const apen = ref(false)
