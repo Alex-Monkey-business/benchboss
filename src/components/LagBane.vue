@@ -88,7 +88,8 @@ async function tilbakestill() {
 
 const hint = computed(() => {
   if (!props.kanEndre) return ''
-  if (!valgt.value) return justert.value ? 'Justert av trenerne' : 'Plassert etter posisjonene'
+  // Ingen hjelpetekst i ro. Bare når et navn er valgt, sier linja hva neste trykk gjør.
+  if (!valgt.value) return ''
   const p = valgt.value.slot ? spiller(oppstilling.value.plasser[valgt.value.slot]) : spiller(valgt.value.benk)
   return `Bytt ${navn.value[p?.id] || 'plassen'} med …`
 })
