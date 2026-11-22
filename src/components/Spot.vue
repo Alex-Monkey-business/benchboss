@@ -37,6 +37,12 @@ const MOTION = {
 const LAG = { stats: ['stats-lavender', 'stats-rose', 'stats-teal'] }
 const UNDERLAG = { import: 'import-blank' }
 
+// Leiresettet (nov. 2026): samme stil som bildene på Hjem. Motivene som
+// finnes i leire vises derfra, som ett stillestående bilde. Resten bruker
+// det gamle settet til de også er laget.
+const LEIRE = new Set(['cup', 'stats', 'training', 'squad', 'skills', 'match'])
+const leire = computed(() => (LEIRE.has(props.name) ? `/illustrations/spot-leire/${props.name}.webp` : null))
+
 const lag = computed(() => LAG[props.name] || null)
 const base = computed(() => UNDERLAG[props.name] || props.name)
 const medBall = computed(() => MED_BALL.has(props.name))
@@ -93,10 +99,11 @@ onBeforeUnmount(() => {
     ref="root"
     class="spot"
     :class="{ 'spot--playing': playing }"
-    :data-motion="motion"
+    :data-motion="leire ? 'none' : motion"
     aria-hidden="true"
   >
-    <span v-if="lag" class="spot__bars">
+    <img v-if="leire" :src="leire" alt="" width="320" height="320" decoding="async" />
+    <span v-else-if="lag" class="spot__bars">
       <picture v-for="l in lag" :key="l">
         <source type="image/avif" :srcset="srcset(l, 'avif')" :sizes="barSizes" />
         <img :srcset="srcset(l, 'webp')" :sizes="barSizes" :src="`${BASE}${l}-192.webp`" alt="" decoding="async" />
