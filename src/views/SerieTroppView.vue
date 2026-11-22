@@ -342,7 +342,7 @@ async function handleAdd() {
         <input v-model="newName" class="ds-input" placeholder="Spillerens navn" @keydown.enter="handleAdd" />
       </div>
       <div class="ds-form-group">
-        <label class="ds-label ds-label--optional">Lag</label>
+        <label class="ds-label">Lag</label>
         <select v-model="newTeam" class="ds-input">
           <option v-for="opt in TEAM_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
         </select>

@@ -86,17 +86,16 @@ export function playerPrimary(player) {
 }
 
 // ── Primær og sekundær, slik trenerne sier det ───────────────────────────────
-// To nedtrekkslister i stedet for et rutenett. «Back» og «Ving» betyr begge
-// sider; venstre og høyre kan også velges hver for seg. Lagres som før:
+// To nedtrekkslister i stedet for et rutenett. Side velges alltid: «begge
+// sider» ble tatt bort 22. nov (Alex). En spiller som fortsatt har begge
+// sider lagret, vises med venstre til treneren velger. Lagres som før:
 // positions = alt spilleren kan, primary_positions = primærvalget.
 export const POSITION_VALG = [
   { value: 'keeper',       label: 'Keeper',             kort: 'Keeper',      gruppe: 'Keeper',   sett: ['keeper'] },
-  { value: 'back',         label: 'Back, begge sider',  kort: 'Back',        gruppe: 'Forsvar',  sett: ['venstre_back', 'hoyre_back'] },
   { value: 'venstre_back', label: 'Venstre back',       kort: 'Venstre back', gruppe: 'Forsvar', sett: ['venstre_back'] },
   { value: 'hoyre_back',   label: 'Høyre back',         kort: 'Høyre back',  gruppe: 'Forsvar',  sett: ['hoyre_back'] },
   { value: 'stopper',      label: 'Stopper',            kort: 'Stopper',     gruppe: 'Forsvar',  sett: ['stopper'] },
   { value: 'sentral',      label: 'Sentral midt',       kort: 'Sentral midt', gruppe: 'Midtbane', sett: ['sentral'] },
-  { value: 'ving',         label: 'Ving, begge sider',  kort: 'Ving',        gruppe: 'Midtbane', sett: ['venstre_ving', 'hoyre_ving'] },
   { value: 'venstre_ving', label: 'Venstre ving',       kort: 'Venstre ving', gruppe: 'Midtbane', sett: ['venstre_ving'] },
   { value: 'hoyre_ving',   label: 'Høyre ving',         kort: 'Høyre ving',  gruppe: 'Midtbane', sett: ['hoyre_ving'] },
   { value: 'angrep',       label: 'Spiss',              kort: 'Spiss',       gruppe: 'Angrep',   sett: ['angrep'] }
@@ -110,8 +109,8 @@ export function valgSett(value) {
   return VALG[value]?.sett || []
 }
 
-// Et sett posisjoner som valg, i fast rekkefølge. Begge sider samles til
-// «Back»/«Ving». De gamle grove verdiene (forsvar, ving) har ikke noe valg.
+// Et sett posisjoner som valg, i fast rekkefølge. De gamle grove verdiene
+// (forsvar, ving) har ikke noe valg.
 function tilValg(liste) {
   const har = new Set(liste)
   const ut = []

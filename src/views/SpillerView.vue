@@ -253,7 +253,7 @@ async function confirmDelete() {
         <input v-model="editName" class="ds-input" placeholder="Navn" @keydown.enter="save" />
       </div>
       <div class="ds-form-group">
-        <label class="ds-label ds-label--optional">Lag</label>
+        <label class="ds-label">Lag</label>
         <!-- Få lag: knapper som Nivå. Trykk igjen for å ta spilleren av laget. -->
         <div class="poschips poschips--lag" :style="{ gridTemplateColumns: `repeat(${Math.min(Math.max(seasonTeams.length, 1), 4)}, 1fr)` }">
           <button
@@ -269,7 +269,7 @@ async function confirmDelete() {
       </div>
       <div class="posvalg">
         <div class="ds-form-group">
-          <label class="ds-label ds-label--optional" for="pos-primar">Primær</label>
+          <label class="ds-label" for="pos-primar">Primær</label>
           <select id="pos-primar" v-model="editPrimar" class="ds-input">
             <option value="">Ingen</option>
             <optgroup v-for="g in VALG_GRUPPER" :key="g.navn" :label="g.navn">
@@ -278,7 +278,7 @@ async function confirmDelete() {
           </select>
         </div>
         <div class="ds-form-group">
-          <label class="ds-label ds-label--optional" for="pos-sekundar">Sekundær</label>
+          <label class="ds-label" for="pos-sekundar">Sekundær</label>
           <select id="pos-sekundar" v-model="editSekundar" class="ds-input" :disabled="!editPrimar">
             <option value="">Ingen</option>
             <optgroup v-for="g in VALG_GRUPPER" :key="g.navn" :label="g.navn">
@@ -288,7 +288,7 @@ async function confirmDelete() {
         </div>
       </div>
       <div class="ds-form-group">
-        <label class="ds-label ds-label--optional">Nivå</label>
+        <label class="ds-label">Nivå</label>
         <div class="poschips poschips--tre">
           <button
             v-for="l in LEVELS"
