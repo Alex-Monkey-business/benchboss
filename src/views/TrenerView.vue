@@ -28,10 +28,10 @@ import BackLink from '../components/BackLink.vue'
 const route = useRoute()
 const { activeCohort } = useAuth()
 const { coaches, fetchCoaches } = useCoaches()
-const { activeSeason, viewingSeason, fetchSeasons } = useSeasons()
+const { activeSeason, viewingSeason, ensureSeasons } = useSeasons()
 const { seasonTeams, setSeasonTeams, invalidateTeamCoaches } = useSeasonTeams()
-const { matches, matchCoaches, fetchMatches, backfillDefaultCoaches } = useMatches()
-const { expenses, fetchExpenses } = useExpenses()
+const { matches, matchCoaches, ensureMatches, backfillDefaultCoaches } = useMatches()
+const { expenses } = useExpenses()
 const { fetchResponsibilities, areasForCoach, setAreasForCoach, supportsResponsibilities } = useResponsibilities()
 const { show: showToast } = useToast()
 
@@ -81,15 +81,19 @@ const utlegg = computed(() => {
 
 async function lastSesongdata() {
   if (!viewingSeason.value) return
-  await fetchMatches(viewingSeason.value.id)
-  await fetchExpenses(matches.value.map(m => m.id))
+  // Utleggene kommer med kampene.
+  await ensureMatches(viewingSeason.value.id)
 }
 
 onMounted(async () => {
-  const list = await fetchCoaches()
-  await fetchSeasons()
-  await lastSesongdata()
-  if (cohortId.value) await fetchResponsibilities(cohortId.value, list)
+  // To bølger i stedet for fire etter hverandre: kampene for sesongen fra
+  // sist går sammen med trenerne og sesongene.
+  const kjent = viewingSeason.value?.id || null
+  const [list] = await Promise.all([fetchCoaches(), ensureSeasons(), kjent ? ensureMatches(kjent) : null])
+  await Promise.all([
+    viewingSeason.value && viewingSeason.value.id !== kjent ? lastSesongdata() : null,
+    cohortId.value ? fetchResponsibilities(cohortId.value, list) : null
+  ])
   ready.value = true
 })
 

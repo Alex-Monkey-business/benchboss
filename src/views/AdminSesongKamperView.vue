@@ -15,8 +15,8 @@ import DisclosureSection from '../components/DisclosureSection.vue'
 import Spot from '../components/Spot.vue'
 import BackLink from '../components/BackLink.vue'
 
-const { seasons, activeSeason, viewingSeason, fetchSeasons, createSeason, setViewingSeason } = useSeasons()
-const { matches, fetchMatches, bulkAddMatches, addMatch, updateMatch, deleteAllMatches, backfillDefaultCoaches } = useMatches()
+const { seasons, activeSeason, viewingSeason, ensureSeasons, createSeason, setViewingSeason } = useSeasons()
+const { matches, fetchMatches, ensureMatches, bulkAddMatches, addMatch, updateMatch, deleteAllMatches, backfillDefaultCoaches } = useMatches()
 const { fetchExpenses } = useExpenses()
 const { show: showToast } = useToast()
 const { activeCohort } = useAuth()
@@ -159,10 +159,9 @@ const editDateInput = ref('')
 const editTimeInput = ref('')
 
 onMounted(async () => {
-  await fetchSeasons()
-  if (viewingSeason.value) {
-    await fetchMatches(viewingSeason.value.id)
-  }
+  const kjent = viewingSeason.value?.id || null
+  await Promise.all([ensureSeasons(), kjent ? ensureMatches(kjent) : null])
+  if (viewingSeason.value && viewingSeason.value.id !== kjent) await ensureMatches(viewingSeason.value.id)
 })
 
 function onDragOver(e) {

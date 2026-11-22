@@ -1,8 +1,7 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
-import { scoped } from '../lib/scope'
-import { cached } from '../lib/query'
+import { sesongHenter, flett } from '../lib/sesongRader'
 import { legg, trekk, poster, utforer, paSvar, nyId } from '../lib/kampKo'
 import { useToast } from './useToast'
 
@@ -74,28 +73,21 @@ export function medVentendeMal(matchId, rader) {
   return rader.filter(g => !fjernet.has(g.id)).concat(nye)
 }
 
-// Alle målene i KULLET (før: alle mål RLS slapp gjennom, på tvers av kull),
-// bare kolonnene statistikken leser. Ferskt i 30 s — før ble de hentet én
-// gang per app-levetid, så et mål ført på en annen telefon kom aldri med.
-const alleMalFersk = cached(async () => {
-  const { data, error } = await scoped(supabase
-    .from('match_goals')
-    .select('id, match_id, player_id, position, clock_seconds'))
-    .order('position')
-  if (!error && data) {
-    const ventende = [...new Set(poster().map(p => p.matchId))]
-    goals.value = ventende.reduce((acc, mid) => acc.filter(g => g.match_id !== mid).concat(medVentendeMal(mid, acc.filter(g => g.match_id === mid))), data)
-    loadedAll.value = true
-  }
-  return !error
-}, 'goals', { ok: v => v === true })
+// Målene for ÉN sesong (før: alle målene i kullet, alle sesonger), bare
+// kolonnene statistikken leser. Ferskt i 30 s per sesong.
+const sesongMalFersk = sesongHenter('match_goals', 'id, match_id, player_id, position, clock_seconds', 'goals', (rader, kampIder) => {
+  const data = flett(goals.value, rader, kampIder)
+  const ventende = [...new Set(poster().map(p => p.matchId))]
+  goals.value = ventende.reduce((acc, mid) => acc.filter(g => g.match_id !== mid).concat(medVentendeMal(mid, acc.filter(g => g.match_id === mid))), data)
+  loadedAll.value = true
+})
 
 export function useMatchGoals() {
   async function fetchMatchGoals(matchId) {
     if (!isSupabaseConfigured) {
       // Demo: seed hele settet første gang. Uten dette filtrerte kampdetalj
       // mot en tom liste og sto alltid med «Ingen scorere registrert», mens
-      // Statistikk viste de samme fem målene — den lastes via fetchAllGoals.
+      // Statistikk viste de samme fem målene — den lastes via fetchSeasonGoals.
       if (!loadedAll.value) {
         goals.value = [...DEMO_GOALS]
         loadedAll.value = true
@@ -117,13 +109,14 @@ export function useMatchGoals() {
     return goals.value.filter(g => g.match_id === matchId)
   }
 
-  async function fetchAllGoals() {
+  // Sesongens mål — Statistikk og spillersida.
+  async function fetchSeasonGoals(seasonId) {
     if (!isSupabaseConfigured) {
       if (!loadedAll.value) goals.value = [...DEMO_GOALS]
       loadedAll.value = true
       return goals.value
     }
-    await alleMalFersk()
+    await sesongMalFersk(seasonId)
     return goals.value
   }
 
@@ -202,7 +195,7 @@ export function useMatchGoals() {
   return {
     goals,
     fetchMatchGoals,
-    fetchAllGoals,
+    fetchSeasonGoals,
     getGoalsForMatch,
     addGoal,
     updateGoal,

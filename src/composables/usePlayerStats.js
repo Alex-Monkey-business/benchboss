@@ -25,25 +25,35 @@ import { isPlayed, isOurMatch, teamColorsForMatch } from '../lib/matchMeta'
 //              når det spør «hvor mange kamper har han spilt?».
 
 export function usePlayerStats() {
-  const { matches, matchPlayers, matchAbsences, ensureMatches, fetchAllMatchPlayers, fetchAllMatchAbsences } = useMatches()
-  const { goals, fetchAllGoals } = useMatchGoals()
-  const { stints, fetchAllStints } = useMatchMode()
+  const { matches: alleKamper, matchPlayers, matchAbsences, ensureMatches, fetchSeasonAbsences } = useMatches()
+  const { goals, fetchSeasonGoals } = useMatchGoals()
+  const { stints, fetchSeasonStints } = useMatchMode()
   const { viewingSeason, ensureSeasons } = useSeasons()
   const { players, fetchPlayers } = usePlayers()
   const { fetchPlayerSeasonTeams, teamForSeason } = usePlayerSeasonTeams()
 
   async function ensurePlayerStats() {
     // Sesongen fra sist går i første bølge; bare et sesongbytte gir en runde til.
+    // Alt er avgrenset til sesongen: mål, spilletid og frafall hentes bare for
+    // den. Innlånene kommer med sesongens kamper.
     const kjent = viewingSeason.value?.id || null
     await Promise.all([
       ensureSeasons(), fetchPlayers(), fetchPlayerSeasonTeams(),
-      fetchAllGoals(), fetchAllStints(), fetchAllMatchPlayers(), fetchAllMatchAbsences(),
-      kjent ? ensureMatches(kjent) : null
+      kjent ? hentSesong(kjent) : null
     ])
-    if (viewingSeason.value && viewingSeason.value.id !== kjent) await ensureMatches(viewingSeason.value.id)
+    if (viewingSeason.value && viewingSeason.value.id !== kjent) await hentSesong(viewingSeason.value.id)
+  }
+  function hentSesong(id) {
+    return Promise.all([ensureMatches(id), fetchSeasonGoals(id), fetchSeasonStints(id), fetchSeasonAbsences(id)])
   }
 
   const seasonId = computed(() => viewingSeason.value?.id ?? null)
+  // Kampene ligger i én delt liste som byttes ved sesongbytte. Rett etter et
+  // bytte er sesongen ny mens lista fortsatt er den gamle; da skal tallene
+  // være tomme, ikke en blanding av ny sesongs lag og gammel sesongs kamper.
+  const matches = computed(() => seasonId.value
+    ? alleKamper.value.filter(m => !m.season_id || m.season_id === seasonId.value)
+    : alleKamper.value)
   const ourMatches = computed(() => matches.value.filter(isOurMatch))
   const playedMatches = computed(() => ourMatches.value.filter(isPlayed))
   const playedIds = computed(() => new Set(playedMatches.value.map(m => m.id)))

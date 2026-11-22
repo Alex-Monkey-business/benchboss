@@ -32,7 +32,7 @@ import { useSeasonTeams } from '../composables/useSeasonTeams'
 
 const route = useRoute()
 const router = useRouter()
-const { matches, matchPlayers, getMatch, ensureMatches, updateMatch, setMatchCoaches, getCoachesForMatch, setMatchPlayers, fetchMatchPlayers, getPlayersForMatch, fetchAllMatchPlayers, fetchMatchAbsences, fetchAllMatchAbsences, getAbsencesForMatch, toggleAbsence, deleteMatch } = useMatches()
+const { matches, matchPlayers, getMatch, ensureMatches, updateMatch, setMatchCoaches, getCoachesForMatch, setMatchPlayers, fetchMatchPlayers, getPlayersForMatch, fetchMatchAbsences, fetchSeasonAbsences, getAbsencesForMatch, toggleAbsence, deleteMatch } = useMatches()
 const { expenses, registerExpense, getExpenseForMatch, removeExpense } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
@@ -147,7 +147,7 @@ onMounted(async () => {
   // hører denne kampen til — mål, sesjon, perioder — hentes alltid.
   const [fersk, , , , mmStints] = await Promise.all([
     kjentSesong ? null : getMatch(id),
-    Promise.all([ensureSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllMatchPlayers(), fetchAllMatchAbsences()]),
+    Promise.all([ensureSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), kjentSesong ? fetchSeasonAbsences(kjentSesong) : null]),
     // Sesongens kamper: grunnlag for ekstra-kamp-tall og konflikt-/uke-sjekk,
     // og de gir også en fersk utgave av denne kampen.
     kjentSesong ? ensureMatches(kjentSesong) : null,
@@ -155,13 +155,13 @@ onMounted(async () => {
     fetchMmSession(id),
     fetchMmStints(id)
   ])
-  if (!kjentSesong && fersk?.season_id) await ensureMatches(fersk.season_id)
+  if (!kjentSesong && fersk?.season_id) await Promise.all([ensureMatches(fersk.season_id), fetchSeasonAbsences(fersk.season_id)])
   match.value = matches.value.find(m => m.id === id) || fersk || match.value
 
   if (match.value) {
     hasPlayingTime.value = (mmStints || []).length > 0
     matchCoachIds.value = getCoachesForMatch(id)
-    // Troppen og frafallet for hele kullet er nettopp hentet; denne kampen er med.
+    // Troppen og frafallet for sesongen er nettopp hentet; denne kampen er med.
     matchPlayerIds.value = getPlayersForMatch(id)
     matchAbsenceIds.value = getAbsencesForMatch(id)
     // Feltene fylles på nytt bare hvis kampen faktisk er endret siden sist,

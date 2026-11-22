@@ -1,6 +1,5 @@
 import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
-import { scoped } from '../lib/scope'
 import { useCoaches } from './useCoaches'
 import { defaultCoachIdsForMatch } from '../lib/coachTeams'
 import { useSeasonTeams } from './useSeasonTeams'
@@ -9,6 +8,7 @@ import { registerReset } from '../stores/dataReset'
 import { fetchRows, STATUS, cached } from '../lib/query'
 import { settUtlegg } from './useExpenses'
 import { persistRef } from '../lib/persist'
+import { sesongHenter, flett } from '../lib/sesongRader'
 
 const matches = persistRef('matches', ref([]))
 const matchCoaches = persistRef('matchCoaches', ref([]))
@@ -144,17 +144,12 @@ async function hentKamper(seasonId) {
 // ferske nok: Hjem, Kamper, kampsida og Statistikk.
 const kamperFersk = cached(hentKamper, 'matches', { ok: () => status.value === STATUS.OK, enPlass: true })
 
-// Hele kullets tropp og frafall (konfliktsjekken på kampsida). Fersk i 30 s.
-const allePlayersFersk = cached(async () => {
-  const { data, error } = await scoped(supabase.from('match_players').select('match_id, player_id'))
-  if (data) matchPlayers.value = data
-  return !error
-}, 'allMatchPlayers', { ok: v => v === true })
-const alleFravaerFersk = cached(async () => {
-  const { data, error } = await scoped(supabase.from('match_absences').select('match_id, player_id'))
-  if (data) matchAbsences.value = data
-  return !error
-}, 'allMatchAbsences', { ok: v => v === true })
+// Sesongens frafall. Troppen (hospitantene) trenger ingen egen henting: den
+// kommer med sesongens kamper i hentKamper. Før hentet kampsida og spillersida
+// begge deler for hele kullet, alle sesonger.
+const sesongFravaerFersk = sesongHenter('match_absences', 'match_id, player_id', 'matchAbsences', (rader, kampIder) => {
+  matchAbsences.value = flett(matchAbsences.value, rader, kampIder)
+})
 
 export function useMatches() {
   const { coaches, fetchCoaches } = useCoaches()
@@ -399,17 +394,11 @@ export function useMatches() {
   }
 
   // Fetch all match_players rows — needed for cross-match conflict detection.
-  async function fetchAllMatchPlayers() {
-    if (!isSupabaseConfigured) return matchPlayers.value
-    await allePlayersFersk()
-    return matchPlayers.value
-  }
-
   // ─── Frafall (match_absences) ───────────────────────────────────────────────
   // Spillere fra laget som er ute av en kamp. Speiler match_players-mønsteret.
-  async function fetchAllMatchAbsences() {
+  async function fetchSeasonAbsences(seasonId) {
     if (!isSupabaseConfigured) return matchAbsences.value
-    await alleFravaerFersk()
+    await sesongFravaerFersk(seasonId)
     return matchAbsences.value
   }
 
@@ -482,8 +471,8 @@ export function useMatches() {
     matches, matchCoaches, matchPlayers, matchAbsences, loading, status,
     fetchMatches: kamperFersk.force, ensureMatches: kamperFersk, getMatch, updateMatch, addMatch, bulkAddMatches,
     setMatchCoaches, getCoachesForMatch, fetchMatchCoaches, backfillDefaultCoaches,
-    setMatchPlayers, getPlayersForMatch, fetchMatchPlayers, fetchAllMatchPlayers,
-    fetchAllMatchAbsences, fetchMatchAbsences, getAbsencesForMatch, toggleAbsence,
+    setMatchPlayers, getPlayersForMatch, fetchMatchPlayers,
+    fetchSeasonAbsences, fetchMatchAbsences, getAbsencesForMatch, toggleAbsence,
     deleteMatch, deleteAllMatches
   }
 }

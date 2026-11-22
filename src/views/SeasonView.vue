@@ -20,9 +20,9 @@ import BackLink from '../components/BackLink.vue'
 const { coach: currentCoach, activeCohort, isAdmin, isCoach, isPlatformAdmin, refreshMember } = useAuth()
 const { usesReferees } = useFeatures()
 const clubShort = computed(() => activeCohort.value?.club_name?.split(' ')[0] || 'Klubben')
-const { seasons, viewingSeason, fetchSeasons, settleSeason } = useSeasons()
-const { matches, fetchMatches, getCoachesForMatch } = useMatches()
-const { expenses, fetchExpenses, getSettlement } = useExpenses()
+const { seasons, viewingSeason, ensureSeasons, settleSeason } = useSeasons()
+const { matches, ensureMatches, getCoachesForMatch } = useMatches()
+const { expenses, getSettlement } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
 const { show: showToast } = useToast()
 
@@ -31,19 +31,16 @@ const loading = ref(matches.value.length === 0)
 const showSettleDialog = ref(false)
 
 onMounted(async () => {
-  await Promise.all([fetchSeasons(), fetchCoaches()])
-  if (viewingSeason.value) {
-    await fetchMatches(viewingSeason.value.id)
-    await fetchExpenses(matches.value.map(m => m.id))
-  }
+  // Utleggene kommer med sesongens kamper (én rundtur), så de hentes ikke
+  // for seg. Svar under 30 s gamle gjenbrukes; hver skriving gjør dem gamle.
+  const kjent = viewingSeason.value?.id || null
+  await Promise.all([ensureSeasons(), fetchCoaches(), kjent ? ensureMatches(kjent) : null])
+  if (viewingSeason.value && viewingSeason.value.id !== kjent) await ensureMatches(viewingSeason.value.id)
   loading.value = false
 })
 
 watch(viewingSeason, async (s) => {
-  if (s) {
-    await fetchMatches(s.id)
-    await fetchExpenses(matches.value.map(m => m.id))
-  }
+  if (s) await ensureMatches(s.id)
 })
 
 const settlement = computed(() => {

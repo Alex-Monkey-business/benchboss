@@ -26,8 +26,8 @@ const { referees, fetchReferees } = useReferees()
 const { usesReferees } = useFeatures()
 const { players, fetchPlayers } = usePlayers()
 const { fetchPlayerSeasonTeams, teamForSeason } = usePlayerSeasonTeams()
-const { goals: allGoals, fetchAllGoals } = useMatchGoals()
-const { stints, fetchAllStints } = useMatchMode()
+const { goals: allGoals, fetchSeasonGoals } = useMatchGoals()
+const { stints, fetchSeasonStints } = useMatchMode()
 // Kamper, mål og spilletid per spiller regnes ett sted — delt med spillerprofilen.
 const { statsFor } = usePlayerStats()
 
@@ -42,14 +42,19 @@ onMounted(async () => {
   // hentes på nytt bare om sesongen viser seg å være en annen. Oppmøtet også.
   const kjent = viewingSeason.value?.id || null
   if (kjent) lastOppmote()
-  await Promise.all([ensureSeasons(), fetchCoaches(), (usesReferees.value ? fetchReferees() : Promise.resolve()), fetchPlayers(), fetchPlayerSeasonTeams(), fetchAllGoals(), fetchAllStints(), kjent ? ensureMatches(kjent) : null])
-  if (viewingSeason.value && viewingSeason.value.id !== kjent) await ensureMatches(viewingSeason.value.id)
+  await Promise.all([ensureSeasons(), fetchCoaches(), (usesReferees.value ? fetchReferees() : Promise.resolve()), fetchPlayers(), fetchPlayerSeasonTeams(), kjent ? hentSesong(kjent) : null])
+  if (viewingSeason.value && viewingSeason.value.id !== kjent) await hentSesong(viewingSeason.value.id)
   loading.value = false
   if (!kjent) lastOppmote()
 })
 
+// Kamper, mål og spilletid for sesongen man ser på, ikke for hele kullet.
+function hentSesong(id) {
+  return Promise.all([ensureMatches(id), fetchSeasonGoals(id), fetchSeasonStints(id)])
+}
+
 watch(viewingSeason, async (s) => {
-  if (s) await ensureMatches(s.id)
+  if (s) await hentSesong(s.id)
 })
 
 // Lagene er kullets egne (useSeasonTeams via matchMeta) — ingen fast liste.

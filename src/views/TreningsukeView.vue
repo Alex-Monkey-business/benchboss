@@ -23,7 +23,6 @@ import { useContent } from '../composables/useContent'
 import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { dagLink } from '../lib/trainingLinks'
-import { folgMed } from '../lib/poll'
 import { useTrainingWeek } from '../composables/useTrainingWeek'
 import { useExercises, exerciseToDrill, resolveDrills, ovelsensVideo } from '../composables/useExercises'
 import OktListe from '../components/OktListe.vue'
@@ -605,17 +604,21 @@ async function confirmPaste() {
 const oppmoteIDag = ref({})
 watch(isCoach, c => { if (c) hentDagensOppmote().then(m => { oppmoteIDag.value = m }) }, { immediate: true })
 
-// To trenere kan planlegge samtidig. Mens planen er åpen, følges uka med
-// samme klokke som Del inn (lib/poll), så den andres endring står her innen
-// noen sekunder.
-let stoppPoll = null
+// Planen hentes når skjermen åpnes og når appen kommer fram igjen. Før ble
+// hele uka med alle øvelsene hentet hvert 4.–10. sekund så lenge planen sto
+// åpen. To trenere som redigerer samme dag i samme øyeblikk fanges uansett
+// ved lagring («Dagen ble endret samtidig»). Del inn og økta følges fortsatt
+// løpende (lib/poll): der står flere trenere på feltet samtidig.
+function vedRetur() {
+  if (document.visibilityState === 'visible') hentUkaForPoll().catch(() => {})
+}
 onMounted(async () => {
   await fetchWeek()
   fetchExercises()
   loading.value = false
-  stoppPoll = folgMed('treningsuke', hentUkaForPoll)
+  document.addEventListener('visibilitychange', vedRetur)
 })
-onUnmounted(() => { stoppPoll?.() })
+onUnmounted(() => { document.removeEventListener('visibilitychange', vedRetur) })
 </script>
 
 <template>

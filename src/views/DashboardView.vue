@@ -45,13 +45,16 @@ const loading = ref(matches.value.length === 0)
 onMounted(async () => {
   // Parallelt og uten å vente: lista trenger den ikke, men kampsida tegner
   // riktig fase i første bilde når statusen ligger klar.
-  fetchSessionStatuses()
+  if (viewingSeason.value?.id) fetchSessionStatuses(viewingSeason.value.id)
   // Sesongen fra sist går i samme bølge som sesonglista: kampene (med
   // trenere, tropp og utlegg) kommer i én rundtur, og bare hvis sesongen
   // viser seg å være en annen, hentes de på nytt. Ferskt i 30 s.
   const kjent = viewingSeason.value?.id || null
   await Promise.all([ensureSeasons(), fetchCoaches(), kjent ? ensureMatches(kjent) : null])
-  if (viewingSeason.value && viewingSeason.value.id !== kjent) await ensureMatches(viewingSeason.value.id)
+  if (viewingSeason.value && viewingSeason.value.id !== kjent) {
+    fetchSessionStatuses(viewingSeason.value.id)
+    await ensureMatches(viewingSeason.value.id)
+  }
   loading.value = false
   if (!fanenValgt && upcomingMatches.value.length === 0 && pastMatches.value.length > 0) {
     timeFilter.value = 'past'
@@ -59,7 +62,7 @@ onMounted(async () => {
 })
 
 watch(viewingSeason, (s) => {
-  if (s) ensureMatches(s.id)
+  if (s) { ensureMatches(s.id); fetchSessionStatuses(s.id) }
 })
 
 // Get all team colors for a match (can be 2 for internal matches)

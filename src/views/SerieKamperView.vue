@@ -15,8 +15,8 @@ import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
 import WeekList from '../components/today/WeekList.vue'
 
-const { viewingSeason, status: seasonStatus, fetchSeasons } = useSeasons()
-const { matches, status: matchStatus, fetchMatches, getCoachesForMatch } = useMatches()
+const { viewingSeason, status: seasonStatus, ensureSeasons } = useSeasons()
+const { matches, status: matchStatus, ensureMatches, getCoachesForMatch } = useMatches()
 const { coaches, fetchCoaches } = useCoaches()
 const { days: treningsdager, fetchWeek } = useTrainingWeek()
 const { activeCup, fetchCups } = useCups()
@@ -42,13 +42,16 @@ const loadFailed = computed(() =>
 )
 
 onMounted(async () => {
-  await Promise.all([fetchSeasons(), fetchCoaches(), fetchWeek(), fetchCups()])
-  if (viewingSeason.value) await fetchMatches(viewingSeason.value.id)
+  // Sesongen fra sist går i samme bølge som resten, og svar under 30 s gamle
+  // gjenbrukes. Før ble sesonger og kamper hentet på nytt ved hvert besøk.
+  const kjent = viewingSeason.value?.id || null
+  await Promise.all([ensureSeasons(), fetchCoaches(), fetchWeek(), fetchCups(), kjent ? ensureMatches(kjent) : null])
+  if (viewingSeason.value && viewingSeason.value.id !== kjent) await ensureMatches(viewingSeason.value.id)
   loading.value = false
 })
 
 watch(viewingSeason, async (s) => {
-  if (s) await fetchMatches(s.id)
+  if (s) await ensureMatches(s.id)
 })
 
 // Ukeplanen — samme liste som trenerne ser på Hjem, men uten lenker
@@ -162,7 +165,7 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
       <MatchCardSkeleton v-if="loading" :count="4" />
 
       <!-- Uten denne blir siden helt blank når sesonger eller kamper feiler:
-           fetchMatches kalles aldri fordi viewingSeason står igjen som null. -->
+           ensureMatches kalles aldri fordi viewingSeason står igjen som null. -->
       <div v-else-if="loadFailed" class="ds-empty">
         <h3 class="ds-empty__title">Kunne ikke laste kampene</h3>
         <p class="ds-empty__description">Sjekk nettforbindelsen og prøv igjen.</p>

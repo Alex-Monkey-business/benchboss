@@ -67,7 +67,19 @@ export function useToday() {
   const { usesReferees } = useFeatures()
   const { dismissed } = useDismissedReminders()
   const { activeSeason, ensureSeasons } = useSeasons()
-  const { matches, ensureMatches, getCoachesForMatch } = useMatches()
+  const { matches: alleKamper, ensureMatches, getCoachesForMatch } = useMatches()
+  // Hjem viser alltid den AKTIVE sesongen. Kamplista er delt med Kamper og
+  // Statistikk, som kan stå på en tidligere sesong, og den huskes mellom
+  // oppstarter. Uten dette filteret regnet Hjem «neste kamp» og «å ordne» ut
+  // fra en gammel sesong til hentingen var ferdig.
+  const matches = computed(() => {
+    const id = activeSeason.value?.id
+    return id ? alleKamper.value.filter(m => !m.season_id || m.season_id === id) : alleKamper.value
+  })
+  const feilSesong = () => {
+    const id = activeSeason.value?.id
+    return !!id && alleKamper.value.some(m => m.season_id && m.season_id !== id)
+  }
   const { fetchCoaches } = useCoaches()
   const { fetchExpenses, getExpenseForMatch } = useExpenses()
   const { activeCup, cupInProgress, fetchCups } = useCups()
@@ -423,7 +435,9 @@ export function useToday() {
     loading.value = !fetchedOnce.value && matches.value.length === 0
     sisteHent = hent
     try {
-      await hjemFersk()
+      // Ligger en annen sesong i kamplista (du har bladd på Kamper), er Hjem
+      // sitt ferske svar ikke lenger sant: hent på nytt med en gang.
+      await (feilSesong() ? hjemFersk.force() : hjemFersk())
       fetchedOnce.value = true
     } finally {
       loading.value = false

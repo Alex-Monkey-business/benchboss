@@ -1,8 +1,7 @@
 import { ref, computed, watch } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
-import { scoped } from '../lib/scope'
 import { registerReset } from '../stores/dataReset'
-import { cached } from '../lib/query'
+import { sesongHenter, flett } from '../lib/sesongRader'
 import { planTransfer, transferableSeconds } from '../lib/timeTransfer'
 import { legg, trekk, poster, venterFor, utforer, paSvar, nyId, ventPa, ventPaKamp } from '../lib/kampKo'
 import { medVentendeMal } from './useMatchGoals'
@@ -246,22 +245,21 @@ async function optimistisk(matchId, gjett, fn, args) {
   }
 }
 
-// Kampstatusene (lista) og alle periodene (Statistikk) hentes ved hvert
-// besøk; svaret er ferskt i 30 s. Kampmodus selv går utenom: der er det
-// mm_tilstand og fetchStints(matchId) som gjelder.
-const statuserFersk = cached(async () => {
-  const { data, error } = await scoped(supabase.from('match_sessions').select('match_id, status'))
-  if (data) statusByMatch.value = Object.fromEntries(data.map(r => [r.match_id, r.status]))
-  return !error
-}, 'mmStatus', { ok: v => v === true })
+// Kampstatusene (lista) og periodene (Statistikk) for ÉN sesong, ferske i
+// 30 s. Før gjaldt begge hele kullet, alle sesonger. Kampmodus selv går
+// utenom: der er det mm_tilstand og fetchStints(matchId) som gjelder.
+const statuserFersk = sesongHenter('match_sessions', 'match_id, status', 'mmStatus', (rader, kampIder) => {
+  const neste = { ...statusByMatch.value }
+  for (const id of kampIder) delete neste[id]
+  for (const r of rader) neste[r.match_id] = r.status
+  statusByMatch.value = neste
+})
 
 // Bare kolonnene statistikken og spilletida leser — ikke cohort_id/created_at.
 const STINT_KOLONNER = 'id, match_id, player_id, role, position, on_clock, off_clock'
-const perioderFersk = cached(async () => {
-  const { data, error } = await scoped(supabase.from('match_stints').select(STINT_KOLONNER))
-  if (data) stints.value = data
-  return !error
-}, 'stints', { ok: v => v === true })
+const perioderFersk = sesongHenter('match_stints', STINT_KOLONNER, 'stints', (rader, kampIder) => {
+  stints.value = flett(stints.value, rader, kampIder)
+})
 
 export function useMatchMode() {
   const currentClock = computed(() => computeClock(session.value, now.value))
@@ -288,14 +286,14 @@ export function useMatchMode() {
     return session.value
   }
 
-  // Bare to kolonner, for alle kullets kamper. Billig nok til å kjøres hver
+  // Bare to kolonner, for sesongens kamper. Billig nok til å kjøres hver
   // gang kamplista åpnes.
-  async function fetchSessionStatuses() {
+  async function fetchSessionStatuses(seasonId) {
     if (!isSupabaseConfigured) {
       statusByMatch.value = Object.fromEntries(Object.values(DEMO_SESSIONS).map(s => [s.match_id, s.status]))
       return statusByMatch.value
     }
-    await statuserFersk()
+    await statuserFersk(seasonId)
     return statusByMatch.value
   }
 
@@ -316,15 +314,15 @@ export function useMatchMode() {
     return stints.value.filter(s => s.match_id === matchId)
   }
 
-  // Alle stints på tvers av kamper — sesongstatistikk.
+  // Sesongens stints — sesongstatistikk.
   // Demo: et lite sett lukkede stints fra dm-1 (Rød) og dm-2 (Grønn) så
   // spilletid per lag er synlig på statistikksiden uten Supabase.
-  async function fetchAllStints() {
+  async function fetchSeasonStints(seasonId) {
     if (!isSupabaseConfigured) {
       if (stints.value.length === 0) stints.value = [...DEMO_STINTS]
       return stints.value
     }
-    await perioderFersk()
+    await perioderFersk(seasonId)
     return stints.value
   }
 
@@ -804,7 +802,7 @@ export function useMatchMode() {
     session, stints, statusByMatch, currentClock, isRunning,
     now, serverOffset,
     startClockTick, stopClockTick,
-    fetchSession, fetchSessionStatuses, fetchStints, fetchAllStints,
+    fetchSession, fetchSessionStatuses, fetchStints, fetchSeasonStints,
     saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, startedEarlier, substitute, undoSubstitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
     matchStints, isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer,
     adjustPlayingTime, undoAdjustment, movableSeconds
