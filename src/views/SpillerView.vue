@@ -13,6 +13,7 @@ import { shortRelativeDate } from '../lib/dateLabels'
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
+import Velger from '../components/Velger.vue'
 import BackLink from '../components/BackLink.vue'
 
 const route = useRoute()
@@ -20,19 +21,25 @@ const router = useRouter()
 const { players, fetchPlayers, updatePlayer, deletePlayer } = usePlayers()
 const { fetchPlayerSeasonTeams, teamForSeason, isLoanEligible, setLoanEligible, playerSeasonTeams } = usePlayerSeasonTeams()
 const { ensurePlayerStats, statsFor, matchesFor } = usePlayerStats()
-const { seasons, viewingSeason, fetchSeasons } = useSeasons()
+const { seasons, viewingSeason, ensureSeasons } = useSeasons()
 const { seasonTeams, seasonTeam, teamsForSeason } = useSeasonTeams()
 const { fetchPlayerLevels, levelFor, setLevel } = usePlayerLevels()
 const { show: showToast } = useToast()
 
-const ready = ref(false)
+// Spilleren står i cachen fra Tropp: siden tegnes med en gang. Bare tallene
+// venter, og de kommer inn når hentingen er ferdig.
+const ready = ref(players.value.some(p => p.id === route.params.id))
+const statsKlar = ref(false)
 const player = computed(() => players.value.find(p => p.id === route.params.id) || null)
 const seasonId = computed(() => viewingSeason.value?.id ?? null)
 
-onMounted(async () => {
-  await Promise.all([fetchPlayers(), fetchPlayerSeasonTeams(), fetchSeasons(), fetchPlayerLevels()])
-  await ensurePlayerStats()
-  ready.value = true
+// Før ventet siden på alt, også alle mål, all spilletid og alle innlån i
+// kullet, og hentet sesongene på nytt hver gang. Nå: profilen først, tallene
+// i bakgrunnen, og sesongene bare når de er gamle.
+onMounted(() => {
+  Promise.all([fetchPlayers(), fetchPlayerSeasonTeams(), ensureSeasons(), fetchPlayerLevels()])
+    .finally(() => { ready.value = true })
+  ensurePlayerStats().finally(() => { statsKlar.value = true })
 })
 
 // Kampene hentes per sesong. Uten denne sto tallene fast på sesongen siden ble
@@ -96,9 +103,8 @@ function openEdit() {
   editLevel.value = level.value
   editing.value = true
 }
-// Gruppene i nedtrekkslistene. Sekundær kan ikke være det samme som primær.
-const VALG_GRUPPER = [...new Set(POSITION_VALG.map(v => v.gruppe))]
-  .map(g => ({ navn: g, valg: POSITION_VALG.filter(v => v.gruppe === g) }))
+// Bare posisjonene, i rekkefølgen på banen bakfra. Ingen gruppeoverskrifter.
+const posValg = POSITION_VALG.map(v => ({ value: v.value, label: v.label }))
 watch(editPrimar, v => { if (!v || v === editSekundar.value) editSekundar.value = '' })
 async function save() {
   const name = editName.value.trim()
@@ -190,7 +196,11 @@ async function confirmDelete() {
           <h2 class="ds-section-label sp__h2">Sesong</h2>
           <SeasonPicker />
         </div>
-        <div class="sp__stats">
+        <div v-if="!statsKlar" class="sp__stats" aria-busy="true">
+          <div class="sp__stat sp__stat--venter"><span class="sp__statnum">–</span><span class="sp__statlabel">kamper</span></div>
+          <div class="sp__stat sp__stat--venter"><span class="sp__statnum">–</span><span class="sp__statlabel">mål</span></div>
+        </div>
+        <div v-else class="sp__stats">
           <div class="sp__stat">
             <span class="sp__statnum">{{ stats.games }}</span>
             <span class="sp__statlabel">kamper</span>
@@ -206,7 +216,7 @@ async function confirmDelete() {
         </div>
       </section>
 
-      <section v-if="hasTimed" class="sp__section">
+      <section v-if="statsKlar && hasTimed" class="sp__section">
         <h2 class="ds-section-label sp__h2">Spilletid</h2>
         <div class="sp__stats">
           <div class="sp__stat">
@@ -224,7 +234,7 @@ async function confirmDelete() {
         </div>
       </section>
 
-      <section v-if="recentMatches.length" class="sp__section">
+      <section v-if="statsKlar && recentMatches.length" class="sp__section">
         <h2 class="ds-section-label sp__h2">Siste kamper</h2>
         <ul class="sp__matches">
           <li v-for="m in recentMatches" :key="m.id">
@@ -270,21 +280,16 @@ async function confirmDelete() {
       <div class="posvalg">
         <div class="ds-form-group">
           <label class="ds-label" for="pos-primar">Primær</label>
-          <select id="pos-primar" v-model="editPrimar" class="ds-input">
-            <option value="">Ingen</option>
-            <optgroup v-for="g in VALG_GRUPPER" :key="g.navn" :label="g.navn">
-              <option v-for="v in g.valg" :key="v.value" :value="v.value">{{ v.label }}</option>
-            </optgroup>
-          </select>
+          <Velger id="pos-primar" v-model="editPrimar" :valg="posValg" />
         </div>
         <div class="ds-form-group">
           <label class="ds-label" for="pos-sekundar">Sekundær</label>
-          <select id="pos-sekundar" v-model="editSekundar" class="ds-input" :disabled="!editPrimar">
-            <option value="">Ingen</option>
-            <optgroup v-for="g in VALG_GRUPPER" :key="g.navn" :label="g.navn">
-              <option v-for="v in g.valg" :key="v.value" :value="v.value" :disabled="v.value === editPrimar">{{ v.label }}</option>
-            </optgroup>
-          </select>
+          <Velger
+            id="pos-sekundar"
+            v-model="editSekundar"
+            :valg="posValg.map(v => ({ ...v, disabled: v.value === editPrimar }))"
+            :disabled="!editPrimar"
+          />
         </div>
       </div>
       <div class="ds-form-group">
@@ -337,6 +342,7 @@ async function confirmDelete() {
 
 .sp__nav { padding: var(--ds-space-md) var(--ds-space-lg) 0; }
 
+.sp__stat--venter .sp__statnum { color: var(--ds-color-text-tertiary); }
 .sp__head {
   display: flex; align-items: center; gap: var(--ds-space-md);
   padding: var(--ds-space-md) var(--ds-space-lg) var(--ds-space-xl);
