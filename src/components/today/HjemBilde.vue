@@ -36,13 +36,5 @@ const src = computed(() => `/illustrations/bench-boss-card-art/${FILER[props.nav
   width: 100%;
   height: 100%;
   object-fit: contain;
-  animation: hjem-sveve 4s ease-in-out infinite;
-}
-@keyframes hjem-sveve {
-  0%, 100% { transform: translateY(0); }
-  50% { transform: translateY(-6px); }
-}
-@media (prefers-reduced-motion: reduce) {
-  .hjem-bilde img { animation: none; }
 }
 </style>
