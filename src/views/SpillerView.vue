@@ -86,9 +86,6 @@ const editLevel = ref(null)
 const toDelete = ref(false)
 const saving = ref(false)
 
-const TEAM_OPTIONS = computed(() =>
-  [{ value: '', label: 'Ingen' }, ...seasonTeams.value.map(t => ({ value: t.slug, label: t.name }))])
-
 function openEdit() {
   if (!player.value) return
   editName.value = player.value.name
@@ -257,9 +254,18 @@ async function confirmDelete() {
       </div>
       <div class="ds-form-group">
         <label class="ds-label ds-label--optional">Lag</label>
-        <select v-model="editTeam" class="ds-input">
-          <option v-for="opt in TEAM_OPTIONS" :key="opt.value" :value="opt.value">{{ opt.label }}</option>
-        </select>
+        <!-- Få lag: knapper som Nivå. Trykk igjen for å ta spilleren av laget. -->
+        <div class="poschips poschips--lag" :style="{ gridTemplateColumns: `repeat(${Math.min(Math.max(seasonTeams.length, 1), 4)}, 1fr)` }">
+          <button
+            v-for="t in seasonTeams"
+            :key="t.slug"
+            type="button"
+            class="poschip"
+            :class="{ 'poschip--on': editTeam === t.slug }"
+            :aria-pressed="editTeam === t.slug ? 'true' : 'false'"
+            @click="editTeam = editTeam === t.slug ? '' : t.slug"
+          >{{ t.name }}</button>
+        </div>
       </div>
       <div class="posvalg">
         <div class="ds-form-group">
@@ -290,6 +296,7 @@ async function confirmDelete() {
             type="button"
             class="poschip"
             :class="{ 'poschip--on': editLevel === l }"
+            :aria-pressed="editLevel === l ? 'true' : 'false'"
             @click="editLevel = editLevel === l ? null : l"
           >{{ l }}</button>
         </div>
@@ -422,7 +429,8 @@ async function confirmDelete() {
 .poschips { display: grid; grid-template-columns: 1fr 1fr; gap: var(--ds-space-sm); }
 .poschips .poschip:last-child:nth-child(odd) { grid-column: 1 / -1; }
 .poschips--tre { grid-template-columns: repeat(3, 1fr); }
-.poschips--tre .poschip:last-child:nth-child(odd) { grid-column: auto; }
+.poschips--tre .poschip:last-child:nth-child(odd),
+.poschips--lag .poschip:last-child:nth-child(odd) { grid-column: auto; }
 .poschip {
   padding: 11px 14px; cursor: pointer;
   font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium);
