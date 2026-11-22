@@ -15,7 +15,7 @@ try {
   await p.goto(`${APP}/auth/klar?t=${tok}&type=magiclink`)
   await p.getByRole('button', { name: /Logg inn/ }).click()
   await p.waitForURL(u => !/\/auth|\/login/.test(u.pathname), { timeout: 20000 })
-  await p.locator('.hjem-delinn').waitFor({ timeout: 15000 })
+  await p.locator('.hjem-delinn[href="/del-inn"]').waitFor({ timeout: 15000 })
   // Ødelegg sesjonen: utløpt access-token og en refresh-token serveren ikke kjenner.
   await p.evaluate(() => {
     const k = Object.keys(localStorage).find(n => /-auth-token$/.test(n))

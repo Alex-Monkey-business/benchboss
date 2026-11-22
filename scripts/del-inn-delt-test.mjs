@@ -128,8 +128,8 @@ try {
 
   // Hjem: bare «Del inn», ingen «delt …»-linje (Alex, 16. nov).
   await iver.goto(`${APP}/`)
-  await iver.locator('.hjem-delinn').waitFor({ timeout: 15000 })
-  ok('Hjem: Del inn-knappen sier bare «Del inn»', (await iver.locator('.hjem-delinn').innerText()).trim() === 'Del inn', await iver.locator('.hjem-delinn').innerText())
+  await iver.locator('.hjem-delinn[href="/del-inn"]').waitFor({ timeout: 15000 })
+  ok('Hjem: Del inn-knappen sier bare «Del inn»', (await iver.locator('.hjem-delinn[href="/del-inn"]').innerText()).trim() === 'Del inn', await iver.locator('.hjem-delinn[href="/del-inn"]').innerText())
 
   // Start på nytt (Mer-menyen) nullstiller hos begge.
   await alex.goto(`${APP}/del-inn`)

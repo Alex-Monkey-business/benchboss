@@ -234,8 +234,8 @@ try {
   // PC-bredde: Del inn står i en smal kolonne, uten sideveis scroll.
   const pc = await logginn('alexander.samnoy@gmail.com', { width: 1280, height: 860 })
   await pc.goto(`${APP}/`)
-  await pc.locator('.hjem-delinn').waitFor({ timeout: 15000 })
-  const [dw, kw] = await Promise.all([pc.locator('.hjem-delinn').evaluate(e => e.getBoundingClientRect().width), pc.locator('.hjem-stack > .ds-card').first().evaluate(e => e.getBoundingClientRect().width)])
+  await pc.locator('.hjem-delinn[href="/del-inn"]').waitFor({ timeout: 15000 })
+  const [dw, kw] = await Promise.all([pc.locator('.hjem-delinn[href="/del-inn"]').evaluate(e => e.getBoundingClientRect().width), pc.locator('.hjem-stack > .ds-card').first().evaluate(e => e.getBoundingClientRect().width)])
   ok('PC: Del inn på Hjem er like bred som kortene', Math.abs(dw - kw) < 1, `${dw} / ${kw}`)
   await pc.goto(`${APP}/del-inn`)
   await pc.locator('.kort').first().waitFor({ timeout: 15000 })

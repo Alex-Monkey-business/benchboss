@@ -149,9 +149,9 @@ try {
 
   // ── Del inn fra Hjem: trening → hvem er her → inndeling ──
   await p.goto(`${APP}/`)
-  await p.locator('.hjem-delinn').waitFor({ timeout: 15000 })
+  await p.locator('.hjem-delinn[href="/del-inn"]').waitFor({ timeout: 15000 })
   ok('dagens trening på Hjem går til kjøreplanen', (await p.locator('.today-training').getAttribute('href')) === `/trening/okt/${DAG}`)
-  await p.locator('.hjem-delinn').click()
+  await p.locator('.hjem-delinn[href="/del-inn"]').click()
   await p.waitForURL(/\/del-inn$/, { timeout: 5000 })
   await p.locator('.valg__rad').first().waitFor({ timeout: 15000 })
   ok('Del inn spør «Hvilken trening?» med dagens valgt', (await overskrift()) === 'Hvilken trening?' && (await p.getByRole('radio', { name: /QA-økt/ }).getAttribute('aria-checked')) === 'true')
@@ -264,7 +264,7 @@ try {
   ok('forelder ser ikke økta', await forelder.locator('.rad').count() === 0 && await forelder.locator('.oppg__navn').count() === 0)
   await forelder.goto(`${APP}/`)
   await vent(2500)
-  ok('forelder har ingen Del inn på Hjem', await forelder.locator('.hjem-delinn').count() === 0)
+  ok('forelder har ingen Del inn på Hjem', await forelder.locator('.hjem-delinn[href="/del-inn"]').count() === 0)
   await forelder.goto(`${APP}/del-inn`)
   await vent(2500)
   ok('forelder sendes bort fra Del inn', !/\/del-inn/.test(forelder.url()) && await forelder.locator('.kort, .oppg__navn').count() === 0, forelder.url())
