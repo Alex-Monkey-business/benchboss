@@ -58,6 +58,8 @@ const cachedMatch = matches.value.find(m => m.id === route.params.id)
 const match = ref(cachedMatch || null)
 // Treningskamper har ikke lånespillere: en spiller er med i kampen eller ikke.
 const erTreningskamp = computed(() => match.value?.kind === 'treningskamp')
+// De som er med i kampen: laget minus de som står over, pluss de som er hentet inn.
+const troppAntall = computed(() => availableCount.value + selectedLanespillere.value.length)
 const loading = ref(!cachedMatch)
 const matchCoachIds = ref([])
 const matchPlayerIds = ref([])
@@ -1090,6 +1092,7 @@ function focusSummaryGroup() {
         <Ikon navn="statistikk" v-else />
         {{ primaryCta.label }}
       </button>
+      <p v-if="erTreningskamp && primaryCta.action === 'live' && troppAntall" class="cta-under">{{ troppAntall }} {{ troppAntall === 1 ? 'spiller' : 'spillere' }} i troppen</p>
     </div>
 
     <!-- Seksjonene, alltid lukket ved åpning. Mens kampen går hører troppen og
@@ -1230,13 +1233,13 @@ function focusSummaryGroup() {
         v-model="open.team"
         data-section="team"
         :style="{ order: sectionOrder.team }"
-        label="Tropp"
+        :label="erTreningskamp ? 'Trenere' : 'Tropp'"
         empty-text="Ingen"
-        :has-content="!!(teamSquad.length || selectedLanespillere.length || selectedCoaches.length)"
+        :has-content="!!((!erTreningskamp && (teamSquad.length || selectedLanespillere.length)) || selectedCoaches.length)"
       >
         <template #summary>
-          <span v-if="teamSquad.length" class="sum-chip sum-chip--squad">{{ availableCount }} på laget</span>
-          <span v-if="selectedLanespillere.length" class="sum-chip sum-chip--more">{{ selectedLanespillere.length }} {{ erTreningskamp ? 'fra andre lag' : 'lån' }}</span>
+          <span v-if="teamSquad.length && !erTreningskamp" class="sum-chip sum-chip--squad">{{ availableCount }} på laget</span>
+          <span v-if="selectedLanespillere.length && !erTreningskamp" class="sum-chip sum-chip--more">{{ selectedLanespillere.length }} lån</span>
           <span v-if="overGrensa" class="sum-chip sum-chip--over">{{ brukteFraGiver }} av {{ grense.grense }} fra {{ giverNavn }}</span>
           <span v-if="selectedCoaches.length" class="coach-avatar-pile">
             <span
@@ -1263,8 +1266,9 @@ function focusSummaryGroup() {
           </p>
         </div>
 
-        <!-- Laget — basistropp med frafall -->
-        <div v-if="teamSquad.length" class="sub-section">
+        <!-- Laget — basistropp med frafall. Ikke i treningskamper: der velges
+             spillere og plasser på banen («Se laget»), uten lånespillere. -->
+        <div v-if="teamSquad.length && !erTreningskamp" class="sub-section">
           <div class="sub-section__label">
             Laget
             <span class="sub-section__count">{{ availableCount }} av {{ teamSquad.length }} tilgjengelig</span>
@@ -1286,8 +1290,8 @@ function focusSummaryGroup() {
         </div>
 
         <!-- Lånespillere -->
-        <div class="sub-section">
-          <div class="sub-section__label sub-section__label--soft">{{ erTreningskamp ? 'Fra andre lag' : 'Lånespillere' }}</div>
+        <div v-if="!erTreningskamp" class="sub-section">
+          <div class="sub-section__label sub-section__label--soft">Lånespillere</div>
           <div v-if="players.length === 0" class="hospitant-empty" style="margin: 0;">
             Ingen spillere å låne.
           </div>
@@ -1360,7 +1364,7 @@ function focusSummaryGroup() {
 
         <!-- Trenere -->
         <div class="sub-section">
-          <div class="sub-section__label sub-section__label--soft">Trenere</div>
+          <div v-if="!erTreningskamp" class="sub-section__label sub-section__label--soft">Trenere</div>
           <div class="coach-pills">
             <button
               v-for="c in coaches"
@@ -1932,6 +1936,7 @@ function focusSummaryGroup() {
   min-height: var(--ds-btn-h-lg);
 }
 
+.cta-under { margin: var(--ds-space-sm) 0 0; text-align: center; font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); }
 .match-mode-cta svg {
   width: 18px;
   height: 18px;

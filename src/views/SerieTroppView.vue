@@ -7,6 +7,8 @@ import { useSeasons } from '../composables/useSeasons'
 import { usePlayers } from '../composables/usePlayers'
 import { usePlayerSeasonTeams } from '../composables/usePlayerSeasonTeams'
 import { useToast } from '../composables/useToast'
+import { usePlayerStats } from '../composables/usePlayerStats'
+import { narLedig } from '../lib/forvarm'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
 import { useCoaches } from '../composables/useCoaches'
 import Sheet from '../components/Sheet.vue'
@@ -59,6 +61,8 @@ onMounted(async () => {
   if (canEdit.value) { hentOppstilling(); fetchPlayerLevels() }
   await Promise.all([fetchSeasons(), fetchPlayers(), fetchPlayerSeasonTeams(), fetchCoaches()])
   ready.value = true
+  // Spillersidene åpnes herfra: tallene deres hentes mens lista står.
+  narLedig(() => usePlayerStats().ensurePlayerStats())
 })
 
 // Trenernavnet på lagkortet blir en lenke til trenerprofilen — samme grep som

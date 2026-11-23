@@ -28,6 +28,7 @@ import { daysUntil, WEEKDAY_LABELS, isoWeekday, weekdayDateLabel } from '../lib/
 import { hentDagensOppmote, dagensOppmoteLagret } from '../composables/useTreningsOkt'
 import { useDelInn } from '../composables/useDelInn'
 import { narLedig } from '../lib/forvarm'
+import { usePlayerStats } from '../composables/usePlayerStats'
 
 const {
   loading, refresh, followDay, today, greeting,
@@ -107,7 +108,8 @@ onMounted(async () => {
   // igjen hjemskjermen.
   sjekkNarLedig()
   // Del inn åpnes herfra. Dagens rad hentes nå, så skjermen står med én gang.
-  if (isCoach.value) narLedig(() => Promise.all([useDelInn().hent(), hentDagensOppmote()]))
+  // Statistikk og spillersidene bygger på sesongens mål og spilletid: også nå.
+  if (isCoach.value) narLedig(() => Promise.all([useDelInn().hent(), hentDagensOppmote(), usePlayerStats().ensurePlayerStats()]))
 })
 
 const hasToday = computed(() =>
