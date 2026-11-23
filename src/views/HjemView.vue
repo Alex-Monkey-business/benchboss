@@ -17,8 +17,7 @@ import ReminderList from '../components/today/ReminderList.vue'
 import TerminlisteCard from '../components/today/TerminlisteCard.vue'
 import { useTerminlisteVarsel } from '../composables/useTerminlisteVarsel'
 import NextMatchCard from '../components/today/NextMatchCard.vue'
-import OtherTeamsList from '../components/today/OtherTeamsList.vue'
-import WeekList from '../components/today/WeekList.vue'
+import TeamCrest from '../components/TeamCrest.vue'
 import OnboardingCards from '../components/today/OnboardingCards.vue'
 import { useOnboarding } from '../composables/useOnboarding'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
@@ -33,7 +32,7 @@ import { usePlayerStats } from '../composables/usePlayerStats'
 const {
   loading, refresh, followDay, today, greeting,
   todayMatches, todayCupMatches, todayTraining,
-  prepFor, reminders, nextTraining, nextMatch, otherTeamsNext, weekAhead
+  prepFor, reminders, nextTraining, nextMatch
 } = useToday()
 
 const { getCoachesForMatch } = useMatches()
@@ -139,26 +138,18 @@ const cupMatchesToday = computed(() => (showCupEntry.value ? todayCupMatches.val
 const heroMatch = computed(() => (!matchToday.value && nextMatch.value) ? nextMatch.value : null)
 
 // Dagens og neste kamp er de du trykker på herfra; merkene hentes i forkant.
-const { forvarm } = useKlubbmerke()
+const { forvarm, merkeFor } = useKlubbmerke()
 watch([todayMatches, nextMatch], ([idag, neste]) =>
   forvarm([...(idag || []).flatMap(m => [m.home_team, m.away_team]), neste?.opponent]), { immediate: true })
 
 // Én hovedsak: det nærmeste av neste trening og neste kamp. Er noe i dag,
-// står dagens kort der i stedet. Resten ligger under «Denne uka».
+// står dagens kort der i stedet. Resten av uka står på Kamper og Trening.
 const hovedsak = computed(() => {
   if (hasToday.value) return null
   const k = []
   if (nextTraining.value) k.push({ kind: 'training', date: nextTraining.value.date })
   if (heroMatch.value) k.push({ kind: 'match', date: heroMatch.value.date })
   return k.sort((a, b) => a.date.localeCompare(b.date))[0] || null
-})
-
-// Det som står som kort, skal ikke stå som rad også.
-const weekItems = computed(() => {
-  const h = hovedsak.value
-  if (!h) return weekAhead.value
-  const til = h.kind === 'match' ? heroMatch.value.to : dagLink(nextTraining.value.session.id)
-  return weekAhead.value.filter(i => i.to !== til || i.kind === 'training-week')
 })
 
 // Hjem er et blikk, ikke planen: lengden og antallet. Øvelsene står på Trening.
@@ -186,15 +177,28 @@ const nesteTreningTittel = computed(() => {
   return `Trening ${WEEKDAY_LABELS[isoWeekday(new Date(d + 'T12:00:00')) - 1].toLowerCase()}`
 })
 
-// Står kampen alt under «Å ordne» (dommer mangler), skal den ikke stå som
-// «Andre lag» også. Påminnelsen er den man handler på.
-const otherTeamsItems = computed(() => {
-  const opptatt = new Set(reminders.value.map(r => r.to || `/kamp/${r.matchId}`))
-  return otherTeamsNext.value.filter(i => !opptatt.has(i.to))
-})
+// Neste kamp når den ikke alt er hovedkortet: et lite kort under. Trening i
+// morgen skal ikke skjule at det er kamp på torsdag.
+const nesteKampLiten = computed(() =>
+  heroMatch.value && hovedsak.value?.kind !== 'match' ? heroMatch.value : null)
+// Innen en uke holder dagen: «Torsdag · 18:00 · hjemme». Datoen brakk linja.
+function kampLinje(e) {
+  const dager = daysUntil(e.date)
+  const dag = dager === 1 ? 'I morgen'
+    : dager <= 6 ? WEEKDAY_LABELS[isoWeekday(new Date(e.date + 'T12:00:00')) - 1]
+    : weekdayDateLabel(e.date)
+  const deler = [dag]
+  const t = (e.time || '').slice(0, 5)
+  if (t && t !== '00:00') deler.push(t)
+  if (e.type !== 'cup') deler.push(e.isHome ? 'hjemme' : 'borte')
+  return deler.join(' · ')
+}
+
+const visRader = computed(() =>
+  visLagene.value || (reminders.value.length > 0 && !onboardingActive.value))
 
 const showEmpty = computed(() =>
-  ready.value && !loading.value && !onboardingActive.value && !hasToday.value && !hovedsak.value && weekItems.value.length === 0 && reminders.value.length === 0 && !showCupEntry.value
+  ready.value && !loading.value && !onboardingActive.value && !hasToday.value && !hovedsak.value && !heroMatch.value && reminders.value.length === 0 && !showCupEntry.value
 )
 
 function coachNamesForMatch(matchId) {
@@ -266,6 +270,19 @@ function coachNamesForMatch(matchId) {
         class="ds-anim-fade-up ds-anim-delay-1"
       />
 
+      <RouterLink
+        v-if="nesteKampLiten"
+        :to="nesteKampLiten.to"
+        class="ds-card ds-card--interactive hjem-kamp ds-anim-fade-up ds-anim-delay-1"
+      >
+        <TeamCrest :name="nesteKampLiten.opponent || '–'" :src="merkeFor(nesteKampLiten.opponent)" :size="40" />
+        <span class="hjem-kamp__tekst">
+          <span class="hjem-kamp__tittel">{{ nesteKampLiten.opponent }}</span>
+          <span class="hjem-kamp__linje">{{ kampLinje(nesteKampLiten) }}</span>
+        </span>
+        <Ikon navn="pil-hoyre" class="hjem-kamp__pil" aria-hidden="true" />
+      </RouterLink>
+
       <HjemKort
         v-if="showEmpty"
         bilde="ingen"
@@ -304,7 +321,7 @@ function coachNamesForMatch(matchId) {
       </RouterLink>
 
       <!-- Alt annet er rolige rader. De med innhold under åpner seg på trykk. -->
-      <div v-if="!onboardingActive || weekItems.length" class="hjem-rader ds-anim-fade-up ds-anim-delay-3">
+      <div v-if="visRader" class="hjem-rader ds-anim-fade-up ds-anim-delay-3">
         <!-- Lagene. Bare utenom sesong, bare for trenere. -->
         <RouterLink v-if="visLagene" to="/serie/tropp" class="hjem-rad">
           <Ikon navn="drakt" class="hjem-rad__ikon" aria-hidden="true" />
@@ -320,26 +337,6 @@ function coachNamesForMatch(matchId) {
             <Ikon navn="pil-hoyre" class="hjem-rad__pil" aria-hidden="true" />
           </summary>
           <ReminderList :reminders="reminders" class="hjem-fold__innhold" />
-        </details>
-
-        <!-- Resten av uka — bare dager med innhold, ingen fyll -->
-        <details v-if="weekItems.length" class="hjem-fold">
-          <summary class="hjem-rad">
-            <span class="hjem-rad__tall">{{ weekItems.length }}</span>
-            <span class="hjem-rad__tittel">Denne uka</span>
-            <Ikon navn="pil-hoyre" class="hjem-rad__pil" aria-hidden="true" />
-          </summary>
-          <WeekList :items="weekItems" class="hjem-fold__innhold" />
-        </details>
-
-        <!-- Klubben ellers, sist: dette er lag du IKKE trener. -->
-        <details v-if="otherTeamsItems.length && !onboardingActive" class="hjem-fold">
-          <summary class="hjem-rad">
-            <span class="hjem-rad__tall">{{ otherTeamsItems.length }}</span>
-            <span class="hjem-rad__tittel">Andre lag</span>
-            <Ikon navn="pil-hoyre" class="hjem-rad__pil" aria-hidden="true" />
-          </summary>
-          <OtherTeamsList :items="otherTeamsItems" class="hjem-fold__innhold" />
         </details>
       </div>
 
@@ -466,7 +463,27 @@ function coachNamesForMatch(matchId) {
   .hjem-delinn:active { transform: none; }
 }
 
-/* «Denne uka»-radene bor i components/today/WeekList.vue */
+/* Neste kamp under hovedkortet: samme kort, uten bilde. Motstanderens merke
+   gjør jobben bildet gjør i det store. */
+.hjem-kamp {
+  display: flex;
+  align-items: center;
+  gap: var(--ds-space-md);
+  min-height: 72px;
+  padding: var(--ds-space-12) var(--ds-space-20);
+  border-radius: var(--ds-radius-lg);
+  text-decoration: none;
+  color: inherit;
+}
+.hjem-kamp__tekst { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.hjem-kamp__tittel {
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-semibold);
+  color: var(--ds-color-text-primary);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hjem-kamp__linje { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
+.hjem-kamp__pil { flex: none; width: 20px; height: 20px; color: var(--ds-color-text-tertiary); }
 
 .hjem-identity-warning {
   margin: 0 0 var(--ds-space-lg);
