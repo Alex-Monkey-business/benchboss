@@ -10,7 +10,7 @@ import { useMatchGoals } from '../composables/useMatchGoals'
 import { useToast } from '../composables/useToast'
 import { useAuth } from '../stores/auth'
 import { teamColorsForMatch, isHomeMatch, teamLabel, teamSlugs } from '../lib/matchMeta'
-import { kampeneSammeKveld, lagIKamp } from '../lib/kveld'
+import { kampeneSammeKveld, lagIKamp, kveldLager } from '../lib/kveld'
 import { plasserLag } from '../lib/oppstilling'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
 import { useOppstilling } from '../composables/useOppstilling'
@@ -19,7 +19,7 @@ import { positionForSlot, positionLabel, slotLabel, splitByFit, fitsPosition } f
 import Sheet from '../components/Sheet.vue'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import { meldEvent } from '../lib/sporing'
-import { isSupabaseConfigured } from '../supabase'
+import { supabase, isSupabaseConfigured } from '../supabase'
 import { poster, paSvar, forkastFor } from '../lib/kampKo'
 
 const route = useRoute()
@@ -87,19 +87,41 @@ let wakeLock = null
 let alive = true
 
 onMounted(async () => {
-  await fetchPlayers()
+  // Bytte mellom kampene samme kveld: alt som trengs er alt hentet (kampen,
+  // troppen, oppstillingen). Tegn banen nå, og hent fersk tilstand etterpå.
+  // Før sto skjermen og lastet i fem rundturer for hvert bytte.
+  let rask = false
+  const kjent = alleKamper.value.find(m => m.id === matchId)
+  if (kjent?.kind === 'treningskamp' && players.value.length &&
+      kveldLager.sesjoner.has(matchId) && kveldLager.fravaer.has(kjent.season_id)) {
+    const lagret = kveldLager.sesjoner.get(matchId)
+    if (!lagret || lagret.status === 'setup') {
+      match.value = kjent
+      matchPlayerIds.value = alleInnlan.value.filter(x => x.match_id === matchId).map(x => x.player_id)
+      matchAbsenceIds.value = altFravaer.value.filter(x => x.match_id === matchId).map(x => x.player_id)
+      session.value = lagret
+      hydrateLineup()
+      if (!lagret?.lineup) forhandsplasser()
+      loading.value = false
+      rask = true
+    }
+  }
+
+  // Ett kall gir sesjon, perioder, scorere, resultat og serverens klokke.
+  // Alt hentes samtidig, ikke etter hverandre.
+  const [, hentet, inn, ute, st] = await Promise.all([
+    fetchPlayers(),
+    getMatch(matchId),
+    fetchMatchPlayers(matchId),
+    fetchMatchAbsences(matchId),
+    syncState(matchId, { tross: true }).catch(() => null)
+  ])
   if (!alive) return
-  match.value = await getMatch(matchId)
-  if (!alive) return
+  // Feilet hentingen midt i et raskt bytte, står det vi viste.
+  match.value = hentet || (rask ? match.value : null)
   if (match.value) {
-    matchPlayerIds.value = await fetchMatchPlayers(matchId)
-    if (!alive) return
-    matchAbsenceIds.value = await fetchMatchAbsences(matchId)
-    if (!alive) return
-    // Ett kall gir sesjon, perioder, scorere, resultat og serverens klokke.
+    if (hentet) { matchPlayerIds.value = inn; matchAbsenceIds.value = ute }
     // Uten Supabase (demo) går det som før.
-    const st = await syncState(matchId, { tross: true }).catch(() => null)
-    if (!alive) return
     if (!st) await Promise.all([fetchSession(matchId), fetchStints(matchId), fetchMatchGoals(matchId)])
     if (!alive) return
     // Kampen var allerede ferdig da du kom hit: send til kampsida. Match mode
@@ -111,13 +133,16 @@ onMounted(async () => {
       router.replace(`/kamp/${matchId}`)
       return
     }
-    hydrateLineup()
+    // I et raskt bytte står banen alt. Endret noen den i mellomtida, tar
+    // vakta på sesjonen det — ikke en ny innlasting oppå det du nettopp gjorde.
+    if (!rask) hydrateLineup()
     if (match.value.kind === 'treningskamp') {
       // Resten av kvelden trengs for kampvelgeren og «spiller en annen kamp».
       // Ikke ventet på: banen skal ikke stå og laste for det.
-      Promise.resolve(ensureMatches(match.value.season_id)).catch(() => {})
-      Promise.resolve(fetchSeasonAbsences(match.value.season_id)).catch(() => {})
-      if (session.value?.status !== 'running' && session.value?.status !== 'paused' && !session.value?.lineup) {
+      const sesong = match.value.season_id
+      Promise.resolve(ensureMatches(sesong)).catch(() => {})
+      Promise.resolve(fetchSeasonAbsences(sesong)).then(() => kveldLager.fravaer.add(sesong)).catch(() => {})
+      if (!rask && session.value?.status !== 'running' && session.value?.status !== 'paused' && !session.value?.lineup) {
         await hentOppstilling().catch(() => {})
         if (!alive) return
         forhandsplasser()
@@ -136,6 +161,7 @@ onMounted(async () => {
 onUnmounted(() => {
   alive = false
   navHidden.value = false
+  huskSesjon()
   flushLineupSave()
   clearTimeout(pressTimer)
   clearInterval(syncTimer)
@@ -175,6 +201,8 @@ const avSvar = paSvar((post, svar, feil) => {
 // filtreres bort ved innlasting.
 let lineupTimer = null
 let lineupDirty = false
+// Sant når denne skjermen har lagret en oppstilling, også før sesjonen er hentet tilbake.
+let harLagret = false
 // Sant mens oppstillingen fylles fra serveren. Da er ingenting endret, og
 // ingenting skal lagres: før skrev det å bare ÅPNE oppsettet raden på nytt,
 // og en telefon med gammel kopi overskrev en kamp som var i gang.
@@ -265,6 +293,7 @@ function flushLineupSave() {
   clearTimeout(lineupTimer)
   if (!lineupDirty) return
   lineupDirty = false
+  harLagret = true
   saveSetup(matchId, setupPatch()).catch(() => { /* best effort */ })
 }
 
@@ -273,6 +302,7 @@ function scheduleSetupSave() {
   clearTimeout(lineupTimer)
   lineupTimer = setTimeout(() => {
     lineupDirty = false
+    harLagret = true
     saveSetup(matchId, setupPatch()).then(markSaved).catch(reportError)
   }, 600)
 }
@@ -526,8 +556,30 @@ const kveld = computed(() => kampeneSammeKveld(match.value, alleKamper.value))
 const kveldPiller = computed(() => kveld.value.length < 2 ? [] : kveld.value.map((m, i) => ({
   id: m.id, navn: `Kamp ${i + 1}`, lag: lagIKamp(m), valgt: m.id === matchId
 })))
+// Oppstillingen slik den står når du går videre, så kampen åpner likt om du
+// kommer tilbake. Bare i oppsettet: en kamp i gang hentes alltid ferskt.
+function huskSesjon() {
+  if (!match.value || match.value.kind !== 'treningskamp') return
+  if (phase.value !== 'setup') { kveldLager.sesjoner.delete(matchId); return }
+  const lagret = !!session.value?.lineup || harLagret || lineupDirty
+  kveldLager.sesjoner.set(matchId, lagret
+    ? { match_id: matchId, period: 1, ...(session.value || {}), status: 'setup', lineup: setupPatch().lineup }
+    : (session.value || null))
+}
+
+// Oppstillingene til de andre kampene hentes mens du ser på denne.
+watch(() => kveld.value.map(m => m.id).join(), async () => {
+  const andre = kveld.value.map(m => m.id).filter(id => id !== matchId)
+  if (!andre.length) return
+  if (!isSupabaseConfigured) { andre.forEach(id => { if (!kveldLager.sesjoner.has(id)) kveldLager.sesjoner.set(id, null) }); return }
+  const { data, error } = await supabase.from('match_sessions').select('*').in('match_id', andre)
+  if (error) return
+  andre.forEach(id => kveldLager.sesjoner.set(id, (data || []).find(x => x.match_id === id) || null))
+}, { immediate: true })
+
 function byttKamp(id) {
   if (id === matchId) return
+  huskSesjon()
   flushLineupSave()
   router.replace(`/kamp/${id}/live`)
 }

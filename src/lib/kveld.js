@@ -4,6 +4,13 @@
 // noe flyttes.
 import { opponentOf, teamColorsForMatch, teamLabel, teamSlugs } from './matchMeta'
 import { clubNameFromTeam } from './klubblogo'
+import { registerReset } from '../stores/dataReset'
+
+// Det vi alt vet om kampene samme kveld, så et bytte mellom dem tegner banen
+// med én gang i stedet for å laste: oppstillingen per kamp (null = ingen
+// lagret), og hvilke sesonger frafallet er hentet for.
+export const kveldLager = { sesjoner: new Map(), fravaer: new Set() }
+registerReset(() => { kveldLager.sesjoner.clear(); kveldLager.fravaer.clear() })
 
 const klubb = m => clubNameFromTeam(opponentOf(m)).toLowerCase().trim()
 const tid = m => (m.match_time || '').slice(0, 5) || '99:99'

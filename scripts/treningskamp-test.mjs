@@ -102,9 +102,16 @@ ok('plassen er lagret', sql(`select count(*) from jsonb_object_keys((select line
 
 // ── Bytt kamp ────────────────────────────────────────────────────────────────
 await p.locator('.mm__kveld .ds-pill').nth(1).click()
+await vent(150)
+ok('byttet tegner banen med én gang, uten lasting', await p.locator('.mm__loading').count()===0 && await p.locator('.mm__setup .marker').count()>0 && !p.url().includes(M))
 await p.waitForURL(u=>!u.pathname.includes(M),{timeout:15000}); await p.locator('.mm__setup .marker').first().waitFor(); await vent(1200)
 ok('kampvelgeren bytter kamp', ider.some(id=>id!==M && p.url().includes(id)))
 ok('den andre kampen har sitt eget lag på banen', (await banen()).filter(Boolean).length>0)
+// Tilbake til den første: oppstillingen står som du forlot den, også med én gang.
+await p.locator('.mm__kveld .ds-pill').nth(0).click(); await vent(150)
+ok('tilbake til første kamp: samme oppstilling med én gang', (await banen()).filter(Boolean).length===1 && (await banen())[0]===valgt.split(' ')[0], (await banen()).join(','))
+await vent(1500)
+ok('og den står etter at fersk tilstand er hentet', (await banen()).filter(Boolean).length===1, (await banen()).join(','))
 
 // ── Blank start ──────────────────────────────────────────────────────────────
 await nyKamp(BLANK,{antall:2,blank:true})
