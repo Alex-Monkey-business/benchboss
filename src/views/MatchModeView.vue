@@ -9,7 +9,11 @@ import { useMatchMode } from '../composables/useMatchMode'
 import { useMatchGoals } from '../composables/useMatchGoals'
 import { useToast } from '../composables/useToast'
 import { useAuth } from '../stores/auth'
-import { teamColorsForMatch, isHomeMatch, teamLabel } from '../lib/matchMeta'
+import { teamColorsForMatch, isHomeMatch, teamLabel, teamSlugs } from '../lib/matchMeta'
+import { kampeneSammeKveld, lagIKamp } from '../lib/kveld'
+import { plasserLag } from '../lib/oppstilling'
+import { useSeasonTeams } from '../composables/useSeasonTeams'
+import { useOppstilling } from '../composables/useOppstilling'
 import { formationFor, PLAYERS_ON_PITCH_OPTIONS } from '../lib/formations'
 import { positionForSlot, positionLabel, slotLabel, splitByFit, fitsPosition } from '../lib/playerPositions'
 import Sheet from '../components/Sheet.vue'
@@ -20,7 +24,13 @@ import { poster, paSvar, forkastFor } from '../lib/kampKo'
 
 const route = useRoute()
 const router = useRouter()
-const { getMatch, updateMatch, fetchMatchPlayers, fetchMatchAbsences } = useMatches()
+const {
+  matches: alleKamper, matchPlayers: alleInnlan, matchAbsences: altFravaer,
+  getMatch, updateMatch, fetchMatchPlayers, fetchMatchAbsences, ensureMatches, fetchSeasonAbsences,
+  setMatchPlayers, toggleAbsence
+} = useMatches()
+const { seasonTeam } = useSeasonTeams()
+const { hent: hentOppstilling, laste: lagetsPlasser } = useOppstilling()
 const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals()
 const { players, fetchPlayers } = usePlayers()
 const {
@@ -102,6 +112,17 @@ onMounted(async () => {
       return
     }
     hydrateLineup()
+    if (match.value.kind === 'treningskamp') {
+      // Resten av kvelden trengs for kampvelgeren og «spiller en annen kamp».
+      // Ikke ventet på: banen skal ikke stå og laste for det.
+      Promise.resolve(ensureMatches(match.value.season_id)).catch(() => {})
+      Promise.resolve(fetchSeasonAbsences(match.value.season_id)).catch(() => {})
+      if (session.value?.status !== 'running' && session.value?.status !== 'paused' && !session.value?.lineup) {
+        await hentOppstilling().catch(() => {})
+        if (!alive) return
+        forhandsplasser()
+      }
+    }
   }
   loading.value = false
   startClockTick()
@@ -369,7 +390,8 @@ const phase = computed(() => {
   return 'setup'
 })
 // Live tar hele skjermen: bunnmenyen vekk, banen får de 72 pikslene.
-watch(phase, v => { navHidden.value = v === 'live' }, { immediate: true })
+// Oppsettet også: banen skal ha plassen, og pila øverst tar deg tilbake.
+watch([phase, loading, match], () => { navHidden.value = phase.value === 'live' || (phase.value === 'setup' && !loading.value && !!match.value) }, { immediate: true })
 
 function fmt(sec) {
   const s = Math.max(0, Math.floor(sec || 0))
@@ -421,7 +443,11 @@ const anbefaltPlass = computed(() => {
 
 function trykkPlass(slotId) {
   const valgt = valgtPlass.value
-  if (!valgt) { valgtPlass.value = slotId; return }
+  if (!valgt) {
+    valgtPlass.value = slotId
+    if (erTreningskamp.value && !assignments.value[slotId] && !unassigned.value.length) apneLeggTil()
+    return
+  }
   valgtPlass.value = null
   if (valgt === slotId) return
   // Den valgte plassen er tom: hent spilleren derfra. Ellers bytt/flytt.
@@ -490,6 +516,154 @@ function fyllResten() {
   assignments.value = { ...assignments.value, ...neste }
 }
 
+
+// ── Treningskamper ───────────────────────────────────────────────────────────
+// Tre lag møter samme klubb samme kveld, og hvem som spiller hvor følger ikke
+// alltid A, B og C. Laget er utgangspunktet. Herfra hentes hvem som helst inn
+// fra troppen, uten lånespillere, anbefalinger og lånegrense.
+const erTreningskamp = computed(() => match.value?.kind === 'treningskamp')
+const kveld = computed(() => kampeneSammeKveld(match.value, alleKamper.value))
+const kveldPiller = computed(() => kveld.value.length < 2 ? [] : kveld.value.map((m, i) => ({
+  id: m.id, navn: `Kamp ${i + 1}`, lag: lagIKamp(m), valgt: m.id === matchId
+})))
+function byttKamp(id) {
+  if (id === matchId) return
+  flushLineupSave()
+  router.replace(`/kamp/${id}/live`)
+}
+
+// Uten lagret oppstilling står laget ferdig plassert: lagets faste plasser
+// først, resten etter posisjonene. Ikke lagret før noen endrer noe.
+function forhandsplasser() {
+  if (!squad.value.length) return
+  const lag = seasonTeam(matchColors.value[0])
+  const laste = lag ? lagetsPlasser(lag.id, SPILLFORM) : {}
+  hydrating = true
+  assignments.value = plasserLag(FORMATION, squad.value, laste, SPILLFORM).plasser
+  nextTick(() => { hydrating = false })
+}
+
+function tomBanen() {
+  const for_ = { ...assignments.value }
+  const planFor = plan.value.slice()
+  valgtPlass.value = null; plasserArm.value = null; planModus.value = false; planArm.value = null
+  assignments.value = {}
+  // Tom bane er et valg, ikke «ikke satt opp ennå»: lagres også når det
+  // ikke fantes noe lagret fra før, ellers sto laget der igjen neste gang.
+  scheduleSetupSave()
+  showToast('Banen er tømt', 'success', 5000, {
+    action: { label: 'Angre', handler: () => { assignments.value = for_; plan.value = planFor } }
+  })
+}
+
+// Hvem som er med i en annen kamp samme kveld: laget minus frafall, pluss de
+// som er hentet inn.
+const iAnnenKamp = computed(() => {
+  const ut = new Map()
+  kveld.value.forEach((m, i) => {
+    if (m.id === matchId) return
+    const lag = teamColorsForMatch(m)
+    const ute = new Set(altFravaer.value.filter(a => a.match_id === m.id).map(a => a.player_id))
+    const inn = new Set(alleInnlan.value.filter(a => a.match_id === m.id).map(a => a.player_id))
+    for (const p of players.value) {
+      if (ut.has(p.id)) continue
+      if (inn.has(p.id) || (p.primary_team && lag.includes(p.primary_team) && !ute.has(p.id))) ut.set(p.id, i + 1)
+    }
+  })
+  return ut
+})
+
+const visLeggTil = ref(false)
+const leggTilPlass = ref(null)
+const sokTropp = ref('')
+function apneLeggTil() {
+  leggTilPlass.value = valgtPlass.value
+  plasserArm.value = null
+  sokTropp.value = ''
+  visLeggTil.value = true
+}
+function lukkLeggTil() { visLeggTil.value = false }
+const leggTilTittel = computed(() => leggTilPlass.value ? slotLabel(leggTilPlass.value, SPILLFORM) : 'Legg til i troppen')
+
+// Rekkefølgen: de som passer plassen, så laget til kampen, så de andre lagene.
+// De som alt spiller en annen kamp ligger nederst. De kan fortsatt velges.
+const leggTilGrupper = computed(() => {
+  const q = sokTropp.value.trim().toLowerCase()
+  const iTroppen = new Set(squad.value.map(p => p.id))
+  const rekke = teamSlugs(match.value?.season_id)
+  const egne = matchColors.value
+  const rang = p => egne.includes(p.primary_team) ? 0 : 1 + (rekke.indexOf(p.primary_team) < 0 ? rekke.length : rekke.indexOf(p.primary_team))
+  const pos = leggTilPlass.value ? positionForSlot(leggTilPlass.value, SPILLFORM) : null
+  const kand = [...(leggTilPlass.value ? unassigned.value : []), ...players.value.filter(p => !iTroppen.has(p.id))]
+    .filter(p => !q || (p.name || '').toLowerCase().includes(q))
+    .sort((a, b) => rang(a) - rang(b) || (a.name || '').localeCompare(b.name || '', 'no'))
+    .map(p => {
+      const annen = iTroppen.has(p.id) ? 0 : (iAnnenKamp.value.get(p.id) || 0)
+      return {
+        p, annen,
+        lag: teamLabel(p.primary_team) || '–',
+        pos: (p.positions || []).map(positionLabel).filter(Boolean).join(', '),
+        hvor: iTroppen.has(p.id) ? 'På benken' : annen ? `Kamp ${annen}` : ''
+      }
+    })
+  const ledige = kand.filter(r => !r.annen)
+  const grupper = pos
+    ? [{ tittel: 'Passer her', rader: ledige.filter(r => fitsPosition(r.p, pos)) }, { tittel: 'Resten av troppen', rader: ledige.filter(r => !fitsPosition(r.p, pos)) }]
+    : [{ tittel: 'Ledige', rader: ledige }]
+  grupper.push({ tittel: 'Spiller en annen kamp', rader: kand.filter(r => r.annen), svak: true })
+  return grupper.filter(g => g.rader.length)
+})
+
+// Inn i troppen: en fra laget som var tatt ut, kommer tilbake. Andre hentes inn.
+async function taMed(p) {
+  if (matchAbsenceIds.value.includes(p.id)) {
+    const r = await toggleAbsence(matchId, p.id)
+    if (!r.ok) return false
+    matchAbsenceIds.value = matchAbsenceIds.value.filter(id => id !== p.id)
+  }
+  const eget = p.primary_team && matchColors.value.includes(p.primary_team)
+  if (!eget && !matchPlayerIds.value.includes(p.id)) {
+    const ny = [...matchPlayerIds.value, p.id]
+    if (!(await setMatchPlayers(matchId, ny))) return false
+    matchPlayerIds.value = ny
+  }
+  return true
+}
+
+async function velgFraTropp(p) {
+  const slot = leggTilPlass.value
+  visLeggTil.value = false
+  if (!squad.value.some(x => x.id === p.id) && !(await taMed(p))) {
+    showToast('Fikk ikke lagt til. Prøv igjen.', 'error')
+    return
+  }
+  if (slot) {
+    assignments.value[slot] = p.id
+    valgtPlass.value = null
+  }
+}
+
+// Ut av kampen: en fra laget står over, en som var hentet inn går tilbake.
+async function taUtAvKampen(id) {
+  const p = playerById(id)
+  plasserArm.value = null
+  if (!p) return
+  let ok = true
+  if (matchPlayerIds.value.includes(id)) {
+    const ny = matchPlayerIds.value.filter(x => x !== id)
+    ok = await setMatchPlayers(matchId, ny)
+    if (ok) matchPlayerIds.value = ny
+  }
+  if (ok && p.primary_team && matchColors.value.includes(p.primary_team) && !matchAbsenceIds.value.includes(id)) {
+    const r = await toggleAbsence(matchId, id)
+    ok = r.ok
+    if (ok) matchAbsenceIds.value = [...matchAbsenceIds.value, id]
+  }
+  if (!ok) { showToast('Fikk ikke lagret. Prøv igjen.', 'error'); return }
+  showToast(`${kort(p.name)} er tatt ut av kampen`, 'success', 5000, {
+    action: { label: 'Angre', handler: () => taMed(p) }
+  })
+}
 
 async function handleStart() {
   if (!kanStarte.value) return
@@ -1171,6 +1345,7 @@ const summary = computed(() =>
       </button>
       <span class="mm__title" v-if="match">{{ match.home_team }} – {{ match.away_team }}</span>
       <button v-if="canReset" type="button" class="mm__reset" @click="showReset = true">Nullstill</button>
+      <button v-else-if="!loading && erTreningskamp && assignedIds.size && !planModus" type="button" class="mm__reset mm__tom" @click="tomBanen">Tøm banen</button>
     </div>
 
     <div v-if="loading" class="mm__loading">Laster …</div>
@@ -1183,7 +1358,17 @@ const summary = computed(() =>
     <!-- ── SETUP ────────────────────────────────────────────── -->
     <div v-else-if="phase === 'setup'" class="mm__setup">
       <div class="mm__setup-head">
-        <h1 class="mm__h1">Sett opp laget</h1>
+        <div v-if="kveldPiller.length" class="ds-pills ds-pills--bred mm__kveld" role="group" aria-label="Kampene denne kvelden">
+          <button
+            v-for="k in kveldPiller"
+            :key="k.id"
+            type="button"
+            :class="['ds-pill', { 'ds-pill--active': k.valgt }]"
+            :aria-pressed="k.valgt ? 'true' : 'false'"
+            @click="byttKamp(k.id)"
+          >{{ k.navn }}<span v-if="k.lag" class="mm__kveld-lag">{{ k.lag }}</span></button>
+        </div>
+        <h1 v-else class="mm__h1">Sett opp laget</h1>
         <transition name="mm-saved">
           <span v-if="lineupSaved" class="mm__saved">
             <Ikon navn="hake" vekt="bold" />
@@ -1250,12 +1435,13 @@ const summary = computed(() =>
         <!-- Benken: de som ikke står på banen. Tapp en, så plassen. Overskriften
              er også beskjeden: den sier hva neste trykk gjør, på én fast linje,
              så banen ikke hopper. -->
-        <div v-if="squad.length" class="mm__plan">
+        <div v-if="squad.length || erTreningskamp" class="mm__plan">
           <div class="mm__plan-hode">
             <span v-if="benkBeskjed" class="mm__benk-beskjed">{{ benkBeskjed }}</span>
             <span v-else class="mm__plan-tittel">Benk</span>
             <button v-if="valgtPlass && playerInSlot(valgtPlass)" type="button" class="ds-btn ds-btn--ghost ds-btn--sm mm__benk-valg" @click="tilBenken">Til benken</button>
             <button v-else-if="valgtPlass" type="button" class="ds-btn ds-btn--ghost ds-btn--sm mm__benk-valg" @click="valgtPlass = null">Avbryt</button>
+            <button v-else-if="plasserArm && erTreningskamp && !planModus" type="button" class="ds-btn ds-btn--ghost ds-btn--sm mm__benk-valg" @click="taUtAvKampen(plasserArm)">Ta ut av kampen</button>
             <button v-else-if="lineupComplete && unassigned.length && !planModus && !plasserArm" type="button" class="ds-btn ds-btn--ghost ds-btn--sm mm__benk-valg" @click="planModus = true; plasserArm = null">Planlegg første bytte</button>
             <button v-else-if="planModus" type="button" class="ds-btn ds-btn--secondary ds-btn--sm mm__benk-valg" @click="planModus = false; planArm = null">Ferdig</button>
           </div>
@@ -1268,7 +1454,10 @@ const summary = computed(() =>
               :class="{ 'mm__bchip--armed': planModus ? planArm === p.id : plasserArm === p.id, 'mm__bchip--forslag': anbefaltPlass === p.id }"
               @click="trykkBenkOppsett(p.id)"
             ><span class="mm__bname">{{ kort(p.name) }}</span></button>
-            <span v-if="!benkOppsett.length" class="mm__benk-tom">Alle står på banen</span>
+            <span v-if="!benkOppsett.length && !erTreningskamp" class="mm__benk-tom">Alle står på banen</span>
+            <button v-if="erTreningskamp && !planModus" type="button" class="mm__bchip mm__bchip--legg" @click="apneLeggTil">
+              <Ikon navn="pluss" vekt="bold" aria-hidden="true" /><span class="mm__bname">Legg til</span>
+            </button>
           </div>
           <ul v-if="plan.length" class="mm__plan-liste">
             <li v-for="(p, i) in plan" :key="p.inn" class="mm__plan-par">
@@ -1280,7 +1469,7 @@ const summary = computed(() =>
             </li>
           </ul>
         </div>
-        <div v-if="!squad.length" class="mm__empty mm__empty--inline">Ingen spillere i troppen for dette laget.</div>
+        <div v-if="!squad.length && !erTreningskamp" class="mm__empty mm__empty--inline">Ingen spillere i troppen for dette laget.</div>
 
         <!-- Hovedknappen gjør alltid noe: fyller laget til det er fullt, så
              starter den kampen. Er troppen for liten, sier den hvor mange. -->
@@ -1291,6 +1480,28 @@ const summary = computed(() =>
         </button>
       </div>
     </div>
+
+    <Sheet v-if="phase === 'setup'" :show="visLeggTil" :title="leggTilTittel" stor @close="lukkLeggTil">
+      <div class="lt">
+        <input v-model="sokTropp" class="ds-input lt__sok" type="search" autocomplete="off" enterkeyhint="search" placeholder="Søk i troppen" aria-label="Søk i troppen" />
+        <template v-for="g in leggTilGrupper" :key="g.tittel">
+          <h3 class="lt__tittel">{{ g.tittel }}</h3>
+          <ul class="lt__liste">
+            <li v-for="r in g.rader" :key="r.p.id">
+              <button type="button" class="lt__rad" :class="{ 'lt__rad--svak': g.svak }" @click="velgFraTropp(r.p)">
+                <span class="lt__lag">{{ r.lag }}</span>
+                <span class="lt__hvem">
+                  <span class="lt__navn">{{ r.p.name }}</span>
+                  <span v-if="r.pos" class="lt__pos">{{ r.pos }}</span>
+                </span>
+                <span v-if="r.hvor" class="lt__hvor">{{ r.hvor }}</span>
+              </button>
+            </li>
+          </ul>
+        </template>
+        <p v-if="!leggTilGrupper.length" class="lt__tomt">{{ sokTropp.trim() ? 'Ingen treff' : 'Alle er med i kampen' }}</p>
+      </div>
+    </Sheet>
 
     <!-- ── LIVE ─────────────────────────────────────────────── -->
     <div v-else-if="phase === 'live'" class="mm__live" :class="{ 'mm__live--sporsmal': senStart }">
@@ -1663,15 +1874,55 @@ const summary = computed(() =>
   justify-content: center;
   padding: var(--ds-space-sm) 0;
 }
+/* Banen tar plassen som er: full bredde og all høyden mellom toppen og
+   benken. Plassene står i prosent, så den strekker seg uten å flytte noen. */
 .mm__setup-pitch .pitch {
   height: 100%;
-  width: auto;
-  max-width: 100%;
+  width: 100%;
+  aspect-ratio: auto;
   margin: 0;
 }
+.mm__setup-pitch .marker__circle { width: clamp(34px, 11.5cqh, 56px); height: clamp(34px, 11.5cqh, 56px); font-size: clamp(14px, 3.8cqh, 18px); }
+.mm__setup-pitch .marker__label { font-size: clamp(11px, 3cqh, 14px); }
+.mm__kveld { flex: 1; min-width: 0; }
+.mm__kveld .ds-pill { gap: var(--ds-space-xs); white-space: nowrap; }
+.mm__kveld-lag { font-size: var(--ds-text-xs); opacity: .75; }
+.mm__tom { flex: none; min-height: 44px; white-space: nowrap; }
+.mm__bar .mm__title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.mm__bchip--legg { border-style: dashed; color: var(--ds-color-text-secondary); }
+.mm__bchip--legg svg { width: 16px; height: 16px; }
+
+.lt { display: flex; flex-direction: column; }
+.lt__sok { min-height: 52px; border-radius: var(--ds-radius-full); padding-inline: var(--ds-space-20); }
+.lt__tittel {
+  margin: var(--ds-space-lg) 0 var(--ds-space-xs);
+  font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold);
+  letter-spacing: var(--ds-tracking-wider); text-transform: uppercase;
+  color: var(--ds-color-text-tertiary);
+}
+.lt__liste { list-style: none; margin: 0; padding: 0; }
+.lt__liste li + li { border-top: var(--ds-border-width) solid var(--ds-color-border-light); }
+.lt__rad {
+  width: 100%; min-height: 60px; padding: var(--ds-space-sm) 0;
+  display: flex; align-items: center; gap: var(--ds-space-12);
+  border: 0; background: none; text-align: left; font: inherit; color: var(--ds-color-text-primary);
+  cursor: pointer; -webkit-tap-highlight-color: transparent;
+}
+.lt__rad--svak { opacity: .6; }
+.lt__lag {
+  flex: none; min-width: 32px; height: 28px; padding: 0 var(--ds-space-sm);
+  display: inline-grid; place-items: center;
+  border-radius: var(--ds-radius-full); background: var(--ds-color-bg-subtle);
+  font-size: var(--ds-text-xs); font-weight: var(--ds-weight-bold); color: var(--ds-color-text-secondary);
+}
+.lt__hvem { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.lt__navn { font-weight: var(--ds-weight-semibold); }
+.lt__pos { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lt__hvor { flex: none; font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); }
+.lt__tomt { margin: var(--ds-space-lg) 0; color: var(--ds-color-text-tertiary); }
 .mm__setup-bottom {
   flex: none;
-  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
+  padding-bottom: calc(var(--ds-space-md) + env(safe-area-inset-bottom, 0px));
 }
 .mm__setup-bottom .mm__start { margin-top: var(--ds-space-md); }
 

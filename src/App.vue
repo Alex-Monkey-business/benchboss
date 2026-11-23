@@ -101,7 +101,9 @@ const showDemo = computed(() => !isSupabaseConfigured)
       <!-- Ingen overgang mellom skjermer: med «out-in» ventet hvert trykk
            på at den gamle siden tonet ut før den nye i det hele tatt ble
            laget. En fane skal bytte i samme bilde, som i en app. -->
-      <router-view />
+      <!-- Kampmodus leser kampen én gang ved oppstart. Bytter du til en annen
+           kamp samme kveld, skal skjermen lages på nytt. -->
+      <router-view :key="route.name === 'match-mode' ? String(route.params.id) : undefined" />
     </main>
     <ToastNotification :toasts="toasts" />
     <IosInstallBanner :above-nav="showNav" />

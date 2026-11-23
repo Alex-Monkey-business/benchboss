@@ -55,6 +55,8 @@ const { merkeFor } = useKlubbmerke()
 // Skeleton only on direct-URL load when matches haven't been fetched yet.
 const cachedMatch = matches.value.find(m => m.id === route.params.id)
 const match = ref(cachedMatch || null)
+// Treningskamper har ikke lånespillere: en spiller er med i kampen eller ikke.
+const erTreningskamp = computed(() => match.value?.kind === 'treningskamp')
 const loading = ref(!cachedMatch)
 const matchCoachIds = ref([])
 const matchPlayerIds = ref([])
@@ -409,7 +411,7 @@ async function togglePlayer(playerId) {
     return feilet()
   }
   meldEvent('laguttak_endret', { type: 'hospitant', antall: current.length })
-  showToast('Lånespillere oppdatert', 'success')
+  showToast(erTreningskamp.value ? 'Troppen er oppdatert' : 'Lånespillere oppdatert', 'success')
 }
 
 // ─── Laget: basistropp for kampens Halsen-lag, med frafall ────────────────────
@@ -1231,7 +1233,7 @@ function focusSummaryGroup() {
       >
         <template #summary>
           <span v-if="teamSquad.length" class="sum-chip sum-chip--squad">{{ availableCount }} på laget</span>
-          <span v-if="selectedLanespillere.length" class="sum-chip sum-chip--more">{{ selectedLanespillere.length }} lån</span>
+          <span v-if="selectedLanespillere.length" class="sum-chip sum-chip--more">{{ selectedLanespillere.length }} {{ erTreningskamp ? 'fra andre lag' : 'lån' }}</span>
           <span v-if="overGrensa" class="sum-chip sum-chip--over">{{ brukteFraGiver }} av {{ grense.grense }} fra {{ giverNavn }}</span>
           <span v-if="selectedCoaches.length" class="coach-avatar-pile">
             <span
@@ -1282,7 +1284,7 @@ function focusSummaryGroup() {
 
         <!-- Lånespillere -->
         <div class="sub-section">
-          <div class="sub-section__label sub-section__label--soft">Lånespillere</div>
+          <div class="sub-section__label sub-section__label--soft">{{ erTreningskamp ? 'Fra andre lag' : 'Lånespillere' }}</div>
           <div v-if="players.length === 0" class="hospitant-empty" style="margin: 0;">
             Ingen spillere å låne.
           </div>
@@ -1298,15 +1300,15 @@ function focusSummaryGroup() {
                   @click="togglePlayer(p.id)"
                 >
                   {{ p.name }}<span v-if="lagAv(p)" class="hospitant-pill__team"> · {{ teamLabel(lagAv(p)) }}</span>
-                  <span v-if="tellerIkke(p)" class="med-sist">Teller ikke</span>
-                  <span v-if="extraCount(p.id)" class="extra-badge" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
+                  <span v-if="tellerIkke(p) && !erTreningskamp" class="med-sist">Teller ikke</span>
+                  <span v-if="extraCount(p.id) && !erTreningskamp" class="extra-badge" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
                 </button>
               </div>
             </div>
 
             <!-- Anbefalt -->
             <div v-if="recommendedLoans.length" class="loan-group">
-              <div class="loan-group__label"><span class="loan-group__star">★</span> Anbefalt</div>
+              <div v-if="!erTreningskamp" class="loan-group__label"><span class="loan-group__star">★</span> Anbefalt</div>
               <div class="referee-pills">
                 <button
                   v-for="p in recommendedLoans"
@@ -1315,8 +1317,8 @@ function focusSummaryGroup() {
                   @click="togglePlayer(p.id)"
                 >
                   {{ p.name }}<span v-if="lagAv(p)" class="hospitant-pill__team"> · {{ teamLabel(lagAv(p)) }}</span>
-                  <span v-if="tellerIkke(p)" class="med-sist">Teller ikke</span>
-                  <span v-if="extraCount(p.id)" class="extra-badge" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
+                  <span v-if="tellerIkke(p) && !erTreningskamp" class="med-sist">Teller ikke</span>
+                  <span v-if="extraCount(p.id) && !erTreningskamp" class="extra-badge" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
                 </button>
               </div>
             </div>
@@ -1338,8 +1340,8 @@ function focusSummaryGroup() {
                   @click="togglePlayer(p.id)"
                 >
                   {{ p.name }}<span v-if="lagAv(p)" class="hospitant-pill__team"> · {{ teamLabel(lagAv(p)) }}</span>
-                  <span v-if="tellerIkke(p)" class="med-sist">Teller ikke</span>
-                  <span v-if="!playerConflicts[p.id] && extraCount(p.id)" class="extra-badge" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
+                  <span v-if="tellerIkke(p) && !erTreningskamp" class="med-sist">Teller ikke</span>
+                  <span v-if="!playerConflicts[p.id] && extraCount(p.id) && !erTreningskamp" class="extra-badge" :title="`${extraCount(p.id)} ekstra kamper i sesongen`">{{ extraCount(p.id) }}</span>
                   <span v-if="playerConflicts[p.id]" class="hospitant-pill__conflict" :title="`Også kamp ${playerConflicts[p.id].time || 'samme dag'} mot ${playerConflicts[p.id].opponent}`">
                     · {{ playerConflicts[p.id].time || 'samme dag' }}
                   </span>

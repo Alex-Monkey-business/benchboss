@@ -77,7 +77,9 @@ async function hentKamper(seasonId) {
   loading.value = true
 
   if (!isSupabaseConfigured) {
-    matches.value = DEMO_MATCHES.filter(m => m.season_id === seasonId)
+    // Kamper lagt til i demo blir stående: en ny henting skal ikke ta dem bort.
+    const egne = matches.value.filter(m => m.season_id === seasonId && !DEMO_MATCHES.some(d => d.id === m.id))
+    matches.value = [...DEMO_MATCHES.filter(m => m.season_id === seasonId), ...egne]
     // Keep user changes in demo mode - only init if empty
     if (matchCoaches.value.length === 0 && DEMO_MATCH_COACHES.length > 0) {
       matchCoaches.value = [...DEMO_MATCH_COACHES]
@@ -191,7 +193,8 @@ export function useMatches() {
 
   async function addMatch(matchData) {
     if (!isSupabaseConfigured) {
-      const newMatch = { id: 'dm-' + Date.now(), ...matchData }
+      // Flere kamper kan lages i samme millisekund (tre treningskamper på én gang).
+      const newMatch = { id: 'dm-' + Date.now() + '-' + Math.random().toString(36).slice(2, 6), ...matchData }
       matches.value.push(newMatch)
       await assignDefaultCoaches([newMatch])
       return newMatch
@@ -442,6 +445,23 @@ export function useMatches() {
     return { ute: !isOut, ok: true }
   }
 
+  // Flere ute på én gang: en treningskamp som starter blank har ingen fra
+  // laget med. De som alt står som ute, røres ikke.
+  async function settFravaer(matchId, playerIds) {
+    const har = new Set(matchAbsences.value.filter(x => x.match_id === matchId).map(x => x.player_id))
+    const nye = [...new Set(playerIds)].filter(id => !har.has(id))
+    if (!nye.length) return true
+    const rader = nye.map(player_id => ({ match_id: matchId, player_id }))
+    matchAbsences.value = [...matchAbsences.value, ...rader]
+    if (!isSupabaseConfigured) return true
+    const { error } = await supabase.from('match_absences').insert(rader).select('player_id')
+    if (error) {
+      matchAbsences.value = matchAbsences.value.filter(x => !(x.match_id === matchId && nye.includes(x.player_id)))
+      return false
+    }
+    return true
+  }
+
   async function deleteMatch(matchId) {
     if (!isSupabaseConfigured) {
       matches.value = matches.value.filter(m => m.id !== matchId)
@@ -472,7 +492,7 @@ export function useMatches() {
     fetchMatches: kamperFersk.force, ensureMatches: kamperFersk, getMatch, updateMatch, addMatch, bulkAddMatches,
     setMatchCoaches, getCoachesForMatch, fetchMatchCoaches, backfillDefaultCoaches,
     setMatchPlayers, getPlayersForMatch, fetchMatchPlayers,
-    fetchSeasonAbsences, fetchMatchAbsences, getAbsencesForMatch, toggleAbsence,
+    fetchSeasonAbsences, fetchMatchAbsences, getAbsencesForMatch, toggleAbsence, settFravaer,
     deleteMatch, deleteAllMatches
   }
 }

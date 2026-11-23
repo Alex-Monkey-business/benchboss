@@ -64,6 +64,25 @@ async function slaOpp(navn, cohort) {
   return p
 }
 
+// Forslag mens treneren skriver motstanderen. Egen krets først: i en
+// barneserie er motstanderne naboer. Feiler nettet, kommer det ingen forslag,
+// og det som er skrevet brukes som det står.
+export async function sokKlubber(query, cohort, maks = 5) {
+  const q = String(query || '').trim()
+  if (q.length < 2) return []
+  try {
+    const [treff, krets] = await Promise.all([sok(q), cohort?.club_fiks_id ? finnEgenKrets(cohort) : ''])
+    const l = q.toLowerCase()
+    const poeng = c => (c.name.toLowerCase().startsWith(l) ? 2 : 0) + (krets && c.district === krets ? 3 : 0)
+    const sett = new Set()
+    return treff
+      .filter(c => c.name && !isOurs(c.name) && !sett.has(c.name) && sett.add(c.name))
+      .sort((a, b) => poeng(b) - poeng(a))
+      .slice(0, maks)
+      .map(c => ({ navn: c.name, krets: c.district || '', fiksId: c.fiksId }))
+  } catch { return [] }
+}
+
 export function useKlubbmerke() {
   const { activeCohort } = useAuth()
 
