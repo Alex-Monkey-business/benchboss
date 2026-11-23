@@ -39,7 +39,7 @@ const {
   fetchSession, fetchStints,
   saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, startedEarlier, substitute, undoSubstitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
   isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer,
-  remote, syncState, changeScore
+  remote, syncState, changeScore, sesjonKjent
 } = useMatchMode()
 const { show: showToast } = useToast()
 const { setSessionHold, sessionLost, activeCohort } = useAuth()
@@ -87,21 +87,22 @@ let wakeLock = null
 let alive = true
 
 onMounted(async () => {
-  // Bytte mellom kampene samme kveld: alt som trengs er alt hentet (kampen,
-  // troppen, oppstillingen). Tegn banen nå, og hent fersk tilstand etterpå.
-  // Før sto skjermen og lastet i fem rundturer for hvert bytte.
+  // Appen har som regel alt fra før: kampen og troppen fra lista, sesjonen
+  // fra kampsida eller fra kampene samme kveld. Da tegnes banen nå, og fersk
+  // tilstand hentes etterpå. Før sto skjermen og lastet hver gang.
+  // Bare i oppsettet: en kamp i gang trenger klokka og periodene fra serveren.
   let rask = false
   const kjent = alleKamper.value.find(m => m.id === matchId)
-  if (kjent?.kind === 'treningskamp' && players.value.length &&
-      kveldLager.sesjoner.has(matchId) && kveldLager.fravaer.has(kjent.season_id)) {
-    const lagret = kveldLager.sesjoner.get(matchId)
+  const harSesjon = kveldLager.sesjoner.has(matchId) || sesjonKjent(matchId)
+  if (kjent && players.value.length && harSesjon && kveldLager.fravaer.has(kjent.season_id)) {
+    const lagret = kveldLager.sesjoner.has(matchId) ? kveldLager.sesjoner.get(matchId) : session.value
     if (!lagret || lagret.status === 'setup') {
       match.value = kjent
       matchPlayerIds.value = alleInnlan.value.filter(x => x.match_id === matchId).map(x => x.player_id)
       matchAbsenceIds.value = altFravaer.value.filter(x => x.match_id === matchId).map(x => x.player_id)
       session.value = lagret
       hydrateLineup()
-      if (!lagret?.lineup) forhandsplasser()
+      if (kjent.kind === 'treningskamp' && !lagret?.lineup) forhandsplasser()
       loading.value = false
       rask = true
     }
@@ -1400,6 +1401,7 @@ const summary = computed(() =>
       <button v-else-if="!loading && erTreningskamp && assignedIds.size && !planModus" type="button" class="mm__reset mm__tom" @click="tomBanen">Tøm banen</button>
     </div>
 
+    <!-- Korte ventetider vises ikke: teksten kommer først etter et øyeblikk. -->
     <div v-if="loading" class="mm__loading">Laster …</div>
 
     <div v-else-if="!match" class="ds-empty">
@@ -2243,6 +2245,8 @@ const summary = computed(() =>
 .mm__reset { margin-left: auto; border: none; background: transparent; color: var(--ds-color-text-tertiary); font-family: var(--ds-font-body); font-size: var(--ds-text-sm); font-weight: var(--ds-weight-medium); cursor: pointer; padding: var(--ds-space-sm) var(--ds-space-sm); border-radius: var(--ds-radius-sm); }
 .mm__reset:hover { color: var(--ds-color-error); background: var(--ds-color-bg-elevated); }
 
+@keyframes mm-sent { from { opacity: 0 } to { opacity: 1 } }
+.mm__loading { animation: mm-sent .2s ease .4s both; }
 .mm__loading, .mm__empty { color: var(--ds-color-text-tertiary); padding: var(--ds-space-xl) var(--ds-space-lg); text-align: center; }
 .mm__empty--inline { padding: var(--ds-space-md); }
 

@@ -10,6 +10,7 @@ import { useExpenses } from '../composables/useExpenses'
 import { useCoaches } from '../composables/useCoaches'
 import { useMatchMode } from '../composables/useMatchMode'
 import MatchCard from '../components/MatchCard.vue'
+import { forvarmKamper } from '../composables/forvarmKamper'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import TeamFilter from '../components/TeamFilter.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
@@ -57,13 +58,14 @@ onMounted(async () => {
     await ensureMatches(viewingSeason.value.id)
   }
   loading.value = false
+  forvarmKamper(viewingSeason.value?.id)
   if (!fanenValgt && upcomingMatches.value.length === 0 && pastMatches.value.length > 0) {
     timeFilter.value = 'past'
   }
 })
 
 watch(viewingSeason, (s) => {
-  if (s) { ensureMatches(s.id); fetchSessionStatuses(s.id) }
+  if (s) { ensureMatches(s.id); fetchSessionStatuses(s.id); forvarmKamper(s.id) }
 })
 
 // Get all team colors for a match (can be 2 for internal matches)

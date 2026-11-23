@@ -26,6 +26,8 @@ import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import { dagLink } from '../lib/trainingLinks'
 import { daysUntil, WEEKDAY_LABELS, isoWeekday, weekdayDateLabel } from '../lib/dateLabels'
 import { hentDagensOppmote, dagensOppmoteLagret } from '../composables/useTreningsOkt'
+import { useDelInn } from '../composables/useDelInn'
+import { narLedig } from '../lib/forvarm'
 
 const {
   loading, refresh, followDay, today, greeting,
@@ -104,6 +106,8 @@ onMounted(async () => {
   // Etter tegningen, aldri før: en treg fotball.no skal ikke kunne holde
   // igjen hjemskjermen.
   sjekkNarLedig()
+  // Del inn åpnes herfra. Dagens rad hentes nå, så skjermen står med én gang.
+  if (isCoach.value) narLedig(() => Promise.all([useDelInn().hent(), hentDagensOppmote()]))
 })
 
 const hasToday = computed(() =>

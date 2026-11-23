@@ -15,6 +15,7 @@ import { useTeamFilter } from '../composables/useTeamFilter'
 import MatchCardSkeleton from '../components/MatchCardSkeleton.vue'
 import SeasonPicker from '../components/SeasonPicker.vue'
 import WeekList from '../components/today/WeekList.vue'
+import { forvarmKamper } from '../composables/forvarmKamper'
 
 const { viewingSeason, status: seasonStatus, ensureSeasons } = useSeasons()
 const { matches, status: matchStatus, ensureMatches, getCoachesForMatch } = useMatches()
@@ -49,10 +50,11 @@ onMounted(async () => {
   await Promise.all([ensureSeasons(), fetchCoaches(), fetchWeek(), fetchCups(), kjent ? ensureMatches(kjent) : null])
   if (viewingSeason.value && viewingSeason.value.id !== kjent) await ensureMatches(viewingSeason.value.id)
   loading.value = false
+  forvarmKamper(viewingSeason.value?.id)
 })
 
 watch(viewingSeason, async (s) => {
-  if (s) await ensureMatches(s.id)
+  if (s) { await ensureMatches(s.id); forvarmKamper(s.id) }
 })
 
 // Ukeplanen — samme liste som trenerne ser på Hjem, men uten lenker

@@ -24,10 +24,13 @@ const remote = ref(null)
 // Kampsida vet da før den har hentet noe om kampen går, er ferdig eller har
 // spilletid, og tegner riktig fase og riktige rader i første bilde.
 const statusByMatch = ref({})
+// Kampen `session` sist ble hentet for. `session` er null både når kampen ikke
+// har noen sesjon og når den aldri er hentet; denne skiller de to.
+let sesjonHentetFor = null
 
 // Kun data. Tikk-timeren eies av komponentene som monterer den (ref-tellet),
 // og skal ikke røres her.
-registerReset(() => { session.value = null; stints.value = []; statusByMatch.value = {} })
+registerReset(() => { session.value = null; stints.value = []; statusByMatch.value = {}; sesjonHentetFor = null })
 
 function husk(matchId, status) {
   if ((statusByMatch.value[matchId] ?? null) === (status ?? null)) return
@@ -105,6 +108,7 @@ function applyState(matchId, st) {
   if (!st) return
   if (st.now) serverOffset.value = Date.parse(st.now) - Date.now()
   session.value = st.session || null
+  sesjonHentetFor = matchId
   stints.value = stints.value.filter(s => s.match_id !== matchId).concat(medVentendeBytter(matchId, st.stints || []))
   remote.value = { matchId, score: medVentendeMaal(matchId, st.score || null), goals: medVentendeMal(matchId, st.goals || []) }
 }
@@ -271,6 +275,7 @@ export function useMatchMode() {
       if (session.value?.match_id !== matchId) {
         session.value = DEMO_SESSIONS[matchId] ? { ...DEMO_SESSIONS[matchId] } : null
       }
+      sesjonHentetFor = matchId
       return session.value
     }
     const { data, error } = await supabase
@@ -282,6 +287,7 @@ export function useMatchMode() {
     // en kamp i gang om til «ikke startet» på skjermen — behold det vi har.
     if (error) return session.value
     session.value = data || null
+    sesjonHentetFor = matchId
     husk(matchId, data?.status)
     return session.value
   }
@@ -798,6 +804,7 @@ export function useMatchMode() {
   }
 
   return {
+    sesjonKjent: matchId => sesjonHentetFor === matchId,
     remote, syncState, changeScore,
     session, stints, statusByMatch, currentClock, isRunning,
     now, serverOffset,

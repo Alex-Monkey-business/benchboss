@@ -18,6 +18,7 @@ import { useToast } from '../composables/useToast'
 import ConfirmDialog from '../components/ConfirmDialog.vue'
 import Sheet from '../components/Sheet.vue'
 import Skeleton from '../components/Skeleton.vue'
+import { kveldLager } from '../lib/kveld'
 import DisclosureSection from '../components/DisclosureSection.vue'
 import MatchPlayingTime from '../components/MatchPlayingTime.vue'
 import TeamCrest from '../components/TeamCrest.vue'
@@ -159,6 +160,8 @@ onMounted(async () => {
     fetchMmStints(id)
   ])
   if (!kjentSesong && fersk?.season_id) await Promise.all([ensureMatches(fersk.season_id), fetchSeasonAbsences(fersk.season_id)])
+  // Kampoppsettet kan tegne banen med én gang når frafallet for sesongen er hentet.
+  { const sesong = kjentSesong || fersk?.season_id; if (sesong) kveldLager.fravaer.add(sesong) }
   match.value = matches.value.find(m => m.id === id) || fersk || match.value
 
   if (match.value) {
@@ -1533,7 +1536,7 @@ function focusSummaryGroup() {
         data-section="playtime"
         :style="{ order: sectionOrder.playtime }"
         label="Spilletid"
-        empty-text="Ikke målt"
+        empty-text=""
         :has-content="!!playingTimeSummary"
       >
         <template #summary>
