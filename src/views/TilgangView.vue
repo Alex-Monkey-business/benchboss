@@ -585,10 +585,9 @@ onMounted(load)
 
 .tilgang-sheet-label {
   margin: var(--ds-space-sm) 0 0;
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
 }
 

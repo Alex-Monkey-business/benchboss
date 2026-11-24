@@ -113,9 +113,8 @@ function toggle() {
 .disclosure__label {
   font-size: var(--ds-text-sm);
   font-weight: 600;
-  letter-spacing: 0.01em;
+  letter-spacing: normal;
   color: var(--ds-color-text-secondary);
-  text-transform: uppercase;
 }
 
 .disclosure__summary {

@@ -127,12 +127,13 @@
    `font-family` må stå eksplisitt: brukes utilityen på en <h2>, arver den
    ellers display-serifen. */
 
+/* En seksjonsoverskrift er en overskrift, ikke en etikett: vanlige bokstaver,
+   full farge. Store bokstaver med sporing roper uten å si mer. */
 .ds-section-label {
   margin: var(--ds-space-sm) 0 var(--ds-space-sm);
   font-family: var(--ds-font-body);
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-md);
   font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--ds-color-text-tertiary);
+  letter-spacing: normal;
+  color: var(--ds-color-text-primary);
 }

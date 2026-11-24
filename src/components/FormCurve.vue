@@ -37,10 +37,9 @@ const RESULT_LABEL = { w: 'V', d: 'U', l: 'T' }
 }
 
 .form-curve__label {
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
 }
 

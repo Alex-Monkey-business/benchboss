@@ -538,10 +538,9 @@ function hoppOver() {
 }
 
 .kig__steg {
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
   margin: 0 0 var(--ds-space-sm);
 }

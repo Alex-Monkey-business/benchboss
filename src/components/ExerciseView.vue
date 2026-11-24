@@ -236,10 +236,9 @@ const harInnhold = computed(() =>
 .ex-badge--mix { background: transparent; color: var(--ds-badge-text); box-shadow: inset 0 0 0 1px currentColor; }
 
 .ex-view__category {
-  font-size: var(--ds-text-2xs);
+  font-size: var(--ds-text-sm);
   font-weight: 600;
-  letter-spacing: 0.02em;
-  text-transform: uppercase;
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
   border: 1px solid var(--ds-color-border);
   border-radius: var(--ds-radius-full);
@@ -281,10 +280,9 @@ a.ex-view__kilde { text-decoration: underline; text-underline-offset: 2px; }
 .ex-view__hvor {
   margin: 0 auto 0 0;
   font-family: var(--ds-font-display-sans);
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
+  letter-spacing: normal;
   font-variant-numeric: tabular-nums;
   color: var(--ds-color-text-tertiary);
 }

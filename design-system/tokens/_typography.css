@@ -104,10 +104,9 @@
    «kicker»-kopier i hver komponent drev fra hverandre i vekt og sporing. */
 .ds-eyebrow {
   font-family: var(--ds-font-body);
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.08em;
+  letter-spacing: normal;
   line-height: 1.3;
-  text-transform: uppercase;
-  color: var(--ds-color-text-tertiary);
+  color: var(--ds-color-text-secondary);
 }

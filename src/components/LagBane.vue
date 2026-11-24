@@ -275,8 +275,7 @@ const hint = computed(() => {
 .lb__benk { margin-top: var(--ds-space-md); }
 .lb__benk-tittel {
   display: block; margin-bottom: var(--ds-space-sm);
-  font-size: var(--ds-text-xs, 12px); font-weight: var(--ds-weight-semibold);
-  text-transform: uppercase; letter-spacing: .06em;
+  font-size: var(--ds-text-xs, 12px); font-weight: var(--ds-weight-semibold); letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
 }
 .lb__benk-rad { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }

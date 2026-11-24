@@ -463,10 +463,9 @@ async function handleExport() {
 
 .dommere__tittel {
   margin: 0 0 var(--ds-space-sm);
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
 }
 
@@ -508,10 +507,9 @@ async function handleExport() {
 }
 
 .my-balance__eyebrow {
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
+  letter-spacing: normal;
   color: var(--ds-color-warm-text);
   margin-bottom: var(--ds-space-sm);
 }

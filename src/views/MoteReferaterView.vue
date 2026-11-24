@@ -127,10 +127,9 @@ onMounted(async () => {
 .block { margin-bottom: var(--ds-space-2xl); }
 
 .block__label {
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
   margin: 0 0 var(--ds-space-md);
 }
@@ -264,10 +263,9 @@ onMounted(async () => {
 }
 
 .referat-kort__date {
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
 }
 

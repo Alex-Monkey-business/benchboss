@@ -88,10 +88,9 @@ function goTo(slug) {
 
 
 .principle__pos {
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-medium);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
 }
 
@@ -145,10 +144,9 @@ function goTo(slug) {
 
 .principle__heading {
   font-family: var(--ds-font-display-sans);
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
+  letter-spacing: normal;
   color: var(--accent-text);
   margin: 0 0 var(--ds-space-sm);
 }
@@ -255,9 +253,8 @@ function goTo(slug) {
 }
 
 .principle__pager-label {
-  font-size: var(--ds-text-xs);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
+  font-size: var(--ds-text-sm);
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
 }
 

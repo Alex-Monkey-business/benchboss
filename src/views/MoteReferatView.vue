@@ -112,10 +112,9 @@ function dateLabel(iso) {
 
 .referat__date {
   display: inline-block;
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
   margin-bottom: var(--ds-space-md);
 }
@@ -154,10 +153,9 @@ function dateLabel(iso) {
   background: var(--accent-bg);
   color: var(--accent-text);
   font-family: var(--ds-font-display-sans);
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-wider);
-  text-transform: uppercase;
+  letter-spacing: normal;
 }
 
 .punkt {

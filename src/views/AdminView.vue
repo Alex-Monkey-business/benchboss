@@ -274,10 +274,9 @@ const links = computed(() => [
 }
 
 .admin-section-label {
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
   padding: 0;
   margin-bottom: var(--ds-space-sm);

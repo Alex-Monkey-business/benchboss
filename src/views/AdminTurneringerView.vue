@@ -692,10 +692,9 @@ const sorterteKamper = computed(() =>
 .turn-kicker {
   margin: 0;
   font-family: var(--ds-font-body);
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
   font-variation-settings: normal;
   font-feature-settings: normal;

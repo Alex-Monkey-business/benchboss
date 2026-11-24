@@ -1950,8 +1950,8 @@ const summary = computed(() =>
 .lt__sok { min-height: 52px; border-radius: var(--ds-radius-full); padding-inline: var(--ds-space-20); }
 .lt__tittel {
   margin: var(--ds-space-lg) 0 var(--ds-space-xs);
-  font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold);
-  letter-spacing: var(--ds-tracking-wider); text-transform: uppercase;
+  font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold);
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
 }
 .lt__liste { list-style: none; margin: 0; padding: 0; }
@@ -2414,7 +2414,7 @@ const summary = computed(() =>
 }
 .mm__benk-valg { flex: none; }
 .mm__benk-tom { font-size: var(--ds-text-sm); color: var(--ds-color-text-tertiary); padding: var(--ds-space-12) 0; }
-.mm__plan-tittel { font-size: var(--ds-text-xs); font-weight: var(--ds-weight-semibold); letter-spacing: var(--ds-tracking-wider); text-transform: uppercase; color: var(--ds-color-text-tertiary); }
+.mm__plan-tittel { font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); letter-spacing: normal; color: var(--ds-color-text-tertiary); }
 .mm__plan-hint { font-size: var(--ds-text-sm); color: var(--ds-color-text-secondary); }
 .mm__plan-liste { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; }
 .mm__plan-par {
@@ -2570,7 +2570,7 @@ const summary = computed(() =>
 .mm__scorer-min { font-variant-numeric: tabular-nums; font-weight: var(--ds-weight-bold); color: var(--ds-color-text-tertiary); margin-right: var(--ds-space-2xs); }
 .mm__scorer-group + .mm__scorer-group { margin-top: var(--ds-space-md); }
 
-.mm__section-label { margin: var(--ds-space-md) 0 var(--ds-space-sm); font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-tertiary); text-transform: uppercase; letter-spacing: .04em; }
+.mm__section-label { margin: var(--ds-space-md) 0 var(--ds-space-sm); font-size: var(--ds-text-sm); font-weight: var(--ds-weight-semibold); color: var(--ds-color-text-tertiary); letter-spacing: normal; }
 .mm__armed-hint { text-transform: none; letter-spacing: 0; color: var(--ds-color-accent); font-weight: var(--ds-weight-medium); }
 
 .mm__bench { display: flex; flex-wrap: wrap; gap: var(--ds-space-sm); }
