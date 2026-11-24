@@ -55,6 +55,15 @@ const rigg = computed(() => {
 const visRigg = ref(false)
 
 const minutter = computed(() => drills.value.reduce((s, d) => s + (d.minutes || 0), 0))
+// Planlagt lengde er den samme som Hjem, Trening og Del inn viser. Fyller
+// øvelsene ikke hele, står begge: «1 t 20 av 1 t 30 min».
+const lengde = computed(() => {
+  const plan = session.value?.duration_min || 0
+  const sum = minutter.value
+  if (!plan) return varighet(sum)
+  if (!sum || sum === plan) return varighet(plan)
+  return `${varighet(sum).replace(/ min$/, '')} av ${varighet(plan)}`
+})
 
 const apen = ref(null)
 function apne(i) {
@@ -113,7 +122,7 @@ const tilbakeTil = '/trening'
       <section class="fase">
         <div class="fase__hode">
           <h2 class="fase__tittel fase__tittel--alene">Øvelsene</h2>
-          <span v-if="minutter" class="fase__min">{{ varighet(minutter) }}</span>
+          <span v-if="lengde" class="fase__min">{{ lengde }}</span>
         </div>
         <OvelseRader :kort="kort" :meta="metaFor" @apne="apne" />
         <RouterLink v-if="!drills.length" :to="planLink(session.id)" class="ds-link plan__tom-legg">
