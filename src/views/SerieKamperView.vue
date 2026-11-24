@@ -57,14 +57,15 @@ watch(viewingSeason, async (s) => {
   if (s) { await ensureMatches(s.id); forvarmKamper(s.id) }
 })
 
-// Ukeplanen — samme liste som trenerne ser på Hjem, men uten lenker
-// (trenings- og kampdetaljer er trenerflater).
+// Ukeplanen — uten lenker (trenings- og kampdetaljer er trenerflater).
+// Bare treninger og cup: kampene står i lista rett under, og sto før to
+// ganger på samme skjerm.
 const weekAhead = computed(() => buildWeekAhead({
   days: treningsdager.value,
   matches: matches.value,
   cup: activeCup.value,
   includeToday: true
-}))
+}).filter(i => i.kind !== 'match'))
 
 function hasResult(m) {
   return m.home_score != null && m.away_score != null
@@ -226,10 +227,9 @@ const displayedGroups = computed(() => groupByDate(displayedMatches.value))
 .serie-week__kicker {
   margin: 0 0 var(--ds-space-sm);
   font-family: var(--ds-font-body);
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   font-weight: var(--ds-weight-semibold);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
 }
 
