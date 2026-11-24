@@ -1949,11 +1949,9 @@ function focusSummaryGroup() {
   transform: scale(0.98);
 }
 
-/* Tone: live + start = full tyngde (arver accent). prep = outline. quiet = nøytral. */
-.match-mode-cta--prep {
-  background: var(--ds-color-bg-elevated);
-  color: var(--ds-color-accent);
-}
+/* Tone: live, start og prep = full tyngde. Knappen er den eneste handlingen
+   på kampsida, og da er den fylt — som Del inn på Hjem. På Hjem-kortet er
+   prep fortsatt en kant, fordi Del inn er den fylte der. quiet = nøytral. */
 
 .match-mode-cta--quiet {
   background: var(--ds-color-bg-subtle);
@@ -2593,24 +2591,26 @@ function focusSummaryGroup() {
 .detail-disclosures {
   display: flex;
   flex-direction: column;
-  gap: var(--ds-space-12);
+  /* Seksjonene byttes om med `order` etter kampens fase, så alle får strek
+     over — også den øverste, som da skiller lista fra knappen. */
 }
 
-.detail-disclosures :deep(.disclosure) {
-  border: none;
-  border-radius: var(--ds-radius-lg);
-  background: var(--ds-color-bg-subtle);
-  box-shadow: none;
-}
-
+.detail-disclosures :deep(.disclosure),
 .detail-disclosures :deep(.disclosure--open) {
+  border: none;
+  border-radius: 0;
+  background: transparent;
   box-shadow: none;
-  background: var(--ds-color-bg-subtle);
+}
+
+/* Rader med strek mellom, som på Hjem. Ingen grå bokser. */
+.detail-disclosures :deep(.disclosure) {
+  border-top: 1px solid var(--ds-color-border);
 }
 
 .detail-disclosures :deep(.disclosure__header) {
-  padding: var(--ds-space-md) var(--ds-space-md);
-  min-height: 56px;
+  padding: 0;
+  min-height: 60px;
 }
 
 @media (hover: hover) and (pointer: fine) {
@@ -2618,22 +2618,22 @@ function focusSummaryGroup() {
 }
 
 .detail-disclosures :deep(.disclosure__label) {
-  font-size: var(--ds-text-sm);
-  font-weight: var(--ds-weight-semibold);
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-medium);
   letter-spacing: 0;
   text-transform: none;
   color: var(--ds-color-text-primary);
 }
 
 .detail-disclosures :deep(.disclosure__summary) {
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   color: var(--ds-color-text-secondary);
 }
 
 .detail-disclosures :deep(.disclosure__summary--rich) { gap: var(--ds-space-sm); }
 
 .detail-disclosures :deep(.disclosure--open .disclosure__inner) {
-  padding: 0 var(--ds-space-md) var(--ds-space-lg);
+  padding: 0 0 var(--ds-space-lg);
 }
 
 .sub-section {
@@ -2788,10 +2788,9 @@ function focusSummaryGroup() {
 }
 
 .scorer-form__label {
-  font-size: var(--ds-text-2xs);
+  font-size: var(--ds-text-sm);
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
 }
 
@@ -2802,10 +2801,9 @@ function focusSummaryGroup() {
 }
 
 .scorer-picker__group-label {
-  font-size: var(--ds-text-2xs);
+  font-size: var(--ds-text-sm);
   font-weight: 600;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
   margin-bottom: var(--ds-space-sm);
 }
