@@ -249,6 +249,11 @@ const hasUpcomingLoans = computed(() => playerStats.value.some(p => p.upcoming >
 // Vises kollapset (topp 5) som standard — listen er for gøy, ikke styring.
 const SCORER_LIMIT = 5
 const showAllScorers = ref(false)
+const showAllLoans = ref(false)
+const visibleLoans = computed(() =>
+  showAllLoans.value ? playerStats.value : playerStats.value.slice(0, SCORER_LIMIT))
+const showCoaches = ref(false)
+const showReferees = ref(false)
 // Spilletid er sparsom til match mode er ordentlig i bruk — kollapset som default.
 const showPlaytime = ref(false)
 const topScorers = computed(() =>
@@ -377,15 +382,15 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
             </div>
             <div class="stat-card-large__metric stat-card-large__metric--win">
               <AnimatedNumber class="stat-card-large__value" :value="halsenTotal.w" />
-              <span class="stat-card-large__label">V</span>
+              <span class="stat-card-large__label">Vunnet</span>
             </div>
             <div class="stat-card-large__metric stat-card-large__metric--draw">
               <AnimatedNumber class="stat-card-large__value" :value="halsenTotal.d" />
-              <span class="stat-card-large__label">U</span>
+              <span class="stat-card-large__label">Uavgjort</span>
             </div>
             <div class="stat-card-large__metric stat-card-large__metric--loss">
               <AnimatedNumber class="stat-card-large__value" :value="halsenTotal.l" />
-              <span class="stat-card-large__label">T</span>
+              <span class="stat-card-large__label">Tapt</span>
             </div>
           </div>
           <div class="stat-card-large__goals">
@@ -397,7 +402,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
             </span>
           </div>
           <div class="stat-card-large__form">
-            <FormCurve :results="halsenRecentResults" :max="10" />
+            <FormCurve :results="halsenRecentResults" :max="10" label="" />
           </div>
         </template>
       </div>
@@ -409,12 +414,10 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
       <div class="standings">
         <div class="standings__header">
           <span></span>
-          <span class="standings__opt">Sp</span>
           <span class="standings__opt">V</span>
           <span class="standings__opt">U</span>
           <span class="standings__opt">T</span>
           <span class="standings__header-goals">Mål</span>
-          <span class="standings__header-diff">+/-</span>
           <span class="standings__header-points">P</span>
         </div>
         <template v-for="team in teamStats" :key="team.key">
@@ -423,20 +426,11 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
               <span :class="['standings__dot', `standings__dot--${team.key}`]" aria-hidden="true"></span>
               {{ team.label }}
             </span>
-            <span class="standings__num standings__num--muted standings__opt">{{ team.played }}</span>
             <span class="standings__num standings__opt">{{ team.w }}</span>
             <span class="standings__num standings__num--muted standings__opt">{{ team.d }}</span>
             <span class="standings__num standings__num--muted standings__opt">{{ team.l }}</span>
             <span class="standings__goals">{{ team.gf }} – {{ team.ga }}</span>
-            <span :class="['standings__diff', team.diff > 0 ? 'standings__diff--pos' : team.diff < 0 ? 'standings__diff--neg' : '']">
-              {{ team.diff > 0 ? '+' : '' }}{{ team.diff }}
-            </span>
             <span class="standings__points">{{ team.points }}</span>
-          </div>
-          <!-- Forma (siste 10) står i lagets egen rad, ikke i en egen boks under
-               tabellen. Samme tall, én seksjon mindre. -->
-          <div v-if="team.recent.length" class="standings__form">
-            <FormCurve :results="team.recent" :max="10" label="" />
           </div>
         </template>
       </div>
@@ -452,7 +446,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
           <span class="leaderboard__metric leaderboard__metric--head">Ekstrakamper</span>
           <span v-if="hasUpcomingLoans" class="leaderboard__metric leaderboard__metric--head">Kommende</span>
         </div>
-        <div v-for="(item, i) in playerStats" :key="item.id" class="leaderboard__row">
+        <div v-for="(item, i) in visibleLoans" :key="item.id" class="leaderboard__row">
           <span class="leaderboard__rank">{{ i + 1 }}</span>
           <span class="leaderboard__name">
             <router-link :to="`/spiller/${item.id}`" class="leaderboard__link">{{ item.name }}</router-link>
@@ -462,6 +456,14 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
           <span class="leaderboard__metric">{{ item.count || '' }}</span>
           <span v-if="hasUpcomingLoans" class="leaderboard__metric leaderboard__metric--upcoming">{{ item.upcoming || '' }}</span>
         </div>
+        <button
+          v-if="playerStats.length > SCORER_LIMIT"
+          type="button"
+          class="leaderboard__toggle"
+          @click="showAllLoans = !showAllLoans"
+        >
+          {{ showAllLoans ? 'Vis færre' : `Vis alle (${playerStats.length})` }}
+        </button>
       </div>
     </div>
 
@@ -493,7 +495,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 
     <!-- Spilletid — fra match mode. Sparsom til kampmodus er i bruk, derfor
          kollapset som default, under toppscorere. -->
-    <div v-if="playtimeByTeam.length > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-4">
+    <div v-if="playtimeByTeam.length > 0" class="px-lg stat-fold ds-anim-fade-up ds-anim-delay-4">
       <button
         type="button"
         class="stat-collapse-head"
@@ -531,7 +533,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
     </div>
 
     <!-- Oppmøte på trening — hvem som var der. -->
-    <div v-if="isCoach && oppmote.okter > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-4">
+    <div v-if="isCoach && oppmote.okter > 0" class="px-lg stat-fold ds-anim-fade-up ds-anim-delay-4">
       <button
         type="button"
         class="stat-collapse-head"
@@ -560,26 +562,47 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
       </div>
     </div>
 
-    <!-- Trener-leaderboard -->
-    <div v-if="coachStats.length > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-4">
-      <div class="stat-section-label">Trenere</div>
-      <div class="leaderboard ds-anim-stagger-list">
-        <div v-for="(item, i) in coachStats" :key="item.id" class="leaderboard__row">
-          <span class="leaderboard__rank">{{ i + 1 }}</span>
-          <span class="leaderboard__name">{{ item.name }}</span>
-          <span class="leaderboard__count">{{ item.count }} {{ item.count === 1 ? 'kamp' : 'kamper' }}</span>
+    <!-- Trenere og dommere: nyttig for den som fordeler, støy for resten.
+         Lukket som Spilletid. -->
+    <div v-if="coachStats.length > 0" class="px-lg stat-fold ds-anim-fade-up ds-anim-delay-4">
+      <button
+        type="button"
+        class="stat-collapse-head"
+        :aria-expanded="showCoaches"
+        @click="showCoaches = !showCoaches"
+      >
+        <span class="stat-section-label stat-section-label--bare">Trenere</span>
+        <span class="stat-collapse-head__meta">{{ coachStats.length }}</span>
+        <Ikon navn="pil-ned" :size="18" class="stat-collapse-head__chevron" :class="{ 'stat-collapse-head__chevron--open': showCoaches }" />
+      </button>
+      <div v-if="showCoaches" class="stat-collapse-body ds-anim-fade-up">
+        <div class="leaderboard">
+          <div v-for="(item, i) in coachStats" :key="item.id" class="leaderboard__row">
+            <span class="leaderboard__rank">{{ i + 1 }}</span>
+            <span class="leaderboard__name">{{ item.name }}</span>
+            <span class="leaderboard__count">{{ item.count }} {{ item.count === 1 ? 'kamp' : 'kamper' }}</span>
+          </div>
         </div>
       </div>
     </div>
-
-    <!-- Dommer-leaderboard -->
-    <div v-if="refereeStats.length > 0" class="px-lg mb-lg ds-anim-fade-up ds-anim-delay-5">
-      <div class="stat-section-label">Dommere</div>
-      <div class="leaderboard ds-anim-stagger-list">
-        <div v-for="(item, i) in refereeStats" :key="item.name" class="leaderboard__row">
-          <span class="leaderboard__rank">{{ i + 1 }}</span>
-          <span class="leaderboard__name">{{ item.name }}</span>
-          <span class="leaderboard__count">{{ item.count }} {{ item.count === 1 ? 'kamp' : 'kamper' }}</span>
+    <div v-if="refereeStats.length > 0" class="px-lg stat-fold ds-anim-fade-up ds-anim-delay-5">
+      <button
+        type="button"
+        class="stat-collapse-head"
+        :aria-expanded="showReferees"
+        @click="showReferees = !showReferees"
+      >
+        <span class="stat-section-label stat-section-label--bare">Dommere</span>
+        <span class="stat-collapse-head__meta">{{ refereeStats.length }}</span>
+        <Ikon navn="pil-ned" :size="18" class="stat-collapse-head__chevron" :class="{ 'stat-collapse-head__chevron--open': showReferees }" />
+      </button>
+      <div v-if="showReferees" class="stat-collapse-body ds-anim-fade-up">
+        <div class="leaderboard">
+          <div v-for="(item, i) in refereeStats" :key="item.name" class="leaderboard__row">
+            <span class="leaderboard__rank">{{ i + 1 }}</span>
+            <span class="leaderboard__name">{{ item.name }}</span>
+            <span class="leaderboard__count">{{ item.count }} {{ item.count === 1 ? 'kamp' : 'kamper' }}</span>
+          </div>
         </div>
       </div>
     </div>
@@ -609,10 +632,9 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   gap: var(--ds-space-sm);
   padding: var(--ds-space-sm) var(--ds-space-md);
   background: var(--ds-color-bg-subtle);
-  font-size: var(--ds-text-2xs);
+  font-size: var(--ds-text-sm);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: normal;
   color: var(--ds-color-text-secondary);
 }
 
@@ -753,13 +775,12 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 .stat-skel-row:last-child { border-bottom: 0; }
 
 .stat-section-label {
-  font-size: var(--ds-text-xs);
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--ds-color-text-tertiary);
+  font-size: var(--ds-text-md);
+  font-weight: var(--ds-weight-semibold);
+  letter-spacing: normal;
+  color: var(--ds-color-text-primary);
   padding: 0;
-  margin-bottom: var(--ds-space-sm);
+  margin-bottom: var(--ds-space-12);
 }
 
 /* Kollapsbar seksjon (Spilletid) — header som toggler, summary til høyre. */
@@ -768,12 +789,17 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   padding: 0;
 }
 
+/* De lukkede seksjonene står som rader med strek mellom, som på Hjem. */
+.stat-fold + .stat-fold .stat-collapse-head { border-top: 1px solid var(--ds-color-border); }
+.stat-fold:last-child { margin-bottom: var(--ds-space-2xl); }
+
 .stat-collapse-head {
   display: flex;
   align-items: center;
   gap: var(--ds-space-sm);
   width: 100%;
-  padding: var(--ds-space-sm) var(--ds-space-xs);
+  min-height: 60px;
+  padding: 0;
   background: transparent;
   border: none;
   cursor: pointer;
@@ -785,7 +811,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 .stat-collapse-head:active { transform: scale(0.99); }
 
 .stat-collapse-head__meta {
-  font-size: var(--ds-text-xs);
+  font-size: var(--ds-text-sm);
   color: var(--ds-color-text-tertiary);
   margin-left: auto;
 }
@@ -864,9 +890,8 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .stat-card-large__label {
-  font-size: var(--ds-text-2xs);
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  font-size: var(--ds-text-sm);
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
   font-weight: 600;
 }
@@ -923,7 +948,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 .standings__header,
 .standings__row {
   display: grid;
-  grid-template-columns: 1fr 24px 24px 24px 24px auto auto auto;
+  grid-template-columns: 1fr 24px 24px 24px auto auto;
   align-items: center;
   gap: var(--ds-space-sm);
   padding: var(--ds-space-12) var(--ds-space-md);
@@ -931,10 +956,9 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .standings__header {
-  font-size: var(--ds-text-2xs);
+  font-size: var(--ds-text-sm);
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
+  letter-spacing: normal;
   color: var(--ds-color-text-tertiary);
   background: var(--ds-color-bg-subtle);
   padding-top: var(--ds-space-sm);
@@ -950,7 +974,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .standings__header-goals {
-  min-width: 48px;
+  min-width: 56px;
   text-align: right !important;
 }
 
@@ -960,7 +984,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .standings__header-points {
-  min-width: 24px;
+  min-width: 28px;
   text-align: center !important;
 }
 
@@ -1015,8 +1039,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   font-size: var(--ds-text-sm);
   color: var(--ds-color-text-primary);
   font-weight: 500;
-  min-width: 48px;
-  letter-spacing: 0.01em;
+  min-width: 56px;
 }
 
 .standings__diff {
@@ -1042,6 +1065,7 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
 }
 
 .standings__points {
+  min-width: 28px;
   text-align: center;
   font-size: var(--ds-text-sm);
   font-weight: 700;
@@ -1196,17 +1220,8 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   .standings__row {
     padding-left: var(--ds-space-12);
     padding-right: var(--ds-space-12);
-    gap: var(--ds-space-xs);
-    grid-template-columns: 1fr 22px 22px 22px 22px auto auto auto;
-  }
-  .standings__goals {
-    font-size: var(--ds-text-xs);
-    min-width: 40px;
-  }
-  .standings__diff {
-    min-width: 32px;
-    padding: var(--ds-space-2xs) var(--ds-space-xs);
-    font-size: var(--ds-text-2xs);
+    gap: var(--ds-space-sm);
+    grid-template-columns: 1fr 22px 22px 22px auto auto;
   }
   .standings__points {
     font-size: var(--ds-text-sm);
@@ -1214,15 +1229,14 @@ const hasPlayedMatches = computed(() => playedMatches.value.length > 0)
   }
 }
 
-/* Smale skjermer: Lag, Mål, +/- og P. Resten står i kortet over. */
+/* Smale skjermer: Lag, Mål og P. Resten står i kortet over. */
 @media (max-width: 359px) {
   .standings__header,
   .standings__row {
-    grid-template-columns: 1fr auto auto auto;
+    grid-template-columns: 1fr auto auto;
     gap: var(--ds-space-12);
   }
   .standings__opt { display: none; }
-  .standings__form { padding-left: var(--ds-space-12); }
 }
 
 </style>
