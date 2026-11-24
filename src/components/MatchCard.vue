@@ -133,6 +133,8 @@ const showFoot = computed(() => !!typeNavn.value || !!status.value || !!referee.
   color: var(--ds-color-text-primary);
   line-height: 1.35;
   overflow-wrap: break-word;
+  /* «Seriemotsta-nder», ikke «Seriemotsta nder»: brytes et langt navn, får det bindestrek. */
+  hyphens: auto;
 }
 
 /* Vårt lag bærer vekten. */

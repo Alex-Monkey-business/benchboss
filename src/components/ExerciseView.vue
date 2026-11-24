@@ -1,4 +1,5 @@
 <script setup>
+import { varighet as minutterTekst } from '../lib/varighet'
 import Ikon from './Ikon.vue'
 // ÉN ØVELSE, ÉN VISNING.
 //
@@ -72,13 +73,7 @@ const gjennomforing = computed(() => {
   return { linjer, nummerert: linjer.length > 1 }
 })
 
-function formatMinutter(min) {
-  if (!min) return ''
-  const t = Math.floor(min / 60)
-  const m = min % 60
-  if (!t) return `${m} min`
-  return m ? `${t} t ${m} min` : `${t} t`
-}
+const formatMinutter = minutterTekst
 
 // Bare radene som har en verdi. Et kort med tomme rader er verre enn ingen.
 const nokkeltall = computed(() => {

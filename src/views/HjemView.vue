@@ -27,6 +27,7 @@ import { daysUntil, WEEKDAY_LABELS, isoWeekday, weekdayDateLabel } from '../lib/
 import { hentDagensOppmote, dagensOppmoteLagret } from '../composables/useTreningsOkt'
 import { useDelInn } from '../composables/useDelInn'
 import { narLedig } from '../lib/forvarm'
+import { varighet } from '../lib/varighet'
 import { usePlayerStats } from '../composables/usePlayerStats'
 
 const {
@@ -153,11 +154,6 @@ const hovedsak = computed(() => {
 })
 
 // Hjem er et blikk, ikke planen: lengden og antallet. Øvelsene står på Trening.
-function varighet(min) {
-  if (!min) return ''
-  const t = Math.floor(min / 60), m = min % 60
-  return !t ? `${m} min` : m ? `${t} t ${m} min` : `${t} t`
-}
 function treningLinje(session, oppmote) {
   const deler = []
   const tid = varighet(session.duration_min)

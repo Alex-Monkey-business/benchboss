@@ -1,4 +1,5 @@
 <script setup>
+import { varighet } from '../lib/varighet'
 import Ikon from '../components/Ikon.vue'
 import Spot from '../components/Spot.vue'
 import { useContent } from '../composables/useContent'
@@ -59,14 +60,7 @@ const loading = ref(dager.value.length === 0)
 // useTrainingWeek, slik at Hjem og foreldreflaten leser uka i samme rekkefølge
 // som denne siden.
 
-// «1 t 30 min» er slik folk snakker om det. «90 min» er slik databaser gjør.
-function formatDuration(min) {
-  if (!min) return ''
-  const t = Math.floor(min / 60)
-  const m = min % 60
-  if (!t) return `${m} min`
-  return m ? `${t} t ${m} min` : `${t} t`
-}
+const formatDuration = varighet
 
 function drillsFor(s) {
   return resolveDrills(s.drills, exercises.value)

@@ -1848,8 +1848,11 @@ function focusSummaryGroup() {
 }
 
 .hero__team {
+  /* Uten max-width vokser et langt navn ut av kolonnen og forbi skjermkanten. */
+  max-width: 100%;
   font-size: var(--ds-text-sm);
   overflow-wrap: break-word;
+  hyphens: auto;
   font-weight: var(--ds-weight-semibold);
   line-height: 1.25;
   color: var(--ds-color-text-primary);

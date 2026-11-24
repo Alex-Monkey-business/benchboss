@@ -198,6 +198,8 @@
   /* Navnet brytes, det klippes ikke. «Store Berg…» på 360 px var det
      viktigste på kortet som forsvant først. */
   overflow-wrap: anywhere;
+  /* Og brytes det midt i et ord, får det bindestrek der ordet deles. */
+  hyphens: auto;
 }
 
 /* FotMob pattern: team names anchor INWARD toward the central time/score,

@@ -31,6 +31,7 @@ import { useAuth } from '../stores/auth'
 import { delInn, kortnavn } from '../lib/grupper'
 import { playerPositions } from '../lib/playerPositions'
 import { meldEvent } from '../lib/sporing'
+import { varighet } from '../lib/varighet'
 import OppmoteGrid from '../components/OppmoteGrid.vue'
 import Sheet from '../components/Sheet.vue'
 import Steg from '../components/Steg.vue'
@@ -74,7 +75,7 @@ function undertittel(s) {
   if (dagerTil(s.weekday) === 0 && s.weekday) deler.push('I dag')
   else if (s.weekday && UKEDAG[s.weekday] !== s.title) deler.push(UKEDAG[s.weekday])
   const ov = (s.drills || []).filter(d => d?.text).length
-  if (s.duration_min) deler.push(`${s.duration_min} min`)
+  if (s.duration_min) deler.push(varighet(s.duration_min))
   if (ov) deler.push(`${ov} ${ov === 1 ? 'øvelse' : 'øvelser'}`)
   return deler.join(' · ')
 }

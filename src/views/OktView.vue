@@ -13,6 +13,7 @@ import { riggFor as riggTags, stasjonerFor } from '../lib/grupper'
 import Sheet from '../components/Sheet.vue'
 import { useAuth } from '../stores/auth'
 import { meldEvent } from '../lib/sporing'
+import { varighet } from '../lib/varighet'
 import OvelseRader from '../components/OvelseRader.vue'
 import OvelseArk from '../components/OvelseArk.vue'
 import BackLink from '../components/BackLink.vue'
@@ -112,7 +113,7 @@ const tilbakeTil = '/trening'
       <section class="fase">
         <div class="fase__hode">
           <h2 class="fase__tittel fase__tittel--alene">Øvelsene</h2>
-          <span v-if="minutter" class="fase__min">{{ minutter }} min</span>
+          <span v-if="minutter" class="fase__min">{{ varighet(minutter) }}</span>
         </div>
         <OvelseRader :kort="kort" :meta="metaFor" @apne="apne" />
         <RouterLink v-if="!drills.length" :to="planLink(session.id)" class="ds-link plan__tom-legg">
