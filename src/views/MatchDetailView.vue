@@ -1949,16 +1949,9 @@ function focusSummaryGroup() {
   transform: scale(0.98);
 }
 
-/* Tone: live, start og prep = full tyngde. Knappen er den eneste handlingen
-   på kampsida, og da er den fylt — som Del inn på Hjem. På Hjem-kortet er
-   prep fortsatt en kant, fordi Del inn er den fylte der. quiet = nøytral. */
-
-.match-mode-cta--quiet {
-  background: var(--ds-color-bg-subtle);
-  color: var(--ds-color-text-secondary);
-  border-color: transparent;
-  font-weight: var(--ds-weight-semibold);
-}
+/* Alle toner har full tyngde her. Knappen er den eneste handlingen på
+   kampsida, og da er den fylt — som Del inn på Hjem. På Hjem-kortet er
+   prep og quiet fortsatt dempet, fordi Del inn er den fylte der. */
 
 .match-mode-cta__dot {
   width: 9px;
