@@ -5,10 +5,16 @@
 // kunne si «Sett opp lag» mens kampsiden sa «Start kamp». Regelen bor derfor
 // ett sted, og begge flater spør den.
 //
-// Ordlyd og tyngde følger kampens livsløp — knappen skal speile hva som er
-// naturlig NÅ, ikke alltid skrike «start nå».
+// Knappen følger kampens TILSTAND, ikke klokka. Før byttet den tekst etter
+// hvor lenge det var til avspark («Se laget», «Gjør klart til kamp», «Start
+// kamp»), og tre kamper samme kveld kunne vise tre forskjellige knapper uten
+// at noe var forskjellig. Ingen skjønte regelen (Alex, 25. nov). Nå:
+//   i gang          → Tilbake til kampen
+//   laget står      → Start kamp
+//   laget mangler   → Sett opp lag
+// Alle tre fører til kampoppsettet; klokka starter først der.
 //
-// tone: 'live' | 'start' | 'prep' | 'quiet'
+// tone: 'live' | 'start' | 'quiet'
 
 export function minutesToKickoff(matchDate, matchTime, now = Date.now()) {
   if (!matchDate) return null
@@ -19,51 +25,32 @@ export function minutesToKickoff(matchDate, matchTime, now = Date.now()) {
   return Math.round((d.getTime() - now) / 60000)
 }
 
-function erIdag(matchDate, now) {
-  const d = new Date(now)
-  const iso = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  return String(matchDate || '').slice(0, 10) === iso
-}
-
-export function matchCta({ status, hasLineup, hasResult, matchDate, matchTime, now = Date.now() }) {
+export function matchCta({ status, hasLineup, hasResult, kind, matchDate, matchTime, now = Date.now() }) {
   // En kamp som fortsatt går skal alltid ha veien tilbake til klokka — også
   // om noen har ført resultatet underveis.
   if (status === 'running' || status === 'paused') {
     return { label: 'Tilbake til kampen', tone: 'live', icon: 'live' }
   }
   // Ferdig kamp har INGEN vei inn i match mode. Da er kampen historie, og
-  // kampsida er stedet du leser den — spilletid, scorere, referat. Knappen sto
-  // før som «Se spilletid» og førte rett inn i live-flata, som er en helt annen
-  // modus: klokke, bytter, nullstill. Null her betyr ingen knapp.
+  // kampsida er stedet du leser den — spilletid, scorere, referat.
   if (status === 'finished' || hasResult) return null
 
-  const mins = minutesToKickoff(matchDate, matchTime, now)
   // Avspark + 1,5 t har passert uten at noe ble registrert. Kampen er over
   // uansett, og en klokke som starter på null hjelper ingen.
+  const mins = minutesToKickoff(matchDate, matchTime, now)
   if (mins !== null && mins < -90) return null
 
-  if (mins !== null && mins <= 60) {
-    return { label: 'Start kamp', tone: 'start', icon: 'play' }
-  }
+  // I treningskamper plasserer kampoppsettet laget selv, også når ingenting
+  // er lagret. Da står laget, og knappen skal si det samme som for et lag
+  // noen har satt opp.
+  const lagStar = hasLineup || (kind === 'treningskamp' && hasLineup === false)
   // hasLineup undefined = vi vet ikke ennå. Da sier knappen ingenting om
   // laget: «Sett opp lag» om et lag som står klart, får treneren til å tro at
-  // oppsettet er borte. Begge veier fører til samme skjerm.
-  if (hasLineup === undefined) {
-    return mins !== null && mins <= 180
-      ? { label: 'Gjør klart til kamp', tone: 'prep', icon: 'clock' }
-      : { label: 'Kampoppsett', tone: 'quiet', icon: 'grid' }
-  }
-  // Kampdag uten lag: å sette opp laget er det neste som skal skje, og
-  // knappen har full tyngde.
-  if (!hasLineup && erIdag(matchDate, now)) {
-    return { label: 'Sett opp lag', tone: 'start', icon: 'grid' }
-  }
-  if (mins !== null && mins <= 180) {
-    return { label: 'Gjør klart til kamp', tone: 'prep', icon: 'clock' }
-  }
-  return hasLineup
-    ? { label: 'Se laget', tone: 'quiet', icon: 'grid' }
-    : { label: 'Sett opp lag', tone: 'prep', icon: 'grid' }
+  // oppsettet er borte.
+  if (hasLineup === undefined) return { label: 'Kampoppsett', tone: 'quiet', icon: 'grid' }
+  return lagStar
+    ? { label: 'Start kamp', tone: 'start', icon: 'play' }
+    : { label: 'Sett opp lag', tone: 'start', icon: 'grid' }
 }
 
 // Er det plassert minst én spiller? lineup er { slotId: playerId, plan: [...] }.

@@ -51,6 +51,7 @@ const cta = computed(() => {
     status: props.prep.status,
     hasLineup: props.prep.lineup,
     hasResult: false,
+    kind: props.event.kind,
     matchDate: props.event.date,
     matchTime: props.event.time
   })

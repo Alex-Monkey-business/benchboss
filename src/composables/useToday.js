@@ -358,6 +358,7 @@ export function useToday() {
     return {
       type: 'match',
       id: league.id,
+      kind: league.kind || null,
       date: league.match_date,
       time: league.match_time || '',
       opponent: isHomeMatch(league) ? league.away_team : league.home_team,

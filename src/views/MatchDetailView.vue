@@ -734,6 +734,7 @@ const matchModeCta = computed(() => matchCta({
   status: mmStatus.value,
   hasLineup: hasLineup.value,
   hasResult: hasResult.value,
+  kind: match.value?.kind,
   matchDate: match.value?.match_date,
   matchTime: match.value?.match_time
 }))
@@ -747,11 +748,13 @@ const primaryCta = computed(() => {
       ? { label: 'Legg inn resultat', tone: 'prep', icon: 'result', action: 'result' }
       : null
   }
-  if (!matchModeCta.value) return null
-  // Laget står på sida, så knappen er veien til å endre det.
-  const label = laget.value && ['Se laget', 'Sett opp lag'].includes(matchModeCta.value.label) ? 'Endre laget' : matchModeCta.value.label
-  return { ...matchModeCta.value, label, action: 'live' }
+  return matchModeCta.value ? { ...matchModeCta.value, action: 'live' } : null
 })
+
+function endreLaget() {
+  meldEvent('endre_laget', { fra: 'kampside' })
+  router.push(`/kamp/${match.value.id}/live`)
+}
 
 function runPrimaryCta() {
   if (primaryCta.value?.action === 'result') focusSummaryGroup()
@@ -1187,7 +1190,12 @@ function focusSummaryGroup() {
     <!-- Laget, åpent. Før kampen slik det er satt opp, mens den går de som er
          på banen nå. Bare til å se på; endringer gjøres i kampoppsettet. -->
     <section v-if="laget" class="px-lg mt-lg kamp-laget" :data-team="teamColors[0]">
-      <h2 class="kamp-laget__tittel">{{ phase === 'live' ? 'På banen nå' : 'Laget' }}</h2>
+      <div class="kamp-laget__topp">
+        <h2 class="kamp-laget__tittel">{{ phase === 'live' ? 'På banen nå' : 'Laget' }}</h2>
+        <!-- Før kampen: veien til å endre laget står alltid her, ved laget.
+             Knappen over er for å starte. Under kampen byttes det i kampmodus. -->
+        <button v-if="phase === 'for' && !isLocked" type="button" class="ds-link kamp-laget__endre" @click="endreLaget">Endre laget</button>
+      </div>
       <LagBane :team="laget.forslag ? lagetsLag : null" :spillere="lagetSpillere" :spillform="spillform" :plasser="laget.plasser || null" :benk="laget.benk || null" />
     </section>
 
@@ -2682,12 +2690,25 @@ function focusSummaryGroup() {
 .kamp-laget { --accent-text: var(--ds-color-text-primary); }
 .kamp-laget[data-team="gronn"] { --accent-text: var(--ds-team-gronn); }
 .kamp-laget[data-team="rod"] { --accent-text: var(--ds-team-rod); }
+.kamp-laget__topp {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: var(--ds-space-sm);
+  margin-bottom: var(--ds-space-sm);
+}
 .kamp-laget__tittel {
-  margin: 0 0 var(--ds-space-sm);
+  margin: 0;
   font-size: var(--ds-text-sm);
   font-weight: 600;
   letter-spacing: normal;
   color: var(--ds-color-text-secondary);
+}
+.kamp-laget__endre {
+  min-height: 44px;
+  padding: 0 0 0 var(--ds-space-sm);
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
 }
 .kamp-laget :deep(.lb) { max-width: 380px; }
 
