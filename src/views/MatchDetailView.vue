@@ -33,6 +33,7 @@ import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 import { meldEvent } from '../lib/sporing'
 import { lanegrense } from '../lib/lanegrense'
 import { ageClass, spillformFraKamper } from '../lib/fiks'
+import { dommersats } from '../lib/dommersats'
 import { useSeasonTeams } from '../composables/useSeasonTeams'
 
 const route = useRoute()
@@ -255,7 +256,7 @@ async function openVipps() {
     await registerExpense(
       match.value.id,
       currentCoach.value.id,
-      match.value.fee_amount || 200
+      sats.value
     )
     showToast(`${currentCoach.value.name} satt som utlegger`, 'success')
   }
@@ -400,8 +401,8 @@ async function selectPayer(coachId) {
   } else {
     const name = coaches.value.find(c => c.id === coachId)?.name
     showPayerPicker.value = false
-    if (!(await registerExpense(match.value.id, coachId, match.value.fee_amount || 200))) return feilet()
-    showToast(`${name} la ut ${match.value.fee_amount || 200} kr`, 'success')
+    if (!(await registerExpense(match.value.id, coachId, sats.value))) return feilet()
+    showToast(`${name} la ut ${sats.value} kr`, 'success')
   }
 }
 
@@ -681,6 +682,8 @@ const spillform = computed(() => {
   const n = activeCohort.value?.players_on_pitch
   return PLAYERS_ON_PITCH_OPTIONS.includes(n) ? n : 7
 })
+// Dommersatsen følger spillformen (lib/dommersats).
+const sats = computed(() => dommersats(spillform.value))
 // Troppen nøyaktig slik kampoppsettet regner den (MatchModeView `squad`):
 // laget minus frafall, pluss de som er hentet inn. Laget er primary_team,
 // som der, så forslaget her er det samme som står når oppsettet åpnes.
@@ -1052,7 +1055,7 @@ const payerFull = computed(() => {
   if (!expense.value) return ''
   const c = coaches.value.find(c => c.id === expense.value.paid_by)
   if (!c) return ''
-  const amt = expense.value.amount || match.value?.fee_amount || 200
+  const amt = expense.value.amount || sats.value
   return `${c.name} · ${amt} kr`
 })
 // Bare beløpet i den lukkede raden: dommer + hvem + beløp får ikke plass
@@ -1269,7 +1272,7 @@ function focusSummaryGroup() {
                   Åpne Vipps
                 </button>
               </div>
-              <div class="referee-contact__hint-amount">Lim inn i Vipps · send {{ match.fee_amount || 200 }} kr</div>
+              <div class="referee-contact__hint-amount">Lim inn i Vipps · send {{ sats }} kr</div>
             </template>
             <template v-else-if="!isLocked">
               <div class="referee-contact__empty-title">Ingen telefon registrert</div>

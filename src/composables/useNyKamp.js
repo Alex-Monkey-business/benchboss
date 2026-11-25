@@ -2,6 +2,7 @@ import { useAuth } from '../stores/auth'
 import { useMatches } from './useMatches'
 import { isOurs, teamSlugFromName } from '../lib/matchMeta'
 import { isSupabaseConfigured } from '../supabase'
+import { dommersats } from '../lib/dommersats'
 
 // «+ Kamp» fra kamplista. Treningskamper og vinterserie ligger ikke i FIKS,
 // så de legges inn for hånd her.
@@ -52,7 +53,7 @@ export function useNyKamp() {
       home_team: hjemme ? vart : motstander.trim(),
       away_team: hjemme ? motstander.trim() : vart,
       division: type === 'serie' ? null : navn,
-      fee_amount: type === 'treningskamp' ? 0 : 200
+      fee_amount: type === 'treningskamp' ? 0 : dommersats(activeCohort.value?.players_on_pitch)
     }
 
     // addMatch legger kampen i lista og setter standardtrenere. Den svelger

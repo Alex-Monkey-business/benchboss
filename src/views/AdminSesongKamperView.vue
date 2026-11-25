@@ -6,6 +6,7 @@ import { useMatches } from '../composables/useMatches'
 import { useExpenses } from '../composables/useExpenses'
 import { useToast } from '../composables/useToast'
 import { isOurMatch } from '../lib/matchMeta'
+import { dommersats } from '../lib/dommersats'
 import { useAuth } from '../stores/auth'
 import { trimAbbrevDots, weekdayDateLabel } from '../lib/dateLabels'
 import { useFiks } from '../composables/useFiks'
@@ -315,7 +316,7 @@ async function handleAddMatch() {
   await addMatch({
     ...newMatch.value,
     season_id: viewingSeason.value.id,
-    fee_amount: 200
+    fee_amount: dommersats(activeCohort.value?.players_on_pitch)
   })
   showToast('Kamp lagt til', 'success')
   cancelAddMatch()
