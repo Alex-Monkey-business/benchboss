@@ -2692,10 +2692,10 @@ function focusSummaryGroup() {
 .kamp-laget[data-team="rod"] { --accent-text: var(--ds-team-rod); }
 .kamp-laget__topp {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   justify-content: space-between;
   gap: var(--ds-space-sm);
-  margin-bottom: var(--ds-space-sm);
+  margin-bottom: var(--ds-space-md);
 }
 .kamp-laget__tittel {
   margin: 0;
@@ -2703,12 +2703,6 @@ function focusSummaryGroup() {
   font-weight: 600;
   letter-spacing: normal;
   color: var(--ds-color-text-secondary);
-}
-.kamp-laget__endre {
-  min-height: 44px;
-  padding: 0 0 0 var(--ds-space-sm);
-  font-size: var(--ds-text-sm);
-  font-weight: 600;
 }
 .kamp-laget :deep(.lb) { max-width: 380px; }
 
