@@ -29,6 +29,12 @@ export function settUtlegg(rows, matchIds) {
   utleggFersk.mark(nokkel(matchIds))
 }
 
+// Én kamps utlegg inn i lista, uten å røre de andre kampenes.
+export function flettUtlegg(rows, matchId) {
+  if (!isSupabaseConfigured) return
+  expenses.value = [...expenses.value.filter(e => e.match_id !== matchId), ...rows]
+}
+
 const DEMO_EXPENSES = [
   { id: 'de-1', match_id: 'dm-1', paid_by: 'demo-1', amount: 200 },
   { id: 'de-2', match_id: 'dm-2', paid_by: 'demo-2', amount: 200 },

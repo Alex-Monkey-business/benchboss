@@ -25,7 +25,9 @@ const remote = ref(null)
 // match_id → kampmodus-status, for hele kullet i én spørring fra kamplista.
 // Kampsida vet da før den har hentet noe om kampen går, er ferdig eller har
 // spilletid, og tegner riktig fase og riktige rader i første bilde.
-const statusByMatch = ref({})
+// Huskes mellom oppstarter: ellers sa Hjem-kortet «Start kamp» om en kamp som
+// gikk, til hentingen var ferdig.
+const statusByMatch = persistRef('kampstatus', ref({}))
 // Kampen `session` sist ble hentet for. `session` er null både når kampen ikke
 // har noen sesjon og når den aldri er hentet; denne skiller de to.
 let sesjonHentetFor = null
@@ -62,6 +64,15 @@ function husk(matchId, status) {
   if (status) neste[matchId] = status
   else delete neste[matchId]
   statusByMatch.value = neste
+}
+
+// Sesjonsradene for kampene i `ider` (Hjem henter dagens og neste kamp):
+// status og oppstilling i de samme kartene som kamplista og kampsida leser.
+// En kamp uten rad har ingen sesjon.
+function huskSesjoner(ider, rader) {
+  const radFor = new Map(rader.map(r => [r.match_id, r]))
+  for (const id of ider) husk(id, radFor.get(id)?.status)
+  huskOppstilt(ider.map(id => [id, radFor.get(id)?.lineup || null]))
 }
 // Kampmodus endrer sesjonen underveis (start, slutt). Kartet følger med, så
 // kampsida viser riktig fase når du går tilbake dit.
@@ -857,7 +868,7 @@ export function useMatchMode() {
 
   return {
     sesjonKjent: matchId => sesjonHentetFor === matchId,
-    oppstillingFor, huskOppstilt,
+    oppstillingFor, huskOppstilt, huskSesjoner,
     remote, syncState, changeScore,
     session, stints, statusByMatch, currentClock, isRunning,
     now, serverOffset,

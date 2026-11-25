@@ -34,7 +34,7 @@ import { useSeasonTeams } from '../composables/useSeasonTeams'
 
 const route = useRoute()
 const router = useRouter()
-const { matches, matchPlayers, getMatch, ensureMatches, updateMatch, setMatchCoaches, getCoachesForMatch, setMatchPlayers, fetchMatchPlayers, getPlayersForMatch, fetchMatchAbsences, fetchSeasonAbsences, getAbsencesForMatch, toggleAbsence, deleteMatch } = useMatches()
+const { matches, matchPlayers, hentEnKamp, ensureMatches, updateMatch, setMatchCoaches, getCoachesForMatch, setMatchPlayers, fetchMatchPlayers, getPlayersForMatch, fetchMatchAbsences, fetchSeasonAbsences, getAbsencesForMatch, toggleAbsence, deleteMatch } = useMatches()
 const { expenses, registerExpense, getExpenseForMatch, removeExpense } = useExpenses()
 const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
@@ -134,26 +134,49 @@ function fraKamp(m) {
   isEditingReport.value = false
 }
 
+// Trenere, tropp og frafall for kampen, slik de ligger i lageret nå.
+function lesTropp(id) {
+  matchCoachIds.value = getCoachesForMatch(id)
+  matchPlayerIds.value = getPlayersForMatch(id)
+  matchAbsenceIds.value = getAbsencesForMatch(id)
+}
+
+// Tegner sida på nytt fra lageret etter en henting. `alene` er kampen hentet
+// for seg selv (direkte lenke), til sesongens kamper er på plass.
+function oppdater(id, alene = null) {
+  const forrige = match.value
+  match.value = matches.value.find(m => m.id === id) || alene || match.value
+  if (!match.value) return
+  lesTropp(id)
+  // Feltene fylles på nytt bare hvis kampen faktisk er endret siden sist,
+  // så det du rakk å skrive de første millisekundene ikke blir borte.
+  const endret = !forrige || ['referee', 'home_score', 'away_score', 'report']
+    .some(k => forrige[k] !== match.value[k])
+  if (endret) fraKamp(match.value)
+  // Show custom input if current referee is not in known list
+  if (match.value.referee && !referees.value.some(r => r.name === match.value.referee) && !isLocked.value) {
+    customReferee.value = true
+  }
+}
+
 onMounted(async () => {
   const id = route.params.id
   if (match.value) {
-    matchCoachIds.value = getCoachesForMatch(id)
-    matchPlayerIds.value = getPlayersForMatch(id)
-    matchAbsenceIds.value = getAbsencesForMatch(id)
+    lesTropp(id)
     fraKamp(match.value)
   }
 
-  // Uten kampen i hurtiglageret (direkte lenke) trengs raden før sesongen er kjent.
   const kjentSesong = match.value?.season_id || null
-  const fraLageret = match.value
   // Plassene må telles: sesjonen står mellom målene og periodene. Én komma for
   // lite ga trenerne periodene og spilletida sesjonen (dc549d3).
   // Sesongens kamper kommer med trenere, tropp og utlegg i én rundtur, og er
   // de hentet for under 30 s siden (fra lista), gjenbrukes de. Det som bare
   // hører denne kampen til — mål, sesjon, perioder — hentes alltid.
-  const [fersk, , , , mmStints] = await Promise.all([
-    kjentSesong ? null : getMatch(id),
-    Promise.all([ensureSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), kjentSesong ? fetchSeasonAbsences(kjentSesong) : null]),
+  // Uten kampen i lageret (direkte lenke) hentes den alene, med sin tropp og
+  // sitt frafall, i samme runde.
+  const [alene, , , , mmStints] = await Promise.all([
+    kjentSesong ? null : hentEnKamp(id),
+    Promise.all([ensureSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), kjentSesong ? fetchSeasonAbsences(kjentSesong) : fetchMatchAbsences(id)]),
     // Sesongens kamper: grunnlag for ekstra-kamp-tall og konflikt-/uke-sjekk,
     // og de gir også en fersk utgave av denne kampen.
     kjentSesong ? ensureMatches(kjentSesong) : null,
@@ -161,28 +184,21 @@ onMounted(async () => {
     fetchMmSession(id),
     fetchMmStints(id)
   ])
-  if (!kjentSesong && fersk?.season_id) await Promise.all([ensureMatches(fersk.season_id), fetchSeasonAbsences(fersk.season_id)])
   // Kampoppsettet kan tegne banen med én gang når frafallet for sesongen er hentet.
-  { const sesong = kjentSesong || fersk?.season_id; if (sesong) kveldLager.fravaer.add(sesong) }
-  match.value = matches.value.find(m => m.id === id) || fersk || match.value
-
-  if (match.value) {
-    hasPlayingTime.value = (mmStints || []).length > 0
-    matchCoachIds.value = getCoachesForMatch(id)
-    // Troppen og frafallet for sesongen er nettopp hentet; denne kampen er med.
-    matchPlayerIds.value = getPlayersForMatch(id)
-    matchAbsenceIds.value = getAbsencesForMatch(id)
-    // Feltene fylles på nytt bare hvis kampen faktisk er endret siden sist,
-    // så det du rakk å skrive de første millisekundene ikke blir borte.
-    const endret = !fraLageret || ['referee', 'home_score', 'away_score', 'report']
-      .some(k => fraLageret[k] !== match.value[k])
-    if (endret) fraKamp(match.value)
-    // Show custom input if current referee is not in known list
-    if (match.value.referee && !referees.value.some(r => r.name === match.value.referee) && !isLocked.value) {
-      customReferee.value = true
-    }
-  }
+  if (kjentSesong) kveldLager.fravaer.add(kjentSesong)
+  oppdater(id, alene)
+  if (match.value) hasPlayingTime.value = (mmStints || []).length > 0
   loading.value = false
+
+  // Direkte lenke: sida står nå. Sesongens kamper og frafall (ekstra-kamp-tall,
+  // konflikt- og ukesjekk) kommer etterpå, uten skjelett. Før sto skjelettet
+  // gjennom begge rundene, ~1,3 s med 0,6 s per kall.
+  const sesong = !kjentSesong && alene?.season_id
+  if (sesong) {
+    await Promise.all([ensureMatches(sesong), fetchSeasonAbsences(sesong)])
+    kveldLager.fravaer.add(sesong)
+    oppdater(id, alene)
+  }
 })
 
 const selectedReferee = computed(() => {

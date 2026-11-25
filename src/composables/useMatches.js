@@ -6,7 +6,7 @@ import { useSeasonTeams } from './useSeasonTeams'
 import { useAuth } from '../stores/auth'
 import { registerReset } from '../stores/dataReset'
 import { fetchRows, STATUS, cached } from '../lib/query'
-import { settUtlegg } from './useExpenses'
+import { settUtlegg, flettUtlegg } from './useExpenses'
 import { persistRef } from '../lib/persist'
 import { sesongHenter, flett } from '../lib/sesongRader'
 
@@ -73,6 +73,14 @@ const DEMO_MATCH_PLAYERS = [
   { match_id: 'dm-5', player_id: 'p-15' }, // Isak again
 ]
 
+// Kamp med trenere, tropp og utlegg i én rundtur. Fremmednøkkelen må
+// navngis: kullsperren la til en nummer to mellom de samme tabellene
+// (match_id, cohort_id), og uten hint svarer PostgREST med PGRST201.
+const KAMP_MED_TROPP = '*, match_coaches!match_coaches_match_id_fkey(*), match_players!match_players_match_id_fkey(*), expenses!expenses_match_id_fkey(*)'
+// Utlegg er unikt per kamp, så PostgREST gir et objekt (eller null), ikke en
+// liste. Alle tre leses som lister uansett.
+const liste = x => (x == null ? [] : Array.isArray(x) ? x : [x])
+
 async function hentKamper(seasonId) {
   loading.value = true
 
@@ -96,13 +104,9 @@ async function hentKamper(seasonId) {
   // Kampene, trenerne, hospitantene og utleggene i ÉN rundtur. Før var det
   // tre bølger etter hverandre (kamper → trenere/tropp → utlegg), ~450 ms
   // på mobilnett før Hjem og Kamper var ferdige.
-  //
-  // Fremmednøkkelen må navngis: kullsperren la til en nummer to mellom de
-  // samme tabellene (match_id, cohort_id), og uten hint svarer PostgREST
-  // med PGRST201 (tvetydig relasjon).
   const { rows } = await fetchRows(
     supabase.from('matches')
-      .select('*, match_coaches!match_coaches_match_id_fkey(*), match_players!match_players_match_id_fkey(*), expenses!expenses_match_id_fkey(*)')
+      .select(KAMP_MED_TROPP)
       .eq('season_id', seasonId)
       .order('match_date').order('match_time'),
     'matches'
@@ -118,9 +122,6 @@ async function hentKamper(seasonId) {
 
   // Kamp-radene holdes flate, som før: de spres inn i oppdateringer andre
   // steder, og en innebygd liste der hadde blitt sendt tilbake til basen.
-  // Utlegg er unikt per kamp, så PostgREST gir et objekt (eller null), ikke en
-  // liste. Alle tre leses som lister uansett.
-  const liste = x => (x == null ? [] : Array.isArray(x) ? x : [x])
   const mc = [], mp = [], ex = []
   matches.value = rows.map(({ match_coaches: c, match_players: p, expenses: e, ...m }) => {
     mc.push(...liste(c))
@@ -168,6 +169,25 @@ export function useMatches() {
       .maybeSingle()
 
     return data
+  }
+
+  // Én kamp med trenere, tropp og utlegg, for kampsida når kampen ikke ligger
+  // i hurtiglageret (direkte lenke, en kamp fra en annen sesong). Sida tegnes
+  // da etter én runde; sesongens kamper hentes etterpå. Før ventet skjelettet
+  // på begge, to runder etter hverandre.
+  async function hentEnKamp(matchId) {
+    if (!isSupabaseConfigured) return getMatch(matchId)
+    const { data, error } = await supabase
+      .from('matches')
+      .select(KAMP_MED_TROPP)
+      .eq('id', matchId)
+      .maybeSingle()
+    if (error || !data) return null
+    const { match_coaches: c, match_players: p, expenses: e, ...m } = data
+    matchCoaches.value = [...matchCoaches.value.filter(r => r.match_id !== matchId), ...liste(c)]
+    matchPlayers.value = [...matchPlayers.value.filter(r => r.match_id !== matchId), ...liste(p)]
+    flettUtlegg(liste(e), matchId)
+    return m
   }
 
   async function updateMatch(matchId, updates) {
@@ -489,7 +509,7 @@ export function useMatches() {
 
   return {
     matches, matchCoaches, matchPlayers, matchAbsences, loading, status,
-    fetchMatches: kamperFersk.force, ensureMatches: kamperFersk, getMatch, updateMatch, addMatch, bulkAddMatches,
+    fetchMatches: kamperFersk.force, ensureMatches: kamperFersk, getMatch, hentEnKamp, updateMatch, addMatch, bulkAddMatches,
     setMatchCoaches, getCoachesForMatch, fetchMatchCoaches, backfillDefaultCoaches,
     setMatchPlayers, getPlayersForMatch, fetchMatchPlayers,
     fetchSeasonAbsences, fetchMatchAbsences, getAbsencesForMatch, toggleAbsence, settFravaer,

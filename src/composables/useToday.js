@@ -25,9 +25,10 @@ import { registerReset } from '../stores/dataReset'
 import { cached } from '../lib/query'
 import { meldHjemKlar } from '../lib/shell'
 
-// Egen modul-state. NB: ikke gjenbruk useMatchMode.fetchSession her —
-// den holder én singleton-session og knekker når to Halsen-lag spiller samme dag.
-const prepSessions = ref([])
+// NB: ikke gjenbruk useMatchMode.fetchSession her — den holder én
+// singleton-session og knekker når to Halsen-lag spiller samme dag. Status og
+// oppstilling per kamp ligger i useMatchMode sine kart (huskSesjoner), de
+// samme som kamplista og kampsida leser, og de huskes mellom oppstarter.
 const loading = ref(false)
 // Skjelettet er for første henting, ikke for «ingen kamper». En ny sesong uten
 // kamper ga matches.length === 0 hver gang, og da sto skjelettet ved hvert besøk.
@@ -39,7 +40,7 @@ const fetchedOnce = ref(false)
 const now = ref(new Date())
 const todayIso = computed(() => localISODate(now.value))
 
-registerReset(() => { prepSessions.value = []; loading.value = false; fetchedOnce.value = false })
+registerReset(() => { loading.value = false; fetchedOnce.value = false })
 
 // Hele Hjem-hentingen er fersk i 30 s (lib/query → cached). Hjem → Kamper →
 // Hjem, eller et kort blikk i en annen app, er ikke lenger en ny runde mot
@@ -219,7 +220,6 @@ export function useToday() {
   function prepFor(matchId) {
     const match = matches.value.find(m => m.id === matchId)
     if (!match) return null
-    const s = prepSessions.value.find(p => p.match_id === matchId)
     const home = isHomeMatch(match)
     return {
       isHome: home,
@@ -230,7 +230,7 @@ export function useToday() {
       // og det appen husket fra sist. undefined = vet ikke ennå, og da sier
       // kortet ikke at oppstillingen mangler.
       lineup: matchMode.oppstillingFor(matchId, match.season_id),
-      status: s?.status || null
+      status: matchMode.statusByMatch.value[matchId] || null
     }
   }
 
@@ -410,16 +410,13 @@ export function useToday() {
   })
 
   async function fetchPrepSessions(matchIds) {
-    if (!matchIds.length) {
-      prepSessions.value = []
-      return
-    }
+    if (!matchIds.length) return
 
     if (!isSupabaseConfigured) {
-      // Demo: useMatchMode holder maks én session i minnet.
+      // Demo: useMatchMode holder maks én session i minnet, og kartene følger
+      // den selv. Her trengs bare oppstillingen for de andre kampene.
       const s = matchMode.session.value
-      prepSessions.value = s && matchIds.includes(s.match_id) ? [s] : []
-      matchMode.huskOppstilt(matchIds.map(id => [id, prepSessions.value.find(r => r.match_id === id)?.lineup || null]))
+      matchMode.huskOppstilt(matchIds.map(id => [id, s?.match_id === id ? s.lineup : null]))
       return
     }
 
@@ -430,9 +427,7 @@ export function useToday() {
     // Feilet hentingen, står det vi visste. En tom liste her ga «oppstilling
     // mangler» på et lag som var satt opp.
     if (error) return
-    prepSessions.value = data || []
-    // Kampsida leser det samme, så den vet det i første bilde.
-    matchMode.huskOppstilt(matchIds.map(id => [id, (data || []).find(r => r.match_id === id)?.lineup || null]))
+    matchMode.huskSesjoner(matchIds, data || [])
   }
 
   // Dagens kamper og neste kamp: de Hjem viser oppstilling og status for.
