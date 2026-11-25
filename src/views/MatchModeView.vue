@@ -26,7 +26,7 @@ const route = useRoute()
 const router = useRouter()
 const {
   matches: alleKamper, matchPlayers: alleInnlan, matchAbsences: altFravaer,
-  getMatch, updateMatch, fetchMatchPlayers, fetchMatchAbsences, ensureMatches, fetchSeasonAbsences,
+  getMatch, updateMatch, fetchMatchPlayers, fetchMatchAbsences, ensureMatches, fetchSeasonAbsences, fravaerKjent,
   setMatchPlayers, toggleAbsence
 } = useMatches()
 const { seasonTeam } = useSeasonTeams()
@@ -39,7 +39,7 @@ const {
   fetchSession, fetchStints,
   saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, startedEarlier, substitute, undoSubstitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
   isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer,
-  remote, syncState, changeScore, sesjonKjent
+  remote, syncState, changeScore, sesjonKjent, sesjonFraLager
 } = useMatchMode()
 const { show: showToast } = useToast()
 const { setSessionHold, sessionLost, activeCohort } = useAuth()
@@ -91,11 +91,19 @@ onMounted(async () => {
   // fra kampsida eller fra kampene samme kveld. Da tegnes banen nå, og fersk
   // tilstand hentes etterpå. Før sto skjermen og lastet hver gang.
   // Bare i oppsettet: en kamp i gang trenger klokka og periodene fra serveren.
+  // Etter en omstart kommer oppstillingen og frafallet fra lageret: kamplista,
+  // Hjem og kampsida husker dem. Før ventet banen på serveren hver gang appen
+  // var åpnet på nytt, også når du kom rett fra Hjem-kortet.
   let rask = false
   const kjent = alleKamper.value.find(m => m.id === matchId)
-  const harSesjon = kveldLager.sesjoner.has(matchId) || sesjonKjent(matchId)
-  if (kjent && players.value.length && harSesjon && kveldLager.fravaer.has(kjent.season_id)) {
-    const lagret = kveldLager.sesjoner.has(matchId) ? kveldLager.sesjoner.get(matchId) : session.value
+  // En treningskamp uten oppstilling forhåndsplasseres med lagets faste
+  // plasser, og de må hentes først: den går den vanlige veien.
+  const fraLager = kjent?.kind === 'treningskamp' && !sesjonFraLager(matchId)?.lineup ? undefined : sesjonFraLager(matchId)
+  const harSesjon = kveldLager.sesjoner.has(matchId) || sesjonKjent(matchId) || fraLager !== undefined
+  const harFravaer = kjent && (kveldLager.fravaer.has(kjent.season_id) || fravaerKjent(kjent.season_id))
+  if (kjent && players.value.length && harSesjon && harFravaer) {
+    const lagret = kveldLager.sesjoner.has(matchId) ? kveldLager.sesjoner.get(matchId)
+      : sesjonKjent(matchId) ? session.value : fraLager
     if (!lagret || lagret.status === 'setup') {
       match.value = kjent
       matchPlayerIds.value = alleInnlan.value.filter(x => x.match_id === matchId).map(x => x.player_id)

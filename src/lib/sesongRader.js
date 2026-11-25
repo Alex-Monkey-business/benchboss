@@ -1,6 +1,9 @@
+import { ref } from 'vue'
 import { supabase } from '../supabase'
 import { scoped } from './scope'
 import { cached } from './query'
+import { persistRef } from './persist'
+import { registerReset } from '../stores/dataReset'
 
 // Radene i en kamp-barnetabell (mål, perioder, frafall, sesjoner) for ÉN sesong.
 //
@@ -17,9 +20,15 @@ import { cached } from './query'
 // andre sesonger som alt er hentet skal bli stående. `kampIder` er kampene
 // svaret gjelder: de som har rader nå, og de som hadde det forrige gang (en
 // rad slettet på en annen telefon skal bort her også).
+//
+// Radene selv huskes mellom oppstarter (persistRef i hver composable), og da
+// må også dette kartet det: ellers ble en rad slettet på en annen telefon
+// stående etter en omstart. `henter.kjent(sesong)` sier om sesongen er hentet
+// før, så en skjerm kan vise tallene fra sist i stedet for «Henter …».
 export function sesongHenter(tabell, kolonner, navn, ta) {
-  const forrige = new Map() // seasonId → Set(match_id)
-  return cached(async (seasonId) => {
+  const forrige = persistRef(`sesong:${navn}`, ref({})) // seasonId → [match_id]
+  registerReset(() => { forrige.value = {} })
+  const henter = cached(async (seasonId) => {
     if (!seasonId) return false
     const { data, error } = await scoped(supabase.from(tabell)
       .select(`${kolonner}, matches!${tabell}_match_id_fkey!inner(season_id)`))
@@ -30,11 +39,13 @@ export function sesongHenter(tabell, kolonner, navn, ta) {
     }
     const rader = data.map(({ matches, ...r }) => r)
     const naa = new Set(rader.map(r => r.match_id))
-    const kampIder = new Set([...naa, ...(forrige.get(seasonId) || [])])
+    const kampIder = new Set([...naa, ...(forrige.value[seasonId] || [])])
     ta(rader, kampIder)
-    forrige.set(seasonId, naa)
+    forrige.value = { ...forrige.value, [seasonId]: [...naa] }
     return true
   }, navn, { ok: v => v === true })
+  henter.kjent = seasonId => !!seasonId && !!forrige.value[seasonId]
+  return henter
 }
 
 // Bytt ut radene for `kampIder` med de nye, la resten stå.

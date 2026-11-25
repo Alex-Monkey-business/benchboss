@@ -167,22 +167,23 @@ onMounted(async () => {
   }
 
   const kjentSesong = match.value?.season_id || null
-  // Plassene må telles: sesjonen står mellom målene og periodene. Én komma for
-  // lite ga trenerne periodene og spilletida sesjonen (dc549d3).
   // Sesongens kamper kommer med trenere, tropp og utlegg i én rundtur, og er
   // de hentet for under 30 s siden (fra lista), gjenbrukes de. Det som bare
   // hører denne kampen til — mål, sesjon, perioder — hentes alltid.
   // Uten kampen i lageret (direkte lenke) hentes den alene, med sin tropp og
   // sitt frafall, i samme runde.
-  const [alene, , , , mmStints] = await Promise.all([
+  // De to svarene som brukes, står først. Plassene ble talt før, og da et kall
+  // ble fjernet fra lista (bfc594b), fikk spilletida sesjonen: raden
+  // «Spilletid» forsvant fra hver spilte kamp så snart sida var hentet.
+  const [alene, mmStints] = await Promise.all([
     kjentSesong ? null : hentEnKamp(id),
+    fetchMmStints(id),
     Promise.all([ensureSeasons(), fetchCoaches(), fetchReferees(), fetchPlayers(), fetchPlayerSeasonTeams(), kjentSesong ? fetchSeasonAbsences(kjentSesong) : fetchMatchAbsences(id)]),
     // Sesongens kamper: grunnlag for ekstra-kamp-tall og konflikt-/uke-sjekk,
     // og de gir også en fersk utgave av denne kampen.
     kjentSesong ? ensureMatches(kjentSesong) : null,
     fetchMatchGoals(id),
-    fetchMmSession(id),
-    fetchMmStints(id)
+    fetchMmSession(id)
   ])
   // Kampoppsettet kan tegne banen med én gang når frafallet for sesongen er hentet.
   if (kjentSesong) kveldLager.fravaer.add(kjentSesong)
@@ -831,8 +832,15 @@ const goalCountByPlayer = computed(() => {
 // Kamplengda i den lukkede seksjonen. Det er tallet spilletidene summerer mot,
 // så en klokke som stoppet i pausen står som «30 min» og røper seg selv.
 const playingTimeSummary = computed(() => {
-  if (mmSession.value?.match_id !== match.value?.id) return ''
-  const sec = mmSession.value?.clock_base_seconds || 0
+  const id = match.value?.id
+  if (!id) return ''
+  let sec = 0
+  if (mmSession.value?.match_id === id) sec = mmSession.value.clock_base_seconds || 0
+  // Før sesjonen er hentet: en ferdig kamp varte til siste periode sluttet.
+  // Periodene huskes fra sist, så tallet står i første bilde.
+  else if (statusByMatch.value[id] === 'finished') {
+    sec = mmStintsAll.value.reduce((m, s) => (s.match_id === id ? Math.max(m, s.off_clock || 0) : m), 0)
+  }
   return sec ? `${Math.round(sec / 60)} min` : ''
 })
 

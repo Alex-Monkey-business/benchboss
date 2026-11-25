@@ -3,11 +3,13 @@ import { supabase, isSupabaseConfigured } from '../supabase'
 import { scoped } from '../lib/scope'
 import { registerReset } from '../stores/dataReset'
 import { fetchRows, STATUS } from '../lib/query'
+import { persistRef } from '../lib/persist'
 
 // Lagtilhørighet per sesong. Troppene rulleres, så players.primary_team
 // forteller bare hvor en spiller står NÅ — denne tabellen husker hvor
-// hen sto da kampene faktisk ble spilt.
-const rows = ref([])
+// hen sto da kampene faktisk ble spilt. Huskes mellom oppstarter: «Lag
+// gjennom sesongene» på spillersida kom ellers inn etter et halvt sekund.
+const rows = persistRef('playerSeasonTeams', ref([]))
 const loaded = ref(false)
 const status = ref(STATUS.IDLE)
 

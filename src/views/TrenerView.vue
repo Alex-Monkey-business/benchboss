@@ -36,7 +36,9 @@ const { expenses } = useExpenses()
 const { fetchResponsibilities, areasForCoach, setAreasForCoach, supportsResponsibilities } = useResponsibilities()
 const { show: showToast } = useToast()
 
-const ready = ref(false)
+// Treneren ligger i lageret fra sist: sida tegnes med en gang, og hentingen
+// oppdaterer på plass. Før sto «Henter trener …» gjennom to runder.
+const ready = ref(coaches.value.some(c => c.id === route.params.id))
 const saving = ref(false)
 
 const coach = computed(() => coaches.value.find(c => c.id === route.params.id) || null)
@@ -90,10 +92,16 @@ onMounted(async () => {
   // To bølger i stedet for fire etter hverandre: kampene for sesongen fra
   // sist går sammen med trenerne og sesongene.
   const kjent = viewingSeason.value?.id || null
-  const [list] = await Promise.all([fetchCoaches(), ensureSeasons(), kjent ? ensureMatches(kjent) : null])
+  // Ansvaret går i første runde når trenerne er kjent fra sist. Lista trengs
+  // bare som reserve når tabellen mangler (seedRows).
+  const ansvarNa = !!cohortId.value && coaches.value.length > 0
+  const [list] = await Promise.all([
+    fetchCoaches(), ensureSeasons(), kjent ? ensureMatches(kjent) : null,
+    ansvarNa ? fetchResponsibilities(cohortId.value, coaches.value) : null
+  ])
   await Promise.all([
     viewingSeason.value && viewingSeason.value.id !== kjent ? lastSesongdata() : null,
-    cohortId.value ? fetchResponsibilities(cohortId.value, list) : null
+    cohortId.value && !ansvarNa ? fetchResponsibilities(cohortId.value, list) : null
   ])
   ready.value = true
 })

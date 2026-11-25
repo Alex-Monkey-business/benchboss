@@ -14,7 +14,9 @@ import { harOppstilling } from '../lib/matchCta'
 // rekonstrueres fra running_since ved innlasting (overlever refresh/låst skjerm).
 
 const session = ref(null)     // { match_id, status, clock_base_seconds, running_since, period }
-const stints = ref([])        // kan spenne flere kamper når statistikk er lastet
+// Kan spenne flere kamper når statistikk er lastet. Huskes mellom oppstarter,
+// som målene: spilletida på Statistikk og spillersida står i første bilde.
+const stints = persistRef('stints', ref([]))
 const now = ref(Date.now())   // display-tikk
 // Serverens klokke minus telefonens. Klokka regnes med serverens tid, så to
 // trenere på hver sin telefon ser samme minutt selv om telefonene går ulikt.
@@ -31,31 +33,33 @@ const statusByMatch = persistRef('kampstatus', ref({}))
 // Kampen `session` sist ble hentet for. `session` er null både når kampen ikke
 // har noen sesjon og når den aldri er hentet; denne skiller de to.
 let sesjonHentetFor = null
-// match_id → er laget satt opp. Mangler nøkkelen, vet vi det ikke ennå.
-// `session` er én for hele appen og står ofte på en annen kamp. Da sa
-// kampsida og Hjem-kortet «Sett opp lag» om et lag som var satt opp, helt til
-// sesjonen var hentet — på dårlig nett lenge, og for alltid om kallet feilet.
-// Huskes mellom oppstarter, så første bilde sier det vi visste sist.
-const oppstiltByMatch = persistRef('oppstilt', ref({}))
+// match_id → sist kjente oppstilling (null = ingen). Mangler nøkkelen, vet vi
+// det ikke ennå. `session` er én for hele appen og står ofte på en annen kamp.
+// Da sa kampsida og Hjem-kortet «Sett opp lag» om et lag som var satt opp,
+// helt til sesjonen var hentet — på dårlig nett lenge, og for alltid om
+// kallet feilet. Huskes mellom oppstarter, så første bilde sier det vi visste
+// sist, og kampoppsettet kan tegne banen før serveren har svart.
+const lineupByMatch = persistRef('oppstillinger', ref({}))
 // Sesonger der vi har spurt etter alle sesjoner: en kamp uten rad der har
 // ingen oppstilling.
 const statusSesonger = ref({})
 
 // Kun data. Tikk-timeren eies av komponentene som monterer den (ref-tellet),
 // og skal ikke røres her.
-registerReset(() => { session.value = null; stints.value = []; statusByMatch.value = {}; sesjonHentetFor = null; oppstiltByMatch.value = {}; statusSesonger.value = {} })
+registerReset(() => { session.value = null; stints.value = []; statusByMatch.value = {}; sesjonHentetFor = null; lineupByMatch.value = {}; statusSesonger.value = {} })
 
-// Husk om laget er satt opp for kampene i `par` ([matchId, lineup]).
+// Husk oppstillingen for kampene i `par` ([matchId, lineup]).
 // lineup null = ingen sesjon, altså ikke satt opp.
 function huskOppstilt(par) {
   let neste = null
   for (const [matchId, lineup] of par) {
-    const ja = harOppstilling(lineup)
-    if ((neste || oppstiltByMatch.value)[matchId] === ja) continue
-    neste = neste || { ...oppstiltByMatch.value }
-    neste[matchId] = ja
+    const ny = lineup || null
+    const gammel = (neste || lineupByMatch.value)[matchId]
+    if (gammel !== undefined && JSON.stringify(gammel) === JSON.stringify(ny)) continue
+    neste = neste || { ...lineupByMatch.value }
+    neste[matchId] = ny
   }
-  if (neste) oppstiltByMatch.value = neste
+  if (neste) lineupByMatch.value = neste
 }
 
 function husk(matchId, status) {
@@ -343,9 +347,22 @@ export function useMatchMode() {
   function oppstillingFor(matchId, seasonId = null) {
     if (!matchId) return undefined
     if (session.value?.match_id === matchId) return harOppstilling(session.value.lineup)
-    const kjent = oppstiltByMatch.value[matchId]
-    if (kjent !== undefined) return kjent
+    if (matchId in lineupByMatch.value) return harOppstilling(lineupByMatch.value[matchId])
     return seasonId && statusSesonger.value[seasonId] ? false : undefined
+  }
+
+  // Sesjonen slik vi kjente den sist, fra kartene som huskes mellom
+  // oppstarter. undefined = vet ikke, null = ingen sesjon. Nok til at
+  // kampoppsettet tegner banen i første bilde; ferske data fra serveren
+  // tar over når de kommer, som når en annen trener endrer laget.
+  function sesjonFraLager(matchId) {
+    if (!matchId || !(matchId in lineupByMatch.value)) return undefined
+    const status = statusByMatch.value[matchId] || null
+    const lineup = lineupByMatch.value[matchId]
+    // Uten status og uten oppstilling finnes ingen sesjon. En oppstilling uten
+    // kjent status er et halvt svar: da vet vi ikke om kampen går.
+    if (!status) return lineup ? undefined : null
+    return { match_id: matchId, status, period: 1, lineup }
   }
 
   // Bare to kolonner, for sesongens kamper. Billig nok til å kjøres hver
@@ -868,12 +885,12 @@ export function useMatchMode() {
 
   return {
     sesjonKjent: matchId => sesjonHentetFor === matchId,
-    oppstillingFor, huskOppstilt, huskSesjoner,
+    oppstillingFor, sesjonFraLager, huskOppstilt, huskSesjoner,
     remote, syncState, changeScore,
     session, stints, statusByMatch, currentClock, isRunning,
     now, serverOffset,
     startClockTick, stopClockTick,
-    fetchSession, fetchSessionStatuses, fetchStints, fetchSeasonStints,
+    fetchSession, fetchSessionStatuses, fetchStints, fetchSeasonStints, perioderKjent: perioderFersk.kjent,
     saveSetup, startMatch, pauseClock, resumeClock, endHalfAt, startNextHalf, startedEarlier, substitute, undoSubstitute, swapKeeper, swapFieldPositions, finishMatch, resetMatch,
     matchStints, isOnField, roleOf, positionOf, playerAtPosition, playingTimeByPlayer,
     adjustPlayingTime, undoAdjustment, movableSeconds

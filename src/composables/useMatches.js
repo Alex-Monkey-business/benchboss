@@ -512,7 +512,7 @@ export function useMatches() {
     fetchMatches: kamperFersk.force, ensureMatches: kamperFersk, getMatch, hentEnKamp, updateMatch, addMatch, bulkAddMatches,
     setMatchCoaches, getCoachesForMatch, fetchMatchCoaches, backfillDefaultCoaches,
     setMatchPlayers, getPlayersForMatch, fetchMatchPlayers,
-    fetchSeasonAbsences, fetchMatchAbsences, getAbsencesForMatch, toggleAbsence, settFravaer,
+    fetchSeasonAbsences, fravaerKjent: sesongFravaerFersk.kjent, fetchMatchAbsences, getAbsencesForMatch, toggleAbsence, settFravaer,
     deleteMatch, deleteAllMatches
   }
 }

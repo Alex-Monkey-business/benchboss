@@ -25,9 +25,9 @@ import { isPlayed, isOurMatch, teamColorsForMatch } from '../lib/matchMeta'
 //              når det spør «hvor mange kamper har han spilt?».
 
 export function usePlayerStats() {
-  const { matches: alleKamper, matchPlayers, matchAbsences, ensureMatches, fetchSeasonAbsences } = useMatches()
-  const { goals, fetchSeasonGoals } = useMatchGoals()
-  const { stints, fetchSeasonStints } = useMatchMode()
+  const { matches: alleKamper, matchPlayers, matchAbsences, ensureMatches, fetchSeasonAbsences, fravaerKjent } = useMatches()
+  const { goals, fetchSeasonGoals, malKjent } = useMatchGoals()
+  const { stints, fetchSeasonStints, perioderKjent } = useMatchMode()
   const { viewingSeason, ensureSeasons } = useSeasons()
   const { players, fetchPlayers } = usePlayers()
   const { fetchPlayerSeasonTeams, teamForSeason } = usePlayerSeasonTeams()
@@ -42,6 +42,12 @@ export function usePlayerStats() {
       kjent ? hentSesong(kjent) : null
     ])
     if (viewingSeason.value && viewingSeason.value.id !== kjent) await hentSesong(viewingSeason.value.id)
+  }
+  // Ligger sesongens tall i lageret fra sist? Da kan skjermen vise dem i
+  // første bilde, og hentingen oppdaterer på plass.
+  function statsKjent(id = viewingSeason.value?.id) {
+    return !!id && malKjent(id) && perioderKjent(id) && fravaerKjent(id) &&
+      alleKamper.value.some(m => m.season_id === id)
   }
   function hentSesong(id) {
     return Promise.all([ensureMatches(id), fetchSeasonGoals(id), fetchSeasonStints(id), fetchSeasonAbsences(id)])
@@ -142,5 +148,5 @@ export function usePlayerStats() {
       .sort((a, b) => String(b.match_date).localeCompare(String(a.match_date)))
   }
 
-  return { ensurePlayerStats, statsById, statsFor, matchesFor, playedIds, upcomingIds, ourMatches }
+  return { ensurePlayerStats, statsKjent, statsById, statsFor, matchesFor, playedIds, upcomingIds, ourMatches }
 }

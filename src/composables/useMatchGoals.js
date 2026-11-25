@@ -4,8 +4,11 @@ import { registerReset } from '../stores/dataReset'
 import { sesongHenter, flett } from '../lib/sesongRader'
 import { legg, trekk, poster, utforer, paSvar, nyId } from '../lib/kampKo'
 import { useToast } from './useToast'
+import { persistRef } from '../lib/persist'
 
-const goals = ref([])
+// Huskes mellom oppstarter: Statistikk sa «Ingen registrert ennå» og
+// spillersida «Henter tallene …» til målene var hentet på nytt.
+const goals = persistRef('goals', ref([]))
 const loadedAll = ref(false)
 const loadedMatches = ref(new Set())
 
@@ -196,6 +199,7 @@ export function useMatchGoals() {
     goals,
     fetchMatchGoals,
     fetchSeasonGoals,
+    malKjent: sesongMalFersk.kjent,
     getGoalsForMatch,
     addGoal,
     updateGoal,

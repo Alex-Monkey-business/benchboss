@@ -2,6 +2,7 @@ import { ref, computed } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { registerReset } from '../stores/dataReset'
 import { ANSVAR, seedAreasForName, joinNames, sortAreas } from '../content/ansvar'
+import { persistRef } from '../lib/persist'
 
 // Ansvarsområder — hvem eier hva i trenerteamet.
 //
@@ -14,7 +15,8 @@ import { ANSVAR, seedAreasForName, joinNames, sortAreas } from '../content/ansva
 // Er tabellen der og TOM, er tom det riktige svaret — da har noen fjernet alt
 // med vilje, og fila skal ikke gjenopplive det.
 
-const rows = ref([])
+// Huskes mellom oppstarter, så trenersida viser ansvaret i første bilde.
+const rows = persistRef('ansvar', ref([]))
 const loaded = ref(false)
 const loadedCohort = ref(null)
 // Finnes tabellen? Uten den skal flata vise ansvar, men ikke tilby redigering —

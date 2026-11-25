@@ -19,11 +19,18 @@ const { cupMatches, loading, status, fetchCupMatches } = useCupMatches()
 const { teamFilter, setFilter } = useCupFilter()
 const { cupTeams } = useCupTeams()
 const { cupFirst } = useCupFirst()
-const ready = ref(false)
+// Kampene for cupen fra sist ligger i lageret. Da står programmet i første
+// bilde. Før byttet det til «Henter kamper …» så snart hentingen startet, og
+// kom tilbake etter to runder (cupene, så kampene).
+const iCupen = computed(() => cupMatches.value.filter(m => !activeCup.value || m.cup_id === activeCup.value.id))
+const ready = ref(iCupen.value.length > 0)
 
 onMounted(async () => {
-  await fetchCups()
-  if (activeCup.value) await fetchCupMatches(activeCup.value.id)
+  // Cupen fra sist går i samme runde som cup-lista; bare et cup-bytte gir en
+  // runde til.
+  const kjent = activeCup.value?.id || null
+  await Promise.all([fetchCups(), kjent ? fetchCupMatches(kjent) : null])
+  if (activeCup.value && activeCup.value.id !== kjent) await fetchCupMatches(activeCup.value.id)
   ready.value = true
 })
 
@@ -46,7 +53,7 @@ function timeLabel(t) {
 }
 
 const filteredMatches = computed(() =>
-  teamFilter.value === 'all' ? cupMatches.value : cupMatches.value.filter(m => m.our_team === teamFilter.value)
+  teamFilter.value === 'all' ? iCupen.value : iCupen.value.filter(m => m.our_team === teamFilter.value)
 )
 
 // Grupper kamper per dag (sortert)
@@ -80,12 +87,12 @@ const groups = computed(() => {
         <p class="ds-empty__title">Henter kamper …</p>
       </div>
 
-      <div v-else-if="status === 'error'" class="ds-empty">
+      <div v-else-if="status === 'error' && !iCupen.length" class="ds-empty">
         <h3 class="ds-empty__title">Kunne ikke laste kampene</h3>
         <p class="ds-empty__description">Sjekk nettforbindelsen og prøv igjen.</p>
       </div>
 
-      <div v-else-if="cupMatches.length && filteredMatches.length === 0" class="ds-empty">
+      <div v-else-if="iCupen.length && filteredMatches.length === 0" class="ds-empty">
         <h3 class="ds-empty__title">Ingen kamper for dette laget</h3>
         <button type="button" class="ds-btn ds-btn--secondary ds-btn--sm" @click="setFilter('all')">
           Vis alle kamper

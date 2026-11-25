@@ -21,7 +21,7 @@ const route = useRoute()
 const router = useRouter()
 const { players, fetchPlayers, updatePlayer, deletePlayer } = usePlayers()
 const { fetchPlayerSeasonTeams, teamForSeason, isLoanEligible, setLoanEligible, playerSeasonTeams } = usePlayerSeasonTeams()
-const { ensurePlayerStats, statsFor, statsById, matchesFor } = usePlayerStats()
+const { ensurePlayerStats, statsKjent, statsFor, statsById, matchesFor } = usePlayerStats()
 const { seasons, viewingSeason, ensureSeasons } = useSeasons()
 const { seasonTeams, seasonTeam, teamsForSeason } = useSeasonTeams()
 const { fetchPlayerLevels, levelFor, setLevel } = usePlayerLevels()
@@ -30,7 +30,8 @@ const { show: showToast } = useToast()
 // Spilleren står i cachen fra Tropp: siden tegnes med en gang. Bare tallene
 // venter, og de kommer inn når hentingen er ferdig.
 const ready = ref(players.value.some(p => p.id === route.params.id))
-const statsKlar = ref(false)
+// Tallene fra sist står i første bilde når sesongen er hentet før.
+const statsKlar = ref(statsKjent())
 const player = computed(() => players.value.find(p => p.id === route.params.id) || null)
 const seasonId = computed(() => viewingSeason.value?.id ?? null)
 
