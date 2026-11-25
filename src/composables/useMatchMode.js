@@ -351,6 +351,14 @@ export function useMatchMode() {
     return seasonId && statusSesonger.value[seasonId] ? false : undefined
   }
 
+  // Selve oppstillingen ({ slotId: spillerId, plan }), i samme rekkefølge:
+  // den hentede sesjonen, så det vi husker. null når vi ikke kjenner den.
+  function oppstillingAv(matchId) {
+    if (!matchId) return null
+    if (session.value?.match_id === matchId) return session.value.lineup || null
+    return lineupByMatch.value[matchId] || null
+  }
+
   // Sesjonen slik vi kjente den sist, fra kartene som huskes mellom
   // oppstarter. undefined = vet ikke, null = ingen sesjon. Nok til at
   // kampoppsettet tegner banen i første bilde; ferske data fra serveren
@@ -885,7 +893,7 @@ export function useMatchMode() {
 
   return {
     sesjonKjent: matchId => sesjonHentetFor === matchId,
-    oppstillingFor, sesjonFraLager, huskOppstilt, huskSesjoner,
+    oppstillingFor, oppstillingAv, sesjonFraLager, huskOppstilt, huskSesjoner,
     remote, syncState, changeScore,
     session, stints, statusByMatch, currentClock, isRunning,
     now, serverOffset,

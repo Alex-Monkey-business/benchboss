@@ -24,7 +24,9 @@ import MatchPlayingTime from '../components/MatchPlayingTime.vue'
 import TeamCrest from '../components/TeamCrest.vue'
 import { useKlubbmerke } from '../composables/useKlubbmerke'
 import { relativeDateLabel, isPast, trimAbbrevDots } from '../lib/dateLabels'
-import { matchCta } from '../lib/matchCta'
+import { matchCta, harOppstilling } from '../lib/matchCta'
+import LagBane from '../components/LagBane.vue'
+import { PLAYERS_ON_PITCH_OPTIONS } from '../lib/formations'
 import { teamSlugFromName, teamSlugs, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, isPlayed, teamLabel, isOurs } from '../lib/matchMeta'
 import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 import { meldEvent } from '../lib/sporing'
@@ -45,7 +47,7 @@ const { seasonTeams, teamsForSeason } = useSeasonTeams()
 // en kamp fra i fjor skal ha fjorårets tropp.
 const lagAv = p => teamForSeason(p, match.value?.season_id)
 const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals()
-const { session: mmSession, stints: mmStintsAll, statusByMatch, oppstillingFor, fetchSession: fetchMmSession, fetchStints: fetchMmStints } = useMatchMode()
+const { session: mmSession, stints: mmStintsAll, statusByMatch, oppstillingFor, oppstillingAv, fetchSession: fetchMmSession, fetchStints: fetchMmStints } = useMatchMode()
 const { seasons, ensureSeasons } = useSeasons()
 const { coach: currentCoach, activeCohort } = useAuth()
 const { usesReferees } = useFeatures()
@@ -667,6 +669,48 @@ const hasResult = computed(() => {
 // appen og sto ofte på en annen kamp; da ble «vet ikke» til «ikke satt opp».
 const hasLineup = computed(() => oppstillingFor(match.value?.id || route.params.id, match.value?.season_id))
 
+// ─── Laget på kampsida ───────────────────────────────────────────────────────
+// Laget skal kunne sjekkes uten å gå inn i kampmodus. Før kampen står
+// oppstillingen slik den er satt opp; mens kampen går, de som er på banen nå.
+// Banen er bare til å se på. Endringer gjøres i kampoppsettet, som før.
+const spillform = computed(() => {
+  const n = activeCohort.value?.players_on_pitch
+  return PLAYERS_ON_PITCH_OPTIONS.includes(n) ? n : 7
+})
+// Troppen slik kampoppsettet regner den: laget minus frafall, pluss de som
+// er hentet inn.
+const kampTropp = computed(() => {
+  const ut = new Set(matchAbsenceIds.value)
+  const inn = new Set(matchPlayerIds.value)
+  const farger = teamColors.value
+  return players.value
+    .filter(p => !ut.has(p.id) && (inn.has(p.id) || (lagAv(p) && farger.includes(lagAv(p)))))
+    .sort((a, b) => a.name.localeCompare(b.name, 'no'))
+})
+const laget = computed(() => {
+  const id = match.value?.id
+  if (!id || phase.value === 'etter') return null
+  let plasser = {}
+  if (phase.value === 'live') {
+    for (const s of mmStintsAll.value) {
+      if (s.match_id === id && s.off_clock == null && s.position) plasser[s.position] = s.player_id
+    }
+  }
+  // Før kampen, eller i gang uten perioder hentet ennå: oppstillingen.
+  if (!Object.keys(plasser).length) {
+    const lineup = oppstillingAv(id)
+    if (!harOppstilling(lineup)) return null
+    plasser = Object.fromEntries(Object.entries(lineup).filter(([k, v]) => k !== 'plan' && v))
+  }
+  const pa = new Set(Object.values(plasser))
+  return { plasser, benk: kampTropp.value.filter(p => !pa.has(p.id)).map(p => p.id) }
+})
+const lagetSpillere = computed(() => {
+  if (!laget.value) return []
+  const ider = new Set([...Object.values(laget.value.plasser), ...laget.value.benk])
+  return players.value.filter(p => ider.has(p.id))
+})
+
 const matchModeCta = computed(() => matchCta({
   status: mmStatus.value,
   hasLineup: hasLineup.value,
@@ -684,7 +728,10 @@ const primaryCta = computed(() => {
       ? { label: 'Legg inn resultat', tone: 'prep', icon: 'result', action: 'result' }
       : null
   }
-  return matchModeCta.value ? { ...matchModeCta.value, action: 'live' } : null
+  if (!matchModeCta.value) return null
+  // Laget står på sida, så knappen er veien til å endre det.
+  const label = laget.value && matchModeCta.value.label === 'Se laget' ? 'Endre laget' : matchModeCta.value.label
+  return { ...matchModeCta.value, label, action: 'live' }
 })
 
 function runPrimaryCta() {
@@ -1117,6 +1164,13 @@ function focusSummaryGroup() {
       </button>
       <p v-if="erTreningskamp && primaryCta.action === 'live' && troppAntall" class="cta-under">{{ troppAntall }} {{ troppAntall === 1 ? 'spiller' : 'spillere' }} i troppen</p>
     </div>
+
+    <!-- Laget, åpent. Før kampen slik det er satt opp, mens den går de som er
+         på banen nå. Bare til å se på; endringer gjøres i kampoppsettet. -->
+    <section v-if="laget" class="px-lg mt-lg kamp-laget" :data-team="teamColors[0]">
+      <h2 class="kamp-laget__tittel">{{ phase === 'live' ? 'På banen nå' : 'Laget' }}</h2>
+      <LagBane :spillere="lagetSpillere" :spillform="spillform" :plasser="laget.plasser" :benk="laget.benk" />
+    </section>
 
     <!-- Seksjonene, alltid lukket ved åpning. Mens kampen går hører troppen og
          dommeren hjemme i kampmodus, så her står bare veien tilbake dit. -->
@@ -2604,6 +2658,20 @@ function focusSummaryGroup() {
 
 
 /* ─── Seksjonene: myke grupper, som dagene i kamplista ─────────────────── */
+/* Laget på banen. Drakta får lagets farge; Hvit og lag uten egen farge får
+   tekstfargen, så kanten syns på hvit drakt. */
+.kamp-laget { --accent-text: var(--ds-color-text-primary); }
+.kamp-laget[data-team="gronn"] { --accent-text: var(--ds-team-gronn); }
+.kamp-laget[data-team="rod"] { --accent-text: var(--ds-team-rod); }
+.kamp-laget__tittel {
+  margin: 0 0 var(--ds-space-sm);
+  font-size: var(--ds-text-sm);
+  font-weight: 600;
+  letter-spacing: normal;
+  color: var(--ds-color-text-secondary);
+}
+.kamp-laget :deep(.lb) { max-width: 380px; }
+
 .detail-disclosures {
   display: flex;
   flex-direction: column;

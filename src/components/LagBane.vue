@@ -15,20 +15,28 @@ import { useOppstilling } from '../composables/useOppstilling'
 import { useToast } from '../composables/useToast'
 import { meldEvent } from '../lib/sporing'
 
+// `plasser` og `benk` gir en fast oppstilling, slik den står for én kamp.
+// Da plasserer ikke appen noe selv, og banen er bare til å se på. Kampsida
+// bruker den: laget skal kunne sjekkes uten å gå inn i kampmodus.
 const props = defineProps({
-  team: { type: Object, required: true },
+  team: { type: Object, default: null },
   spillere: { type: Array, required: true },
   spillform: { type: Number, default: 7 },
-  kanEndre: { type: Boolean, default: false }
+  kanEndre: { type: Boolean, default: false },
+  plasser: { type: Object, default: null },
+  benk: { type: Array, default: null }
 })
 
 const { laste, lagre } = useOppstilling()
 const { show: showToast } = useToast()
 
+const fast = computed(() => !!props.plasser)
 const formasjon = computed(() => formationFor(props.spillform))
-const lasteNa = computed(() => laste(props.team.id, props.spillform))
+const lasteNa = computed(() => (fast.value || !props.team ? {} : laste(props.team.id, props.spillform)))
 const justert = computed(() => Object.keys(lasteNa.value).length > 0)
-const oppstilling = computed(() => plasserLag(formasjon.value, props.spillere, lasteNa.value, props.spillform))
+const oppstilling = computed(() => fast.value
+  ? { plasser: props.plasser, benk: props.benk || [] }
+  : plasserLag(formasjon.value, props.spillere, lasteNa.value, props.spillform))
 const navn = computed(() => kortnavn(props.spillere))
 const spiller = id => props.spillere.find(p => p.id === id)
 
