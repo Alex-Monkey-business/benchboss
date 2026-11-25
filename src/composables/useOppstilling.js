@@ -2,6 +2,7 @@ import { ref } from 'vue'
 import { supabase, isSupabaseConfigured } from '../supabase'
 import { scoped } from '../lib/scope'
 import { registerReset } from '../stores/dataReset'
+import { persistRef } from '../lib/persist'
 
 // Trenernes justeringer av lagene på banen: { teamId: { spillform: { slot: spillerId } } }.
 //
@@ -9,7 +10,9 @@ import { registerReset } from '../stores/dataReset'
 // mangler kolonnen), skal lagene og resten av appen stå som før. Banen
 // plasserer da alle automatisk, og bare lagringen av en justering sier fra.
 
-const oppstilling = ref({})
+// Huskes mellom oppstarter: kampsida viser laget slik appen plasserer det, og
+// uten justeringene i første bilde hoppet spillerne på plass etter hentingen.
+const oppstilling = persistRef('lagOppstilling', ref({}))
 let hentet = false
 let pagar = null
 

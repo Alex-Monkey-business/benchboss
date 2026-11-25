@@ -26,6 +26,7 @@ import { useKlubbmerke } from '../composables/useKlubbmerke'
 import { relativeDateLabel, isPast, trimAbbrevDots } from '../lib/dateLabels'
 import { matchCta, harOppstilling } from '../lib/matchCta'
 import LagBane from '../components/LagBane.vue'
+import { useOppstilling } from '../composables/useOppstilling'
 import { PLAYERS_ON_PITCH_OPTIONS } from '../lib/formations'
 import { teamSlugFromName, teamSlugs, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, isPlayed, teamLabel, isOurs } from '../lib/matchMeta'
 import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
@@ -42,7 +43,7 @@ const { coaches, fetchCoaches } = useCoaches()
 const { referees, fetchReferees, getRefereeByName, addReferee, updateReferee } = useReferees()
 const { players, fetchPlayers, addPlayer, getPlayerById } = usePlayers()
 const { fetchPlayerSeasonTeams, isLoanEligible, teamForSeason } = usePlayerSeasonTeams()
-const { seasonTeams, teamsForSeason } = useSeasonTeams()
+const { seasonTeams, teamsForSeason, seasonTeam } = useSeasonTeams()
 // Laget spilleren var på i kampens sesong. players.primary_team er laget NÅ;
 // en kamp fra i fjor skal ha fjorårets tropp.
 const lagAv = p => teamForSeason(p, match.value?.season_id)
@@ -163,6 +164,9 @@ function oppdater(id, alene = null) {
 
 onMounted(async () => {
   const id = route.params.id
+  // Lagets faste plasser, for laget slik appen plasserer det. Venter ikke:
+  // sida står uten, og huskes de fra sist, står de i første bilde.
+  hentLagOppstilling().catch(() => {})
   if (match.value) {
     lesTropp(id)
     fraKamp(match.value)
@@ -677,16 +681,23 @@ const spillform = computed(() => {
   const n = activeCohort.value?.players_on_pitch
   return PLAYERS_ON_PITCH_OPTIONS.includes(n) ? n : 7
 })
-// Troppen slik kampoppsettet regner den: laget minus frafall, pluss de som
-// er hentet inn.
+// Troppen nøyaktig slik kampoppsettet regner den (MatchModeView `squad`):
+// laget minus frafall, pluss de som er hentet inn. Laget er primary_team,
+// som der, så forslaget her er det samme som står når oppsettet åpnes.
 const kampTropp = computed(() => {
   const ut = new Set(matchAbsenceIds.value)
   const inn = new Set(matchPlayerIds.value)
   const farger = teamColors.value
   return players.value
-    .filter(p => !ut.has(p.id) && (inn.has(p.id) || (lagAv(p) && farger.includes(lagAv(p)))))
+    .filter(p => !ut.has(p.id) && (inn.has(p.id) || (p.primary_team && farger.includes(p.primary_team))))
     .sort((a, b) => a.name.localeCompare(b.name, 'no'))
 })
+// Er ingenting lagret, viser kampsida laget slik kampoppsettet plasserer det
+// når det åpnes: lagets faste plasser først, resten etter posisjonene. Før
+// stod sida tom til noen hadde vært innom oppsettet, selv om laget var klart.
+// `lag` er sesongens lag, der justeringene fra Tropp-banen ligger.
+const { hent: hentLagOppstilling } = useOppstilling()
+const lagetsLag = computed(() => seasonTeam(teamColors.value[0]) || null)
 const laget = computed(() => {
   const id = match.value?.id
   if (!id || phase.value === 'etter') return null
@@ -699,7 +710,14 @@ const laget = computed(() => {
   // Før kampen, eller i gang uten perioder hentet ennå: oppstillingen.
   if (!Object.keys(plasser).length) {
     const lineup = oppstillingAv(id)
-    if (!harOppstilling(lineup)) return null
+    if (!harOppstilling(lineup)) {
+      // Bare når vi VET at ingenting er lagret. Ellers kunne forslaget stå
+      // et øyeblikk før det lagrede laget tok over.
+      // Og bare i treningskamper: der plasserer kampoppsettet laget selv. I
+      // seriekamper starter oppsettet med tom bane, og da skal sida si det.
+      if (!erTreningskamp.value || phase.value !== 'for' || hasLineup.value !== false || !kampTropp.value.length) return null
+      return { forslag: true }
+    }
     plasser = Object.fromEntries(Object.entries(lineup).filter(([k, v]) => k !== 'plan' && v))
   }
   const pa = new Set(Object.values(plasser))
@@ -707,6 +725,7 @@ const laget = computed(() => {
 })
 const lagetSpillere = computed(() => {
   if (!laget.value) return []
+  if (laget.value.forslag) return kampTropp.value
   const ider = new Set([...Object.values(laget.value.plasser), ...laget.value.benk])
   return players.value.filter(p => ider.has(p.id))
 })
@@ -730,7 +749,7 @@ const primaryCta = computed(() => {
   }
   if (!matchModeCta.value) return null
   // Laget står på sida, så knappen er veien til å endre det.
-  const label = laget.value && matchModeCta.value.label === 'Se laget' ? 'Endre laget' : matchModeCta.value.label
+  const label = laget.value && ['Se laget', 'Sett opp lag'].includes(matchModeCta.value.label) ? 'Endre laget' : matchModeCta.value.label
   return { ...matchModeCta.value, label, action: 'live' }
 })
 
@@ -1169,7 +1188,7 @@ function focusSummaryGroup() {
          på banen nå. Bare til å se på; endringer gjøres i kampoppsettet. -->
     <section v-if="laget" class="px-lg mt-lg kamp-laget" :data-team="teamColors[0]">
       <h2 class="kamp-laget__tittel">{{ phase === 'live' ? 'På banen nå' : 'Laget' }}</h2>
-      <LagBane :spillere="lagetSpillere" :spillform="spillform" :plasser="laget.plasser" :benk="laget.benk" />
+      <LagBane :team="laget.forslag ? lagetsLag : null" :spillere="lagetSpillere" :spillform="spillform" :plasser="laget.plasser || null" :benk="laget.benk || null" />
     </section>
 
     <!-- Seksjonene, alltid lukket ved åpning. Mens kampen går hører troppen og
