@@ -10,7 +10,6 @@ import { useCoaches } from './useCoaches'
 import { useExpenses } from './useExpenses'
 import { useCups } from './useCups'
 import { useCupMatches } from './useCupMatches'
-import { harOppstilling } from '../lib/matchCta'
 import { useTrainingWeek } from './useTrainingWeek'
 import { useSeasonTeams } from './useSeasonTeams'
 import { useMatchMode } from './useMatchMode'
@@ -227,7 +226,10 @@ export function useToday() {
       // null betyr «ikke vår jobb» — kortene hopper over punktet. Samme svar
       // for bortekamp og for et kull som ikke skaffer dommer selv.
       referee: home && usesReferees.value ? !!(match.referee || '').trim() : null,
-      lineup: harOppstilling(s?.lineup),
+      // Samme kilde som kampsida: Hjem sin henting, kamplista, kampoppsettet
+      // og det appen husket fra sist. undefined = vet ikke ennå, og da sier
+      // kortet ikke at oppstillingen mangler.
+      lineup: matchMode.oppstillingFor(matchId, match.season_id),
       status: s?.status || null
     }
   }
@@ -417,14 +419,28 @@ export function useToday() {
       // Demo: useMatchMode holder maks én session i minnet.
       const s = matchMode.session.value
       prepSessions.value = s && matchIds.includes(s.match_id) ? [s] : []
+      matchMode.huskOppstilt(matchIds.map(id => [id, prepSessions.value.find(r => r.match_id === id)?.lineup || null]))
       return
     }
 
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from('match_sessions')
       .select('match_id, status, lineup')
       .in('match_id', matchIds)
+    // Feilet hentingen, står det vi visste. En tom liste her ga «oppstilling
+    // mangler» på et lag som var satt opp.
+    if (error) return
     prepSessions.value = data || []
+    // Kampsida leser det samme, så den vet det i første bilde.
+    matchMode.huskOppstilt(matchIds.map(id => [id, (data || []).find(r => r.match_id === id)?.lineup || null]))
+  }
+
+  // Dagens kamper og neste kamp: de Hjem viser oppstilling og status for.
+  function prepIdsNa() {
+    return [...new Set([
+      ...todayMatches.value.map(m => m.id),
+      ...(nextMatch.value && nextMatch.value.type !== 'cup' ? [nextMatch.value.id] : [])
+    ])]
   }
 
   async function refresh() {
@@ -476,7 +492,11 @@ export function useToday() {
     // hentes de på nytt. Fra seks serielle bølger til to på en varm start.
     const kjentSesong = activeSeason.value?.id || null
     const kjentCup = cupInProgress.value ? activeCup.value?.id : null
+    // Kampene fra sist gir dagens og neste kamp før noe er hentet. Da går
+    // oppstillingen i første bølge, ikke etter to runder til.
+    const tidligIds = prepIdsNa()
     const forste = [ensureSeasons(), fetchCoaches(), fetchCups(), fetchWeek(), fetchSerieStatus()]
+    if (tidligIds.length) forste.push(fetchPrepSessions(tidligIds))
     if (kjentSesong) {
       forste.push(ensureMatches(kjentSesong))
       if (activeCohort.value?.id) forste.push(fetchSeasonTeams(activeCohort.value.id, kjentSesong))
@@ -500,14 +520,12 @@ export function useToday() {
     // Cup-kamper har ingen dommer, ingen utlegg og ingen oppstilling å hente —
     // de lever i sine egne tabeller. Slipper vi en cup-id inn her, spør vi
     // seriekamp-tabellene om en rad som ikke finnes.
-    const prepIds = [...new Set([
-      ...todayMatches.value.map(m => m.id),
-      ...(nextMatch.value && nextMatch.value.type !== 'cup' ? [nextMatch.value.id] : [])
-    ])]
+    const prepIds = prepIdsNa()
+    const sammeKamper = prepIds.length === tidligIds.length && prepIds.every(id => tidligIds.includes(id))
 
     await Promise.all([
       fetchExpenses(matches.value.map(m => m.id)),
-      fetchPrepSessions(prepIds)
+      sammeKamper ? null : fetchPrepSessions(prepIds)
     ])
   }
 

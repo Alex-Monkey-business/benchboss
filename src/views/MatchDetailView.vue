@@ -24,7 +24,7 @@ import MatchPlayingTime from '../components/MatchPlayingTime.vue'
 import TeamCrest from '../components/TeamCrest.vue'
 import { useKlubbmerke } from '../composables/useKlubbmerke'
 import { relativeDateLabel, isPast, trimAbbrevDots } from '../lib/dateLabels'
-import { matchCta, harOppstilling } from '../lib/matchCta'
+import { matchCta } from '../lib/matchCta'
 import { teamSlugFromName, teamSlugs, teamColorsForMatch, isHomeMatch as computeIsHomeMatch, isPlayed, teamLabel, isOurs } from '../lib/matchMeta'
 import { formatPhone, phoneE164, parsePhone } from '../lib/phone'
 import { meldEvent } from '../lib/sporing'
@@ -45,7 +45,7 @@ const { seasonTeams, teamsForSeason } = useSeasonTeams()
 // en kamp fra i fjor skal ha fjorårets tropp.
 const lagAv = p => teamForSeason(p, match.value?.season_id)
 const { goals: allGoals, fetchMatchGoals, addGoal, removeGoal } = useMatchGoals()
-const { session: mmSession, stints: mmStintsAll, statusByMatch, fetchSession: fetchMmSession, fetchStints: fetchMmStints } = useMatchMode()
+const { session: mmSession, stints: mmStintsAll, statusByMatch, oppstillingFor, fetchSession: fetchMmSession, fetchStints: fetchMmStints } = useMatchMode()
 const { seasons, ensureSeasons } = useSeasons()
 const { coach: currentCoach, activeCohort } = useAuth()
 const { usesReferees } = useFeatures()
@@ -646,10 +646,9 @@ const hasResult = computed(() => {
 // ─── Match mode-CTA ──────────────────────────────────────────────────────────
 // Regelen bor i lib/matchCta.js fordi Hjem-kortet bruker den samme. En kopi
 // her ville blitt en andre sannhet om samme kamp.
-const hasLineup = computed(() => {
-  if (mmSession.value?.match_id !== match.value?.id) return false
-  return harOppstilling(mmSession.value?.lineup)
-})
+// true/false, eller undefined til vi vet. Sesjonen i kampmodus er én for hele
+// appen og sto ofte på en annen kamp; da ble «vet ikke» til «ikke satt opp».
+const hasLineup = computed(() => oppstillingFor(match.value?.id || route.params.id, match.value?.season_id))
 
 const matchModeCta = computed(() => matchCta({
   status: mmStatus.value,

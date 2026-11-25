@@ -45,6 +45,14 @@ export function matchCta({ status, hasLineup, hasResult, matchDate, matchTime, n
   if (mins !== null && mins <= 60) {
     return { label: 'Start kamp', tone: 'start', icon: 'play' }
   }
+  // hasLineup undefined = vi vet ikke ennå. Da sier knappen ingenting om
+  // laget: «Sett opp lag» om et lag som står klart, får treneren til å tro at
+  // oppsettet er borte. Begge veier fører til samme skjerm.
+  if (hasLineup === undefined) {
+    return mins !== null && mins <= 180
+      ? { label: 'Gjør klart til kamp', tone: 'prep', icon: 'clock' }
+      : { label: 'Kampoppsett', tone: 'quiet', icon: 'grid' }
+  }
   // Kampdag uten lag: å sette opp laget er det neste som skal skje, og
   // knappen har full tyngde.
   if (!hasLineup && erIdag(matchDate, now)) {

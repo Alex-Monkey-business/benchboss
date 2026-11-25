@@ -22,7 +22,8 @@ const missing = computed(() => {
   if (!p) return []
   const out = []
   if (p.referee === false) out.push('dommer')
-  if (!p.lineup) out.push('oppstilling')
+  // undefined = ikke hentet ennå. Det er ikke det samme som at den mangler.
+  if (p.lineup === false) out.push('oppstilling')
   return out
 })
 
@@ -37,7 +38,7 @@ const statusLine = computed(() => {
   const deler = []
   // referee er null på bortekamp — da er dommer ikke vår sak i det hele tatt.
   if (p.referee !== null) deler.push(p.referee ? 'dommer satt' : 'dommer mangler')
-  deler.push(p.lineup ? 'oppstilling satt' : 'oppstilling mangler')
+  if (p.lineup !== undefined) deler.push(p.lineup ? 'oppstilling satt' : 'oppstilling mangler')
   const s = deler.join(' · ')
   return s.charAt(0).toUpperCase() + s.slice(1)
 })

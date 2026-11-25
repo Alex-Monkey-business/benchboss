@@ -125,7 +125,7 @@ function onCta() {
     <span v-if="coachNames && !done" class="today-match__coaches">{{ coachNames }}</span>
 
     <ul v-if="checklist.length && !done" class="today-match__checklist">
-      <li v-for="item in checklist" :key="item.key" class="check-item" :class="{ 'check-item--done': item.done }">
+      <li v-for="item in checklist" :key="item.key" class="check-item" :class="{ 'check-item--done': item.done, 'check-item--venter': item.done === undefined }">
         <Ikon navn="hake-sirkel" v-if="item.done" />
         <Ikon navn="sirkel" v-else />
         {{ item.label }}
@@ -274,6 +274,12 @@ function onCta() {
 
 .check-item--done {
   color: var(--ds-color-text-primary);
+}
+
+/* Ikke hentet ennå: raden står, så kortet ikke hopper, men den sier ikke
+   at noe mangler. */
+.check-item--venter {
+  opacity: 0.45;
 }
 
 .check-item--done svg {

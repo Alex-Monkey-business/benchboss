@@ -5,6 +5,8 @@ import { sesongHenter, flett } from '../lib/sesongRader'
 import { planTransfer, transferableSeconds } from '../lib/timeTransfer'
 import { legg, trekk, poster, venterFor, utforer, paSvar, nyId, ventPa, ventPaKamp } from '../lib/kampKo'
 import { medVentendeMal } from './useMatchGoals'
+import { persistRef } from '../lib/persist'
+import { harOppstilling } from '../lib/matchCta'
 
 // Event-sourced match mode. Spilletid telles ALDRI med en teller — den regnes
 // ut fra kampklokka (match_sessions) + opphold på banen (match_stints).
@@ -27,10 +29,32 @@ const statusByMatch = ref({})
 // Kampen `session` sist ble hentet for. `session` er null både når kampen ikke
 // har noen sesjon og når den aldri er hentet; denne skiller de to.
 let sesjonHentetFor = null
+// match_id → er laget satt opp. Mangler nøkkelen, vet vi det ikke ennå.
+// `session` er én for hele appen og står ofte på en annen kamp. Da sa
+// kampsida og Hjem-kortet «Sett opp lag» om et lag som var satt opp, helt til
+// sesjonen var hentet — på dårlig nett lenge, og for alltid om kallet feilet.
+// Huskes mellom oppstarter, så første bilde sier det vi visste sist.
+const oppstiltByMatch = persistRef('oppstilt', ref({}))
+// Sesonger der vi har spurt etter alle sesjoner: en kamp uten rad der har
+// ingen oppstilling.
+const statusSesonger = ref({})
 
 // Kun data. Tikk-timeren eies av komponentene som monterer den (ref-tellet),
 // og skal ikke røres her.
-registerReset(() => { session.value = null; stints.value = []; statusByMatch.value = {}; sesjonHentetFor = null })
+registerReset(() => { session.value = null; stints.value = []; statusByMatch.value = {}; sesjonHentetFor = null; oppstiltByMatch.value = {}; statusSesonger.value = {} })
+
+// Husk om laget er satt opp for kampene i `par` ([matchId, lineup]).
+// lineup null = ingen sesjon, altså ikke satt opp.
+function huskOppstilt(par) {
+  let neste = null
+  for (const [matchId, lineup] of par) {
+    const ja = harOppstilling(lineup)
+    if ((neste || oppstiltByMatch.value)[matchId] === ja) continue
+    neste = neste || { ...oppstiltByMatch.value }
+    neste[matchId] = ja
+  }
+  if (neste) oppstiltByMatch.value = neste
+}
 
 function husk(matchId, status) {
   if ((statusByMatch.value[matchId] ?? null) === (status ?? null)) return
@@ -41,7 +65,11 @@ function husk(matchId, status) {
 }
 // Kampmodus endrer sesjonen underveis (start, slutt). Kartet følger med, så
 // kampsida viser riktig fase når du går tilbake dit.
-watch(session, s => { if (s?.match_id) husk(s.match_id, s.status) })
+watch(session, s => {
+  if (!s?.match_id) return
+  husk(s.match_id, s.status)
+  huskOppstilt([[s.match_id, s.lineup]])
+})
 
 // Ref-tellet 1s-intervall — kun for å redrive currentClock i UI.
 let tickTimer = null
@@ -109,6 +137,7 @@ function applyState(matchId, st) {
   if (st.now) serverOffset.value = Date.parse(st.now) - Date.now()
   session.value = st.session || null
   sesjonHentetFor = matchId
+  huskOppstilt([[matchId, st.session?.lineup || null]])
   stints.value = stints.value.filter(s => s.match_id !== matchId).concat(medVentendeBytter(matchId, st.stints || []))
   remote.value = { matchId, score: medVentendeMaal(matchId, st.score || null), goals: medVentendeMal(matchId, st.goals || []) }
 }
@@ -252,11 +281,15 @@ async function optimistisk(matchId, gjett, fn, args) {
 // Kampstatusene (lista) og periodene (Statistikk) for ÉN sesong, ferske i
 // 30 s. Før gjaldt begge hele kullet, alle sesonger. Kampmodus selv går
 // utenom: der er det mm_tilstand og fetchStints(matchId) som gjelder.
-const statuserFersk = sesongHenter('match_sessions', 'match_id, status', 'mmStatus', (rader, kampIder) => {
+// Oppstillingen er med, så kampsida vet om laget er satt opp før den har
+// hentet noe selv. Den er liten: plassene og første bytte.
+const statuserFersk = sesongHenter('match_sessions', 'match_id, status, lineup', 'mmStatus', (rader, kampIder) => {
   const neste = { ...statusByMatch.value }
   for (const id of kampIder) delete neste[id]
   for (const r of rader) neste[r.match_id] = r.status
   statusByMatch.value = neste
+  const lineupFor = new Map(rader.map(r => [r.match_id, r.lineup]))
+  huskOppstilt([...kampIder].map(id => [id, lineupFor.get(id) || null]))
 })
 
 // Bare kolonnene statistikken og spilletida leser — ikke cohort_id/created_at.
@@ -276,6 +309,7 @@ export function useMatchMode() {
         session.value = DEMO_SESSIONS[matchId] ? { ...DEMO_SESSIONS[matchId] } : null
       }
       sesjonHentetFor = matchId
+      huskOppstilt([[matchId, session.value?.lineup || null]])
       return session.value
     }
     const { data, error } = await supabase
@@ -289,7 +323,18 @@ export function useMatchMode() {
     session.value = data || null
     sesjonHentetFor = matchId
     husk(matchId, data?.status)
+    huskOppstilt([[matchId, data?.lineup || null]])
     return session.value
+  }
+
+  // Er laget satt opp? true/false, eller undefined når vi ikke vet det ennå.
+  // Den hentede sesjonen vinner; så det vi husker; så sesongens sesjonsliste.
+  function oppstillingFor(matchId, seasonId = null) {
+    if (!matchId) return undefined
+    if (session.value?.match_id === matchId) return harOppstilling(session.value.lineup)
+    const kjent = oppstiltByMatch.value[matchId]
+    if (kjent !== undefined) return kjent
+    return seasonId && statusSesonger.value[seasonId] ? false : undefined
   }
 
   // Bare to kolonner, for sesongens kamper. Billig nok til å kjøres hver
@@ -297,9 +342,13 @@ export function useMatchMode() {
   async function fetchSessionStatuses(seasonId) {
     if (!isSupabaseConfigured) {
       statusByMatch.value = Object.fromEntries(Object.values(DEMO_SESSIONS).map(s => [s.match_id, s.status]))
+      huskOppstilt(Object.values(DEMO_SESSIONS).map(s => [s.match_id, s.lineup]))
+      statusSesonger.value = { ...statusSesonger.value, [seasonId]: true }
       return statusByMatch.value
     }
-    await statuserFersk(seasonId)
+    if (await statuserFersk(seasonId) === true && !statusSesonger.value[seasonId]) {
+      statusSesonger.value = { ...statusSesonger.value, [seasonId]: true }
+    }
     return statusByMatch.value
   }
 
@@ -670,6 +719,7 @@ export function useMatchMode() {
     if (!isSupabaseConfigured) {
       stints.value = stints.value.filter(s => s.match_id !== matchId)
       if (session.value?.match_id === matchId) session.value = null
+      husk(matchId, null); huskOppstilt([[matchId, null]])
       return
     }
     // blindskriving: nullstiller en kamp. Er den aldri startet, finnes verken
@@ -683,6 +733,8 @@ export function useMatchMode() {
     if (sesjonRes.error) throw sesjonRes.error
     stints.value = stints.value.filter(s => s.match_id !== matchId)
     if (session.value?.match_id === matchId) session.value = null
+    // Sesjonen er borte: kampen er verken startet eller satt opp lenger.
+    husk(matchId, null); huskOppstilt([[matchId, null]])
   }
 
   // ── Etterjustering ──────────────────────────────────────────────────────────
@@ -805,6 +857,7 @@ export function useMatchMode() {
 
   return {
     sesjonKjent: matchId => sesjonHentetFor === matchId,
+    oppstillingFor, huskOppstilt,
     remote, syncState, changeScore,
     session, stints, statusByMatch, currentClock, isRunning,
     now, serverOffset,
